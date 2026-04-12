@@ -251,8 +251,12 @@ app.get('/api/metrics', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error:', error.response?.status, error.message);
-    res.status(500).json({ error: error.message });
+    console.error('Full error:', {
+      status: error.response?.status,
+      message: error.message,
+      data: error.response?.data
+    });
+    res.status(500).json({ error: error.message, details: error.response?.data });
   }
 });
 
