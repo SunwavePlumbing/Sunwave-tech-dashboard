@@ -19,27 +19,40 @@ app.get('/', (req, res) => {
     .header { background: #0D7A7D; color: white; padding: 1.5rem 1rem; text-align: center; }
     .header h1 { font-size: 28px; font-weight: 600; margin: 0 0 0.5rem 0; }
     .header p { margin: 0; font-size: 13px; opacity: 0.9; }
-    .container { padding: 0 1rem; max-width: 600px; margin: 0 auto; }
-    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin: 1rem 0; }
+    .main-wrapper { display: grid; grid-template-columns: 180px 1fr; min-height: calc(100vh - 120px); gap: 0; }
+    .sidebar { background: white; padding: 1.5rem 1rem; border-right: 1px solid #eee; overflow-y: auto; }
+    .date-btn { display: block; width: 100%; padding: 10px 12px; font-size: 13px; border: none; background: transparent; color: #333; cursor: pointer; text-align: left; border-radius: 4px; margin-bottom: 4px; transition: all 0.2s; }
+    .date-btn:hover { background: #f0f0f0; }
+    .date-btn.active { background: #0D7A7D; color: white; font-weight: 600; }
+    .content { padding: 1.5rem; max-width: 900px; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 1.5rem; }
     .stat-card { background: white; padding: 1rem; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align: center; }
     .stat-card p:first-child { font-size: 12px; color: #666; text-transform: uppercase; font-weight: 600; margin-bottom: 8px; }
     .stat-card p:last-child { font-size: 24px; font-weight: 700; color: #0D7A7D; margin: 0; }
-    .filter-section { display: flex; flex-direction: column; gap: 1rem; margin: 1rem 0; }
-    .filter-label { font-size: 12px; color: #666; text-transform: uppercase; font-weight: 600; }
-    .filters { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; }
-    .filter-btn { padding: 8px 16px; font-size: 13px; border: none; border-radius: 20px; background: white; color: #333; cursor: pointer; white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: all 0.2s; }
-    .filter-btn.active { background: #0D7A7D; color: white; font-weight: 600; }
-    .leaderboard { padding: 0 0 2rem 0; }
-    .tech-row { background: white; padding: 1rem; margin-bottom: 10px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 12px; }
-    .rank { min-width: 40px; text-align: center; font-size: 16px; font-weight: 700; color: #0D7A7D; }
+    .sort-section { margin-bottom: 1.5rem; }
+    .section-label { font-size: 12px; color: #666; text-transform: uppercase; font-weight: 600; margin-bottom: 10px; display: block; }
+    .sort-filters { display: flex; gap: 8px; flex-wrap: wrap; }
+    .sort-btn { padding: 8px 14px; font-size: 13px; border: none; border-radius: 20px; background: white; color: #333; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: all 0.2s; white-space: nowrap; }
+    .sort-btn:hover { background: #f0f0f0; }
+    .sort-btn.active { background: #0D7A7D; color: white; font-weight: 600; }
+    .leaderboard { background: white; border-radius: 8px; padding: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .tech-row { padding: 1rem; margin-bottom: 8px; border-radius: 6px; background: #fafafa; display: flex; align-items: center; gap: 12px; }
+    .tech-row:last-child { margin-bottom: 0; }
+    .rank { min-width: 35px; text-align: center; font-size: 18px; font-weight: 700; color: #0D7A7D; }
     .tech-info { flex: 1; }
-    .tech-name { font-size: 15px; font-weight: 600; color: #333; margin: 0; }
+    .tech-name { font-size: 14px; font-weight: 600; color: #333; margin: 0; }
     .tech-stats { font-size: 12px; color: #999; margin: 4px 0 0 0; }
     .revenue { text-align: right; }
     .revenue p { font-size: 16px; font-weight: 700; color: #0D7A7D; margin: 0; }
     .loading { text-align: center; padding: 2rem; color: #666; }
     .error { background: #ffebee; color: #c62828; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
-    .footer { text-align: center; font-size: 11px; color: #999; padding: 1rem; background: white; border-top: 1px solid #eee; }
+    .footer { text-align: center; font-size: 11px; color: #999; padding: 1rem; }
+    @media (max-width: 768px) {
+      .main-wrapper { grid-template-columns: 1fr; }
+      .sidebar { border-right: none; border-bottom: 1px solid #eee; padding: 1rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px; }
+      .date-btn { margin-bottom: 0; }
+      .content { padding: 1rem; }
+    }
   </style>
 </head>
 <body>
@@ -47,29 +60,24 @@ app.get('/', (req, res) => {
     <h1>Sunwave Performance</h1>
     <p id="period">Loading...</p>
   </div>
-  <div class="container">
-    <div class="stats" id="stats">
-      <div class="stat-card"><p>Total Revenue</p><p>$0</p></div>
-      <div class="stat-card"><p>Avg Ticket</p><p>$0</p></div>
-      <div class="stat-card"><p>Total Jobs</p><p>0</p></div>
-    </div>
-    <div class="filter-section">
-      <div class="filter-label">Time Period</div>
-      <div class="filters" id="timeFilters">
-        <button class="filter-btn" data-range="day">Today</button>
-        <button class="filter-btn" data-range="week">This Week</button>
-        <button class="filter-btn active" data-range="month">This Month</button>
+  <div class="main-wrapper">
+    <div class="sidebar" id="dateSidebar"></div>
+    <div class="content">
+      <div class="stats" id="stats">
+        <div class="stat-card"><p>Total Revenue</p><p>$0</p></div>
+        <div class="stat-card"><p>Avg Ticket</p><p>$0</p></div>
+        <div class="stat-card"><p>Total Jobs</p><p>0</p></div>
       </div>
-    </div>
-    <div class="filter-section">
-      <div class="filter-label">Sort By</div>
-      <div class="filters" id="sortFilters">
-        <button class="filter-btn active" data-sort="revenue">Revenue</button>
-        <button class="filter-btn" data-sort="ticket">Avg Ticket</button>
-        <button class="filter-btn" data-sort="jobs">Jobs</button>
+      <div class="sort-section">
+        <label class="section-label">Sort By</label>
+        <div class="sort-filters" id="sortFilters">
+          <button class="sort-btn active" data-sort="revenue">Revenue</button>
+          <button class="sort-btn" data-sort="ticket">Avg Ticket</button>
+          <button class="sort-btn" data-sort="jobs">Jobs</button>
+        </div>
       </div>
+      <div class="leaderboard" id="leaderboard"></div>
     </div>
-    <div class="leaderboard" id="leaderboard"></div>
   </div>
   <div class="footer">
     Updates every 5 minutes • Last updated: <span id="lastUpdate">Never</span>
@@ -80,23 +88,163 @@ app.get('/', (req, res) => {
     let currentSort = 'revenue';
     let currentTimeRange = 'month';
 
-    document.querySelectorAll('#timeFilters .filter-btn').forEach(btn => {
+    const dateRanges = [
+      { label: 'Today', key: 'day' },
+      { label: 'Yesterday', key: 'yesterday' },
+      { label: 'This Week', key: 'week' },
+      { label: 'Week to Date', key: 'wtd' },
+      { label: 'Last 7 Days', key: 'l7d' },
+      { label: 'Last 14 Days', key: 'l14d' },
+      { label: 'Last 30 Days', key: 'l30d' },
+      { label: 'Month to Date', key: 'mtd' },
+      { label: 'Last Month', key: 'lm' },
+      { label: 'Last 90 Days', key: 'l90d' },
+      { label: 'This Quarter', key: 'qtd' },
+      { label: 'Last Quarter', key: 'lq' },
+      { label: 'Quarter to Date', key: 'q2d' },
+      { label: 'Year to Date', key: 'ytd' },
+      { label: 'Last 365 Days', key: 'l365d' },
+      { label: 'Last Year', key: 'ly' }
+    ];
+
+    // Build sidebar
+    const sidebar = document.getElementById('dateSidebar');
+    dateRanges.forEach(range => {
+      const btn = document.createElement('button');
+      btn.className = 'date-btn' + (range.key === 'month' ? ' active' : '');
+      btn.textContent = range.label;
+      btn.dataset.range = range.key;
       btn.addEventListener('click', function() {
         currentTimeRange = this.dataset.range;
-        document.querySelectorAll('#timeFilters .filter-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.date-btn').forEach(b => b.classList.remove('active'));
         this.classList.add('active');
         fetchData();
       });
+      sidebar.appendChild(btn);
     });
 
-    document.querySelectorAll('#sortFilters .filter-btn').forEach(btn => {
+    document.querySelectorAll('.sort-btn').forEach(btn => {
       btn.addEventListener('click', function() {
         currentSort = this.dataset.sort;
-        document.querySelectorAll('#sortFilters .filter-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
         this.classList.add('active');
         render();
       });
     });
+
+    function getDateRange(range) {
+      const now = new Date();
+      let start, end, label;
+
+      const getDayStart = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const getDayEnd = (d) => { const e = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1); return e; };
+
+      switch(range) {
+        case 'day':
+          start = getDayStart(now);
+          end = getDayEnd(now);
+          label = 'Today';
+          break;
+        case 'yesterday':
+          const yesterday = new Date(now);
+          yesterday.setDate(yesterday.getDate() - 1);
+          start = getDayStart(yesterday);
+          end = getDayEnd(yesterday);
+          label = 'Yesterday';
+          break;
+        case 'week':
+          start = new Date(now);
+          start.setDate(now.getDate() - now.getDay());
+          end = new Date(start);
+          end.setDate(end.getDate() + 7);
+          label = 'This Week';
+          break;
+        case 'wtd':
+          start = new Date(now);
+          start.setDate(now.getDate() - now.getDay());
+          end = getDayEnd(now);
+          label = 'Week to Date';
+          break;
+        case 'l7d':
+          start = new Date(now);
+          start.setDate(now.getDate() - 7);
+          end = getDayEnd(now);
+          label = 'Last 7 Days';
+          break;
+        case 'l14d':
+          start = new Date(now);
+          start.setDate(now.getDate() - 14);
+          end = getDayEnd(now);
+          label = 'Last 14 Days';
+          break;
+        case 'l30d':
+          start = new Date(now);
+          start.setDate(now.getDate() - 30);
+          end = getDayEnd(now);
+          label = 'Last 30 Days';
+          break;
+        case 'mtd':
+          start = new Date(now.getFullYear(), now.getMonth(), 1);
+          end = getDayEnd(now);
+          label = 'Month to Date';
+          break;
+        case 'lm':
+          const lastMonth = new Date(now);
+          lastMonth.setMonth(lastMonth.getMonth() - 1);
+          start = new Date(lastMonth.getFullYear(), lastMonth.getMonth(), 1);
+          end = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 1);
+          label = 'Last Month';
+          break;
+        case 'l90d':
+          start = new Date(now);
+          start.setDate(now.getDate() - 90);
+          end = getDayEnd(now);
+          label = 'Last 90 Days';
+          break;
+        case 'qtd':
+          const quarter = Math.floor(now.getMonth() / 3);
+          start = new Date(now.getFullYear(), quarter * 3, 1);
+          end = getDayEnd(now);
+          label = 'Quarter to Date';
+          break;
+        case 'lq':
+          const lastQuarter = Math.floor(now.getMonth() / 3) - 1;
+          start = new Date(now.getFullYear(), lastQuarter * 3, 1);
+          end = new Date(now.getFullYear(), (lastQuarter + 1) * 3, 1);
+          label = 'Last Quarter';
+          break;
+        case 'q2d':
+          const q = Math.floor(now.getMonth() / 3);
+          start = new Date(now.getFullYear(), q * 3, 1);
+          end = getDayEnd(now);
+          label = 'Quarter to Date';
+          break;
+        case 'ytd':
+          start = new Date(now.getFullYear(), 0, 1);
+          end = getDayEnd(now);
+          label = 'Year to Date';
+          break;
+        case 'l365d':
+          start = new Date(now);
+          start.setDate(now.getDate() - 365);
+          end = getDayEnd(now);
+          label = 'Last 365 Days';
+          break;
+        case 'ly':
+          const lastYear = new Date(now);
+          lastYear.setFullYear(lastYear.getFullYear() - 1);
+          start = new Date(lastYear.getFullYear(), 0, 1);
+          end = new Date(lastYear.getFullYear(), 11, 31);
+          label = 'Last Year';
+          break;
+        default:
+          start = new Date(now.getFullYear(), now.getMonth(), 1);
+          end = getDayEnd(now);
+          label = 'This Month';
+      }
+
+      return { start, end, label };
+    }
 
     async function fetchData() {
       try {
@@ -105,7 +253,7 @@ app.get('/', (req, res) => {
         currentData = data;
         render();
       } catch (error) {
-        document.getElementById('leaderboard').innerHTML = '<div class="error">Error loading data.</div>';
+        document.getElementById('leaderboard').innerHTML = '<div class="error">Error loading data. Check API key.</div>';
       }
     }
 
@@ -166,21 +314,86 @@ app.get('/api/metrics', async (req, res) => {
     const now = new Date();
     let periodStart, periodEnd, periodLabel;
 
-    if (range === 'day') {
-      periodStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      periodEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-      periodLabel = now.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
-    } else if (range === 'week') {
-      const startOfWeek = new Date(now);
-      startOfWeek.setDate(now.getDate() - now.getDay());
-      periodStart = startOfWeek;
-      periodEnd = new Date(startOfWeek);
-      periodEnd.setDate(periodEnd.getDate() + 7);
-      periodLabel = 'Week of ' + periodStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    } else {
-      periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      periodLabel = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const getDayStart = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const getDayEnd = (d) => { const e = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1); return e; };
+
+    switch(range) {
+      case 'day':
+        periodStart = getDayStart(now);
+        periodEnd = getDayEnd(now);
+        periodLabel = 'Today';
+        break;
+      case 'yesterday':
+        const yesterday = new Date(now);
+        yesterday.setDate(yesterday.getDate() - 1);
+        periodStart = getDayStart(yesterday);
+        periodEnd = getDayEnd(yesterday);
+        periodLabel = 'Yesterday';
+        break;
+      case 'week':
+        periodStart = new Date(now);
+        periodStart.setDate(now.getDate() - now.getDay());
+        periodEnd = new Date(periodStart);
+        periodEnd.setDate(periodEnd.getDate() + 7);
+        periodLabel = 'This Week';
+        break;
+      case 'wtd':
+        periodStart = new Date(now);
+        periodStart.setDate(now.getDate() - now.getDay());
+        periodEnd = getDayEnd(now);
+        periodLabel = 'Week to Date';
+        break;
+      case 'l7d':
+        periodStart = new Date(now);
+        periodStart.setDate(now.getDate() - 7);
+        periodEnd = getDayEnd(now);
+        periodLabel = 'Last 7 Days';
+        break;
+      case 'l14d':
+        periodStart = new Date(now);
+        periodStart.setDate(now.getDate() - 14);
+        periodEnd = getDayEnd(now);
+        periodLabel = 'Last 14 Days';
+        break;
+      case 'l30d':
+        periodStart = new Date(now);
+        periodStart.setDate(now.getDate() - 30);
+        periodEnd = getDayEnd(now);
+        periodLabel = 'Last 30 Days';
+        break;
+      case 'mtd':
+        periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        periodEnd = getDayEnd(now);
+        periodLabel = 'Month to Date';
+        break;
+      case 'lm':
+        const lastMonth = new Date(now);
+        lastMonth.setMonth(lastMonth.getMonth() - 1);
+        periodStart = new Date(lastMonth.getFullYear(), lastMonth.getMonth(), 1);
+        periodEnd = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 1);
+        periodLabel = 'Last Month';
+        break;
+      case 'l90d':
+        periodStart = new Date(now);
+        periodStart.setDate(now.getDate() - 90);
+        periodEnd = getDayEnd(now);
+        periodLabel = 'Last 90 Days';
+        break;
+      case 'ytd':
+        periodStart = new Date(now.getFullYear(), 0, 1);
+        periodEnd = getDayEnd(now);
+        periodLabel = 'Year to Date';
+        break;
+      case 'l365d':
+        periodStart = new Date(now);
+        periodStart.setDate(now.getDate() - 365);
+        periodEnd = getDayEnd(now);
+        periodLabel = 'Last 365 Days';
+        break;
+      default:
+        periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        periodEnd = getDayEnd(now);
+        periodLabel = 'This Month';
     }
 
     const headers = {
