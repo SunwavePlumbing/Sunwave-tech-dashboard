@@ -1,0 +1,17 @@
+{
+  "name": "sunwave-tech-dashboard",
+  "version": "1.0.0",
+  "description": "Real-time tech performance dashboard for Housecall Pro",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "axios": "^1.6.0"
+  },
+  "engines": {
+    "node": "18"
+  }
+}
