@@ -4,6 +4,7 @@ const app = express();
 
 const API_KEY = process.env.HOUSECALL_PRO_API_KEY;
 const PORT = process.env.PORT || 3000;
+const BASE_URL = 'https://api.housecallpro.com/v1';
 
 app.get('/', (req, res) => {
   const html = `<!DOCTYPE html>
@@ -55,9 +56,9 @@ app.get('/', (req, res) => {
     <div class="filter-section">
       <div class="filter-label">Time Period</div>
       <div class="filters" id="timeFilters">
-        <button class="filter-btn active" data-range="day">Today</button>
+        <button class="filter-btn" data-range="day">Today</button>
         <button class="filter-btn" data-range="week">This Week</button>
-        <button class="filter-btn" data-range="month">This Month</button>
+        <button class="filter-btn active" data-range="month">This Month</button>
       </div>
     </div>
     <div class="filter-section">
@@ -182,39 +183,38 @@ app.get('/api/metrics', async (req, res) => {
       periodLabel = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     }
 
-    const staffRes = await axios.get('https://api.housecallpro.com/v1/staff', {
-      headers: {
-        'Authorization': 'Bearer ' + API_KEY,
-        'Content-Type': 'application/json'
-      }
-    });
+    const headers = {
+      'Authorization': API_KEY,
+      'Content-Type': 'application/json'
+    };
 
-    const staff = staffRes.data.data || [];
+    console.log('Fetching employees...');
+    const employeesRes = await axios.get(BASE_URL + '/employees', { headers });
+    const employees = employeesRes.data.employees || employeesRes.data.data || [];
+    console.log('Got employees:', employees.length);
 
-    const jobsRes = await axios.get('https://api.housecallpro.com/v1/jobs', {
-      headers: {
-        'Authorization': 'Bearer ' + API_KEY,
-        'Content-Type': 'application/json'
-      },
+    console.log('Fetching jobs...');
+    const jobsRes = await axios.get(BASE_URL + '/jobs', { 
+      headers,
       params: {
         status: 'completed',
-        created_after: periodStart.toISOString(),
-        created_before: periodEnd.toISOString()
+        start_date: periodStart.toISOString().split('T')[0],
+        end_date: periodEnd.toISOString().split('T')[0]
       }
     });
-
-    const jobs = jobsRes.data.data || [];
+    const jobs = jobsRes.data.jobs || jobsRes.data.data || [];
+    console.log('Got jobs:', jobs.length);
 
     const techMetrics = {};
     jobs.forEach(job => {
-      const techId = job.assigned_staff_id || job.technician_id;
+      const techId = job.assigned_employee_id || job.employee_id || job.assigned_staff_id;
       if (!techId) return;
 
       if (!techMetrics[techId]) {
-        const techInfo = staff.find(s => s.id === techId);
+        const techInfo = employees.find(e => e.id === techId);
         techMetrics[techId] = {
           id: techId,
-          name: techInfo ? techInfo.name : 'Unknown',
+          name: techInfo ? (techInfo.name || techInfo.first_name + ' ' + techInfo.last_name) : 'Unknown',
           revenue: 0,
           jobs: 0
         };
@@ -250,8 +250,8 @@ app.get('/api/metrics', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error:', error.message);
-    res.status(500).json({ error: error.message });
+    console.error('Error:', error.response?.status, error.message);
+    res.status(500).json({ error: error.message || 'API error' });
   }
 });
 
