@@ -184,7 +184,7 @@ app.get('/api/metrics', async (req, res) => {
     }
 
     const headers = {
-      'Authorization': API_KEY,
+      'Authorization': 'Token ' + API_KEY,
       'Accept': 'application/json'
     };
 
