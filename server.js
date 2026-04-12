@@ -16,34 +16,34 @@ app.get('/', (req, res) => {
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #fafafa; }
-    .header { background: #0D7A7D; color: white; padding: 1.5rem 1rem; text-align: center; }
+    .header { background: #1a2d3a; color: white; padding: 1.5rem 1rem; text-align: center; }
     .header h1 { font-size: 28px; font-weight: 600; margin: 0 0 0.5rem 0; }
     .header p { margin: 0; font-size: 13px; opacity: 0.9; }
     .main-wrapper { display: grid; grid-template-columns: 180px 1fr; min-height: calc(100vh - 120px); gap: 0; }
     .sidebar { background: white; padding: 1.5rem 1rem; border-right: 1px solid #eee; overflow-y: auto; }
     .date-btn { display: block; width: 100%; padding: 10px 12px; font-size: 13px; border: none; background: transparent; color: #333; cursor: pointer; text-align: left; border-radius: 4px; margin-bottom: 4px; transition: all 0.2s; }
     .date-btn:hover { background: #f0f0f0; }
-    .date-btn.active { background: #0D7A7D; color: white; font-weight: 600; }
+    .date-btn.active { background: #FF9500; color: white; font-weight: 600; }
     .content { padding: 1.5rem; max-width: 900px; }
     .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 1.5rem; }
     .stat-card { background: white; padding: 1rem; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align: center; }
     .stat-card p:first-child { font-size: 12px; color: #666; text-transform: uppercase; font-weight: 600; margin-bottom: 8px; }
-    .stat-card p:last-child { font-size: 24px; font-weight: 700; color: #0D7A7D; margin: 0; }
+    .stat-card p:last-child { font-size: 24px; font-weight: 700; color: #FF9500; margin: 0; }
     .sort-section { margin-bottom: 1.5rem; }
     .section-label { font-size: 12px; color: #666; text-transform: uppercase; font-weight: 600; margin-bottom: 10px; display: block; }
     .sort-filters { display: flex; gap: 8px; flex-wrap: wrap; }
     .sort-btn { padding: 8px 14px; font-size: 13px; border: none; border-radius: 20px; background: white; color: #333; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: all 0.2s; white-space: nowrap; }
     .sort-btn:hover { background: #f0f0f0; }
-    .sort-btn.active { background: #0D7A7D; color: white; font-weight: 600; }
+    .sort-btn.active { background: #FF9500; color: white; font-weight: 600; }
     .leaderboard { background: white; border-radius: 8px; padding: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
     .tech-row { padding: 1rem; margin-bottom: 8px; border-radius: 6px; background: #fafafa; display: flex; align-items: center; gap: 12px; }
     .tech-row:last-child { margin-bottom: 0; }
-    .rank { min-width: 35px; text-align: center; font-size: 18px; font-weight: 700; color: #0D7A7D; }
+    .rank { min-width: 35px; text-align: center; font-size: 18px; font-weight: 700; color: #FF9500; }
     .tech-info { flex: 1; }
     .tech-name { font-size: 14px; font-weight: 600; color: #333; margin: 0; }
     .tech-stats { font-size: 12px; color: #999; margin: 4px 0 0 0; }
     .revenue { text-align: right; }
-    .revenue p { font-size: 16px; font-weight: 700; color: #0D7A7D; margin: 0; }
+    .revenue p { font-size: 16px; font-weight: 700; color: #FF9500; margin: 0; }
     .loading { text-align: center; padding: 2rem; color: #666; }
     .error { background: #ffebee; color: #c62828; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
     .footer { text-align: center; font-size: 11px; color: #999; padding: 1rem; }
