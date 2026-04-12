@@ -4,7 +4,7 @@ const app = express();
 
 const API_KEY = process.env.HOUSECALL_PRO_API_KEY;
 const PORT = process.env.PORT || 3000;
-const BASE_URL = 'https://api.housecallpro.com/v1';
+const BASE_URL = 'https://api.housecallpro.com';
 
 app.get('/', (req, res) => {
   const html = `<!DOCTYPE html>
@@ -105,7 +105,7 @@ app.get('/', (req, res) => {
         currentData = data;
         render();
       } catch (error) {
-        document.getElementById('leaderboard').innerHTML = '<div class="error">Error loading data. Check API key.</div>';
+        document.getElementById('leaderboard').innerHTML = '<div class="error">Error loading data.</div>';
       }
     }
 
@@ -185,15 +185,15 @@ app.get('/api/metrics', async (req, res) => {
 
     const headers = {
       'Authorization': API_KEY,
-      'Content-Type': 'application/json'
+      'Accept': 'application/json'
     };
 
-    console.log('Fetching employees...');
+    console.log('Fetching employees from: ' + BASE_URL + '/employees');
     const employeesRes = await axios.get(BASE_URL + '/employees', { headers });
-    const employees = employeesRes.data.employees || employeesRes.data.data || [];
-    console.log('Got employees:', employees.length);
+    const employees = employeesRes.data.employees || [];
+    console.log('Got ' + employees.length + ' employees');
 
-    console.log('Fetching jobs...');
+    console.log('Fetching jobs from: ' + BASE_URL + '/jobs');
     const jobsRes = await axios.get(BASE_URL + '/jobs', { 
       headers,
       params: {
@@ -202,19 +202,20 @@ app.get('/api/metrics', async (req, res) => {
         end_date: periodEnd.toISOString().split('T')[0]
       }
     });
-    const jobs = jobsRes.data.jobs || jobsRes.data.data || [];
-    console.log('Got jobs:', jobs.length);
+    const jobs = jobsRes.data.jobs || [];
+    console.log('Got ' + jobs.length + ' jobs');
 
     const techMetrics = {};
     jobs.forEach(job => {
-      const techId = job.assigned_employee_id || job.employee_id || job.assigned_staff_id;
+      const techId = job.assigned_employee_id || job.employee_id;
       if (!techId) return;
 
       if (!techMetrics[techId]) {
         const techInfo = employees.find(e => e.id === techId);
+        const techName = techInfo ? (techInfo.first_name + ' ' + techInfo.last_name) : 'Unknown';
         techMetrics[techId] = {
           id: techId,
-          name: techInfo ? (techInfo.name || techInfo.first_name + ' ' + techInfo.last_name) : 'Unknown',
+          name: techName,
           revenue: 0,
           jobs: 0
         };
@@ -251,7 +252,7 @@ app.get('/api/metrics', async (req, res) => {
 
   } catch (error) {
     console.error('Error:', error.response?.status, error.message);
-    res.status(500).json({ error: error.message || 'API error' });
+    res.status(500).json({ error: error.message });
   }
 });
 
