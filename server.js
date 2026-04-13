@@ -118,8 +118,12 @@ app.get('/', (req, res) => {
       .stat-card { padding: 0.7rem 0.4rem; }
       .stat-label { font-size: 10px; }
       .stat-value { font-size: 18px; }
-      .table-wrapper { border-radius: 8px; }
-      thead th, tbody td, tfoot td { padding: 10px 10px; font-size: 13px; }
+      .table-wrapper { border-radius: 8px; overflow-x: auto; }
+      .avatar { width: 28px; height: 28px; font-size: 10px; border-radius: 6px; }
+      thead th, tbody td, tfoot td { padding: 9px 8px; font-size: 12px; }
+      tbody td:first-child, thead th:first-child { padding-left: 10px; }
+      .tech-cell { gap: 7px; }
+      .tech-name-label { font-size: 12px; }
       /* Modal becomes a bottom sheet on mobile */
       .modal-backdrop { align-items: flex-end; }
       .modal { border-radius: 20px 20px 0 0; width: 100%; max-width: 100%; max-height: 88vh; }
@@ -137,6 +141,53 @@ app.get('/', (req, res) => {
       .job-card-meta { font-size: 12px; color: #aaa; display: flex; align-items: center; gap: 6px; }
     }
     @media (min-width: 769px) { .modal-cards { display: none; } }
+
+    /* Tab navigation */
+    .tab-nav { display: flex; gap: 0; border-bottom: 2px solid #f0f0f0; margin-bottom: 1.2rem; }
+    .tab-btn { padding: 10px 20px; font-size: 14px; font-weight: 600; background: none; border: none; color: #aaa; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; transition: all 0.15s; letter-spacing: 0.2px; }
+    .tab-btn:hover { color: #555; }
+    .tab-btn.active { color: #FF9500; border-bottom-color: #FF9500; }
+    .view-panel { display: none; }
+    .view-panel.active { display: block; }
+
+    /* Marketing view */
+    .proj-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
+    .proj-card { background: white; padding: 1.1rem 1rem; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); text-align: center; }
+    .proj-card-label { font-size: 11px; color: #888; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .proj-card-value { font-size: 26px; font-weight: 700; color: #FF9500; }
+    .proj-card-sub { font-size: 11px; color: #bbb; margin-top: 4px; }
+    .progress-wrap { background: white; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 1.1rem 1.2rem; margin-bottom: 1.5rem; }
+    .progress-label-row { display: flex; justify-content: space-between; font-size: 12px; color: #888; margin-bottom: 8px; font-weight: 500; }
+    .progress-bar-bg { background: #f0f0f0; border-radius: 8px; height: 10px; overflow: hidden; }
+    .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #FF9500, #FF6B35); border-radius: 8px; transition: width 0.5s ease; }
+    .section-title { font-size: 12px; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.75rem; }
+    .bar-chart-card { background: white; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 1.2rem 1.4rem 0.8rem; margin-bottom: 1.5rem; }
+    .bar-chart { display: flex; align-items: flex-end; gap: 6px; height: 130px; margin-bottom: 0; }
+    .bar-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; flex: 1; min-width: 0; }
+    .bar { width: 100%; background: #FF9500; border-radius: 4px 4px 0 0; min-height: 3px; }
+    .bar.is-current { background: #FF6B35; }
+    .bar-val { font-size: 9px; color: #888; font-weight: 600; margin-bottom: 2px; line-height: 1; }
+    .bar-lbl { font-size: 9px; color: #bbb; margin-top: 5px; text-align: center; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mkt-table-card { background: white; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden; margin-bottom: 1.5rem; }
+    .mkt-table { width: 100%; border-collapse: collapse; }
+    .mkt-table thead th { padding: 11px 16px; font-size: 11px; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1px solid #f0f0f0; text-align: left; }
+    .mkt-table thead th:not(:first-child) { text-align: right; }
+    .mkt-table tbody td { padding: 12px 16px; font-size: 13px; border-bottom: 1px solid #f7f7f7; color: #444; }
+    .mkt-table tbody tr:last-child td { border-bottom: none; }
+    .mkt-table tbody td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
+    .mkt-table tfoot td { padding: 11px 16px; font-size: 12px; font-weight: 700; color: #555; border-top: 2px solid #f0f0f0; text-align: right; }
+    .mkt-table tfoot td:first-child { text-align: left; }
+    .delta { font-size: 11px; margin-left: 5px; }
+    .delta-up { color: #12A071; }
+    .delta-down { color: #E5484D; }
+    .mkt-row-current { background: #fffbf5; font-weight: 600; }
+    @media (max-width: 768px) {
+      .tab-btn { padding: 9px 14px; font-size: 13px; }
+      .bar-chart { gap: 3px; height: 90px; }
+      .bar-val { font-size: 8px; }
+      .bar-lbl { font-size: 8px; }
+      .mkt-table thead th, .mkt-table tbody td, .mkt-table tfoot td { padding: 9px 10px; font-size: 12px; }
+    }
   </style>
 </head>
 <body>
@@ -154,33 +205,49 @@ app.get('/', (req, res) => {
 <div class="main-wrapper">
   <div class="sidebar" id="dateSidebar"></div>
   <div class="content">
-    <div class="stats" id="stats">
-      <div class="stat-card"><div class="stat-label">Total Revenue</div><div class="stat-value">—</div></div>
-      <div class="stat-card"><div class="stat-label">Avg Ticket</div><div class="stat-value">—</div></div>
-      <div class="stat-card"><div class="stat-label">Total Jobs</div><div class="stat-value">—</div></div>
+    <!-- Tab navigation -->
+    <div class="tab-nav">
+      <button class="tab-btn active" data-tab="tech">Technicians</button>
+      <button class="tab-btn" data-tab="marketing">Marketing</button>
     </div>
-    <div class="sort-section">
-      <span class="sort-label">Sort:</span>
-      <button class="sort-btn active" data-sort="revenue">Revenue</button>
-      <button class="sort-btn" data-sort="ticket">Avg Ticket</button>
-      <button class="sort-btn" data-sort="jobs"># Jobs</button>
+
+    <!-- Technicians view -->
+    <div class="view-panel active" id="techView">
+      <div class="stats" id="stats">
+        <div class="stat-card"><div class="stat-label">Total Revenue</div><div class="stat-value">—</div></div>
+        <div class="stat-card"><div class="stat-label">Avg Ticket</div><div class="stat-value">—</div></div>
+        <div class="stat-card"><div class="stat-label">Total Jobs</div><div class="stat-value">—</div></div>
+      </div>
+      <div class="sort-section">
+        <span class="sort-label">Sort:</span>
+        <button class="sort-btn active" data-sort="revenue">Revenue</button>
+        <button class="sort-btn" data-sort="ticket">Avg Ticket</button>
+        <button class="sort-btn" data-sort="jobs"># Jobs</button>
+      </div>
+      <div class="table-wrapper" id="tableWrapper">
+        <div class="spinner"></div>
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Revenue</th>
+              <th>Avg Ticket</th>
+              <th># Jobs</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboardBody">
+            <tr><td colspan="4" style="padding:2rem;text-align:center;color:#aaa">Loading...</td></tr>
+          </tbody>
+          <tfoot id="leaderboardFoot"></tfoot>
+        </table>
+      </div>
     </div>
-    <div class="table-wrapper" id="tableWrapper">
-      <div class="spinner"></div>
-      <table>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Revenue</th>
-            <th>Avg Ticket</th>
-            <th># Jobs</th>
-          </tr>
-        </thead>
-        <tbody id="leaderboardBody">
-          <tr><td colspan="4" style="padding:2rem;text-align:center;color:#aaa">Loading...</td></tr>
-        </tbody>
-        <tfoot id="leaderboardFoot"></tfoot>
-      </table>
+
+    <!-- Marketing view -->
+    <div class="view-panel" id="marketingView">
+      <div id="marketingContent">
+        <div style="text-align:center;padding:3rem;color:#aaa;font-size:14px">Loading marketing data...</div>
+      </div>
     </div>
   </div>
 </div>
@@ -489,6 +556,118 @@ app.get('/', (req, res) => {
 
   fetchData();
   setInterval(fetchData, 5 * 60 * 1000);
+
+  // ── Tab navigation ──────────────────────────────────────────────
+  var marketingLoaded = false;
+  document.querySelectorAll('.tab-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var tab = this.dataset.tab;
+      document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+      this.classList.add('active');
+      document.querySelectorAll('.view-panel').forEach(function(p) { p.classList.remove('active'); });
+      if (tab === 'tech') {
+        document.getElementById('techView').classList.add('active');
+      } else if (tab === 'marketing') {
+        document.getElementById('marketingView').classList.add('active');
+        if (!marketingLoaded) { marketingLoaded = true; fetchMarketing(); }
+      }
+    });
+  });
+
+  // ── Marketing ───────────────────────────────────────────────────
+  var marketingData = null;
+
+  async function fetchMarketing() {
+    document.getElementById('marketingContent').innerHTML =
+      '<div style="text-align:center;padding:3rem;color:#aaa;font-size:14px">Loading marketing data\u2026</div>';
+    try {
+      var resp = await fetch('/api/marketing');
+      var data = await resp.json();
+      if (!resp.ok || data.error) {
+        document.getElementById('marketingContent').innerHTML =
+          '<div class="error-msg">Error: ' + esc(data.error || 'Unknown error') + '</div>';
+        return;
+      }
+      marketingData = data;
+      renderMarketing();
+    } catch(e) {
+      document.getElementById('marketingContent').innerHTML =
+        '<div class="error-msg">Error loading marketing data. Check server logs.</div>';
+    }
+  }
+
+  function renderMarketing() {
+    if (!marketingData) return;
+    var proj = marketingData.projection;
+    var history = marketingData.history; // array [{month, label, jobs, revenue, avgTicket}]
+
+    // Projection cards
+    var pct = proj.totalDays > 0 ? Math.min(Math.round(proj.jobsMtd / proj.projectedJobs * 100), 100) : 0;
+    var projHTML =
+      '<div class="proj-cards">' +
+        '<div class="proj-card"><div class="proj-card-label">Jobs This Month</div><div class="proj-card-value">' + proj.jobsMtd + '</div><div class="proj-card-sub">' + proj.daysElapsed + ' of ' + proj.totalDays + ' days</div></div>' +
+        '<div class="proj-card"><div class="proj-card-label">Projected Jobs</div><div class="proj-card-value">' + proj.projectedJobs + '</div><div class="proj-card-sub">by end of month</div></div>' +
+        '<div class="proj-card"><div class="proj-card-label">Daily Rate</div><div class="proj-card-value">' + proj.dailyRate.toFixed(1) + '</div><div class="proj-card-sub">jobs / day</div></div>' +
+        '<div class="proj-card"><div class="proj-card-label">Days Left</div><div class="proj-card-value">' + proj.daysLeft + '</div><div class="proj-card-sub">in the month</div></div>' +
+      '</div>' +
+      '<div class="progress-wrap">' +
+        '<div class="progress-label-row"><span>Month Progress</span><span>' + pct + '%</span></div>' +
+        '<div class="progress-bar-bg"><div class="progress-bar-fill" style="width:' + pct + '%"></div></div>' +
+      '</div>';
+
+    // Bar chart — last 12 months
+    var maxJobs = Math.max.apply(null, history.map(function(m) { return m.jobs; })) || 1;
+    var bars = history.map(function(m) {
+      var h = Math.round(m.jobs / maxJobs * 100);
+      var isCur = m.isCurrent ? ' is-current' : '';
+      return '<div class="bar-col">' +
+        '<div class="bar-val">' + (m.jobs > 0 ? m.jobs : '') + '</div>' +
+        '<div class="bar' + isCur + '" style="height:' + h + '%"></div>' +
+        '<div class="bar-lbl">' + esc(m.label) + '</div>' +
+      '</div>';
+    }).join('');
+
+    var chartHTML =
+      '<div class="section-title">Jobs Per Month</div>' +
+      '<div class="bar-chart-card"><div class="bar-chart">' + bars + '</div></div>';
+
+    // Monthly history table
+    var tableRows = history.slice().reverse().map(function(m, i, arr) {
+      var prev = arr[i + 1];
+      var deltaJobs = '';
+      if (prev && prev.jobs > 0) {
+        var diff = m.jobs - prev.jobs;
+        var pctD = Math.round(diff / prev.jobs * 100);
+        deltaJobs = diff > 0
+          ? '<span class="delta delta-up">+' + pctD + '%</span>'
+          : diff < 0
+          ? '<span class="delta delta-down">' + pctD + '%</span>'
+          : '<span class="delta" style="color:#bbb">—</span>';
+      }
+      var rowClass = m.isCurrent ? ' class="mkt-row-current"' : '';
+      return '<tr' + rowClass + '>' +
+        '<td>' + esc(m.fullLabel) + (m.isCurrent ? ' <span style="font-size:10px;color:#FF9500;font-weight:600">MTD</span>' : '') + '</td>' +
+        '<td>' + m.jobs + deltaJobs + '</td>' +
+        '<td>' + fmt(m.revenue) + '</td>' +
+        '<td>' + (m.jobs > 0 ? fmt(m.avgTicket) : '—') + '</td>' +
+        '</tr>';
+    }).join('');
+
+    // Totals for history table
+    var totalHistJobs = history.reduce(function(s,m){ return s + m.jobs; }, 0);
+    var totalHistRev = history.reduce(function(s,m){ return s + m.revenue; }, 0);
+    var avgHistTicket = totalHistJobs > 0 ? Math.round(totalHistRev / totalHistJobs) : 0;
+
+    var tableHTML =
+      '<div class="section-title">Monthly History</div>' +
+      '<div class="mkt-table-card"><table class="mkt-table">' +
+        '<thead><tr><th>Month</th><th># Jobs</th><th>Revenue</th><th>Avg Ticket</th></tr></thead>' +
+        '<tbody>' + tableRows + '</tbody>' +
+        '<tfoot><tr><td>12-Month Total</td><td>' + totalHistJobs + '</td><td>' + fmt(totalHistRev) + '</td><td>' + fmt(avgHistTicket) + '</td></tr></tfoot>' +
+      '</table></div>';
+
+    document.getElementById('marketingContent').innerHTML = projHTML + chartHTML + tableHTML;
+  }
 </script>
 </body>
 </html>`;
@@ -768,6 +947,93 @@ app.get('/api/metrics', async (req, res) => {
       message: error.message,
       data: error.response?.data
     });
+    res.status(500).json({ error: error.message, details: error.response?.data });
+  }
+});
+
+app.get('/api/marketing', async (req, res) => {
+  if (!API_KEY) {
+    return res.status(500).json({ error: 'API key not configured' });
+  }
+  try {
+    const headers = {
+      'Authorization': 'Token ' + API_KEY,
+      'Accept': 'application/json'
+    };
+
+    const now = new Date();
+    const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const MONTH_FULL  = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+    // Build 12 month buckets: [0] = 11 months ago, [11] = current month
+    const buckets = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const year = d.getFullYear();
+      const month = d.getMonth();
+      const isCurrent = (i === 0);
+      const start = new Date(year, month, 1);
+      const end   = isCurrent
+        ? new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1) // MTD
+        : new Date(year, month + 1, 1);
+      buckets.push({ year, month, isCurrent, start, end,
+        label: MONTH_NAMES[month],
+        fullLabel: MONTH_FULL[month] + ' ' + year
+      });
+    }
+
+    // Fetch all months in parallel (each is a single page_size=200 request — increase if needed)
+    const fetchMonth = async (bucket) => {
+      const allJobs = [];
+      let page = 1;
+      while (true) {
+        const r = await axios.get(BASE_URL + '/jobs', {
+          headers,
+          params: {
+            work_status: ['completed'],
+            scheduled_start_min: bucket.start.toISOString(),
+            scheduled_start_max: bucket.end.toISOString(),
+            page,
+            page_size: 200
+          }
+        });
+        const jobs = r.data.jobs || [];
+        allJobs.push(...jobs);
+        if (page >= (r.data.total_pages || 1)) break;
+        page++;
+      }
+      const revenue = allJobs.reduce((s, j) => s + parseFloat(j.total_amount || 0) / 100, 0);
+      return {
+        ...bucket,
+        jobs: allJobs.length,
+        revenue: Math.round(revenue),
+        avgTicket: allJobs.length > 0 ? Math.round(revenue / allJobs.length) : 0
+      };
+    };
+
+    const history = await Promise.all(buckets.map(fetchMonth));
+
+    // Projection for current month
+    const cur = history[history.length - 1];
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const daysElapsed = now.getDate();
+    const daysLeft = daysInMonth - daysElapsed;
+    const dailyRate = daysElapsed > 0 ? cur.jobs / daysElapsed : 0;
+    const projectedJobs = daysElapsed > 0 ? Math.round(dailyRate * daysInMonth) : 0;
+
+    res.json({
+      history,
+      projection: {
+        jobsMtd: cur.jobs,
+        projectedJobs,
+        dailyRate,
+        daysElapsed,
+        daysLeft,
+        totalDays: daysInMonth
+      }
+    });
+  } catch (error) {
+    console.error('Marketing API error:', error.message);
     res.status(500).json({ error: error.message, details: error.response?.data });
   }
 });
