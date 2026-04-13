@@ -340,13 +340,15 @@ app.get('/', (req, res) => {
     var rows = jobs.map(function(job) {
       var desc = job.description ? esc(job.description) : (job.invoice ? 'Invoice #' + esc(job.invoice) : '\u2014');
       var roleBadge = job.role ? '<span class="role-badge ' + roleClass(job.role) + '">' + esc(job.role) + '</span>' : '';
+      var splitNote = (job.splitWith && job.splitWith.length > 0)
+        ? '<div style="font-size:11px;color:#aaa;margin-top:2px">w/ ' + job.splitWith.map(esc).join(', ') + '</div>' : '';
       var jobTotal = job.jobTotal != null ? fmt(job.jobTotal) : fmt(job.credit);
       var shareHtml = job.creditPct != null && job.creditPct < 100
         ? fmt(job.credit) + '<span class="share-pct">(' + job.creditPct + '%)</span>'
         : fmt(job.credit != null ? job.credit : job.amount);
       return '<tr>' +
         '<td>' + fmtDate(job.date) + '</td>' +
-        '<td>' + desc + roleBadge + '</td>' +
+        '<td>' + desc + roleBadge + splitNote + '</td>' +
         '<td>' + esc(job.customer || '\u2014') + '</td>' +
         '<td>' + jobTotal + '</td>' +
         '<td>' + shareHtml + '</td>' +
@@ -359,6 +361,8 @@ app.get('/', (req, res) => {
     var cards = jobs.map(function(job) {
       var desc = job.description ? esc(job.description) : (job.invoice ? 'Invoice #' + esc(job.invoice) : '\u2014');
       var roleBadge = job.role ? '<span class="role-badge ' + roleClass(job.role) + '">' + esc(job.role) + '</span>' : '';
+      var splitNote = (job.splitWith && job.splitWith.length > 0)
+        ? ' <span style="font-size:11px;color:#bbb">w/ ' + job.splitWith.map(esc).join(', ') + '</span>' : '';
       var creditAmt = fmt(job.credit != null ? job.credit : job.amount);
       var pctHtml = job.creditPct != null && job.creditPct < 100
         ? '<span class="job-card-credit-pct">(' + job.creditPct + '%)</span>' : '';
@@ -370,7 +374,7 @@ app.get('/', (req, res) => {
           '<div class="job-card-right"><span class="job-card-credit">' + creditAmt + '</span>' + pctHtml + totalLine + '</div>' +
         '</div>' +
         '<div class="job-card-desc">' + desc + '</div>' +
-        '<div class="job-card-meta">' + esc(job.customer || '\u2014') + roleBadge + '</div>' +
+        '<div class="job-card-meta">' + esc(job.customer || '\u2014') + roleBadge + splitNote + '</div>' +
         '</div>';
     }).join('');
     document.getElementById('modalCards').innerHTML = cards ||
@@ -675,19 +679,19 @@ app.get('/api/metrics', async (req, res) => {
       const sellers = estimateId ? (estimateSellerMap[estimateId] || []) : [];
 
       // Build a credit map: techId -> credit amount
+      // Rule: seller gets 1/3, doers split 2/3. Always applies — for direct jobs
+      // (no estimate), the first assigned tech is treated as the implicit seller.
       const creditMap = {};
+      const effectiveSellers = sellers.length > 0 ? sellers : (doers.length > 1 ? [doers[0]] : []);
+      const sellPool = jobRevenue / 3;
+      const doPool = jobRevenue * 2 / 3;
 
-      if (sellers.length === 0) {
-        // No estimate — doers split the full revenue equally
-        doers.forEach(emp => {
-          creditMap[emp.id] = (creditMap[emp.id] || 0) + jobRevenue / doers.length;
-        });
+      if (doers.length === 1 && sellers.length === 0) {
+        // Single tech, no estimate — gets 100%
+        creditMap[doers[0].id] = jobRevenue;
       } else {
-        // Sellers share 1/3, doers share 2/3
-        const sellPool = jobRevenue / 3;
-        const doPool = jobRevenue * 2 / 3;
-        sellers.forEach(emp => {
-          creditMap[emp.id] = (creditMap[emp.id] || 0) + sellPool / sellers.length;
+        effectiveSellers.forEach(emp => {
+          creditMap[emp.id] = (creditMap[emp.id] || 0) + sellPool / effectiveSellers.length;
         });
         doers.forEach(emp => {
           creditMap[emp.id] = (creditMap[emp.id] || 0) + doPool / doers.length;
@@ -696,7 +700,10 @@ app.get('/api/metrics', async (req, res) => {
 
       // Collect all unique techs involved (sellers + doers)
       const allInvolved = [...doers];
-      sellers.forEach(s => { if (!allInvolved.find(d => d.id === s.id)) allInvolved.push(s); });
+      effectiveSellers.forEach(s => { if (!allInvolved.find(d => d.id === s.id)) allInvolved.push(s); });
+
+      // Build display names for co-workers so each tech can see who they split with
+      const allInvolvedNames = allInvolved.map(e => ((e.first_name || '') + ' ' + (e.last_name || '')).trim()).filter(Boolean);
 
       allInvolved.forEach(emp => {
         const credit = creditMap[emp.id];
@@ -704,10 +711,11 @@ app.get('/api/metrics', async (req, res) => {
 
         ensureTech(emp);
 
-        const isSeller = sellers.some(s => s.id === emp.id);
+        const isSeller = effectiveSellers.some(s => s.id === emp.id);
         const isDoer = doers.some(d => d.id === emp.id);
         const role = (isSeller && isDoer) ? 'Sold & Did' : isSeller ? 'Sold' : 'Did';
         const creditPct = Math.round(credit / jobRevenue * 100);
+        const splitWith = allInvolvedNames.filter(n => n !== ((emp.first_name || '') + ' ' + (emp.last_name || '')).trim());
 
         techMetrics[emp.id].revenue += credit;
         techMetrics[emp.id].jobs += 1;
@@ -719,7 +727,8 @@ app.get('/api/metrics', async (req, res) => {
           jobTotal: jobRevenue,
           credit,
           creditPct,
-          role
+          role,
+          splitWith
         });
       });
     });
