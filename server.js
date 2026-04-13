@@ -86,7 +86,7 @@ app.get('/', (req, res) => {
   <script>
     let currentData = null;
     let currentSort = 'revenue';
-    let currentTimeRange = 'month';
+    let currentTimeRange = 'mtd';
 
     const dateRanges = [
       { label: 'Today', key: 'day' },
@@ -111,7 +111,7 @@ app.get('/', (req, res) => {
     const sidebar = document.getElementById('dateSidebar');
     dateRanges.forEach(range => {
       const btn = document.createElement('button');
-      btn.className = 'date-btn' + (range.key === 'month' ? ' active' : '');
+      btn.className = 'date-btn' + (range.key === 'mtd' ? ' active' : '');
       btn.textContent = range.label;
       btn.dataset.range = range.key;
       btn.addEventListener('click', function() {
@@ -231,10 +231,8 @@ app.get('/', (req, res) => {
           label = 'Last 365 Days';
           break;
         case 'ly':
-          const lastYear = new Date(now);
-          lastYear.setFullYear(lastYear.getFullYear() - 1);
-          start = new Date(lastYear.getFullYear(), 0, 1);
-          end = new Date(lastYear.getFullYear(), 11, 31);
+          start = new Date(now.getFullYear() - 1, 0, 1);
+          end = new Date(now.getFullYear(), 0, 1);
           label = 'Last Year';
           break;
         default:
@@ -250,6 +248,10 @@ app.get('/', (req, res) => {
       try {
         const response = await fetch('/api/metrics?range=' + currentTimeRange);
         const data = await response.json();
+        if (!response.ok || data.error) {
+          document.getElementById('leaderboard').innerHTML = '<div class="error">Error: ' + (data.error || 'Unknown error') + '</div>';
+          return;
+        }
         currentData = data;
         render();
       } catch (error) {
@@ -412,7 +414,7 @@ app.get('/api/metrics', async (req, res) => {
         break;
       case 'ly':
         periodStart = new Date(now.getFullYear() - 1, 0, 1);
-        periodEnd = new Date(now.getFullYear() - 1, 11, 31);
+        periodEnd = new Date(now.getFullYear(), 0, 1);
         periodLabel = 'Last Year';
         break;
       default:
@@ -426,11 +428,6 @@ app.get('/api/metrics', async (req, res) => {
       'Accept': 'application/json'
     };
 
-    console.log('Fetching employees from: ' + BASE_URL + '/employees');
-    const employeesRes = await axios.get(BASE_URL + '/employees', { headers });
-    const employees = employeesRes.data.employees || [];
-    console.log('Got ' + employees.length + ' employees');
-
     console.log('Fetching jobs from: ' + BASE_URL + '/jobs');
     const allJobs = [];
     let page = 1;
@@ -439,7 +436,7 @@ app.get('/api/metrics', async (req, res) => {
       const jobsRes = await axios.get(BASE_URL + '/jobs', {
         headers,
         params: {
-          work_status: 'completed',
+          work_status: ['completed'],
           scheduled_start_min: periodStart.toISOString(),
           scheduled_start_max: periodEnd.toISOString(),
           page,
@@ -474,7 +471,7 @@ app.get('/api/metrics', async (req, res) => {
           };
         }
 
-        const jobRevenue = parseFloat(job.total_amount || 0);
+        const jobRevenue = parseFloat(job.total_amount || 0) / 100;
         techMetrics[techId].revenue += jobRevenue;
         techMetrics[techId].jobs += 1;
       });
