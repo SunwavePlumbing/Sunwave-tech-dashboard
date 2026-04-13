@@ -15,292 +15,346 @@ app.get('/', (req, res) => {
   <title>Sunwave Tech Dashboard</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #fafafa; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; }
+
     .header { background: #1a2d3a; color: white; padding: 1.5rem 1rem; text-align: center; }
-    .header h1 { font-size: 28px; font-weight: 600; margin: 0 0 0.5rem 0; }
-    .header p { margin: 0; font-size: 13px; opacity: 0.9; }
-    .main-wrapper { display: grid; grid-template-columns: 180px 1fr; min-height: calc(100vh - 120px); gap: 0; }
-    .sidebar { background: white; padding: 1.5rem 1rem; border-right: 1px solid #eee; overflow-y: auto; }
-    .date-btn { display: block; width: 100%; padding: 10px 12px; font-size: 13px; border: none; background: transparent; color: #333; cursor: pointer; text-align: left; border-radius: 4px; margin-bottom: 4px; transition: all 0.2s; }
+    .header h1 { font-size: 28px; font-weight: 600; margin: 0 0 0.4rem 0; }
+    .header p { margin: 0; font-size: 13px; opacity: 0.85; }
+
+    .main-wrapper { display: grid; grid-template-columns: 180px 1fr; min-height: calc(100vh - 100px); }
+    .sidebar { background: white; padding: 1.5rem 1rem; border-right: 1px solid #e5e5e5; overflow-y: auto; }
+    .date-btn { display: block; width: 100%; padding: 9px 12px; font-size: 13px; border: none; background: transparent; color: #444; cursor: pointer; text-align: left; border-radius: 6px; margin-bottom: 3px; transition: background 0.15s; }
     .date-btn:hover { background: #f0f0f0; }
     .date-btn.active { background: #FF9500; color: white; font-weight: 600; }
-    .content { padding: 1.5rem; max-width: 900px; }
-    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 1.5rem; }
-    .stat-card { background: white; padding: 1rem; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align: center; }
-    .stat-card p:first-child { font-size: 12px; color: #666; text-transform: uppercase; font-weight: 600; margin-bottom: 8px; }
-    .stat-card p:last-child { font-size: 24px; font-weight: 700; color: #FF9500; margin: 0; }
-    .sort-section { margin-bottom: 1.5rem; }
-    .section-label { font-size: 12px; color: #666; text-transform: uppercase; font-weight: 600; margin-bottom: 10px; display: block; }
-    .sort-filters { display: flex; gap: 8px; flex-wrap: wrap; }
-    .sort-btn { padding: 8px 14px; font-size: 13px; border: none; border-radius: 20px; background: white; color: #333; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: all 0.2s; white-space: nowrap; }
-    .sort-btn:hover { background: #f0f0f0; }
-    .sort-btn.active { background: #FF9500; color: white; font-weight: 600; }
-    .leaderboard { background: white; border-radius: 8px; padding: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-    .tech-row { padding: 1rem; margin-bottom: 8px; border-radius: 6px; background: #fafafa; display: flex; align-items: center; gap: 12px; }
-    .tech-row:last-child { margin-bottom: 0; }
-    .rank { min-width: 35px; text-align: center; font-size: 18px; font-weight: 700; color: #FF9500; }
-    .tech-info { flex: 1; }
-    .tech-name { font-size: 14px; font-weight: 600; color: #333; margin: 0; }
-    .tech-stats { font-size: 12px; color: #999; margin: 4px 0 0 0; }
-    .revenue { text-align: right; }
-    .revenue p { font-size: 16px; font-weight: 700; color: #FF9500; margin: 0; }
-    .loading { text-align: center; padding: 2rem; color: #666; }
-    .error { background: #ffebee; color: #c62828; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
-    .footer { text-align: center; font-size: 11px; color: #999; padding: 1rem; }
+
+    .content { padding: 1.5rem; }
+
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
+    .stat-card { background: white; padding: 1.1rem 1rem; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); text-align: center; }
+    .stat-label { font-size: 11px; color: #888; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .stat-value { font-size: 26px; font-weight: 700; color: #FF9500; }
+
+    .sort-section { display: flex; align-items: center; gap: 8px; margin-bottom: 1rem; flex-wrap: wrap; }
+    .sort-label { font-size: 12px; color: #888; text-transform: uppercase; font-weight: 600; }
+    .sort-btn { padding: 6px 14px; font-size: 13px; border: 1px solid #e0e0e0; border-radius: 20px; background: white; color: #555; cursor: pointer; transition: all 0.15s; }
+    .sort-btn:hover { background: #f5f5f5; }
+    .sort-btn.active { background: #FF9500; color: white; border-color: #FF9500; font-weight: 600; }
+
+    .table-wrapper { position: relative; background: white; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden; }
+    .table-wrapper.loading::after { content: ''; position: absolute; inset: 0; background: rgba(255,255,255,0.65); z-index: 10; }
+    .spinner { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); z-index: 11; width: 36px; height: 36px; border: 3px solid #eee; border-top-color: #FF9500; border-radius: 50%; animation: spin 0.7s linear infinite; }
+    .table-wrapper.loading .spinner { display: block; }
+    @keyframes spin { to { transform: translate(-50%,-50%) rotate(360deg); } }
+
+    table { width: 100%; border-collapse: collapse; }
+    thead th { padding: 12px 16px; text-align: left; font-size: 12px; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1px solid #f0f0f0; }
+    thead th:not(:first-child) { text-align: right; }
+    tbody tr { border-bottom: 1px solid #f7f7f7; transition: background 0.1s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #fafafa; }
+    tbody td { padding: 14px 16px; font-size: 14px; }
+    tbody td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
+    tfoot tr { border-top: 2px solid #f0f0f0; }
+    tfoot td { padding: 12px 16px; font-size: 13px; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: 0.3px; }
+    tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
+
+    .tech-cell { display: flex; align-items: center; gap: 12px; }
+    .avatar { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: white; flex-shrink: 0; letter-spacing: 0.5px; }
+    .tech-name-btn { background: none; border: none; font-size: 14px; font-weight: 500; color: #333; cursor: pointer; padding: 0; text-align: left; }
+    .tech-name-btn:hover { color: #FF9500; text-decoration: underline; }
+    .rank-num { font-size: 13px; font-weight: 700; color: #bbb; min-width: 18px; text-align: center; }
+
+    .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 100; align-items: center; justify-content: center; }
+    .modal-backdrop.open { display: flex; }
+    .modal { background: white; border-radius: 12px; width: 90%; max-width: 660px; max-height: 80vh; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+    .modal-header { padding: 1.2rem 1.4rem; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+    .modal-title { font-size: 16px; font-weight: 700; color: #1a2d3a; }
+    .modal-close { background: none; border: none; font-size: 24px; color: #bbb; cursor: pointer; line-height: 1; padding: 0 2px; }
+    .modal-close:hover { color: #555; }
+    .modal-body { overflow-y: auto; flex: 1; }
+    .modal-table { width: 100%; border-collapse: collapse; }
+    .modal-table thead th { padding: 10px 16px; font-size: 11px; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1px solid #f0f0f0; text-align: left; position: sticky; top: 0; background: white; }
+    .modal-table thead th:last-child { text-align: right; }
+    .modal-table tbody td { padding: 11px 16px; font-size: 13px; border-bottom: 1px solid #f7f7f7; color: #444; }
+    .modal-table tbody tr:last-child td { border-bottom: none; }
+    .modal-table tbody td:last-child { text-align: right; font-weight: 600; color: #333; font-variant-numeric: tabular-nums; }
+    .modal-footer { padding: 1rem 1.4rem; border-top: 2px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+    .modal-footer-left { font-size: 13px; color: #888; }
+    .modal-footer-right { font-size: 16px; font-weight: 700; color: #FF9500; }
+
+    .footer { text-align: center; font-size: 11px; color: #aaa; padding: 1rem; }
+    .error-msg { background: #fff3f3; color: #c62828; padding: 1.2rem 1.4rem; font-size: 14px; }
+
     @media (max-width: 768px) {
       .main-wrapper { grid-template-columns: 1fr; }
-      .sidebar { border-right: none; border-bottom: 1px solid #eee; padding: 1rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px; }
-      .date-btn { margin-bottom: 0; }
+      .sidebar { border-right: none; border-bottom: 1px solid #eee; display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 4px; padding: 0.8rem; }
       .content { padding: 1rem; }
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>Sunwave Performance</h1>
-    <p id="period">Loading...</p>
-  </div>
-  <div class="main-wrapper">
-    <div class="sidebar" id="dateSidebar"></div>
-    <div class="content">
-      <div class="stats" id="stats">
-        <div class="stat-card"><p>Total Revenue</p><p>$0</p></div>
-        <div class="stat-card"><p>Avg Ticket</p><p>$0</p></div>
-        <div class="stat-card"><p>Total Jobs</p><p>0</p></div>
-      </div>
-      <div class="sort-section">
-        <label class="section-label">Sort By</label>
-        <div class="sort-filters" id="sortFilters">
-          <button class="sort-btn active" data-sort="revenue">Revenue</button>
-          <button class="sort-btn" data-sort="ticket">Avg Ticket</button>
-          <button class="sort-btn" data-sort="jobs">Jobs</button>
-        </div>
-      </div>
-      <div class="leaderboard" id="leaderboard"></div>
+
+<div class="header">
+  <h1>Sunwave Performance</h1>
+  <p id="period">Loading...</p>
+</div>
+
+<div class="main-wrapper">
+  <div class="sidebar" id="dateSidebar"></div>
+  <div class="content">
+    <div class="stats" id="stats">
+      <div class="stat-card"><div class="stat-label">Total Revenue</div><div class="stat-value">—</div></div>
+      <div class="stat-card"><div class="stat-label">Avg Ticket</div><div class="stat-value">—</div></div>
+      <div class="stat-card"><div class="stat-label">Total Jobs</div><div class="stat-value">—</div></div>
+    </div>
+    <div class="sort-section">
+      <span class="sort-label">Sort:</span>
+      <button class="sort-btn active" data-sort="revenue">Revenue</button>
+      <button class="sort-btn" data-sort="ticket">Avg Ticket</button>
+      <button class="sort-btn" data-sort="jobs"># Jobs</button>
+    </div>
+    <div class="table-wrapper" id="tableWrapper">
+      <div class="spinner"></div>
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Revenue</th>
+            <th>Avg Ticket</th>
+            <th># Jobs</th>
+          </tr>
+        </thead>
+        <tbody id="leaderboardBody">
+          <tr><td colspan="4" style="padding:2rem;text-align:center;color:#aaa">Loading...</td></tr>
+        </tbody>
+        <tfoot id="leaderboardFoot"></tfoot>
+      </table>
     </div>
   </div>
-  <div class="footer">
-    Updates every 5 minutes • Last updated: <span id="lastUpdate">Never</span>
+</div>
+
+<div class="footer">
+  Updates every 5 minutes &bull; Last updated: <span id="lastUpdate">Never</span>
+</div>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">Jobs</span>
+      <button class="modal-close" id="modalClose">&times;</button>
+    </div>
+    <div class="modal-body">
+      <table class="modal-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Description</th>
+            <th>Customer</th>
+            <th>Amount</th>
+          </tr>
+        </thead>
+        <tbody id="modalBody"></tbody>
+      </table>
+    </div>
+    <div class="modal-footer">
+      <span class="modal-footer-left" id="modalJobCount"></span>
+      <span class="modal-footer-right" id="modalTotal"></span>
+    </div>
   </div>
+</div>
 
-  <script>
-    let currentData = null;
-    let currentSort = 'revenue';
-    let currentTimeRange = 'mtd';
+<script>
+  var currentData = null;
+  var currentSort = 'revenue';
+  var currentTimeRange = 'mtd';
+  var isFetching = false;
 
-    const dateRanges = [
-      { label: 'Today', key: 'day' },
-      { label: 'Yesterday', key: 'yesterday' },
-      { label: 'This Week', key: 'week' },
-      { label: 'Week to Date', key: 'wtd' },
-      { label: 'Last 7 Days', key: 'l7d' },
-      { label: 'Last 14 Days', key: 'l14d' },
-      { label: 'Last 30 Days', key: 'l30d' },
-      { label: 'Month to Date', key: 'mtd' },
-      { label: 'Last Month', key: 'lm' },
-      { label: 'Last 90 Days', key: 'l90d' },
-      { label: 'This Quarter', key: 'qtd' },
-      { label: 'Last Quarter', key: 'lq' },
-      { label: 'Quarter to Date', key: 'q2d' },
-      { label: 'Year to Date', key: 'ytd' },
-      { label: 'Last 365 Days', key: 'l365d' },
-      { label: 'Last Year', key: 'ly' }
-    ];
+  var dateRanges = [
+    { label: 'Today', key: 'day' },
+    { label: 'Yesterday', key: 'yesterday' },
+    { label: 'This Week', key: 'week' },
+    { label: 'Week to Date', key: 'wtd' },
+    { label: 'Last 7 Days', key: 'l7d' },
+    { label: 'Last 14 Days', key: 'l14d' },
+    { label: 'Last 30 Days', key: 'l30d' },
+    { label: 'Month to Date', key: 'mtd' },
+    { label: 'Last Month', key: 'lm' },
+    { label: 'Last 90 Days', key: 'l90d' },
+    { label: 'This Quarter', key: 'qtd' },
+    { label: 'Last Quarter', key: 'lq' },
+    { label: 'Quarter to Date', key: 'q2d' },
+    { label: 'Year to Date', key: 'ytd' },
+    { label: 'Last 365 Days', key: 'l365d' },
+    { label: 'Last Year', key: 'ly' }
+  ];
 
-    // Build sidebar
-    const sidebar = document.getElementById('dateSidebar');
-    dateRanges.forEach(range => {
-      const btn = document.createElement('button');
-      btn.className = 'date-btn' + (range.key === 'mtd' ? ' active' : '');
-      btn.textContent = range.label;
-      btn.dataset.range = range.key;
-      btn.addEventListener('click', function() {
-        currentTimeRange = this.dataset.range;
-        document.querySelectorAll('.date-btn').forEach(b => b.classList.remove('active'));
-        this.classList.add('active');
-        fetchData();
-      });
-      sidebar.appendChild(btn);
+  var AVATAR_COLORS = ['#FF9500','#007AFF','#34C759','#AF52DE','#FF3B30','#5AC8FA','#FF6B35','#30B0C7'];
+  function avatarColor(name) {
+    var h = 0;
+    for (var i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
+    return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+  }
+  function initials(name) {
+    var p = name.trim().split(/\s+/);
+    if (p.length >= 2) return (p[0][0] + p[p.length - 1][0]).toUpperCase();
+    return name.slice(0, 2).toUpperCase();
+  }
+  function fmt(n) { return '$' + Math.round(n).toLocaleString(); }
+  function fmtDate(iso) {
+    if (!iso) return '\u2014';
+    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+  function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // Build sidebar
+  var sidebar = document.getElementById('dateSidebar');
+  dateRanges.forEach(function(range) {
+    var btn = document.createElement('button');
+    btn.className = 'date-btn' + (range.key === 'mtd' ? ' active' : '');
+    btn.textContent = range.label;
+    btn.dataset.range = range.key;
+    btn.addEventListener('click', function() {
+      if (isFetching) return;
+      currentTimeRange = this.dataset.range;
+      document.querySelectorAll('.date-btn').forEach(function(b) { b.classList.remove('active'); });
+      this.classList.add('active');
+      fetchData();
     });
+    sidebar.appendChild(btn);
+  });
 
-    document.querySelectorAll('.sort-btn').forEach(btn => {
-      btn.addEventListener('click', function() {
-        currentSort = this.dataset.sort;
-        document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
-        this.classList.add('active');
-        render();
-      });
+  document.querySelectorAll('.sort-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      currentSort = this.dataset.sort;
+      document.querySelectorAll('.sort-btn').forEach(function(b) { b.classList.remove('active'); });
+      this.classList.add('active');
+      render();
     });
+  });
 
-    function getDateRange(range) {
-      const now = new Date();
-      let start, end, label;
+  // Modal
+  document.getElementById('modalClose').addEventListener('click', closeModal);
+  document.getElementById('modalBackdrop').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+  document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeModal(); });
 
-      const getDayStart = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-      const getDayEnd = (d) => { const e = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1); return e; };
+  function openModal(tech) {
+    document.getElementById('modalTitle').textContent = esc(tech.name) + ' \u2014 Jobs';
+    var jobs = (tech.jobList || []).slice().sort(function(a, b) {
+      return new Date(b.date || 0) - new Date(a.date || 0);
+    });
+    var rows = jobs.map(function(job) {
+      var desc = job.description ? esc(job.description) : (job.invoice ? 'Invoice #' + esc(job.invoice) : '\u2014');
+      return '<tr>' +
+        '<td>' + fmtDate(job.date) + '</td>' +
+        '<td>' + desc + '</td>' +
+        '<td>' + esc(job.customer || '\u2014') + '</td>' +
+        '<td>' + fmt(job.amount) + '</td>' +
+        '</tr>';
+    }).join('');
+    document.getElementById('modalBody').innerHTML = rows ||
+      '<tr><td colspan="4" style="text-align:center;color:#aaa;padding:2rem">No jobs found</td></tr>';
+    document.getElementById('modalJobCount').textContent = jobs.length + ' job' + (jobs.length !== 1 ? 's' : '');
+    document.getElementById('modalTotal').textContent = fmt(tech.monthlyRevenue) + ' total';
+    document.getElementById('modalBackdrop').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
 
-      switch(range) {
-        case 'day':
-          start = getDayStart(now);
-          end = getDayEnd(now);
-          label = 'Today';
-          break;
-        case 'yesterday':
-          const yesterday = new Date(now);
-          yesterday.setDate(yesterday.getDate() - 1);
-          start = getDayStart(yesterday);
-          end = getDayEnd(yesterday);
-          label = 'Yesterday';
-          break;
-        case 'week':
-          start = new Date(now);
-          start.setDate(now.getDate() - now.getDay());
-          end = new Date(start);
-          end.setDate(end.getDate() + 7);
-          label = 'This Week';
-          break;
-        case 'wtd':
-          start = new Date(now);
-          start.setDate(now.getDate() - now.getDay());
-          end = getDayEnd(now);
-          label = 'Week to Date';
-          break;
-        case 'l7d':
-          start = new Date(now);
-          start.setDate(now.getDate() - 7);
-          end = getDayEnd(now);
-          label = 'Last 7 Days';
-          break;
-        case 'l14d':
-          start = new Date(now);
-          start.setDate(now.getDate() - 14);
-          end = getDayEnd(now);
-          label = 'Last 14 Days';
-          break;
-        case 'l30d':
-          start = new Date(now);
-          start.setDate(now.getDate() - 30);
-          end = getDayEnd(now);
-          label = 'Last 30 Days';
-          break;
-        case 'mtd':
-          start = new Date(now.getFullYear(), now.getMonth(), 1);
-          end = getDayEnd(now);
-          label = 'Month to Date';
-          break;
-        case 'lm':
-          const lastMonth = new Date(now);
-          lastMonth.setMonth(lastMonth.getMonth() - 1);
-          start = new Date(lastMonth.getFullYear(), lastMonth.getMonth(), 1);
-          end = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 1);
-          label = 'Last Month';
-          break;
-        case 'l90d':
-          start = new Date(now);
-          start.setDate(now.getDate() - 90);
-          end = getDayEnd(now);
-          label = 'Last 90 Days';
-          break;
-        case 'qtd':
-          const quarter = Math.floor(now.getMonth() / 3);
-          start = new Date(now.getFullYear(), quarter * 3, 1);
-          end = getDayEnd(now);
-          label = 'Quarter to Date';
-          break;
-        case 'lq':
-          const lastQuarter = Math.floor(now.getMonth() / 3) - 1;
-          start = new Date(now.getFullYear(), lastQuarter * 3, 1);
-          end = new Date(now.getFullYear(), (lastQuarter + 1) * 3, 1);
-          label = 'Last Quarter';
-          break;
-        case 'q2d':
-          const q = Math.floor(now.getMonth() / 3);
-          start = new Date(now.getFullYear(), q * 3, 1);
-          end = getDayEnd(now);
-          label = 'Quarter to Date';
-          break;
-        case 'ytd':
-          start = new Date(now.getFullYear(), 0, 1);
-          end = getDayEnd(now);
-          label = 'Year to Date';
-          break;
-        case 'l365d':
-          start = new Date(now);
-          start.setDate(now.getDate() - 365);
-          end = getDayEnd(now);
-          label = 'Last 365 Days';
-          break;
-        case 'ly':
-          start = new Date(now.getFullYear() - 1, 0, 1);
-          end = new Date(now.getFullYear(), 0, 1);
-          label = 'Last Year';
-          break;
-        default:
-          start = new Date(now.getFullYear(), now.getMonth(), 1);
-          end = getDayEnd(now);
-          label = 'This Month';
-      }
+  function closeModal() {
+    document.getElementById('modalBackdrop').classList.remove('open');
+    document.body.style.overflow = '';
+  }
 
-      return { start, end, label };
-    }
-
-    async function fetchData() {
-      try {
-        const response = await fetch('/api/metrics?range=' + currentTimeRange);
-        const data = await response.json();
-        if (!response.ok || data.error) {
-          document.getElementById('leaderboard').innerHTML = '<div class="error">Error: ' + (data.error || 'Unknown error') + '</div>';
-          return;
-        }
-        currentData = data;
-        render();
-      } catch (error) {
-        document.getElementById('leaderboard').innerHTML = '<div class="error">Error loading data. Check API key.</div>';
-      }
-    }
-
-    function render() {
-      if (!currentData) {
-        document.getElementById('leaderboard').innerHTML = '<div class="loading">Loading...</div>';
+  async function fetchData() {
+    isFetching = true;
+    document.getElementById('tableWrapper').classList.add('loading');
+    try {
+      var response = await fetch('/api/metrics?range=' + currentTimeRange);
+      var data = await response.json();
+      if (!response.ok || data.error) {
+        document.getElementById('leaderboardBody').innerHTML =
+          '<tr><td colspan="4"><div class="error-msg">Error: ' + esc(data.error || 'Unknown error') + '</div></td></tr>';
+        document.getElementById('leaderboardFoot').innerHTML = '';
         return;
       }
-
-      const leaderboard = currentData.leaderboard;
-      const summary = currentData.summary;
-
-      document.getElementById('period').textContent = summary.period;
-
-      const statsHtml = '<div class="stat-card"><p>Total Revenue</p><p>$' + summary.totalRevenue.toLocaleString() + '</p></div>' +
-        '<div class="stat-card"><p>Avg Ticket</p><p>$' + summary.averageTicket.toLocaleString() + '</p></div>' +
-        '<div class="stat-card"><p>Total Jobs</p><p>' + summary.totalJobs + '</p></div>';
-      document.getElementById('stats').innerHTML = statsHtml;
-
-      let sorted = JSON.parse(JSON.stringify(leaderboard));
-      if (currentSort === 'revenue') sorted.sort((a, b) => b.monthlyRevenue - a.monthlyRevenue);
-      if (currentSort === 'ticket') sorted.sort((a, b) => b.averageTicket - a.averageTicket);
-      if (currentSort === 'jobs') sorted.sort((a, b) => b.jobsCompleted - a.jobsCompleted);
-
-      const medals = ['🥇', '🥈', '🥉'];
-      const html = sorted.map((tech, idx) => {
-        const medal = medals[idx] || ('#' + (idx + 1));
-        const jobWord = tech.jobsCompleted !== 1 ? 'jobs' : 'job';
-        return '<div class="tech-row">' +
-          '<div class="rank">' + medal + '</div>' +
-          '<div class="tech-info">' +
-          '<p class="tech-name">' + tech.name + '</p>' +
-          '<p class="tech-stats">' + tech.jobsCompleted + ' ' + jobWord + ' • Avg: $' + tech.averageTicket.toLocaleString() + '</p>' +
-          '</div>' +
-          '<div class="revenue"><p>$' + tech.monthlyRevenue.toLocaleString() + '</p></div>' +
-          '</div>';
-      }).join('');
-
-      document.getElementById('leaderboard').innerHTML = html || '<div class="loading">No data yet</div>';
-      document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+      currentData = data;
+      render();
+    } catch (err) {
+      document.getElementById('leaderboardBody').innerHTML =
+        '<tr><td colspan="4"><div class="error-msg">Error loading data. Check API key and server logs.</div></td></tr>';
+    } finally {
+      isFetching = false;
+      document.getElementById('tableWrapper').classList.remove('loading');
     }
+  }
 
-    fetchData();
-    setInterval(fetchData, 5 * 60 * 1000);
-  </script>
+  function render() {
+    if (!currentData) return;
+    var leaderboard = currentData.leaderboard;
+    var summary = currentData.summary;
+
+    document.getElementById('period').textContent = summary.period;
+    document.getElementById('stats').innerHTML =
+      '<div class="stat-card"><div class="stat-label">Total Revenue</div><div class="stat-value">$' + summary.totalRevenue.toLocaleString() + '</div></div>' +
+      '<div class="stat-card"><div class="stat-label">Avg Ticket</div><div class="stat-value">$' + summary.averageTicket.toLocaleString() + '</div></div>' +
+      '<div class="stat-card"><div class="stat-label">Total Jobs</div><div class="stat-value">' + summary.totalJobs + '</div></div>';
+
+    var sorted = leaderboard.slice();
+    if (currentSort === 'revenue') sorted.sort(function(a, b) { return b.monthlyRevenue - a.monthlyRevenue; });
+    else if (currentSort === 'ticket') sorted.sort(function(a, b) { return b.averageTicket - a.averageTicket; });
+    else if (currentSort === 'jobs') sorted.sort(function(a, b) { return b.jobsCompleted - a.jobsCompleted; });
+
+    var medals = ['\uD83E\uDD47', '\uD83E\uDD48', '\uD83E\uDD49'];
+    var rows = sorted.map(function(tech, idx) {
+      var color = avatarColor(tech.name);
+      var av = initials(tech.name);
+      var rankHtml = medals[idx]
+        ? '<span style="font-size:16px">' + medals[idx] + '</span>'
+        : '<span class="rank-num">' + (idx + 1) + '</span>';
+      return '<tr>' +
+        '<td><div class="tech-cell">' +
+          '<div class="avatar" style="background:' + color + '">' + av + '</div>' +
+          rankHtml +
+          '<button class="tech-name-btn" data-idx="' + idx + '">' + esc(tech.name) + '</button>' +
+        '</div></td>' +
+        '<td>' + fmt(tech.monthlyRevenue) + '</td>' +
+        '<td>' + fmt(tech.averageTicket) + '</td>' +
+        '<td>' + tech.jobsCompleted + '</td>' +
+        '</tr>';
+    }).join('');
+
+    document.getElementById('leaderboardBody').innerHTML = rows ||
+      '<tr><td colspan="4" style="text-align:center;color:#aaa;padding:2rem">No completed jobs in this period</td></tr>';
+
+    // Attach click handlers after render
+    var sortedSnapshot = sorted;
+    document.querySelectorAll('.tech-name-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        openModal(sortedSnapshot[parseInt(this.dataset.idx)]);
+      });
+    });
+
+    // Totals row
+    var totalRev = sorted.reduce(function(s, t) { return s + t.monthlyRevenue; }, 0);
+    var totalJbs = sorted.reduce(function(s, t) { return s + t.jobsCompleted; }, 0);
+    var avgTkt = totalJbs > 0 ? Math.round(totalRev / totalJbs) : 0;
+    document.getElementById('leaderboardFoot').innerHTML =
+      '<tr>' +
+        '<td>Totals &amp; Averages</td>' +
+        '<td>' + fmt(totalRev) + '</td>' +
+        '<td>' + fmt(avgTkt) + '</td>' +
+        '<td>' + totalJbs + '</td>' +
+      '</tr>';
+
+    document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+  }
+
+  fetchData();
+  setInterval(fetchData, 5 * 60 * 1000);
+</script>
 </body>
 </html>`;
   res.send(html);
@@ -312,12 +366,12 @@ app.get('/api/metrics', async (req, res) => {
   }
 
   try {
-    const range = req.query.range || 'month';
+    const range = req.query.range || 'mtd';
     const now = new Date();
     let periodStart, periodEnd, periodLabel;
 
     const getDayStart = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    const getDayEnd = (d) => { const e = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1); return e; };
+    const getDayEnd = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
 
     switch(range) {
       case 'day':
@@ -449,31 +503,39 @@ app.get('/api/metrics', async (req, res) => {
       if (page >= totalPages) break;
       page++;
     }
-    const jobs = allJobs;
-    console.log('Got ' + jobs.length + ' jobs');
+    console.log('Got ' + allJobs.length + ' jobs');
 
     const techMetrics = {};
-    jobs.forEach(job => {
+    allJobs.forEach(job => {
       const assignedEmployees = job.assigned_employees || [];
       if (assignedEmployees.length === 0) return;
+
+      const jobRevenue = parseFloat(job.total_amount || 0) / 100;
+      const customer = job.customer
+        ? ((job.customer.first_name || '') + ' ' + (job.customer.last_name || '')).trim()
+        : '';
+      const jobDate = (job.work_timestamps && job.work_timestamps.completed_at)
+        ? job.work_timestamps.completed_at
+        : (job.schedule && job.schedule.scheduled_start ? job.schedule.scheduled_start : null);
 
       assignedEmployees.forEach(emp => {
         const techId = emp.id;
         if (!techId) return;
 
         if (!techMetrics[techId]) {
-          const techName = (emp.first_name || '') + ' ' + (emp.last_name || '');
-          techMetrics[techId] = {
-            id: techId,
-            name: techName.trim() || 'Unknown',
-            revenue: 0,
-            jobs: 0
-          };
+          const techName = ((emp.first_name || '') + ' ' + (emp.last_name || '')).trim() || 'Unknown';
+          techMetrics[techId] = { id: techId, name: techName, revenue: 0, jobs: 0, jobList: [] };
         }
 
-        const jobRevenue = parseFloat(job.total_amount || 0) / 100;
         techMetrics[techId].revenue += jobRevenue;
         techMetrics[techId].jobs += 1;
+        techMetrics[techId].jobList.push({
+          invoice: job.invoice_number || null,
+          description: job.description || null,
+          customer,
+          date: jobDate,
+          amount: jobRevenue
+        });
       });
     });
 
@@ -483,7 +545,8 @@ app.get('/api/metrics', async (req, res) => {
         name: tech.name,
         monthlyRevenue: Math.round(tech.revenue),
         jobsCompleted: tech.jobs,
-        averageTicket: tech.jobs > 0 ? Math.round(tech.revenue / tech.jobs) : 0
+        averageTicket: tech.jobs > 0 ? Math.round(tech.revenue / tech.jobs) : 0,
+        jobList: tech.jobList
       }))
       .sort((a, b) => b.monthlyRevenue - a.monthlyRevenue);
 
@@ -493,12 +556,7 @@ app.get('/api/metrics', async (req, res) => {
 
     res.json({
       leaderboard,
-      summary: {
-        totalRevenue,
-        totalJobs,
-        averageTicket: avgTicket,
-        period: periodLabel
-      }
+      summary: { totalRevenue, totalJobs, averageTicket: avgTicket, period: periodLabel }
     });
 
   } catch (error) {
