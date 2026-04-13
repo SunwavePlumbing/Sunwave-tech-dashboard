@@ -37,9 +37,11 @@ app.get('/', (req, res) => {
 
     .sort-section { display: flex; align-items: center; gap: 8px; margin-bottom: 1rem; flex-wrap: wrap; }
     .sort-label { font-size: 12px; color: #888; text-transform: uppercase; font-weight: 600; }
-    .sort-btn { padding: 6px 14px; font-size: 13px; border: 1px solid #e0e0e0; border-radius: 20px; background: white; color: #555; cursor: pointer; transition: all 0.15s; }
+    .sort-btn { padding: 6px 14px; font-size: 13px; border: 1px solid #e0e0e0; border-radius: 20px; background: white; color: #555; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
     .sort-btn:hover { background: #f5f5f5; }
     .sort-btn.active { background: #FF9500; color: white; border-color: #FF9500; font-weight: 600; }
+    #leaderboardBody { transition: opacity 0.15s ease; }
+    #leaderboardBody.sorting { opacity: 0.3; }
 
     .table-wrapper { position: relative; background: white; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden; }
     .table-wrapper.loading::after { content: ''; position: absolute; inset: 0; background: rgba(255,255,255,0.65); z-index: 10; }
@@ -95,38 +97,42 @@ app.get('/', (req, res) => {
 
     @media (max-width: 768px) {
       .main-wrapper { grid-template-columns: 1fr; }
-      .sidebar {
-        border-right: none;
-        border-bottom: 1px solid #eee;
-        display: flex;
-        flex-direction: row;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        gap: 6px;
-        padding: 0.75rem 1rem;
-        scrollbar-width: none;
-      }
-      .sidebar::-webkit-scrollbar { display: none; }
-      .date-btn {
-        display: inline-flex;
-        align-items: center;
-        width: auto;
-        white-space: nowrap;
-        flex-shrink: 0;
-        margin-bottom: 0;
-        padding: 8px 14px;
-        border-radius: 20px;
-        border: 1px solid #e8e8e8;
-        background: white;
-      }
+      .sidebar { border-right: none; border-bottom: 1px solid #eee; display: block; padding: 0; background: white; }
+      .sidebar-primary { display: flex; overflow-x: auto; gap: 6px; padding: 10px 14px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+      .sidebar-primary::-webkit-scrollbar { display: none; }
+      .date-btn { display: inline-flex; align-items: center; width: auto; white-space: nowrap; flex-shrink: 0; margin-bottom: 0; padding: 7px 13px; border-radius: 20px; border: 1px solid #e8e8e8; background: white; font-size: 13px; }
       .date-btn.active { border-color: #FF9500; }
-      .content { padding: 1rem; }
+      .sidebar-more-toggle { width: 100%; padding: 7px 14px; font-size: 12px; color: #999; background: #fafafa; border: none; border-top: 1px solid #f0f0f0; cursor: pointer; text-align: center; letter-spacing: 0.2px; }
+      .sidebar-more-panel { display: none; grid-template-columns: 1fr 1fr 1fr; gap: 5px; padding: 10px 14px 14px; background: #fafafa; border-top: 1px solid #f0f0f0; }
+      .sidebar-more-panel.open { display: grid; }
+      .sidebar-more-panel .date-btn { width: 100%; white-space: normal; text-align: center; font-size: 11px; padding: 6px 4px; border-radius: 8px; justify-content: center; line-height: 1.3; }
+      .content { padding: 0.85rem; }
+      .sort-section { gap: 6px; margin-bottom: 0.85rem; }
+      .sort-label { display: none; }
+      .sort-btn { padding: 5px 12px; font-size: 12px; }
       .stats { grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 1rem; }
-      .stat-card { padding: 0.75rem 0.5rem; }
-      .stat-value { font-size: 20px; }
+      .stat-card { padding: 0.7rem 0.4rem; }
+      .stat-label { font-size: 10px; }
+      .stat-value { font-size: 18px; }
       .table-wrapper { border-radius: 8px; }
-      thead th, tbody td, tfoot td { padding: 10px 12px; }
+      thead th, tbody td, tfoot td { padding: 10px 10px; font-size: 13px; }
+      /* Modal becomes a bottom sheet on mobile */
+      .modal-backdrop { align-items: flex-end; }
+      .modal { border-radius: 20px 20px 0 0; width: 100%; max-width: 100%; max-height: 88vh; }
+      .modal-table { display: none; }
+      .modal-cards { display: block; }
+      .job-card { padding: 12px 16px; border-bottom: 1px solid #f3f3f3; }
+      .job-card:last-child { border-bottom: none; }
+      .job-card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 3px; }
+      .job-card-date { font-size: 12px; color: #aaa; }
+      .job-card-right { text-align: right; }
+      .job-card-credit { font-size: 15px; font-weight: 700; color: #333; }
+      .job-card-credit-pct { font-size: 11px; color: #bbb; margin-left: 3px; }
+      .job-card-total { font-size: 11px; color: #bbb; }
+      .job-card-desc { font-size: 13px; color: #444; margin-bottom: 3px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+      .job-card-meta { font-size: 12px; color: #aaa; display: flex; align-items: center; gap: 6px; }
     }
+    @media (min-width: 769px) { .modal-cards { display: none; } }
   </style>
 </head>
 <body>
@@ -193,6 +199,7 @@ app.get('/', (req, res) => {
         </thead>
         <tbody id="modalBody"></tbody>
       </table>
+      <div id="modalCards" class="modal-cards"></div>
     </div>
     <div class="modal-footer">
       <span class="modal-footer-left" id="modalJobCount"></span>
@@ -248,7 +255,9 @@ app.get('/', (req, res) => {
 
   // Build sidebar
   var sidebar = document.getElementById('dateSidebar');
-  dateRanges.forEach(function(range) {
+  var commonKeys = ['day', 'yesterday', 'mtd', 'lm', 'l30d', 'ytd'];
+
+  function createDateBtn(range) {
     var btn = document.createElement('button');
     btn.className = 'date-btn' + (range.key === 'mtd' ? ' active' : '');
     btn.textContent = range.label;
@@ -260,15 +269,53 @@ app.get('/', (req, res) => {
       this.classList.add('active');
       fetchData();
     });
-    sidebar.appendChild(btn);
-  });
+    return btn;
+  }
+
+  if (window.innerWidth <= 768) {
+    var primaryRow = document.createElement('div');
+    primaryRow.className = 'sidebar-primary';
+    var morePanel = document.createElement('div');
+    morePanel.className = 'sidebar-more-panel';
+
+    dateRanges.forEach(function(range) {
+      if (commonKeys.indexOf(range.key) !== -1) {
+        primaryRow.appendChild(createDateBtn(range));
+      } else {
+        morePanel.appendChild(createDateBtn(range));
+      }
+    });
+
+    var moreToggle = document.createElement('button');
+    moreToggle.className = 'sidebar-more-toggle';
+    moreToggle.textContent = 'More date ranges \u25be';
+    moreToggle.addEventListener('click', function() {
+      var open = morePanel.classList.toggle('open');
+      this.textContent = open ? 'Fewer options \u25b4' : 'More date ranges \u25be';
+    });
+
+    sidebar.appendChild(primaryRow);
+    sidebar.appendChild(moreToggle);
+    sidebar.appendChild(morePanel);
+  } else {
+    dateRanges.forEach(function(range) {
+      sidebar.appendChild(createDateBtn(range));
+    });
+  }
 
   document.querySelectorAll('.sort-btn').forEach(function(btn) {
     btn.addEventListener('click', function() {
-      currentSort = this.dataset.sort;
+      var newSort = this.dataset.sort;
+      if (newSort === currentSort) return;
+      currentSort = newSort;
       document.querySelectorAll('.sort-btn').forEach(function(b) { b.classList.remove('active'); });
       this.classList.add('active');
-      render();
+      var body = document.getElementById('leaderboardBody');
+      body.classList.add('sorting');
+      setTimeout(function() {
+        render();
+        body.classList.remove('sorting');
+      }, 120);
     });
   });
 
@@ -284,10 +331,15 @@ app.get('/', (req, res) => {
     var jobs = (tech.jobList || []).slice().sort(function(a, b) {
       return new Date(b.date || 0) - new Date(a.date || 0);
     });
+
+    var roleClass = function(role) {
+      return role === 'Sold & Did' ? 'role-sold-did' : role === 'Sold' ? 'role-sold' : 'role-did';
+    };
+
+    // Desktop: table rows
     var rows = jobs.map(function(job) {
       var desc = job.description ? esc(job.description) : (job.invoice ? 'Invoice #' + esc(job.invoice) : '\u2014');
-      var roleClass = job.role === 'Sold & Did' ? 'role-sold-did' : job.role === 'Sold' ? 'role-sold' : 'role-did';
-      var roleBadge = job.role ? '<span class="role-badge ' + roleClass + '">' + esc(job.role) + '</span>' : '';
+      var roleBadge = job.role ? '<span class="role-badge ' + roleClass(job.role) + '">' + esc(job.role) + '</span>' : '';
       var jobTotal = job.jobTotal != null ? fmt(job.jobTotal) : fmt(job.credit);
       var shareHtml = job.creditPct != null && job.creditPct < 100
         ? fmt(job.credit) + '<span class="share-pct">(' + job.creditPct + '%)</span>'
@@ -302,6 +354,28 @@ app.get('/', (req, res) => {
     }).join('');
     document.getElementById('modalBody').innerHTML = rows ||
       '<tr><td colspan="5" style="text-align:center;color:#aaa;padding:2rem">No jobs found</td></tr>';
+
+    // Mobile: cards
+    var cards = jobs.map(function(job) {
+      var desc = job.description ? esc(job.description) : (job.invoice ? 'Invoice #' + esc(job.invoice) : '\u2014');
+      var roleBadge = job.role ? '<span class="role-badge ' + roleClass(job.role) + '">' + esc(job.role) + '</span>' : '';
+      var creditAmt = fmt(job.credit != null ? job.credit : job.amount);
+      var pctHtml = job.creditPct != null && job.creditPct < 100
+        ? '<span class="job-card-credit-pct">(' + job.creditPct + '%)</span>' : '';
+      var totalLine = job.jobTotal != null && job.creditPct < 100
+        ? '<div class="job-card-total">of ' + fmt(job.jobTotal) + '</div>' : '';
+      return '<div class="job-card">' +
+        '<div class="job-card-top">' +
+          '<span class="job-card-date">' + fmtDate(job.date) + '</span>' +
+          '<div class="job-card-right"><span class="job-card-credit">' + creditAmt + '</span>' + pctHtml + totalLine + '</div>' +
+        '</div>' +
+        '<div class="job-card-desc">' + desc + '</div>' +
+        '<div class="job-card-meta">' + esc(job.customer || '\u2014') + roleBadge + '</div>' +
+        '</div>';
+    }).join('');
+    document.getElementById('modalCards').innerHTML = cards ||
+      '<p style="text-align:center;color:#aaa;padding:2rem">No jobs found</p>';
+
     document.getElementById('modalJobCount').textContent = jobs.length + ' job' + (jobs.length !== 1 ? 's' : '');
     document.getElementById('modalTotal').textContent = fmt(tech.monthlyRevenue) + ' credited';
     document.getElementById('modalBackdrop').classList.add('open');
