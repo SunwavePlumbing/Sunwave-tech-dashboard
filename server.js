@@ -49,19 +49,21 @@ app.get('/', (req, res) => {
     table { width: 100%; border-collapse: collapse; }
     thead th { padding: 12px 16px; text-align: left; font-size: 12px; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1px solid #f0f0f0; }
     thead th:not(:first-child) { text-align: right; }
-    tbody tr { border-bottom: 1px solid #f7f7f7; transition: background 0.1s; }
+    tbody tr { border-bottom: 1px solid #f7f7f7; transition: background 0.1s; cursor: pointer; }
     tbody tr:last-child { border-bottom: none; }
-    tbody tr:hover { background: #fafafa; }
+    tbody tr:hover { background: #fff8f0; }
     tbody td { padding: 14px 16px; font-size: 14px; }
     tbody td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
+    .ticket-red { color: #E5484D; font-weight: 600; }
+    .ticket-amber { color: #C9820A; font-weight: 600; }
+    .ticket-green { color: #12A071; font-weight: 600; }
     tfoot tr { border-top: 2px solid #f0f0f0; }
     tfoot td { padding: 12px 16px; font-size: 13px; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: 0.3px; }
     tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
 
     .tech-cell { display: flex; align-items: center; gap: 12px; }
     .avatar { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: white; flex-shrink: 0; letter-spacing: 0.5px; }
-    .tech-name-btn { background: none; border: none; font-size: 14px; font-weight: 500; color: #333; cursor: pointer; padding: 0; text-align: left; }
-    .tech-name-btn:hover { color: #FF9500; text-decoration: underline; }
+    .tech-name-label { font-size: 14px; font-weight: 500; color: #333; }
     .rank-num { font-size: 13px; font-weight: 700; color: #bbb; min-width: 18px; text-align: center; }
 
     .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 100; align-items: center; justify-content: center; }
@@ -314,14 +316,17 @@ app.get('/', (req, res) => {
       var rankHtml = medals[idx]
         ? '<span style="font-size:16px">' + medals[idx] + '</span>'
         : '<span class="rank-num">' + (idx + 1) + '</span>';
-      return '<tr>' +
+      var ticketClass = tech.averageTicket >= 1000 ? 'ticket-green'
+        : tech.averageTicket >= 750 ? 'ticket-amber'
+        : 'ticket-red';
+      return '<tr data-idx="' + idx + '">' +
         '<td><div class="tech-cell">' +
           '<div class="avatar" style="background:' + color + '">' + av + '</div>' +
           rankHtml +
-          '<button class="tech-name-btn" data-idx="' + idx + '">' + esc(tech.name) + '</button>' +
+          '<span class="tech-name-label">' + esc(tech.name) + '</span>' +
         '</div></td>' +
         '<td>' + fmt(tech.monthlyRevenue) + '</td>' +
-        '<td>' + fmt(tech.averageTicket) + '</td>' +
+        '<td class="' + ticketClass + '">' + fmt(tech.averageTicket) + '</td>' +
         '<td>' + tech.jobsCompleted + '</td>' +
         '</tr>';
     }).join('');
@@ -329,10 +334,10 @@ app.get('/', (req, res) => {
     document.getElementById('leaderboardBody').innerHTML = rows ||
       '<tr><td colspan="4" style="text-align:center;color:#aaa;padding:2rem">No completed jobs in this period</td></tr>';
 
-    // Attach click handlers after render
+    // Attach click handlers to rows
     var sortedSnapshot = sorted;
-    document.querySelectorAll('.tech-name-btn').forEach(function(btn) {
-      btn.addEventListener('click', function() {
+    document.querySelectorAll('#leaderboardBody tr[data-idx]').forEach(function(row) {
+      row.addEventListener('click', function() {
         openModal(sortedSnapshot[parseInt(this.dataset.idx)]);
       });
     });
