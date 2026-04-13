@@ -379,6 +379,26 @@ app.get('/api/metrics', async (req, res) => {
         periodEnd = getDayEnd(now);
         periodLabel = 'Last 90 Days';
         break;
+      case 'qtd':
+        const qtdQuarter = Math.floor(now.getMonth() / 3);
+        periodStart = new Date(now.getFullYear(), qtdQuarter * 3, 1);
+        periodEnd = getDayEnd(now);
+        periodLabel = 'Quarter to Date';
+        break;
+      case 'lq':
+        const lqQuarter = Math.floor(now.getMonth() / 3) - 1;
+        const lqYear = lqQuarter < 0 ? now.getFullYear() - 1 : now.getFullYear();
+        const lqQ = ((lqQuarter % 4) + 4) % 4;
+        periodStart = new Date(lqYear, lqQ * 3, 1);
+        periodEnd = new Date(lqYear, lqQ * 3 + 3, 1);
+        periodLabel = 'Last Quarter';
+        break;
+      case 'q2d':
+        const q2dQuarter = Math.floor(now.getMonth() / 3);
+        periodStart = new Date(now.getFullYear(), q2dQuarter * 3, 1);
+        periodEnd = getDayEnd(now);
+        periodLabel = 'Quarter to Date';
+        break;
       case 'ytd':
         periodStart = new Date(now.getFullYear(), 0, 1);
         periodEnd = getDayEnd(now);
@@ -390,6 +410,11 @@ app.get('/api/metrics', async (req, res) => {
         periodEnd = getDayEnd(now);
         periodLabel = 'Last 365 Days';
         break;
+      case 'ly':
+        periodStart = new Date(now.getFullYear() - 1, 0, 1);
+        periodEnd = new Date(now.getFullYear() - 1, 11, 31);
+        periodLabel = 'Last Year';
+        break;
       default:
         periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
         periodEnd = getDayEnd(now);
@@ -397,7 +422,7 @@ app.get('/api/metrics', async (req, res) => {
     }
 
     const headers = {
-      'Authorization': API_KEY,
+      'Authorization': 'Token ' + API_KEY,
       'Accept': 'application/json'
     };
 
@@ -407,36 +432,52 @@ app.get('/api/metrics', async (req, res) => {
     console.log('Got ' + employees.length + ' employees');
 
     console.log('Fetching jobs from: ' + BASE_URL + '/jobs');
-    const jobsRes = await axios.get(BASE_URL + '/jobs', { 
-      headers,
-      params: {
-        status: 'completed',
-        start_date: periodStart.toISOString().split('T')[0],
-        end_date: periodEnd.toISOString().split('T')[0]
-      }
-    });
-    const jobs = jobsRes.data.jobs || [];
+    const allJobs = [];
+    let page = 1;
+    const pageSize = 200;
+    while (true) {
+      const jobsRes = await axios.get(BASE_URL + '/jobs', {
+        headers,
+        params: {
+          work_status: 'completed',
+          scheduled_start_min: periodStart.toISOString(),
+          scheduled_start_max: periodEnd.toISOString(),
+          page,
+          page_size: pageSize
+        }
+      });
+      const pageJobs = jobsRes.data.jobs || [];
+      allJobs.push(...pageJobs);
+      const totalPages = jobsRes.data.total_pages || 1;
+      if (page >= totalPages) break;
+      page++;
+    }
+    const jobs = allJobs;
     console.log('Got ' + jobs.length + ' jobs');
 
     const techMetrics = {};
     jobs.forEach(job => {
-      const techId = job.assigned_employee_id || job.employee_id;
-      if (!techId) return;
+      const assignedEmployees = job.assigned_employees || [];
+      if (assignedEmployees.length === 0) return;
 
-      if (!techMetrics[techId]) {
-        const techInfo = employees.find(e => e.id === techId);
-        const techName = techInfo ? (techInfo.first_name + ' ' + techInfo.last_name) : 'Unknown';
-        techMetrics[techId] = {
-          id: techId,
-          name: techName,
-          revenue: 0,
-          jobs: 0
-        };
-      }
+      assignedEmployees.forEach(emp => {
+        const techId = emp.id;
+        if (!techId) return;
 
-      const jobRevenue = parseFloat(job.total || job.amount || 0);
-      techMetrics[techId].revenue += jobRevenue;
-      techMetrics[techId].jobs += 1;
+        if (!techMetrics[techId]) {
+          const techName = (emp.first_name || '') + ' ' + (emp.last_name || '');
+          techMetrics[techId] = {
+            id: techId,
+            name: techName.trim() || 'Unknown',
+            revenue: 0,
+            jobs: 0
+          };
+        }
+
+        const jobRevenue = parseFloat(job.total_amount || 0);
+        techMetrics[techId].revenue += jobRevenue;
+        techMetrics[techId].jobs += 1;
+      });
     });
 
     const leaderboard = Object.values(techMetrics)
