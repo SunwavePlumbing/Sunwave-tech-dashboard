@@ -15,6 +15,7 @@ app.get('/', (req, res) => {
   <title>Sunwave Tech Dashboard</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { overflow-x: hidden; max-width: 100%; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; }
 
     .header { background: #1a2d3a; color: white; padding: 1.5rem 1rem; text-align: center; }
@@ -76,21 +77,55 @@ app.get('/', (req, res) => {
     .modal-body { overflow-y: auto; flex: 1; }
     .modal-table { width: 100%; border-collapse: collapse; }
     .modal-table thead th { padding: 10px 16px; font-size: 11px; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1px solid #f0f0f0; text-align: left; position: sticky; top: 0; background: white; }
-    .modal-table thead th:last-child { text-align: right; }
+    .modal-table thead th:nth-child(4), .modal-table thead th:nth-child(5) { text-align: right; }
     .modal-table tbody td { padding: 11px 16px; font-size: 13px; border-bottom: 1px solid #f7f7f7; color: #444; }
     .modal-table tbody tr:last-child td { border-bottom: none; }
-    .modal-table tbody td:last-child { text-align: right; font-weight: 600; color: #333; font-variant-numeric: tabular-nums; }
+    .modal-table tbody td:nth-child(4), .modal-table tbody td:nth-child(5) { text-align: right; font-weight: 600; color: #333; font-variant-numeric: tabular-nums; }
     .modal-footer { padding: 1rem 1.4rem; border-top: 2px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
     .modal-footer-left { font-size: 13px; color: #888; }
     .modal-footer-right { font-size: 16px; font-weight: 700; color: #FF9500; }
+    .role-badge { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; margin-left: 6px; vertical-align: middle; letter-spacing: 0.3px; }
+    .role-sold-did { background: #FFF3E0; color: #E65100; }
+    .role-sold { background: #E8F5E9; color: #2E7D32; }
+    .role-did { background: #F3F4F6; color: #6B7280; }
+    .share-pct { font-size: 11px; color: #aaa; font-weight: 400; margin-left: 4px; }
 
     .footer { text-align: center; font-size: 11px; color: #aaa; padding: 1rem; }
     .error-msg { background: #fff3f3; color: #c62828; padding: 1.2rem 1.4rem; font-size: 14px; }
 
     @media (max-width: 768px) {
       .main-wrapper { grid-template-columns: 1fr; }
-      .sidebar { border-right: none; border-bottom: 1px solid #eee; display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 4px; padding: 0.8rem; }
+      .sidebar {
+        border-right: none;
+        border-bottom: 1px solid #eee;
+        display: flex;
+        flex-direction: row;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        gap: 6px;
+        padding: 0.75rem 1rem;
+        scrollbar-width: none;
+      }
+      .sidebar::-webkit-scrollbar { display: none; }
+      .date-btn {
+        display: inline-flex;
+        align-items: center;
+        width: auto;
+        white-space: nowrap;
+        flex-shrink: 0;
+        margin-bottom: 0;
+        padding: 8px 14px;
+        border-radius: 20px;
+        border: 1px solid #e8e8e8;
+        background: white;
+      }
+      .date-btn.active { border-color: #FF9500; }
       .content { padding: 1rem; }
+      .stats { grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 1rem; }
+      .stat-card { padding: 0.75rem 0.5rem; }
+      .stat-value { font-size: 20px; }
+      .table-wrapper { border-radius: 8px; }
+      thead th, tbody td, tfoot td { padding: 10px 12px; }
     }
   </style>
 </head>
@@ -152,7 +187,8 @@ app.get('/', (req, res) => {
             <th>Date</th>
             <th>Description</th>
             <th>Customer</th>
-            <th>Amount</th>
+            <th>Job Total</th>
+            <th>Their Share</th>
           </tr>
         </thead>
         <tbody id="modalBody"></tbody>
@@ -250,17 +286,24 @@ app.get('/', (req, res) => {
     });
     var rows = jobs.map(function(job) {
       var desc = job.description ? esc(job.description) : (job.invoice ? 'Invoice #' + esc(job.invoice) : '\u2014');
+      var roleClass = job.role === 'Sold & Did' ? 'role-sold-did' : job.role === 'Sold' ? 'role-sold' : 'role-did';
+      var roleBadge = job.role ? '<span class="role-badge ' + roleClass + '">' + esc(job.role) + '</span>' : '';
+      var jobTotal = job.jobTotal != null ? fmt(job.jobTotal) : fmt(job.credit);
+      var shareHtml = job.creditPct != null && job.creditPct < 100
+        ? fmt(job.credit) + '<span class="share-pct">(' + job.creditPct + '%)</span>'
+        : fmt(job.credit != null ? job.credit : job.amount);
       return '<tr>' +
         '<td>' + fmtDate(job.date) + '</td>' +
-        '<td>' + desc + '</td>' +
+        '<td>' + desc + roleBadge + '</td>' +
         '<td>' + esc(job.customer || '\u2014') + '</td>' +
-        '<td>' + fmt(job.amount) + '</td>' +
+        '<td>' + jobTotal + '</td>' +
+        '<td>' + shareHtml + '</td>' +
         '</tr>';
     }).join('');
     document.getElementById('modalBody').innerHTML = rows ||
-      '<tr><td colspan="4" style="text-align:center;color:#aaa;padding:2rem">No jobs found</td></tr>';
+      '<tr><td colspan="5" style="text-align:center;color:#aaa;padding:2rem">No jobs found</td></tr>';
     document.getElementById('modalJobCount').textContent = jobs.length + ' job' + (jobs.length !== 1 ? 's' : '');
-    document.getElementById('modalTotal').textContent = fmt(tech.monthlyRevenue) + ' total';
+    document.getElementById('modalTotal').textContent = fmt(tech.monthlyRevenue) + ' credited';
     document.getElementById('modalBackdrop').classList.add('open');
     document.body.style.overflow = 'hidden';
   }
@@ -510,10 +553,41 @@ app.get('/api/metrics', async (req, res) => {
     }
     console.log('Got ' + allJobs.length + ' jobs');
 
+    // Fetch original estimates to identify who sold each job (the seller gets 1/3 credit)
+    const estimateIds = [...new Set(
+      allJobs
+        .map(j => j.original_estimate_id || (j.original_estimate_uuids && j.original_estimate_uuids[0]))
+        .filter(Boolean)
+    )];
+    const estimateSellerMap = {};
+    if (estimateIds.length > 0) {
+      console.log('Fetching ' + estimateIds.length + ' estimates for seller attribution');
+      const BATCH = 10;
+      for (let i = 0; i < estimateIds.length; i += BATCH) {
+        const batch = estimateIds.slice(i, i + BATCH);
+        const results = await Promise.all(
+          batch.map(id =>
+            axios.get(BASE_URL + '/estimates/' + id, { headers })
+              .then(r => ({ id, employees: r.data.assigned_employees || [] }))
+              .catch(() => ({ id, employees: [] }))
+          )
+        );
+        results.forEach(r => { estimateSellerMap[r.id] = r.employees; });
+      }
+    }
+
     const techMetrics = {};
+
+    function ensureTech(emp) {
+      if (!techMetrics[emp.id]) {
+        const name = ((emp.first_name || '') + ' ' + (emp.last_name || '')).trim() || 'Unknown';
+        techMetrics[emp.id] = { id: emp.id, name, revenue: 0, jobs: 0, jobList: [] };
+      }
+    }
+
     allJobs.forEach(job => {
-      const assignedEmployees = job.assigned_employees || [];
-      if (assignedEmployees.length === 0) return;
+      const doers = job.assigned_employees || [];
+      if (doers.length === 0) return;
 
       const jobRevenue = parseFloat(job.total_amount || 0) / 100;
       const customer = job.customer
@@ -523,23 +597,55 @@ app.get('/api/metrics', async (req, res) => {
         ? job.work_timestamps.completed_at
         : (job.schedule && job.schedule.scheduled_start ? job.schedule.scheduled_start : null);
 
-      assignedEmployees.forEach(emp => {
-        const techId = emp.id;
-        if (!techId) return;
+      const estimateId = job.original_estimate_id || (job.original_estimate_uuids && job.original_estimate_uuids[0]);
+      const sellers = estimateId ? (estimateSellerMap[estimateId] || []) : [];
 
-        if (!techMetrics[techId]) {
-          const techName = ((emp.first_name || '') + ' ' + (emp.last_name || '')).trim() || 'Unknown';
-          techMetrics[techId] = { id: techId, name: techName, revenue: 0, jobs: 0, jobList: [] };
-        }
+      // Build a credit map: techId -> credit amount
+      const creditMap = {};
 
-        techMetrics[techId].revenue += jobRevenue;
-        techMetrics[techId].jobs += 1;
-        techMetrics[techId].jobList.push({
+      if (sellers.length === 0) {
+        // No estimate — doers split the full revenue equally
+        doers.forEach(emp => {
+          creditMap[emp.id] = (creditMap[emp.id] || 0) + jobRevenue / doers.length;
+        });
+      } else {
+        // Sellers share 1/3, doers share 2/3
+        const sellPool = jobRevenue / 3;
+        const doPool = jobRevenue * 2 / 3;
+        sellers.forEach(emp => {
+          creditMap[emp.id] = (creditMap[emp.id] || 0) + sellPool / sellers.length;
+        });
+        doers.forEach(emp => {
+          creditMap[emp.id] = (creditMap[emp.id] || 0) + doPool / doers.length;
+        });
+      }
+
+      // Collect all unique techs involved (sellers + doers)
+      const allInvolved = [...doers];
+      sellers.forEach(s => { if (!allInvolved.find(d => d.id === s.id)) allInvolved.push(s); });
+
+      allInvolved.forEach(emp => {
+        const credit = creditMap[emp.id];
+        if (!credit) return;
+
+        ensureTech(emp);
+
+        const isSeller = sellers.some(s => s.id === emp.id);
+        const isDoer = doers.some(d => d.id === emp.id);
+        const role = (isSeller && isDoer) ? 'Sold & Did' : isSeller ? 'Sold' : 'Did';
+        const creditPct = Math.round(credit / jobRevenue * 100);
+
+        techMetrics[emp.id].revenue += credit;
+        techMetrics[emp.id].jobs += 1;
+        techMetrics[emp.id].jobList.push({
           invoice: job.invoice_number || null,
           description: job.description || null,
           customer,
           date: jobDate,
-          amount: jobRevenue
+          jobTotal: jobRevenue,
+          credit,
+          creditPct,
+          role
         });
       });
     });
