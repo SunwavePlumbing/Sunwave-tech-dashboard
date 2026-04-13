@@ -617,12 +617,13 @@ app.get('/', (req, res) => {
 
     // Bar chart — last 12 months
     var maxJobs = Math.max.apply(null, history.map(function(m) { return m.jobs; })) || 1;
+    var BAR_MAX_PX = 100;
     var bars = history.map(function(m) {
-      var h = Math.round(m.jobs / maxJobs * 100);
+      var h = Math.max(3, Math.round(m.jobs / maxJobs * BAR_MAX_PX));
       var isCur = m.isCurrent ? ' is-current' : '';
       return '<div class="bar-col">' +
         '<div class="bar-val">' + (m.jobs > 0 ? m.jobs : '') + '</div>' +
-        '<div class="bar' + isCur + '" style="height:' + h + '%"></div>' +
+        '<div class="bar' + isCur + '" style="height:' + h + 'px"></div>' +
         '<div class="bar-lbl">' + esc(m.label) + '</div>' +
       '</div>';
     }).join('');
@@ -933,7 +934,10 @@ app.get('/api/metrics', async (req, res) => {
       .sort((a, b) => b.monthlyRevenue - a.monthlyRevenue);
 
     const totalRevenue = leaderboard.reduce((sum, t) => sum + t.monthlyRevenue, 0);
-    const totalJobs = leaderboard.reduce((sum, t) => sum + t.jobsCompleted, 0);
+    // Use the raw job count (all completed jobs in range) for the summary card so it
+    // matches what the marketing tab shows. Per-tech credited entries can differ because
+    // multi-tech jobs are counted once per tech, and jobs with no employees are skipped.
+    const totalJobs = allJobs.length;
     const avgTicket = totalJobs > 0 ? Math.round(totalRevenue / totalJobs) : 0;
 
     res.json({
