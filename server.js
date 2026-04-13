@@ -18,9 +18,13 @@ app.get('/', (req, res) => {
     html, body { overflow-x: hidden; max-width: 100%; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; }
 
-    .header { background: #1a2d3a; color: white; padding: 1.5rem 1rem; text-align: center; }
-    .header h1 { font-size: 28px; font-weight: 600; margin: 0 0 0.4rem 0; }
-    .header p { margin: 0; font-size: 13px; opacity: 0.85; }
+    .header { background: #1a2d3a; color: white; padding: 1.25rem 1rem 1.1rem; text-align: center; }
+    .header-eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; opacity: 0.5; margin-bottom: 4px; }
+    .header h1 { font-size: 26px; font-weight: 700; margin: 0 0 0.35rem 0; letter-spacing: -0.3px; }
+    .header-sub { display: flex; align-items: center; justify-content: center; gap: 10px; }
+    .header-location { font-size: 12px; font-weight: 500; opacity: 0.6; letter-spacing: 0.5px; }
+    .header-dot { width: 3px; height: 3px; border-radius: 50%; background: white; opacity: 0.35; display: inline-block; }
+    .header-period { font-size: 12px; opacity: 0.75; }
 
     .main-wrapper { display: grid; grid-template-columns: 180px 1fr; min-height: calc(100vh - 100px); }
     .sidebar { background: white; padding: 1.5rem 1rem; border-right: 1px solid #e5e5e5; overflow-y: auto; }
@@ -138,8 +142,13 @@ app.get('/', (req, res) => {
 <body>
 
 <div class="header">
-  <h1>Sunwave Performance</h1>
-  <p id="period">Loading...</p>
+  <div class="header-eyebrow">Tech Performance</div>
+  <h1>Sunwave</h1>
+  <div class="header-sub">
+    <span class="header-location">&#x1F4CD; Charlottesville</span>
+    <span class="header-dot"></span>
+    <span class="header-period" id="period">Loading...</span>
+  </div>
 </div>
 
 <div class="main-wrapper">
