@@ -201,9 +201,14 @@ function activateTab(tab) {
   // Update panels
   document.querySelectorAll('.view-panel').forEach(function(p) { p.classList.remove('active'); });
   document.getElementById(TAB_MAP[tab].view).classList.add('active');
-  // Sidebar only on Technicians
+  // Sidebar only on Technicians tab
   var isTech = tab === 'technicians';
-  document.getElementById('dateSidebar').style.display = isTech ? '' : 'none';
+  // On desktop the sidebar is a grid column — show/hide it and toggle the class.
+  // On mobile it was moved inside techView by init(), so the panel show/hide
+  // handles visibility automatically; we only toggle the wrapper class.
+  if (window.innerWidth > 768) {
+    document.getElementById('dateSidebar').style.display = isTech ? '' : 'none';
+  }
   document.getElementById('mainWrapper').classList.toggle('no-sidebar', !isTech);
   // Lazy-load tab data
   if (tab === 'marketing' && !marketingLoaded) {
@@ -232,6 +237,13 @@ window.addEventListener('hashchange', function() {
 
 // init() is called from index.html after all script files have loaded
 function init() {
+  // On mobile, move the date sidebar into techView so it sits below the tabs
+  // (not above them). Desktop layout is unchanged — sidebar stays in the grid.
+  if (window.innerWidth <= 768) {
+    var techView = document.getElementById('techView');
+    var dateSidebar = document.getElementById('dateSidebar');
+    techView.insertBefore(dateSidebar, techView.firstChild);
+  }
   var tab = window.location.hash.replace('#', '') || DEFAULT_TAB;
   activateTab(tab);
   fetchData();

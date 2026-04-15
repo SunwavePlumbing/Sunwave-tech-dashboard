@@ -107,7 +107,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 
 @media (max-width: 768px) {
   .main-wrapper { grid-template-columns: 1fr; }
-  .sidebar { border-right: none; border-bottom: 1px solid #eee; display: block; padding: 0; background: white; }
+  .sidebar { border-right: none; border-bottom: 1px solid #eee; display: block; padding: 0; background: white; margin-bottom: 0.85rem; border-radius: 10px; overflow: hidden; }
   .sidebar-primary { display: flex; overflow-x: auto; gap: 6px; padding: 10px 14px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
   .sidebar-primary::-webkit-scrollbar { display: none; }
   .date-btn { display: inline-flex; align-items: center; width: auto; white-space: nowrap; flex-shrink: 0; margin-bottom: 0; padding: 7px 13px; border-radius: 20px; border: 1px solid #e8e8e8; background: white; font-size: 13px; }
