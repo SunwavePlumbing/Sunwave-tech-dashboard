@@ -472,6 +472,27 @@ app.get('/', (req, res) => {
     .var-table tr.subtotal td { font-weight:700;background:#fafafa;color:#1a2d3a; }
     .var-table td.pos { color:#12A071;font-weight:600; }
     .var-table td.neg { color:#E5484D;font-weight:600; }
+    .var-table tr.noi td { font-size:15px;font-weight:800;background:#f5faff;color:#1a2d3a;border-top:2px solid #1a2d3a;padding:12px 8px; }
+    .var-table tr.noi td.pos { color:#12A071; }
+    .var-table tr.noi td.neg { color:#E5484D; }
+
+    /* Mobile variance flow */
+    .var-flow { display:flex;flex-direction:column;gap:0; }
+    .var-flow-row { display:flex;justify-content:space-between;align-items:baseline;padding:8px 4px;border-bottom:1px solid #f5f5f5;font-size:13px; }
+    .var-flow-row.indent { padding-left:22px;color:#666; }
+    .var-flow-row.sub { font-weight:700;color:#1a2d3a;background:#fafafa; }
+    .var-flow-row.noi { display:block;background:#f5faff;border-top:2px solid #1a2d3a;border-bottom:2px solid #1a2d3a;padding:14px 12px;margin-top:6px; }
+    .var-flow-row.noi .var-noi-lbl { font-size:11px;color:#888;text-transform:uppercase;font-weight:700;letter-spacing:0.8px;margin-bottom:4px; }
+    .var-flow-row.noi .var-noi-val { font-size:26px;font-weight:800;color:#1a2d3a;line-height:1.1;font-variant-numeric:tabular-nums; }
+    .var-flow-row.noi .var-noi-vs { font-size:12px;color:#888;margin-top:2px; }
+    .var-flow-row.noi .var-noi-change { font-size:15px;font-weight:700;margin-top:6px; }
+    .var-flow-row.noi .var-noi-change.pos { color:#12A071; }
+    .var-flow-row.noi .var-noi-change.neg { color:#E5484D; }
+    .var-chg { font-weight:600;margin-left:10px; }
+    .var-chg.pos { color:#12A071; }
+    .var-chg.neg { color:#E5484D; }
+    @media (max-width:768px) { .var-table-wrap { display:none; } }
+    @media (min-width:769px) { .var-flow { display:none; } }
 
     /* Cash cards */
     .cash-row { display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px; }
@@ -615,7 +636,7 @@ app.get('/', (req, res) => {
       <!-- Key Ratios trend -->
       <div class="fin-chart-card" id="finTrendCard" style="display:none;margin-bottom:1.4rem">
         <div class="fin-chart-title">How The Ratios Have Moved, Month by Month</div>
-        <div style="font-size:11px;color:#888;margin-top:-8px;margin-bottom:10px">Click a ratio below to plot just that one. Each line is that category&rsquo;s share of monthly revenue.</div>
+        <div style="font-size:11px;color:#888;margin-top:-8px;margin-bottom:10px">Click a ratio below to plot just that one. Each line is that category&rsquo;s share of monthly revenue. <strong>Dashed line = healthy target.</strong></div>
         <div class="fin-trend-toggles" id="trendToggles"></div>
         <div class="fin-chart-wrap" style="height:240px"><canvas id="trendChart"></canvas></div>
       </div>
@@ -1614,30 +1635,56 @@ app.get('/', (req, res) => {
     } else {
       var pyMonth = months[pyIdx];
       var varLines = [
-        { label: 'Revenue', cur: revenue[curIdx], py: revenue[pyIdx], good: 'up', sub: false },
-        { label: 'Cost of Goods Sold', cur: cogs[curIdx], py: cogs[pyIdx], good: 'down', sub: false },
-        { label: 'Gross Profit', cur: gp[curIdx], py: gp[pyIdx], good: 'up', sub: true },
-        { label: 'Operating Expenses', cur: totalExp[curIdx], py: totalExp[pyIdx], good: 'down', sub: false },
-        { label: 'Net Operating Income', cur: noi[curIdx], py: noi[pyIdx], good: 'up', sub: true }
+        { label: 'Revenue', cur: revenue[curIdx], py: revenue[pyIdx], good: 'up', kind: 'top', op: '' },
+        { label: 'Cost of Goods Sold', cur: cogs[curIdx], py: cogs[pyIdx], good: 'down', kind: 'indent', op: '\u2212' },
+        { label: 'Gross Profit', cur: gp[curIdx], py: gp[pyIdx], good: 'up', kind: 'sub', op: '=' },
+        { label: 'Operating Expenses', cur: totalExp[curIdx], py: totalExp[pyIdx], good: 'down', kind: 'indent', op: '\u2212' },
+        { label: 'Operating Profit', cur: noi[curIdx], py: noi[pyIdx], good: 'up', kind: 'noi', op: '=' }
       ];
-      var varBody = varLines.map(function(l) {
+      function deltaParts(l) {
         var d = (l.cur||0) - (l.py||0);
         var pct = l.py ? (d / Math.abs(l.py) * 100) : 0;
         var isGood = l.good === 'up' ? d >= 0 : d <= 0;
         var cls = isGood ? 'pos' : 'neg';
         var signStr = d >= 0 ? '+' : '';
-        return '<tr class="' + (l.sub ? 'subtotal' : '') + '">' +
+        return { d: d, pct: pct, cls: cls, signStr: signStr };
+      }
+      // Desktop table — NOI row emphasized
+      var varBody = varLines.map(function(l) {
+        var p = deltaParts(l);
+        var rowCls = l.kind === 'sub' ? 'subtotal' : (l.kind === 'noi' ? 'noi' : '');
+        return '<tr class="' + rowCls + '">' +
           '<td>' + esc(l.label) + '</td>' +
           '<td>' + fmtDollar(l.cur || 0) + '</td>' +
           '<td>' + fmtDollar(l.py || 0) + '</td>' +
-          '<td class="' + cls + '">' + signStr + fmtDollar(d) + '</td>' +
-          '<td class="' + cls + '">' + (l.py ? signStr + pct.toFixed(1) + '%' : '—') + '</td>' +
+          '<td class="' + p.cls + '">' + p.signStr + fmtDollar(p.d) + '</td>' +
+          '<td class="' + p.cls + '">' + (l.py ? p.signStr + p.pct.toFixed(1) + '%' : '—') + '</td>' +
           '</tr>';
       }).join('');
+      // Mobile flow — P&L order with big NOI payload
+      var varFlow = varLines.map(function(l) {
+        var p = deltaParts(l);
+        if (l.kind === 'noi') {
+          return '<div class="var-flow-row noi">' +
+            '<div class="var-noi-lbl">' + (l.op ? l.op + ' ' : '') + 'Operating Profit</div>' +
+            '<div class="var-noi-val">' + fmtDollar(l.cur || 0) + '</div>' +
+            '<div class="var-noi-vs">vs ' + fmtDollar(l.py || 0) + ' in ' + fmtMkShort(pyMonth) + '</div>' +
+            '<div class="var-noi-change ' + p.cls + '">' + (p.d >= 0 ? '▲' : '▼') + ' ' + p.signStr + fmtDollar(p.d) +
+              (l.py ? ' (' + p.signStr + p.pct.toFixed(0) + '%)' : '') + '</div>' +
+            '</div>';
+        }
+        var rowCls = l.kind === 'indent' ? 'indent' : (l.kind === 'sub' ? 'sub' : '');
+        return '<div class="var-flow-row ' + rowCls + '">' +
+          '<span>' + (l.op ? l.op + ' ' : '') + esc(l.label) + ' <span style="color:#aaa;font-size:12px">' + fmtDollar(l.cur||0) + '</span></span>' +
+          '<span class="var-chg ' + p.cls + '">' + (l.py ? p.signStr + p.pct.toFixed(0) + '%' : '—') + '</span>' +
+          '</div>';
+      }).join('');
       document.getElementById('finVariance').innerHTML =
+        '<div class="var-flow">' + varFlow + '</div>' +
+        '<div class="var-table-wrap">' +
         '<table class="var-table"><thead><tr>' +
         '<th>Line item</th><th>This year (' + fmtMkShort(finMonth) + ')</th><th>Last year (' + fmtMkShort(pyMonth) + ')</th>' +
-        '<th>Change ($)</th><th>Change (%)</th></tr></thead><tbody>' + varBody + '</tbody></table>';
+        '<th>Change ($)</th><th>Change (%)</th></tr></thead><tbody>' + varBody + '</tbody></table></div>';
       document.getElementById('varSubtitle').textContent = fmtMkShort(finMonth) + ' vs. ' + fmtMkShort(pyMonth);
     }
 
@@ -1691,14 +1738,27 @@ app.get('/', (req, res) => {
     var mLabels = months.map(function(mk) {
       var p = mk.split('-'); return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(p[1])-1] + ' ' + p[0].slice(2);
     });
-    var tDatasets = TREND_SERIES.map(function(s) {
-      return {
+    var tDatasets = [];
+    TREND_SERIES.forEach(function(s) {
+      tDatasets.push({
         label: s.label, data: s.data, borderColor: s.color,
         backgroundColor: s.color + '18',
         borderWidth: 2, pointRadius: 3, pointHoverRadius: 5,
         tension: 0.3, hidden: trendActive !== s.key,
         fill: false
-      };
+      });
+    });
+    // Secondary goal-line datasets (dashed, grey) synced 1:1 with main series.
+    TREND_SERIES.forEach(function(s) {
+      tDatasets.push({
+        label: s.label + ' target',
+        data: s.goal == null ? [] : months.map(function() { return s.goal; }),
+        borderColor: '#bbb',
+        borderDash: [6, 4],
+        borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 0,
+        tension: 0, fill: false,
+        hidden: trendActive !== s.key || s.goal == null
+      });
     });
     trendChartInst = new Chart(tCtx, {
       type: 'line',
@@ -1708,9 +1768,12 @@ app.get('/', (req, res) => {
         interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: { display: false },
-          tooltip: { callbacks: {
-            label: function(ctx) { return ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(1) + '%'; }
-          }}
+          tooltip: {
+            filter: function(ctx) { return !/target$/.test(ctx.dataset.label); },
+            callbacks: {
+              label: function(ctx) { return ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(1) + '%'; }
+            }
+          }
         },
         scales: {
           x: { grid: { color: '#f5f5f5' }, ticks: { font: { size: 10 } } },
@@ -1728,8 +1791,13 @@ app.get('/', (req, res) => {
     btns.forEach(function(b) { b.classList.toggle('on', b.dataset.key === key); });
     if (trendChartInst) {
       var keys = ['gm','tl','parts','admin','om'];
+      var goals = { gm:50, tl:25, parts:25, admin:null, om:15 };
       keys.forEach(function(k, idx) {
+        // main series at idx, goal series at idx + keys.length
         trendChartInst.data.datasets[idx].hidden = k !== key;
+        if (trendChartInst.data.datasets[idx + keys.length]) {
+          trendChartInst.data.datasets[idx + keys.length].hidden = k !== key || goals[k] == null;
+        }
       });
       trendChartInst.update();
     }
