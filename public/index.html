@@ -92,10 +92,6 @@
         <div style="text-align:center;padding:3rem;color:#aaa;font-size:14px">Loading financial data&hellip;</div>
       </div>
 
-      <!-- Efficiency tiles -->
-      <div class="fin-row-title" id="finCardsTitle2" style="display:none">Where the money goes &mdash; as a share of revenue</div>
-      <div class="fin-pct-tiles" id="finCards2"></div>
-
       <!-- Row 2: Where the money went + what's on hand -->
       <div class="fin-row2" id="finRow2" style="display:none">
         <div class="fin-chart-card">
@@ -119,18 +115,10 @@
         </div>
       </div>
 
-      <!-- Cash in the bank over time -->
-      <div class="fin-chart-card" id="finCashBalCard" style="display:none;margin-bottom:1.4rem">
-        <div class="fin-chart-title">Cash in the Bank Over Time <span id="cbSubtitle"></span></div>
-        <div style="font-size:11px;color:#888;margin-top:-8px;margin-bottom:14px">End-of-month account balance &mdash; what was actually in the bank on the last day of each month.</div>
-        <div class="fin-chart-wrap" style="height:200px"><canvas id="cbLineChart"></canvas></div>
-        <div class="cb-movers" id="cbMovers"></div>
-      </div>
-
       <!-- Cash flow over time -->
       <div class="fin-chart-card" id="finCashFlowCard" style="display:none;margin-bottom:1.4rem">
-        <div class="fin-chart-title">Operating Profit Over Time <span id="cfSubtitle"></span></div>
-        <div style="font-size:11px;color:#888;margin-top:-8px;margin-bottom:14px">Monthly operating profit — green = positive, red = in the hole. Tap a bar to see the amount.</div>
+        <div class="fin-chart-title">Cash in the Bank Over Time <span id="cfSubtitle"></span></div>
+        <div style="font-size:11px;color:#888;margin-top:-8px;margin-bottom:14px">End-of-month bank account balance — how much actual cash was sitting in the accounts each month.</div>
         <div class="fin-chart-wrap" style="height:200px"><canvas id="cfBarChart"></canvas></div>
         <div class="cf-drivers" id="cfDrivers"></div>
       </div>

@@ -540,6 +540,50 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   .mf-op-item-pct      { display:block; }
 }
 
+/* ── Revenue full bar ──────────────────────────────────────── */
+.mf-rev-bar {
+  height: 10px; background: #3b82f6; border-radius: 4px;
+  margin: 10px 0 6px;
+}
+.mf-rev-bar-leg {
+  font-size: 11px; color: #888;
+}
+
+/* ── Cascading split bars (COGS 2-part, Overhead 3-part) ──── */
+.mf-split-wrap { margin: 10px 0 4px; }
+
+.mf-split-bar {
+  display: flex; height: 10px; border-radius: 4px;
+  overflow: hidden; gap: 0;
+}
+
+/* Segments — widths set inline via JS */
+.mf-sb-prior { background: #d1d5db; flex-shrink: 0; }  /* grey: already consumed (COGS) */
+.mf-sb-cogs  { background: #ef4444; flex-shrink: 0; }  /* red: cost of goods sold */
+.mf-sb-ovhd  { background: #f97316; flex-shrink: 0; }  /* orange: overhead */
+.mf-sb-pass  { flex: 1; min-width: 2px; }              /* remainder fills rest */
+/* Color the "pass-through" by context: revenue bar = blue, GP remainder = green, NOI remainder = blue */
+.mf-split-wrap--cogs  .mf-sb-pass { background: #22c55e; }   /* green → becomes GP */
+.mf-split-wrap--ovhd  .mf-sb-pass { background: #3b82f6; }   /* blue  → becomes NOI */
+
+.mf-split-leg {
+  display: flex; gap: 12px; flex-wrap: wrap;
+  margin-top: 5px;
+}
+.mf-split-leg span {
+  font-size: 11px; color: #666;
+  display: flex; align-items: center; gap: 4px;
+}
+.mf-split-leg span::before {
+  content: ''; display: inline-block;
+  width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0;
+}
+.mf-sl-prior::before { background: #d1d5db; }
+.mf-sl-cogs::before  { background: #ef4444; }
+.mf-sl-ovhd::before  { background: #f97316; }
+.mf-sl-pass-gp::before  { background: #22c55e; }
+.mf-sl-pass-noi::before { background: #3b82f6; }
+
 /* Compare delta + status pills */
 .mf-delta { font-size:13px; font-weight:600; margin-top:8px; }
 .mf-delta.up   { color:#059669; }
@@ -684,45 +728,21 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .cash-cushion .val.warn { color:#C9820A; }
 .cash-cushion .val.bad { color:#E5484D; }
 
-/* ── Cash in the bank over time ─────────────────────────────── */
-.cb-movers { margin-top:22px; }
-.cb-movers-title {
-  font-size:11px; font-weight:700; letter-spacing:0.8px;
-  text-transform:uppercase; color:#888; margin-bottom:6px;
+/* ── Account sub-rows inside balance sheet card ─────────────── */
+.cash-acct-list {
+  padding: 4px 4px 8px 18px;
+  border-bottom: 1px solid #f5f5f5;
 }
-.cb-movers-head {
-  display:grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap:8px;
-  padding:5px 0 8px;
-  border-bottom:1px solid #e8e8e8;
-  font-size:10px; font-weight:700; color:#aaa;
-  text-transform:uppercase; letter-spacing:0.5px;
+.cash-acct-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 3px 0;
+  font-size: 12px;
+  color: #666;
 }
-.cb-mover-row {
-  display:grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap:8px;
-  padding:10px 0;
-  border-bottom:1px solid #f5f5f5;
-  align-items:baseline;
-}
-.cb-mover-row:last-child { border-bottom:none; }
-.cb-mover-lbl  { font-size:13px; color:#555; }
-.cb-mover-val  { font-size:13px; color:#1a2d3a; font-variant-numeric:tabular-nums; white-space:nowrap; }
-.cb-mover-val.muted { color:#bbb; }
-.cb-mover-val.pos { color:#12A071; }
-.cb-mover-val.neg { color:#E5484D; }
-.cb-mover-chg  { font-size:13px; font-weight:600; font-variant-numeric:tabular-nums; white-space:nowrap; }
-.cb-mover-chg.pos { color:#12A071; }
-.cb-mover-chg.neg { color:#E5484D; }
-.cb-mover-hint { font-size:10px; font-weight:400; opacity:0.7; margin-left:3px; }
-.cb-hide-mobile { display:none; }
-@media (min-width:640px) {
-  .cb-movers-head { grid-template-columns: 1fr 1fr 1fr 1fr 1fr; }
-  .cb-mover-row   { grid-template-columns: 1fr 1fr 1fr 1fr 1fr; }
-  .cb-hide-mobile { display:block; }
-}
+.cash-acct-name { flex: 1; }
+.cash-acct-val  { font-weight: 600; color: #444; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /* ── Cash flow over time ─────────────────────────────────────── */
 .cf-drivers { margin-top:22px; }
@@ -835,12 +855,6 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   .cash-cushion .lbl-top  { font-size:15px; }
   .cash-cushion .lbl-sub  { font-size:13px; }
   .cash-cushion .val      { font-size:24px; }
-
-  /* Cash in the bank over time */
-  .cb-movers-title     { font-size:12px; }
-  .cb-mover-lbl        { font-size:14px; }
-  .cb-mover-val        { font-size:14px; }
-  .cb-mover-chg        { font-size:14px; }
 
   /* Cash flow over time */
   .cf-drivers-title    { font-size:12px; }

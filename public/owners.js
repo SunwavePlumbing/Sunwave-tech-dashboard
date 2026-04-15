@@ -7,8 +7,6 @@ var ownersBalance = null;
 var donutChartInst = null;
 var trendChartInst = null;
 var cfBarChartInst = null;
-var cbLineChartInst = null;
-var ownersCashHistory = null;
 var trendActive = 'gm'; // single-select key-ratio trend line
 
 // Toggle expandable detail panel in the money-flow card
@@ -47,16 +45,13 @@ async function fetchOwnersData(force) {
   document.getElementById('finRow3').style.display = 'none';
   document.getElementById('finTrendCard').style.display = 'none';
   document.getElementById('finCashFlowCard').style.display = 'none';
-  document.getElementById('finCashBalCard').style.display = 'none';
   try {
-    var [finResp, balResp, cashHistResp] = await Promise.all([
+    var [finResp, balResp] = await Promise.all([
       fetch('/api/owners-financial').then(function(r){return r.json();}).catch(function(){return{connected:false,reason:'error'};}),
-      fetch('/api/qbo-balance').then(function(r){return r.json();}).catch(function(){return{connected:false};}),
-      fetch('/api/qbo-cash-history').then(function(r){return r.json();}).catch(function(){return{connected:false};})
+      fetch('/api/qbo-balance').then(function(r){return r.json();}).catch(function(){return{connected:false};})
     ]);
     ownersData = finResp;
     ownersBalance = balResp;
-    ownersCashHistory = cashHistResp;
   } catch(e) {
     ownersData = { connected: false, reason: 'error' };
   }
@@ -173,7 +168,6 @@ function renderOwners() {
     document.getElementById('finRow3').style.display = 'none';
     document.getElementById('finTrendCard').style.display = 'none';
     document.getElementById('finCashFlowCard').style.display = 'none';
-    document.getElementById('finCashBalCard').style.display = 'none';
     return;
   }
 
@@ -395,19 +389,32 @@ function renderOwners() {
         '<div class="mf-step-label">Revenue</div>' +
         '<div class="mf-step-num">' + fmtDollar(curRev) + '</div>' +
         '<div class="mf-step-desc">Total money collected from completed jobs</div>' +
+        '<div class="mf-rev-bar"></div>' +
+        '<div class="mf-rev-bar-leg">This is the full 100% — everything below is carved out of this bar</div>' +
         mfDelta(curRev, revenue) +
       '</div>' +
 
-      // ── − Job Costs ───────────────────────────────────────────
+      // ── − Cost of Goods Sold ──────────────────────────────────
       '<div class="mf-op">' +
         '<div class="mf-op-head">' +
-          '<div class="mf-op-label"><span class="mf-op-sign">\u2212</span> Job Costs</div>' +
+          '<div class="mf-op-label"><span class="mf-op-sign">\u2212</span> Cost of Goods Sold</div>' +
           '<button class="mf-op-btn" onclick="mfToggle(\'mfCogsDetail\',this)">' +
             'details <span class="mf-op-chev">\u25be</span>' +
           '</button>' +
         '</div>' +
         '<div class="mf-op-total">\u2212' + fmtDollar(curCOGS) +
           '<span class="mf-op-total-sub">' + fmtPct(cogsPct) + ' of rev</span></div>' +
+        // 2-part split bar: COGS (red) + GP remainder (green)
+        '<div class="mf-split-wrap mf-split-wrap--cogs">' +
+          '<div class="mf-split-bar">' +
+            '<div class="mf-sb-cogs" style="width:' + Math.max(0,Math.min(cogsPct,99)).toFixed(1) + '%"></div>' +
+            '<div class="mf-sb-pass"></div>' +
+          '</div>' +
+          '<div class="mf-split-leg">' +
+            '<span class="mf-sl-cogs">COGS: ' + fmtPct(cogsPct) + '</span>' +
+            '<span class="mf-sl-pass-gp">Gross Profit: ' + fmtPct(gmPct) + '</span>' +
+          '</div>' +
+        '</div>' +
         '<div class="mf-op-items" id="mfCogsDetail" hidden>' +
           cogsItems.filter(function(r){return r.val>0;}).map(function(r){return mfCostItem(r.label,r.val,curRev);}).join('') +
         '</div>' +
@@ -431,6 +438,19 @@ function renderOwners() {
         '</div>' +
         '<div class="mf-op-total">\u2212' + fmtDollar(curOvhd) +
           '<span class="mf-op-total-sub">' + fmtPct(ovhdPct) + ' of rev</span></div>' +
+        // 3-part split bar: COGS already consumed (grey) + Overhead (orange) + NOI remainder (blue)
+        '<div class="mf-split-wrap mf-split-wrap--ovhd">' +
+          '<div class="mf-split-bar">' +
+            '<div class="mf-sb-prior" style="width:' + Math.max(0,Math.min(cogsPct,99)).toFixed(1) + '%"></div>' +
+            '<div class="mf-sb-ovhd"  style="width:' + Math.max(0,Math.min(ovhdPct,100-cogsPct)).toFixed(1) + '%"></div>' +
+            '<div class="mf-sb-pass"></div>' +
+          '</div>' +
+          '<div class="mf-split-leg">' +
+            '<span class="mf-sl-prior">COGS (already cut): ' + fmtPct(cogsPct) + '</span>' +
+            '<span class="mf-sl-ovhd">Overhead: ' + fmtPct(ovhdPct) + '</span>' +
+            '<span class="mf-sl-pass-noi">Operating Profit: ' + fmtPct(noiPct) + '</span>' +
+          '</div>' +
+        '</div>' +
         '<div class="mf-op-items" id="mfOvhdDetail" hidden>' +
           ovhdItems.filter(function(r){return r.val>0;}).map(function(r){return mfCostItem(r.label,r.val,curRev);}).join('') +
         '</div>' +
@@ -447,29 +467,6 @@ function renderOwners() {
     '</div>'; // .mf-card
 
   document.getElementById('finCards').innerHTML = formulaHtml;
-
-  // Efficiency tiles — share of revenue
-  var pctTiles = [
-    { label: 'Gross Margin', val: fmtPct(gmPct), sub: 'Healthy: 50% or higher',
-      cls: colorClass('gm', gmPct), delta: pctCompare(gmPct, gmArr),
-      hint: 'Share of revenue you keep after paying for the work itself.' },
-    { label: 'Tech Labor',   val: fmtPct(tlPct), sub: 'Healthy: under 25%',
-      cls: colorClass('tl', tlPct), delta: pctCompare(tlPct, tlArr),
-      hint: 'Share of every dollar that went to crew wages.' },
-    { label: 'Parts',        val: fmtPct(partsPct), sub: 'Healthy: under 25%',
-      cls: colorClass('parts', partsPct), delta: pctCompare(partsPct, partsArr),
-      hint: 'Share of every dollar that went to materials.' }
-  ];
-  document.getElementById('finCards2').innerHTML = pctTiles.map(function(c) {
-    return '<div class="fin-pct-tile">' +
-      '<div class="fin-pct-tile-label">' + esc(c.label) + '</div>' +
-      '<div class="fin-pct-tile-value ' + c.cls + '">' + c.val + '</div>' +
-      '<div class="fin-pct-tile-sub">' + c.sub + '</div>' +
-      (c.delta || '').replace(/fin-card-delta/g, 'fin-pct-tile-delta').replace(/fin-compare-line/g, 'fin-pct-tile-sub') +
-      '<div class="fin-pct-tile-hint">' + c.hint + '</div>' +
-      '</div>';
-  }).join('');
-  document.getElementById('finCardsTitle2').style.display = '';
 
   // ── Show structural elements ─────────────────────────────────
   var multiMonth = months.length > 1;
@@ -656,13 +653,15 @@ function renderOwners() {
     var crText = cr == null ? '—' : cr.toFixed(2) + '\u00d7';
     var cash = b.cash || 0;
     var curAssets = b.currentAssets || 0;
-    var otherCurAssets = Math.max(curAssets - cash, 0);
-    var ap = b.accountsPayable || 0;
     var curLiab = b.currentLiabilities || 0;
-    var otherCurLiab = Math.max(curLiab - ap, 0);
     var ltDebt = b.longTermLiabilities || 0;
     var totalLiab = (b.totalLiabilities != null) ? b.totalLiabilities : (curLiab + ltDebt);
+    var creditCards = b.creditCards || 0;
+    var payrollLiabs = b.payrollLiabilities || 0;
+    var otherCurLiab = Math.max(curLiab - creditCards - payrollLiabs, 0);
+    var otherCurAssets = Math.max(curAssets - cash, 0);
 
+    // Helper: one balance-sheet row
     function row(label, sub, value, opts) {
       opts = opts || {};
       var cls = opts.cls ? ' ' + opts.cls : '';
@@ -674,19 +673,64 @@ function renderOwners() {
         '</div>';
     }
 
+    // Account sub-rows (indented, smaller text)
+    function acctRows(accounts) {
+      if (!accounts || !accounts.length) return '';
+      return accounts.map(function(a) {
+        return '<div class="cash-acct-row">' +
+          '<span class="cash-acct-name">' + esc(a.name) + '</span>' +
+          '<span class="cash-acct-val">' + fmtDollar(a.balance) + '</span>' +
+        '</div>';
+      }).join('');
+    }
+
+    // "Cash in the bank" with expandable account breakdown
+    var bankAccts = b.bankAccounts || [];
+    var bankDetail = bankAccts.length > 1
+      ? '<div class="cash-acct-list">' + acctRows(bankAccts) + '</div>'
+      : '';
+
     var haveHtml = '<div class="cash-flow-section">' +
       '<div class="cash-flow-head">What we have</div>' +
-      row('Cash in the bank', 'Across all business accounts', cash) +
-      row('Other short-term assets', 'Stuff that turns into cash within a year', otherCurAssets, { op: '+' }) +
+      '<div class="cash-flow-row">' +
+        '<div class="lbl"><span>Cash in the bank</span>' +
+          '<span class="lbl-sub">Across all business checking &amp; savings accounts</span></div>' +
+        '<div class="val">' + fmtDollar(cash) + '</div>' +
+      '</div>' +
+      bankDetail +
+      (otherCurAssets > 0 ? row('Other short-term assets', 'Other receivables and current assets', otherCurAssets, { op: '+' }) : '') +
       row('Short-term assets', 'Total we could pull from in a pinch', curAssets, { op: '=', cls: 'subtotal' }) +
     '</div>';
 
+    // "What we owe" — credit cards first since that's the real current liability here
+    var cardAccts = b.creditCardAccts || [];
+    var cardDetail = cardAccts.length > 0
+      ? '<div class="cash-acct-list">' + acctRows(cardAccts) + '</div>'
+      : '';
+    var notesAccts = b.notesPayable || [];
+    var notesDetail = notesAccts.length > 0
+      ? '<div class="cash-acct-list">' + acctRows(notesAccts) + '</div>'
+      : '';
+
     var oweHtml = '<div class="cash-flow-section">' +
       '<div class="cash-flow-head">What we owe</div>' +
-      row('Bills we owe', 'Unpaid supplier / vendor bills', ap) +
-      row('Other due within a year', 'Credit cards, short-term loan payments', otherCurLiab, { op: '+' }) +
+      (creditCards > 0
+        ? '<div class="cash-flow-row">' +
+            '<div class="lbl"><span>Credit cards</span>' +
+              '<span class="lbl-sub">Business credit card balances</span></div>' +
+            '<div class="val">' + fmtDollar(creditCards) + '</div>' +
+          '</div>' + cardDetail
+        : '') +
+      (payrollLiabs > 0 ? row('Payroll liabilities', 'Taxes &amp; benefits withheld, not yet remitted', payrollLiabs, { op: '+' }) : '') +
+      (otherCurLiab > 0 ? row('Other current liabilities', '', otherCurLiab, { op: '+' }) : '') +
       row('Due within a year', 'Everything that has to be paid in 12 months', curLiab, { op: '=', cls: 'subtotal' }) +
-      row('Long-term debt', 'Vehicle loans, equipment notes, mortgages', ltDebt, { op: '+' }) +
+      (ltDebt > 0
+        ? '<div class="cash-flow-row">' +
+            '<div class="lbl"><span class="op">+</span><span>Vehicle &amp; equipment loans</span>' +
+              '<span class="lbl-sub">Ford Credit, M&amp;T Bank, and other notes payable</span></div>' +
+            '<div class="val">' + fmtDollar(ltDebt) + '</div>' +
+          '</div>' + notesDetail
+        : '') +
       row('Everything we owe', 'All debt combined, short + long-term', totalLiab, { op: '=', cls: 'total' }) +
     '</div>';
 
@@ -769,23 +813,30 @@ function renderOwners() {
     }
   });
 
-  // ── Cash Flow over time ──────────────────────────────────────
+  // ── Cash in the Bank Over Time ───────────────────────────────
+  // Uses balance sheet bank history (from /api/qbo-balance) rather than
+  // P&L data, so it shows the actual end-of-month bank balance.
   var cfCard = document.getElementById('finCashFlowCard');
-  if (cfCard && multiMonth) {
+  var hasBankHistory = ownersBalance && ownersBalance.connected &&
+                       ownersBalance.bankHistory && ownersBalance.bankHistory.length > 1;
+
+  if (cfCard && hasBankHistory) {
     cfCard.style.display = '';
 
-    // Up to 18 months ending at the most recent available month
-    var cfEnd   = months.length - 1;
-    var cfStart = Math.max(0, cfEnd - 17);
-    var cfMonths = months.slice(cfStart, cfEnd + 1);
-    var cfNoi    = noi.slice(cfStart, cfEnd + 1);
-    var cfLabels = cfMonths.map(function(mk) { return fmtMkShort(mk); });
+    var bsMonths  = ownersBalance.months      || [];
+    var bsHistory = ownersBalance.bankHistory || [];
 
-    // Green for profit, red for loss; highlighted shade for selected month
-    var cfColors = cfNoi.map(function(v, i) {
-      var isCur = (cfStart + i) === curIdx;
-      if (v >= 0) return isCur ? '#0a7a55' : '#12A071';
-      return isCur ? '#b91c1c' : '#E5484D';
+    // Trim to last 13 months max, skip trailing months with no data
+    var bsEnd = bsHistory.length - 1;
+    while (bsEnd > 0 && !bsHistory[bsEnd]) bsEnd--;
+    var bsStart = Math.max(0, bsEnd - 12);
+    var cfMonths  = bsMonths.slice(bsStart, bsEnd + 1);
+    var cfBal     = bsHistory.slice(bsStart, bsEnd + 1);
+    var cfLabels  = cfMonths.map(function(mk) { return fmtMkShort(mk); });
+
+    // Colour each bar: highlighted blue for the most recent month, teal for history
+    var cfColors = cfBal.map(function(v, i) {
+      return (bsStart + i) === bsEnd ? '#1d4ed8' : '#3b82f6';
     });
 
     if (cfBarChartInst) cfBarChartInst.destroy();
@@ -795,7 +846,7 @@ function renderOwners() {
       data: {
         labels: cfLabels,
         datasets: [{
-          data: cfNoi,
+          data: cfBal,
           backgroundColor: cfColors,
           borderRadius: 4,
           borderSkipped: false
@@ -809,10 +860,7 @@ function renderOwners() {
             callbacks: {
               title: function(items) { return items[0].label; },
               label: function(ctx) {
-                var v = ctx.parsed.y;
-                var rev = revenue[cfStart + ctx.dataIndex] || 0;
-                var pct = rev > 0 ? ' (' + (v / rev * 100).toFixed(1) + '% of rev)' : '';
-                return (v >= 0 ? 'Profit: ' : 'Loss: ') + fmtDollar(v) + pct;
+                return 'Bank balance: ' + fmtDollar(ctx.parsed.y);
               }
             }
           }
@@ -828,9 +876,7 @@ function renderOwners() {
     });
     document.getElementById('cfSubtitle').textContent = cfMonths.length + ' months';
 
-    // ── Drivers: trailing 12 vs prior 12 ────────────────────────
-    // Use the full data range, not the currently selected month, so it
-    // always reflects the most recent full-year picture.
+    // ── Drivers: trailing 12 vs prior 12 (P&L based) ────────────
     var dr12End   = months.length - 1;
     var dr12Start = Math.max(0, dr12End - 11);
     var drPrEnd   = dr12Start - 1;
@@ -850,12 +896,12 @@ function renderOwners() {
 
       var drvRows = [
         { label: 'Revenue',          arr: revenue,  inv: false },
-        { label: 'Job Costs',        arr: cogs,     inv: true  },
+        { label: 'Cost of Goods Sold', arr: cogs,   inv: true  },
         { label: 'Overhead',         arr: totalExp, inv: true  },
         { label: 'Operating Profit', arr: noi,      inv: false, highlight: true }
       ];
 
-      var headHtml =
+      var drHeadHtml =
         '<div class="cf-drivers-head">' +
           '<span></span>' +
           '<span>' + lastLabel + '</span>' +
@@ -863,17 +909,17 @@ function renderOwners() {
           '<span>Change</span>' +
         '</div>';
 
-      var rowsHtml = drvRows.map(function(row) {
-        var last12  = sumSlice(row.arr, dr12Start, dr12End);
-        var prior12 = sumSlice(row.arr, drPrStart, drPrEnd);
+      var drRowsHtml = drvRows.map(function(dr) {
+        var last12  = sumSlice(dr.arr, dr12Start, dr12End);
+        var prior12 = sumSlice(dr.arr, drPrStart, drPrEnd);
         var d       = last12 - prior12;
         var pct     = prior12 !== 0 ? d / Math.abs(prior12) * 100 : 0;
-        var isGood  = row.inv ? d <= 0 : d >= 0;
+        var isGood  = dr.inv ? d <= 0 : d >= 0;
         var cls     = isGood ? 'pos' : 'neg';
         var arrow   = d >= 0 ? '\u25b2' : '\u25bc';
         var sign    = d >= 0 ? '+' : '';
-        return '<div class="cf-driver-row' + (row.highlight ? ' highlight' : '') + '">' +
-          '<span class="cf-drv-label">' + esc(row.label) + '</span>' +
+        return '<div class="cf-driver-row' + (dr.highlight ? ' highlight' : '') + '">' +
+          '<span class="cf-drv-label">' + esc(dr.label) + '</span>' +
           '<span class="cf-drv-val">' + fmtDollar(last12) + '</span>' +
           '<span class="cf-drv-val muted cf-hide-mobile">' + fmtDollar(prior12) + '</span>' +
           '<span class="cf-drv-chg ' + cls + '">' + arrow + ' ' + sign + fmtDollar(Math.abs(d)) +
@@ -882,135 +928,18 @@ function renderOwners() {
       }).join('');
 
       cfDriversEl.innerHTML =
-        '<div class="cf-drivers-title">What\u2019s Moving It \u2014 Trailing 12 vs. Prior 12 months</div>' +
-        headHtml + rowsHtml;
-    } else {
+        '<div class="cf-drivers-title">What\u2019s Moving Operating Profit \u2014 Trailing 12 vs. Prior 12 months</div>' +
+        drHeadHtml + drRowsHtml;
+    } else if (months.length > 1) {
       cfDriversEl.innerHTML =
-        '<div style="font-size:13px;color:#aaa;padding:14px 0">Not enough history for a year-over-year comparison &mdash; need at least 24 months of data.</div>';
+        '<div style="font-size:13px;color:#aaa;padding:14px 0">Not enough P&amp;L history for a year-over-year comparison &mdash; need at least 24 months of data.</div>';
+    } else {
+      cfDriversEl.innerHTML = '';
     }
   } else if (cfCard) {
     cfCard.style.display = 'none';
   }
 
-  // ── Cash in the Bank over time ───────────────────────────────
-  var cbCard = document.getElementById('finCashBalCard');
-  var hasHistory = ownersCashHistory && ownersCashHistory.connected &&
-                   ownersCashHistory.history && ownersCashHistory.history.length > 1;
-
-  if (cbCard && hasHistory) {
-    cbCard.style.display = '';
-
-    var hist = ownersCashHistory.history.filter(function(h) { return h.cash !== null; });
-    var cbLabels = hist.map(function(h) { return fmtMkShort(h.mk); });
-    var cbCash   = hist.map(function(h) { return h.cash; });
-
-    // Color the line: green if cash is above the first recorded month, blue otherwise
-    var cbColor = '#3b82f6'; // blue baseline
-
-    if (cbLineChartInst) cbLineChartInst.destroy();
-    var cbCtx = document.getElementById('cbLineChart').getContext('2d');
-    // Gradient fill
-    var grad = cbCtx.createLinearGradient(0, 0, 0, 200);
-    grad.addColorStop(0, 'rgba(59,130,246,0.25)');
-    grad.addColorStop(1, 'rgba(59,130,246,0)');
-    cbLineChartInst = new Chart(cbCtx, {
-      type: 'line',
-      data: {
-        labels: cbLabels,
-        datasets: [{
-          data: cbCash,
-          borderColor: cbColor,
-          backgroundColor: grad,
-          borderWidth: 2.5,
-          pointRadius: 4,
-          pointBackgroundColor: cbColor,
-          pointHoverRadius: 6,
-          tension: 0.3,
-          fill: true
-        }]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              title: function(items) { return items[0].label; },
-              label: function(ctx) { return 'Cash: ' + fmtDollar(ctx.parsed.y); }
-            }
-          }
-        },
-        scales: {
-          x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 45 } },
-          y: {
-            ticks: { callback: function(v) { return fmtDollar(v); }, font: { size: 10 } },
-            grid: { color: '#f0f0f0' }
-          }
-        }
-      }
-    });
-    document.getElementById('cbSubtitle').textContent = hist.length + ' months';
-
-    // ── What's Moving Cash (month-over-month breakdown) ──────────
-    // Align cash history months with P&L noi array using month keys.
-    var noiByMk = {};
-    months.forEach(function(mk, i) { noiByMk[mk] = noi[i] || 0; });
-
-    // Build rows for months where we have consecutive cash readings
-    var cbRows = [];
-    for (var ci = 1; ci < hist.length; ci++) {
-      var mk = hist[ci].mk;
-      var cashNow  = hist[ci].cash;
-      var cashPrev = hist[ci - 1].cash;
-      var delta    = cashNow - cashPrev;
-      var ops      = noiByMk[mk] != null ? noiByMk[mk] : null;
-      var other    = ops !== null ? delta - ops : null;
-      cbRows.push({ mk: mk, cash: cashNow, delta: delta, ops: ops, other: other });
-    }
-
-    // Show last 6 on phone, all on desktop
-    var cbIsPhone = window.innerWidth < 700;
-    var cbShow = cbIsPhone ? cbRows.slice(-6) : cbRows;
-
-    var moversHtml =
-      '<div class="cb-movers-title">What\u2019s Moving Cash &mdash; Month-over-Month Breakdown</div>' +
-      '<div style="font-size:11px;color:#aaa;margin-bottom:10px">Cash change = Operating Profit &plus; non-operating (owner draws, loan payments, equipment purchases, etc.)</div>' +
-      '<div class="cb-movers-head">' +
-        '<span>Month</span>' +
-        '<span>Balance</span>' +
-        '<span>Change</span>' +
-        '<span class="cb-hide-mobile">Ops Profit</span>' +
-        '<span class="cb-hide-mobile">Non-Operating</span>' +
-      '</div>' +
-      cbShow.map(function(r) {
-        var dCls   = r.delta >= 0 ? 'pos' : 'neg';
-        var dArrow = r.delta >= 0 ? '\u25b2' : '\u25bc';
-        var opCell = r.ops !== null
-          ? '<span class="cb-hide-mobile cb-mover-val ' + (r.ops >= 0 ? 'pos' : 'neg') + '">' + fmtDollar(r.ops) + '</span>'
-          : '<span class="cb-hide-mobile cb-mover-val muted">\u2014</span>';
-        var otherCell = r.other !== null
-          ? (function() {
-              var cls = Math.abs(r.other) < 500 ? 'muted'   // near-zero, irrelevant
-                      : r.other > 0  ? 'pos'   // money came in (loan proceeds, etc.)
-                      : 'neg';                  // money went out (draws, debt payments, capex)
-              var hint = r.other > 500  ? ' \u2191loan/other'
-                       : r.other < -500 ? ' \u2193draw/debt'
-                       : '';
-              return '<span class="cb-hide-mobile cb-mover-val ' + cls + '">' + fmtDollar(r.other) + '<span class="cb-mover-hint">' + hint + '</span></span>';
-            })()
-          : '<span class="cb-hide-mobile cb-mover-val muted">\u2014</span>';
-        return '<div class="cb-mover-row">' +
-          '<span class="cb-mover-lbl">' + fmtMkShort(r.mk) + '</span>' +
-          '<span class="cb-mover-val">' + fmtDollar(r.cash) + '</span>' +
-          '<span class="cb-mover-chg ' + dCls + '">' + dArrow + ' ' + fmtDollar(Math.abs(r.delta)) + '</span>' +
-          opCell + otherCell +
-        '</div>';
-      }).join('');
-
-    document.getElementById('cbMovers').innerHTML = moversHtml;
-  } else if (cbCard) {
-    cbCard.style.display = 'none';
-  }
 
 }
 

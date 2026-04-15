@@ -806,81 +806,159 @@ app.get('/api/qbo-accounts', async (req, res) => {
     res.status(500).json({ connected: false, error: err.message });
   }
 });
-// Cash / Working Capital — latest Balance Sheet snapshot.
-// Returns: cash, accountsReceivable, accountsPayable, currentRatio.
+// Balance Sheet — multi-month history + detailed account breakdown.
+// Uses summarize_column_by=Month for a 13-month window so we get both
+// historical bank-balance trend data and the current snapshot in one call.
+// Returns: months[], bankHistory[], bankAccounts[], creditCardAccts[],
+//          notesPayable[], plus all the summary snapshot fields.
 app.get('/api/qbo-balance', async (req, res) => {
   if (!qboReady()) return res.json({ connected: false });
   const BAL_TTL = 4 * 60 * 60 * 1000;
-  const cachedBal = cacheGet('qbo-balance', BAL_TTL);
-  if (cachedBal) return res.json(cachedBal);
+  const cached = cacheGet('qbo-balance', BAL_TTL);
+  if (cached) return res.json(cached);
   try {
     const token = await getQBOAccessToken();
     if (!token) return res.json({ connected: false });
-    const asOf = getReliableEndDate(new Date()).toISOString().slice(0, 10);
+
+    // Balance sheet: end = today (we want the live current snapshot),
+    // start = 12 months back (for the bank-balance history chart).
+    const endDate   = new Date();
+    const startDate = new Date(endDate);
+    startDate.setMonth(startDate.getMonth() - 12);
+
     const bsRes = await axios.get(
       QBO_BASE + '/v3/company/' + qboTokens.realmId + '/reports/BalanceSheet',
       {
         headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
-        params: { as_of: asOf, accounting_method: 'Cash', minorversion: 75 }
+        params: {
+          start_date:           startDate.toISOString().slice(0, 10),
+          end_date:             endDate.toISOString().slice(0, 10),
+          summarize_column_by:  'Month',
+          accounting_method:    'Cash',
+          minorversion:         75
+        }
       }
     );
-    // Walk the BS report — section names contain "Bank", "Accounts Receivable",
-    // "Accounts Payable", "Current Assets", "Current Liabilities".
+
+    // ── Parse column headers ─────────────────────────────────────
+    // Col 0 = account label; remaining cols = one Money col per month.
+    const rawCols   = (bsRes.data.Columns && bsRes.data.Columns.Column) || [];
+    const moneyIdx  = [];   // positions in ColData that hold Money values
+    const colTitles = [];   // human-readable month labels from QBO, e.g. "Jan 2026"
+    rawCols.forEach((c, i) => {
+      if (c.ColType === 'Money') { moneyIdx.push(i); colTitles.push(c.ColTitle || ''); }
+    });
+
+    // Convert "Jan 2026" → "2026-01"
+    const MON = { Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',
+                  Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12' };
+    function toMonthKey(title) {
+      const p = (title || '').split(' ');
+      return (p.length === 2 && MON[p[0]]) ? p[1] + '-' + MON[p[0]] : title;
+    }
+
+    function parseVals(colData) {
+      return moneyIdx.map(i =>
+        parseFloat(((colData[i] && colData[i].value) || '0').replace(/,/g, '')) || 0
+      );
+    }
+
+    // byName: label → [value per month column]
     const byName = {};
-    (function walk(rows) {
+    // Per-section detail account arrays (current month balance only, non-zero)
+    const bankAccts      = [];
+    const creditCardAccts= [];
+    const notesAccts     = [];
+
+    // Walk the tree, tracking which section we're inside
+    (function walk(rows, ctx) {
       if (!Array.isArray(rows)) return;
       rows.forEach(row => {
+        // Determine child context from section header
+        let childCtx = ctx;
+        if (row.Header && row.Header.ColData) {
+          const h  = (row.Header.ColData[0].value || '').trim();
+          const hl = h.toLowerCase();
+          if (hl === 'bank accounts' || hl.includes('bank account'))  childCtx = 'bank';
+          else if (hl === 'credit cards' || hl.includes('credit card')) childCtx = 'cards';
+          else if (hl === 'notes payable')                              childCtx = 'notes';
+          else if (hl.includes('payroll liabilities'))                  childCtx = 'payroll';
+        }
+
+        // Section summary / total row
         if (row.Summary && row.Summary.ColData) {
           const n = (row.Summary.ColData[0].value || '').trim();
-          const v = parseFloat((row.Summary.ColData[row.Summary.ColData.length - 1].value || '0').replace(/,/g, '')) || 0;
-          if (n) byName[n] = v;
+          if (n) byName[n] = parseVals(row.Summary.ColData);
         }
-        if (row.ColData && row.ColData[0]) {
-          const n = (row.ColData[0].value || '').trim();
-          const v = parseFloat((row.ColData[row.ColData.length - 1].value || '0').replace(/,/g, '')) || 0;
-          if (n) byName[n] = v;
-        }
-        if (row.Rows && row.Rows.Row) walk(row.Rows.Row);
-      });
-    })((bsRes.data.Rows && bsRes.data.Rows.Row) || []);
 
-    const findByKeyword = (kws) => {
+        // Individual account line
+        if (row.ColData && row.ColData[0]) {
+          const n    = (row.ColData[0].value || '').trim();
+          const vals = parseVals(row.ColData);
+          const cur  = vals[vals.length - 1] || 0;
+          if (n) {
+            byName[n] = vals;
+            if      (childCtx === 'bank'    && cur !== 0) bankAccts.push({ name: n, balance: cur });
+            else if (childCtx === 'cards'   && cur !== 0) creditCardAccts.push({ name: n, balance: cur });
+            else if (childCtx === 'notes'   && cur !== 0) notesAccts.push({ name: n, balance: cur });
+          }
+        }
+
+        if (row.Rows && row.Rows.Row) walk(row.Rows.Row, childCtx);
+      });
+    })((bsRes.data.Rows && bsRes.data.Rows.Row) || [], null);
+
+    // ── Extract summary values ───────────────────────────────────
+    function findArr(kws) {
       for (const k of Object.keys(byName)) {
         const kl = k.toLowerCase();
-        if (kws.every(kw => kl.includes(kw))) return byName[k];
+        if (kws.every(kw => kl.includes(kw.toLowerCase()))) return byName[k];
       }
-      return 0;
-    };
+      return colTitles.map(() => 0);
+    }
+    function findLast(kws) {
+      const arr = findArr(kws);
+      return arr[arr.length - 1] || 0;
+    }
 
-    const cash = findByKeyword(['total', 'bank']);
-    const ar = findByKeyword(['total', 'receivable']);
-    const ap = findByKeyword(['total', 'payable']);
-    const currentAssets = findByKeyword(['total current assets']);
-    const currentLiabs = findByKeyword(['total current liabilities']);
-    const longTermLiabs = findByKeyword(['total long-term liabilities'])
-      || findByKeyword(['total long term liabilities']);
-    // Prefer the grand "Total Liabilities" row if QBO emits it; else fall
-    // back to Total Liabilities and Equity minus Equity; else current+LT.
-    let totalLiabs = findByKeyword(['total liabilities']);
+    const bankHistoryArr = findArr(['total', 'bank']);
+    const cash           = bankHistoryArr[bankHistoryArr.length - 1] || 0;
+    const currentAssets  = findLast(['total current assets']);
+    const currentLiabs   = findLast(['total current liabilities']);
+    const longTermLiabs  = findLast(['total long-term liabilities'])
+                        || findLast(['total long term liabilities']);
+    let totalLiabs       = findLast(['total liabilities']);
     if (!totalLiabs) {
-      const totalLE = findByKeyword(['total liabilities and equity'])
-        || findByKeyword(['liabilities and equity']);
-      const totalEquity = findByKeyword(['total equity']);
+      const totalLE    = findLast(['total liabilities and equity'])
+                      || findLast(['liabilities and equity']);
+      const totalEquity = findLast(['total equity']);
       if (totalLE && totalEquity) totalLiabs = totalLE - totalEquity;
     }
     if (!totalLiabs) totalLiabs = (currentLiabs || 0) + (longTermLiabs || 0);
-    const currentRatio = currentLiabs > 0 ? currentAssets / currentLiabs : null;
+    const creditCards    = findLast(['total', 'credit card']);
+    const payrollLiabs   = findLast(['total', 'payroll']);
+    const currentRatio   = currentLiabs > 0 ? currentAssets / currentLiabs : null;
 
-    const balPayload = {
-      connected: true, asOf,
-      cash, accountsReceivable: ar, accountsPayable: ap,
-      currentAssets, currentLiabilities: currentLiabs,
-      longTermLiabilities: longTermLiabs, totalLiabilities: totalLiabs,
+    const payload = {
+      connected:    true,
+      asOf:         endDate.toISOString().slice(0, 10),
+      // Current snapshot
+      cash, currentAssets,
+      currentLiabilities:  currentLiabs,
+      longTermLiabilities: longTermLiabs,
+      totalLiabilities:    totalLiabs,
+      creditCards, payrollLiabilities: payrollLiabs,
       currentRatio,
-      accounts: Object.keys(byName).sort()
+      // Account-level breakdown (current month only)
+      bankAccounts:    bankAccts,
+      creditCardAccts: creditCardAccts,
+      notesPayable:    notesAccts,
+      // Multi-month history
+      months:      colTitles.map(toMonthKey),
+      bankHistory: bankHistoryArr
     };
-    cacheSet('qbo-balance', balPayload);
-    res.json(balPayload);
+    cacheSet('qbo-balance', payload);
+    res.json(payload);
   } catch (err) {
     console.error('[/api/qbo-balance]', err.response?.status || '', err.message);
     if (err.response?.status === 401) {
@@ -888,80 +966,6 @@ app.get('/api/qbo-balance', async (req, res) => {
       return res.json({ connected: false, reason: 'token_expired' });
     }
     res.status(500).json({ connected: false, error: err.message });
-  }
-});
-// Cash-in-bank history — end-of-month balance sheet snapshots for past 12 months.
-// Makes parallel QBO BalanceSheet calls, one per month, then caches the result.
-app.get('/api/qbo-cash-history', async (req, res) => {
-  if (!qboReady()) return res.json({ connected: false });
-  const TTL = 4 * 60 * 60 * 1000;
-  const cached = cacheGet('qbo-cash-history', TTL);
-  if (cached) return res.json(cached);
-  try {
-    const token = await getQBOAccessToken();
-    if (!token) return res.json({ connected: false });
-
-    // Build end-of-month dates for the past 12 completed months
-    const today = new Date();
-    const dates = [];
-    for (let m = 11; m >= 0; m--) {
-      // day 0 of (month - m + 1) = last day of (month - m)
-      const d = new Date(today.getFullYear(), today.getMonth() - m + 1, 0);
-      if (d > today) continue;
-      dates.push(d.toISOString().slice(0, 10));
-    }
-
-    const fetchOne = async (asOf) => {
-      try {
-        const r = await axios.get(
-          QBO_BASE + '/v3/company/' + qboTokens.realmId + '/reports/BalanceSheet',
-          {
-            headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
-            params: { as_of: asOf, accounting_method: 'Cash', minorversion: 75 }
-          }
-        );
-        const byName = {};
-        (function walk(rows) {
-          if (!Array.isArray(rows)) return;
-          rows.forEach(row => {
-            if (row.Summary && row.Summary.ColData) {
-              const n = (row.Summary.ColData[0].value || '').trim();
-              const v = parseFloat((row.Summary.ColData[row.Summary.ColData.length - 1].value || '0').replace(/,/g, '')) || 0;
-              if (n) byName[n] = v;
-            }
-            if (row.ColData && row.ColData[0]) {
-              const n = (row.ColData[0].value || '').trim();
-              const v = parseFloat((row.ColData[row.ColData.length - 1].value || '0').replace(/,/g, '')) || 0;
-              if (n) byName[n] = v;
-            }
-            if (row.Rows && row.Rows.Row) walk(row.Rows.Row);
-          });
-        })((r.data.Rows && r.data.Rows.Row) || []);
-
-        const findKW = (kws) => {
-          for (const k of Object.keys(byName)) {
-            if (kws.every(kw => k.toLowerCase().includes(kw))) return byName[k];
-          }
-          return null;
-        };
-        const cash = findKW(['total', 'bank']) || findKW(['total', 'checking']) || findKW(['total', 'cash']) || 0;
-        return { mk: asOf.slice(0, 7), cash };
-      } catch (e) {
-        return { mk: asOf.slice(0, 7), cash: null };
-      }
-    };
-
-    const history = await Promise.all(dates.map(fetchOne));
-    const payload = { connected: true, history, fetchedAt: new Date().toISOString() };
-    cacheSet('qbo-cash-history', payload);
-    res.json(payload);
-  } catch (err) {
-    console.error('[/api/qbo-cash-history]', err.message);
-    if (err.response?.status === 401) {
-      qboTokens.accessToken = null;
-      return res.json({ connected: false, reason: 'token_expired' });
-    }
-    res.json({ connected: false, reason: 'error' });
   }
 });
 // ────────────────────────────────────────────────────────────────────────────
