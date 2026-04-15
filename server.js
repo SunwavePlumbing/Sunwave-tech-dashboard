@@ -30,11 +30,16 @@ const qboTokens = {
 };
 
 function qboConfigured() {
-  return !!(QBO_CLIENT_ID && QBO_CLIENT_SECRET && qboTokens.realmId);
+  // Only needs client credentials — realmId is captured automatically during OAuth
+  return !!(QBO_CLIENT_ID && QBO_CLIENT_SECRET);
+}
+function qboReady() {
+  // Fully ready to make API calls
+  return !!(QBO_CLIENT_ID && QBO_CLIENT_SECRET && qboTokens.realmId && qboTokens.refreshToken);
 }
 
 async function getQBOAccessToken() {
-  if (!qboConfigured() || !qboTokens.refreshToken) return null;
+  if (!qboReady()) return null;
   if (qboTokens.accessToken && Date.now() < qboTokens.expiresAt - 60000) {
     return qboTokens.accessToken;
   }
@@ -1313,7 +1318,7 @@ app.get('/connect-quickbooks/callback', async (req, res) => {
 
 // ── /api/qbo-marketing ───────────────────────────────────────────────────────
 app.get('/api/qbo-marketing', async (req, res) => {
-  if (!qboConfigured()) {
+  if (!qboReady()) {
     return res.json({ connected: false, reason: 'not_configured' });
   }
   try {
@@ -1359,5 +1364,5 @@ app.get('/api/qbo-marketing', async (req, res) => {
 app.listen(PORT, () => {
   console.log('Dashboard running on port ' + PORT);
   console.log('API Key configured: ' + (!!API_KEY));
-  console.log('QBO configured: ' + qboConfigured() + (qboTokens.refreshToken ? ' (token ready)' : ' (visit /auth/quickbooks to connect)'));
+  console.log('QBO configured: ' + qboConfigured() + (qboReady() ? ' (ready)' : ' (visit /connect-quickbooks to connect)'));
 });
