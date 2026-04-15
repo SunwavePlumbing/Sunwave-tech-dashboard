@@ -427,7 +427,6 @@ function renderOwners() {
         '<div class="mf-step-desc">Total money collected from completed jobs</div>' +
         '<div class="mf-rev-bar"></div>' +
         '<div class="mf-rev-bar-leg">This is the full 100% — everything below is carved out of this bar</div>' +
-        mfDelta(curRev, revenue) +
       '</div>' +
 
       // ── − Cost of Goods Sold ──────────────────────────────────
@@ -462,7 +461,6 @@ function renderOwners() {
         '<div class="mf-step-num">' + fmtDollar(curGP) + '</div>' +
         '<div class="mf-score-pct-line">We kept ' + fmtPct(gmPct) + ' of every dollar — goal is 50%</div>' +
         mfTargetBar(gmPct, 50, 65) +
-        mfDelta(curGP, gp) +
       '</div>' +
 
       // ── − Overhead ────────────────────────────────────────────
@@ -499,7 +497,6 @@ function renderOwners() {
         '<div class="mf-step-num">' + fmtDollar(curNOI) + '</div>' +
         '<div class="mf-score-pct-line">We kept ' + fmtPct(noiPct) + ' of every dollar — goal is 15%</div>' +
         mfTargetBar(noiPct, 15, 25) +
-        mfDelta(curNOI, noi) +
       '</div>' +
 
     '</div>'; // .mf-card
@@ -621,24 +618,47 @@ function renderOwners() {
     }
   });
 
-  // ── Variance vs. prior year (selected month vs. same month last year) ─
-  var pyIdx = curIdx - 12;
-  if (pyIdx < 0) {
+  // ── Variance card (comparison mode driven by finCompare dropdown) ─
+  // Sync the compare select in the card to the current state
+  var varSelEl = document.getElementById('finCompareSel');
+  if (varSelEl) varSelEl.value = finCompare;
+
+  if (finCompare === 'none' || !cmpValues) {
     document.getElementById('finVariance').innerHTML =
-      '<div style="padding:2rem;text-align:center;color:#aaa;font-size:15px">Not enough history — need data from 12 months before ' + fmtMk(finMonth) + '.</div>';
-    document.getElementById('varSubtitle').textContent = '';
+      '<div style="padding:2rem;text-align:center;color:#aaa;font-size:15px">Select a comparison above to see how this month stacks up.</div>';
+    document.getElementById('varSubtitle').textContent = fmtMkShort(finMonth);
   } else {
-    var pyMonth = months[pyIdx];
+    // Resolve comparison values for each P&L line
+    var cmpRev  = cmpValues(revenue);
+    var cmpCogs = cmpValues(cogs);
+    var cmpGP   = cmpValues(gp);
+    var cmpExp  = cmpValues(totalExp);
+    var cmpNOI  = cmpValues(noi);
+
+    // Column header label: "Same month last year" → "Last year (Mar 25)"
+    var cmpColHeader = finCompare === 'prior_year_month' && cmpIdx >= 0
+      ? 'Last year (' + fmtMkShort(months[cmpIdx]) + ')'
+      : finCompare === 'prior_month' && cmpIdx >= 0
+      ? 'Prior month (' + fmtMkShort(months[cmpIdx]) + ')'
+      : 'Prior period';
+
+    // Mobile NOI vs. label
+    var cmpVsLabel = finCompare === 'prior_year_month' && cmpIdx >= 0
+      ? 'vs. ' + fmtMkShort(months[cmpIdx])
+      : finCompare === 'prior_month' && cmpIdx >= 0
+      ? 'vs. ' + fmtMkShort(months[cmpIdx])
+      : 'vs. prior avg';
+
     var varLines = [
-      { label: 'Revenue', cur: revenue[curIdx], py: revenue[pyIdx], good: 'up', kind: 'top', op: '' },
-      { label: 'Cost of Goods Sold', cur: cogs[curIdx], py: cogs[pyIdx], good: 'down', kind: 'indent', op: '\u2212' },
-      { label: 'Gross Profit', cur: gp[curIdx], py: gp[pyIdx], good: 'up', kind: 'sub', op: '=' },
-      { label: 'Operating Expenses', cur: totalExp[curIdx], py: totalExp[pyIdx], good: 'down', kind: 'indent', op: '\u2212' },
-      { label: 'Operating Profit', cur: noi[curIdx], py: noi[pyIdx], good: 'up', kind: 'noi', op: '=' }
+      { label: 'Revenue',            cur: curRev,        cmp: cmpRev,  good: 'up',   kind: 'top',    op: '' },
+      { label: 'Cost of Goods Sold', cur: curCOGS,       cmp: cmpCogs, good: 'down', kind: 'indent', op: '\u2212' },
+      { label: 'Gross Profit',       cur: curGP,         cmp: cmpGP,   good: 'up',   kind: 'sub',    op: '=' },
+      { label: 'Operating Expenses', cur: curOvhd,       cmp: cmpExp,  good: 'down', kind: 'indent', op: '\u2212' },
+      { label: 'Operating Profit',   cur: curNOI,        cmp: cmpNOI,  good: 'up',   kind: 'noi',    op: '=' }
     ];
     function deltaParts(l) {
-      var d = (l.cur||0) - (l.py||0);
-      var pct = l.py ? (d / Math.abs(l.py) * 100) : 0;
+      var d = (l.cur||0) - (l.cmp||0);
+      var pct = l.cmp ? (d / Math.abs(l.cmp) * 100) : 0;
       var isGood = l.good === 'up' ? d >= 0 : d <= 0;
       var cls = isGood ? 'pos' : 'neg';
       var signStr = d >= 0 ? '+' : '';
@@ -651,9 +671,9 @@ function renderOwners() {
       return '<tr class="' + rowCls + '">' +
         '<td>' + esc(l.label) + '</td>' +
         '<td>' + fmtDollar(l.cur || 0) + '</td>' +
-        '<td>' + fmtDollar(l.py || 0) + '</td>' +
+        '<td>' + fmtDollar(l.cmp || 0) + '</td>' +
         '<td class="' + p.cls + '">' + p.signStr + fmtDollar(p.d) + '</td>' +
-        '<td class="' + p.cls + '">' + (l.py ? p.signStr + p.pct.toFixed(1) + '%' : '—') + '</td>' +
+        '<td class="' + p.cls + '">' + (l.cmp ? p.signStr + p.pct.toFixed(1) + '%' : '—') + '</td>' +
         '</tr>';
     }).join('');
     // Mobile flow — P&L order with big NOI payload
@@ -663,24 +683,24 @@ function renderOwners() {
         return '<div class="var-flow-row noi">' +
           '<div class="var-noi-lbl">' + (l.op ? l.op + ' ' : '') + 'Operating Profit</div>' +
           '<div class="var-noi-val">' + fmtDollar(l.cur || 0) + '</div>' +
-          '<div class="var-noi-vs">vs ' + fmtDollar(l.py || 0) + ' in ' + fmtMkShort(pyMonth) + '</div>' +
+          '<div class="var-noi-vs">' + cmpVsLabel + ': ' + fmtDollar(l.cmp || 0) + '</div>' +
           '<div class="var-noi-change ' + p.cls + '">' + (p.d >= 0 ? '▲' : '▼') + ' ' + p.signStr + fmtDollar(p.d) +
-            (l.py ? ' (' + p.signStr + p.pct.toFixed(0) + '%)' : '') + '</div>' +
+            (l.cmp ? ' (' + p.signStr + p.pct.toFixed(0) + '%)' : '') + '</div>' +
           '</div>';
       }
       var rowCls = l.kind === 'indent' ? 'indent' : (l.kind === 'sub' ? 'sub' : '');
       return '<div class="var-flow-row ' + rowCls + '">' +
         '<span>' + (l.op ? l.op + ' ' : '') + esc(l.label) + ' <span class="var-row-amt">' + fmtDollar(l.cur||0) + '</span></span>' +
-        '<span class="var-chg ' + p.cls + '">' + (l.py ? p.signStr + p.pct.toFixed(0) + '%' : '—') + '</span>' +
+        '<span class="var-chg ' + p.cls + '">' + (l.cmp ? p.signStr + p.pct.toFixed(0) + '%' : '—') + '</span>' +
         '</div>';
     }).join('');
     document.getElementById('finVariance').innerHTML =
       '<div class="var-flow">' + varFlow + '</div>' +
       '<div class="var-table-wrap">' +
       '<table class="var-table"><thead><tr>' +
-      '<th>Line item</th><th>This year (' + fmtMkShort(finMonth) + ')</th><th>Last year (' + fmtMkShort(pyMonth) + ')</th>' +
+      '<th>Line item</th><th>This year (' + fmtMkShort(finMonth) + ')</th><th>' + cmpColHeader + '</th>' +
       '<th>Change ($)</th><th>Change (%)</th></tr></thead><tbody>' + varBody + '</tbody></table></div>';
-    document.getElementById('varSubtitle').textContent = fmtMkShort(finMonth) + ' vs. ' + fmtMkShort(pyMonth);
+    document.getElementById('varSubtitle').textContent = fmtMkShort(finMonth) + ' vs. ' + (cmpIdx >= 0 ? fmtMkShort(months[cmpIdx]) : 'prior avg');
   }
 
   // ── Cash / Working Capital ───────────────────────────────────

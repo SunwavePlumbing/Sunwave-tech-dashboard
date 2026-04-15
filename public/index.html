@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sunwave Plumbing — KPIs</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <link rel="stylesheet" href="/styles.css">
 </head>
@@ -11,7 +12,10 @@
 
 <div class="header">
   <div class="header-eyebrow">KPIs &amp; Metrics</div>
-  <h1>Sunwave Plumbing</h1>
+  <div class="header-main">
+    <img src="/logo.svg" class="header-logo" alt="Sunwave Plumbing">
+    <h1>Sunwave Plumbing</h1>
+  </div>
   <div class="header-sub">
     <span class="header-location">&#x1F4CD; Charlottesville</span>
   </div>
@@ -75,16 +79,6 @@
           <span class="fin-filter-label">Showing</span>
           <select id="finMonthSel" class="fin-select" onchange="setFinMonth(this.value)"></select>
         </label>
-        <span class="fin-filter-vs">vs.</span>
-        <label class="fin-filter-field">
-          <span class="fin-filter-label">Compare to</span>
-          <select id="finCompareSel" class="fin-select" onchange="setFinCompare(this.value)">
-            <option value="prior_year_month" selected>Same month last year</option>
-            <option value="prior_month">Prior month</option>
-            <option value="prior_year_avg">Prior year avg</option>
-            <option value="none">No comparison</option>
-          </select>
-        </label>
       </div>
 
       <!-- Formula card — the centerpiece -->
@@ -109,8 +103,21 @@
       <!-- Row 3: Year-over-year comparison -->
       <div class="fin-row2" id="finRow3" style="display:none">
         <div class="fin-chart-card" style="grid-column:1/-1">
-          <div class="fin-chart-title">Same Month, Last Year vs. This Year <span id="varSubtitle"></span></div>
-          <div style="font-size:11px;color:#888;margin-top:-8px;margin-bottom:10px">Are we bigger and more profitable than a year ago? Green = better, red = worse.</div>
+          <div class="fin-var-head">
+            <div class="fin-var-head-left">
+              <div class="fin-chart-title" style="margin-bottom:0">This Year vs. <span id="varSubtitle">Prior Period</span></div>
+              <div class="fin-var-sub">Are we bigger and more profitable? Green = better, red = worse.</div>
+            </div>
+            <label class="fin-var-compare">
+              <span class="fin-filter-label">Compare to</span>
+              <select id="finCompareSel" class="fin-select" onchange="setFinCompare(this.value)">
+                <option value="prior_year_month" selected>Same month last year</option>
+                <option value="prior_month">Prior month</option>
+                <option value="prior_year_avg">Prior year avg</option>
+                <option value="none">No comparison</option>
+              </select>
+            </label>
+          </div>
           <div id="finVariance"></div>
         </div>
       </div>

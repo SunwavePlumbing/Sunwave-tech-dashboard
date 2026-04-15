@@ -29,6 +29,26 @@ body {
   color: #FF9500;
   margin-bottom: 3px;
 }
+.header-main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 0.3rem;
+}
+.header-logo {
+  height: 48px;
+  width: auto;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.header-main h1 {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1a2d3a;
+  margin: 0;
+  letter-spacing: -0.4px;
+}
 .header h1 {
   font-size: 24px;
   font-weight: 700;
@@ -318,18 +338,19 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .fin-connect-banner { background:#fff8f0;border:1px solid #FFE0B2;border-radius:10px;padding:20px 24px;text-align:center;margin:2rem 0; }
 .fin-connect-banner p { font-size:14px;color:#888;margin-bottom:12px; }
 
-/* Filter bar — mobile-first: stacked, pill selects, no refresh button */
+/* Filter bar — month picker only */
 .fin-filter-bar {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 10px;
   margin-bottom: 1.2rem;
   background: white;
-  padding: 16px 16px 14px;
+  padding: 14px 18px 12px;
   border-radius: 14px;
   box-shadow: 0 1px 4px rgba(0,0,0,0.07);
 }
-.fin-filter-field { display: flex; flex-direction: column; gap: 5px; flex: 1; }
+.fin-filter-field { display: flex; flex-direction: column; gap: 5px; flex: 0 0 auto; }
 .fin-filter-label {
   font-size: 10px;
   color: #c0c0c0;
@@ -366,14 +387,6 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .fin-toggle button.active { background:#1a2d3a;color:white; }
 
 @media (min-width: 700px) {
-  .fin-filter-bar {
-    flex-direction: row;
-    align-items: flex-end;
-    flex-wrap: nowrap;
-    gap: 10px;
-    padding: 14px 18px 12px;
-  }
-  .fin-filter-field { flex: 0 0 auto; }
   .fin-select {
     font-size: 14px;
     font-weight: 600;
@@ -381,17 +394,6 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
     min-height: 42px;
     min-width: 160px;
     width: auto;
-  }
-  .fin-filter-vs {
-    display: flex;
-    align-items: center;
-    padding-bottom: 11px;
-    font-size: 11px;
-    font-weight: 700;
-    color: #d0d0d0;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    white-space: nowrap;
   }
 }
 
@@ -740,6 +742,14 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .fin-chart-title { font-size:13px;font-weight:700;color:#1a2d3a;margin-bottom:14px;letter-spacing:0.1px; }
 .fin-chart-title span { font-size:11px;font-weight:400;color:#aaa;margin-left:6px; }
 .fin-chart-wrap { position:relative; }
+
+/* Variance card header — title+subtitle left, compare picker right */
+.fin-var-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
+.fin-var-head-left { flex:1; min-width:0; }
+.fin-var-sub { font-size:11px; color:#888; margin-top:4px; }
+.fin-var-compare { display:flex; flex-direction:column; gap:4px; flex-shrink:0; }
+.fin-var-compare .fin-filter-label { font-size:10px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; color:#aaa; }
+.fin-var-compare .fin-select { min-height:36px; font-size:12px; padding:0 10px; border-radius:8px; border:1px solid #e5e5e5; background:#f7f7f7; color:#333; cursor:pointer; min-width:170px; }
 
 .fin-trend-toggles { display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px; }
 .fin-trend-btn { padding:4px 12px;font-size:11px;font-weight:600;border:1px solid #e0e0e0;border-radius:20px;background:white;color:#888;cursor:pointer;transition:all 0.15s; }
