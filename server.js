@@ -441,6 +441,8 @@ app.get('/', (req, res) => {
     .cash-cell.ratio .cash-cell-val.ok { color:#12A071; }
     .cash-cell.ratio .cash-cell-val.warn { color:#C9820A; }
     .cash-cell.ratio .cash-cell-val.bad { color:#E5484D; }
+    .cash-cell.total { grid-column:1/-1;background:#fff5ed;border:1px solid #ffe0c2; }
+    .cash-cell.total .cash-cell-val { color:#E5484D;font-size:22px; }
 
     .fin-alerts { margin-bottom:1.4rem; }
     .fin-alerts-title { font-size:13px;font-weight:700;color:#1a2d3a;margin-bottom:10px; }
@@ -463,8 +465,6 @@ app.get('/', (req, res) => {
   <h1>Sunwave</h1>
   <div class="header-sub">
     <span class="header-location">&#x1F4CD; Charlottesville</span>
-    <span class="header-dot"></span>
-    <span class="header-period" id="period">Loading...</span>
   </div>
 </div>
 
@@ -542,7 +542,7 @@ app.get('/', (req, res) => {
       <!-- Money-flow explainer -->
       <div class="fin-flow" id="finFlow" style="display:none">
         <strong>How the money flows:</strong>
-        <strong>Revenue</strong> <span class="eq">&minus;</span> Job costs (crew + parts + subs)
+        <strong>Revenue</strong> <span class="eq">&minus;</span> Job costs (techs + parts)
         <span class="eq">=</span> <strong>Gross Profit</strong>
         <span class="eq">&minus;</span> Overhead (rent, admin, marketing, vehicles&hellip;)
         <span class="eq">=</span> <strong>Net Operating Income</strong> <span style="color:#888">(what&rsquo;s left for you)</span>
@@ -567,7 +567,7 @@ app.get('/', (req, res) => {
         </div>
         <div class="fin-chart-card">
           <div class="fin-chart-title">What You Have &amp; What You Owe <span id="cashSubtitle"></span></div>
-          <div style="font-size:11px;color:#888;margin-top:-8px;margin-bottom:10px">Snapshot of the bank accounts, receivables, and debts from the balance sheet.</div>
+          <div style="font-size:11px;color:#888;margin-top:-8px;margin-bottom:10px">Snapshot of the bank accounts, bills, and debts from the balance sheet.</div>
           <div id="finCash"></div>
         </div>
       </div>
@@ -842,7 +842,8 @@ app.get('/', (req, res) => {
     var leaderboard = currentData.leaderboard;
     var summary = currentData.summary;
 
-    document.getElementById('period').textContent = summary.period;
+    var periodEl = document.getElementById('period');
+    if (periodEl) periodEl.textContent = summary.period;
     document.getElementById('stats').innerHTML =
       '<div class="stat-card"><div class="stat-label">Total Revenue</div><div class="stat-value">$' + summary.totalRevenue.toLocaleString() + '</div></div>' +
       '<div class="stat-card"><div class="stat-label">Avg Ticket</div><div class="stat-value">$' + summary.averageTicket.toLocaleString() + '</div></div>' +
@@ -1217,11 +1218,11 @@ app.get('/', (req, res) => {
 
   function colorClass(metric, val) {
     var t = {
-      gm:    { g: 43, y: 38 },
-      tl:    { g: 29, y: 33, inv: true },
-      parts: { g: 27, y: 30, inv: true },
+      gm:    { g: 50, y: 43 },
+      tl:    { g: 25, y: 30, inv: true },
+      parts: { g: 25, y: 30, inv: true },
       admin: { g: 12, y: 15, inv: true },
-      om:    { g: 10, y: 6 },
+      om:    { g: 15, y: 10 },
       mkt:   { g: 5,  y: 7,  inv: true },
       merch: { g: 2.5,y: 3.5,inv: true }
     }[metric];
@@ -1420,7 +1421,7 @@ app.get('/', (req, res) => {
       {
         label: 'Gross Margin %',
         val: fmtPct(gmPct),
-        sub: 'Healthy: 43% or higher',
+        sub: 'Healthy: 50% or higher',
         cls: colorClass('gm', gmPct),
         delta: pctCompare(gmPct, gmArr),
         hint: 'Share of revenue you keep after paying for the work itself. Higher = more breathing room for overhead and profit.'
@@ -1428,7 +1429,7 @@ app.get('/', (req, res) => {
       {
         label: 'Tech Labor %',
         val: fmtPct(tlPct),
-        sub: 'Healthy: under 29%',
+        sub: 'Healthy: under 25%',
         cls: colorClass('tl', tlPct),
         delta: pctCompare(tlPct, tlArr),
         hint: 'Share of every dollar that went to crew wages. High = overtime, overstaffing, or underpriced jobs.'
@@ -1436,7 +1437,7 @@ app.get('/', (req, res) => {
       {
         label: 'Parts %',
         val: fmtPct(partsPct),
-        sub: 'Healthy: under 27%',
+        sub: 'Healthy: under 25%',
         cls: colorClass('parts', partsPct),
         delta: pctCompare(partsPct, partsArr),
         hint: 'Share of every dollar that went to materials. High = supplier prices up, or not marking parts up enough.'
@@ -1612,20 +1613,19 @@ app.get('/', (req, res) => {
       var crText = cr == null ? '—' : cr.toFixed(2) + 'x';
       document.getElementById('finCash').innerHTML =
         '<div class="cash-row">' +
-          '<div class="cash-cell"><div class="cash-cell-lbl">Cash on hand</div><div class="cash-cell-val">' + fmtDollar(b.cash||0) + '</div></div>' +
-          '<div class="cash-cell ratio"><div class="cash-cell-lbl">Current ratio</div><div class="cash-cell-val ' + crCls + '">' + crText + '</div><div class="cash-cell-sub">Current assets ÷ current liabilities</div></div>' +
+          '<div class="cash-cell"><div class="cash-cell-lbl">Cash in the bank</div><div class="cash-cell-val">' + fmtDollar(b.cash||0) + '</div><div class="cash-cell-sub">Across all business accounts</div></div>' +
+          '<div class="cash-cell ratio"><div class="cash-cell-lbl">Short-term cushion</div><div class="cash-cell-val ' + crCls + '">' + crText + '</div><div class="cash-cell-sub">Above 1.5&times; = comfortable. Under 1&times; = tight.</div></div>' +
         '</div>' +
         '<div class="cash-row">' +
-          '<div class="cash-cell"><div class="cash-cell-lbl">Accounts receivable</div><div class="cash-cell-val">' + fmtDollar(b.accountsReceivable||0) + '</div></div>' +
-          '<div class="cash-cell"><div class="cash-cell-lbl">Accounts payable</div><div class="cash-cell-val">' + fmtDollar(b.accountsPayable||0) + '</div></div>' +
+          '<div class="cash-cell"><div class="cash-cell-lbl">Bills we owe</div><div class="cash-cell-val">' + fmtDollar(b.accountsPayable||0) + '</div><div class="cash-cell-sub">Unpaid supplier / vendor bills</div></div>' +
+          '<div class="cash-cell"><div class="cash-cell-lbl">Due within a year</div><div class="cash-cell-val">' + fmtDollar(b.currentLiabilities||0) + '</div><div class="cash-cell-sub">Bills, credit cards, short-term loan payments</div></div>' +
         '</div>' +
         '<div class="cash-row">' +
-          '<div class="cash-cell"><div class="cash-cell-lbl">Total current assets</div><div class="cash-cell-val">' + fmtDollar(b.currentAssets||0) + '</div></div>' +
-          '<div class="cash-cell"><div class="cash-cell-lbl">Total current liabilities</div><div class="cash-cell-val">' + fmtDollar(b.currentLiabilities||0) + '</div></div>' +
+          '<div class="cash-cell"><div class="cash-cell-lbl">Short-term assets</div><div class="cash-cell-val">' + fmtDollar(b.currentAssets||0) + '</div><div class="cash-cell-sub">Cash + anything that turns into cash in a year</div></div>' +
+          '<div class="cash-cell"><div class="cash-cell-lbl">Long-term debt</div><div class="cash-cell-val">' + fmtDollar(b.longTermLiabilities||0) + '</div><div class="cash-cell-sub">Vehicle loans, equipment notes, mortgages</div></div>' +
         '</div>' +
         '<div class="cash-row">' +
-          '<div class="cash-cell"><div class="cash-cell-lbl">Long-term liabilities</div><div class="cash-cell-val">' + fmtDollar(b.longTermLiabilities||0) + '</div></div>' +
-          '<div class="cash-cell"><div class="cash-cell-lbl">Total liabilities</div><div class="cash-cell-val">' + fmtDollar(b.totalLiabilities||0) + '</div></div>' +
+          '<div class="cash-cell total"><div class="cash-cell-lbl">Everything we owe</div><div class="cash-cell-val">' + fmtDollar(b.totalLiabilities||0) + '</div><div class="cash-cell-sub">All debt combined, short + long-term</div></div>' +
         '</div>';
       document.getElementById('cashSubtitle').textContent = 'as of ' + b.asOf;
     } else {
@@ -1636,11 +1636,11 @@ app.get('/', (req, res) => {
 
     // ── Trend lines ──────────────────────────────────────────────
     var TREND_SERIES = [
-      { key: 'gm',    label: 'Gross Margin %',    color: '#12A071', data: gmArr,    targetLo: 42, targetHi: 46 },
-      { key: 'tl',    label: 'Tech Labor %',       color: '#FF9500', data: tlArr,    targetLo: 26, targetHi: 30 },
-      { key: 'parts', label: 'Parts %',            color: '#FF6B35', data: partsArr, targetLo: 24, targetHi: 28 },
-      { key: 'admin', label: 'Admin & Office %',   color: '#8b5cf6', data: adminArr, targetLo: 10, targetHi: 14 },
-      { key: 'om',    label: 'Operating Margin %', color: '#4A90D9', data: noiArr,   targetLo: 6,  targetHi: 10 }
+      { key: 'gm',    label: 'Gross Margin %',    color: '#12A071', data: gmArr,    goal: 50 },
+      { key: 'tl',    label: 'Tech Labor %',       color: '#FF9500', data: tlArr,    goal: 25 },
+      { key: 'parts', label: 'Parts %',            color: '#FF6B35', data: partsArr, goal: 25 },
+      { key: 'admin', label: 'Admin & Office %',   color: '#8b5cf6', data: adminArr, goal: null },
+      { key: 'om',    label: 'Operating Margin %', color: '#4A90D9', data: noiArr,   goal: 15 }
     ];
 
     // Build trend toggle buttons (single-select)
