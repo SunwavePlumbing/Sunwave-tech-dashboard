@@ -142,7 +142,8 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .role-did { background: #F3F4F6; color: #6B7280; }
 .share-pct { font-size: 11px; color: #aaa; font-weight: 400; margin-left: 4px; }
 
-.footer { text-align: center; font-size: 11px; color: #aaa; padding: 1rem; }
+.footer { text-align: center; font-size: 11px; color: #aaa; padding: 1rem 1rem 1.4rem; }
+.footer-levi { margin-top: 6px; font-size: 11px; color: #c8c8c8; letter-spacing: 0.2px; }
 .error-msg { background: #fff3f3; color: #c62828; padding: 1.2rem 1.4rem; font-size: 14px; }
 
 @media (max-width: 768px) {
@@ -636,56 +637,59 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 
 .mf-zoom-detail { margin-top: 0; }
 
-/* Connector wrapper — positions the SVG trapezoid + label together */
+/* Connector: gradient color block fanning out from the source segment */
 .mf-zoom-connector-wrap { position: relative; margin-bottom: 0; }
 .mf-zoom-trap { display: block; width: 100%; overflow: visible; }
 
-/* Label overlaid in the center of the connector zone */
+/* Label centered in the connector gradient zone */
 .mf-zoom-conn-label {
   position: absolute;
-  top: 50%;
+  top: 54%;
   left: 50%;
   transform: translate(-50%, -50%);
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.8px;
+  letter-spacing: 0.9px;
   text-transform: uppercase;
   white-space: nowrap;
   pointer-events: none;
-  opacity: 0.85;
+  opacity: 0.7;
 }
 
-/* Breakdown bar — starts at segment width, expands to full on open */
+/* Breakdown bar — shoots from segment width to full with expo-out easing */
 .mf-zoom-bar-anim {
   width: var(--z-start, 60%);
-  transition: width 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
   overflow: hidden;
+  border-radius: 5px;
 }
 .mf-zoom-bar-anim.mf-zoom-expanded { width: 100%; }
 
 .mf-zoom-bar {
   display: flex;
   height: 24px;
-  border-radius: 4px;
+  border-radius: 5px;
   overflow: hidden;
-  gap: 1px;
+  gap: 0;           /* no white lines between segments */
 }
 .mf-zoom-seg {
   height: 100%;
-  min-width: 3px;
+  min-width: 2px;
   flex-shrink: 0;
   cursor: pointer;
-  transition: filter 0.15s, outline 0.15s;
+  transition: filter 0.15s;
 }
 .mf-zoom-seg.mf-zoom-hl {
-  filter: brightness(1.18);
-  outline: 2px solid rgba(255,255,255,0.75);
-  outline-offset: -2px;
-  z-index: 2;
+  filter: brightness(1.2) saturate(1.15);
   position: relative;
+  z-index: 2;
 }
 
-/* Legend list */
+/* Staggered legend row fade-up */
+@keyframes mfRowIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 .mf-zoom-legend {
   margin-top: 10px;
   border-top: 1px solid #f0f0f0;
@@ -700,16 +704,16 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   font-size: 13px;
   cursor: default;
   transition: background 0.12s;
+  opacity: 0; /* hidden until is-open triggers animation */
 }
-.mf-zoom-leg-row.mf-zoom-hl {
-  background: #f3f4f6;
+.mf-zoom-detail.is-open .mf-zoom-leg-row {
+  animation: mfRowIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(0.3s + var(--i, 0) * 0.055s);
 }
+.mf-zoom-leg-row.mf-zoom-hl { background: #f3f4f6; }
 .mf-zoom-leg-row.mf-zoom-hl .mf-zoom-leg-name { font-weight: 600; color: #1a2d3a; }
-.mf-zoom-dot {
-  width: 9px; height: 9px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
+
+.mf-zoom-dot  { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
 .mf-zoom-leg-name { flex: 1; color: #555; }
 .mf-zoom-leg-pct  { font-size: 12px; color: #aaa; min-width: 38px; text-align: right; }
 .mf-zoom-leg-val  { font-size: 13px; font-weight: 700; color: #1a2d3a;
