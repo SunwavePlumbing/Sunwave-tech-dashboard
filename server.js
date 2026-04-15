@@ -1824,13 +1824,7 @@ app.get('/api/metrics', async (req, res) => {
         }
       });
       const pageJobs = jobsRes.data.jobs || [];
-      // Defensive: double-check work_status in case HCP ignores the filter.
-      // (We can't require completed_at — HCP doesn't always populate it
-      // even for genuinely completed jobs.)
-      const safeJobs = pageJobs.filter(j =>
-        (j.work_status || '').toLowerCase() === 'completed'
-      );
-      allJobs.push(...safeJobs);
+      allJobs.push(...pageJobs);
       const totalPages = jobsRes.data.total_pages || 1;
       if (page >= totalPages) break;
       page++;
@@ -2025,9 +2019,7 @@ app.get('/api/marketing', async (req, res) => {
             page_size: 200
           }
         });
-        const jobs = (r.data.jobs || []).filter(j =>
-          (j.work_status || '').toLowerCase() === 'completed'
-        );
+        const jobs = r.data.jobs || [];
         allJobs.push(...jobs);
         if (page >= (r.data.total_pages || 1)) break;
         page++;
