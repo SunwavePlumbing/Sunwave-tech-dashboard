@@ -229,43 +229,37 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 /* Section label above chart / table */
 .section-title { font-size: 12px; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem; }
 
-/* Bar chart — bars poke above a short white "floor" card.
-   Uses a ::after pseudo-element for the floor so the bars themselves
-   never escape the column width (no horizontal overflow risk). */
+/* Bar chart — self-contained white card, bars grow from an x-axis line */
 .bar-chart-card {
-  position: relative;
-  background: transparent;  /* bars + labels sit on transparent bg */
-  box-shadow: none;
-  padding: 0 0.8rem 0;
-  margin-bottom: 1.5rem;
-  overflow: visible;        /* bars allowed to extend upward */
-}
-/* The white floor — only covers the label row at the bottom */
-.bar-chart-card::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 28px; /* just tall enough for the month labels */
   background: white;
-  border-radius: 10px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.09);
-  z-index: 0;
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  padding: 1rem 1rem 0.85rem;
+  margin-bottom: 2.2rem;   /* breathing room before Monthly History */
+  overflow: hidden;
 }
 .bar-chart {
   display: flex;
   align-items: flex-end;
   gap: 5px;
-  height: 110px;
+  height: 150px;           /* bar(100) + val(~18) + label(19) + slack */
   position: relative;
-  z-index: 1; /* bars sit above the pseudo-element floor */
+}
+/* Subtle x-axis baseline */
+.bar-chart::after {
+  content: '';
+  position: absolute;
+  bottom: 19px;            /* sits just above the month labels */
+  left: 0; right: 0;
+  height: 1px;
+  background: #f0f0f0;
+  pointer-events: none;
 }
 .bar-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; flex: 1; min-width: 0; }
-.bar { width: 100%; background: #FF9500; border-radius: 4px 4px 0 0; min-height: 3px; }
+.bar { width: 85%; background: #FF9500; border-radius: 4px 4px 0 0; min-height: 3px; }
 .bar.is-current { background: #FF6B35; }
 .bar-val { font-size: 9px; color: #555; font-weight: 600; margin-bottom: 2px; line-height: 1.1; text-align: center; }
-.bar-lbl { font-size: 9px; color: #bbb; margin-top: 5px; text-align: center; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; height: 14px; position: relative; z-index: 1; }
+.bar-lbl { font-size: 9px; color: #bbb; margin-top: 5px; text-align: center; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; height: 14px; }
 
 /* Monthly history table */
 .mkt-table-card { background: white; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden; margin-bottom: 1.5rem; }
@@ -291,7 +285,9 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 
 @media (max-width: 768px) {
   .tab-btn { padding: 8px 8px; font-size: 12px; }
-  .bar-chart { height: 90px; gap: 3px; }
+  .bar-chart-card { padding: 0.85rem 0.75rem 0.7rem; margin-bottom: 1.8rem; }
+  .bar-chart { height: 120px; gap: 3px; } /* bar(76) + val(~16) + label(17) + slack */
+  .bar-chart::after { bottom: 17px; }
   .bar-val { font-size: 8px; }
   .bar-lbl { font-size: 8px; }
   .mkt-table tbody td { font-size: 13px; padding: 11px 10px; }

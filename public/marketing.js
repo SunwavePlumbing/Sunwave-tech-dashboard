@@ -56,21 +56,24 @@ function renderMarketing() {
   }
 
   // Projection cards
-  var pct = proj.totalDays > 0 ? Math.min(Math.round(proj.jobsMtd / proj.projectedJobs * 100), 100) : 0;
+  var pct = proj.projectedJobs > 0 ? Math.min(Math.round(proj.jobsMtd / proj.projectedJobs * 100), 100) : 0;
+  var wdElapsed = proj.wdElapsed || proj.daysElapsed;
+  var wdTotal   = proj.wdTotal   || proj.totalDays;
+  var wdLeft    = proj.wdLeft    != null ? proj.wdLeft : proj.daysLeft;
   var projHTML =
     '<div class="proj-cards">' +
-      '<div class="proj-card"><div class="proj-card-label">Jobs This Month</div><div class="proj-card-value">' + proj.jobsMtd + '</div><div class="proj-card-sub">' + proj.daysElapsed + ' of ' + proj.totalDays + ' days</div></div>' +
+      '<div class="proj-card"><div class="proj-card-label">Jobs This Month</div><div class="proj-card-value">' + proj.jobsMtd + '</div><div class="proj-card-sub">' + wdElapsed + ' of ' + wdTotal + ' workdays</div></div>' +
       '<div class="proj-card"><div class="proj-card-label">Projected Jobs</div><div class="proj-card-value">' + proj.projectedJobs + '</div><div class="proj-card-sub">by end of month</div></div>' +
-      '<div class="proj-card"><div class="proj-card-label">Daily Rate</div><div class="proj-card-value">' + proj.dailyRate.toFixed(1) + '</div><div class="proj-card-sub">jobs / day</div></div>' +
-      '<div class="proj-card"><div class="proj-card-label">Days Left</div><div class="proj-card-value">' + proj.daysLeft + '</div><div class="proj-card-sub">in the month</div></div>' +
+      '<div class="proj-card"><div class="proj-card-label">Daily Rate</div><div class="proj-card-value">' + proj.dailyRate.toFixed(1) + '</div><div class="proj-card-sub">jobs / workday</div></div>' +
+      '<div class="proj-card"><div class="proj-card-label">Workdays Left</div><div class="proj-card-value">' + wdLeft + '</div><div class="proj-card-sub">this month</div></div>' +
     '</div>' +
     '<div class="progress-wrap">' +
       '<div class="progress-label-row"><span>Month Progress</span><span>' + pct + '%</span></div>' +
       '<div class="progress-bar-bg"><div class="progress-bar-fill" style="width:' + pct + '%"></div></div>' +
     '</div>';
 
-  // Bar chart
-  var BAR_MAX_PX = 100;
+  // Bar chart — max bar height is smaller on mobile so values + labels fit inside the card
+  var BAR_MAX_PX = window.innerWidth <= 768 ? 76 : 100;
   var effectiveJobs = history.map(function(m) {
     return m.isCurrent ? (proj.projectedJobs || m.jobs) : m.jobs;
   });

@@ -518,13 +518,28 @@ app.get('/api/marketing', async (req, res) => {
 
     const history = await Promise.all(buckets.map(fetchMonth));
 
-    // Projection for current month
+    // Projection for current month — workday-based (Mon–Fri only)
     const cur = history[history.length - 1];
     const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
     const daysElapsed = now.getDate();
     const daysLeft = daysInMonth - daysElapsed;
-    const dailyRate = daysElapsed > 0 ? cur.jobs / daysElapsed : 0;
-    const projectedJobs = daysElapsed > 0 ? Math.round(dailyRate * daysInMonth) : 0;
+
+    // Count Mon–Fri days in a range [fromDay, toDay] inclusive
+    const countWorkdays = (yr, mo, from, to) => {
+      let n = 0;
+      for (let d = from; d <= to; d++) {
+        const dow = new Date(yr, mo, d).getDay();
+        if (dow !== 0 && dow !== 6) n++;
+      }
+      return n;
+    };
+    const yr = now.getFullYear(), mo = now.getMonth();
+    const wdElapsed = countWorkdays(yr, mo, 1, daysElapsed);
+    const wdTotal   = countWorkdays(yr, mo, 1, daysInMonth);
+    const wdLeft    = wdTotal - wdElapsed;
+
+    const dailyRate    = wdElapsed > 0 ? cur.jobs / wdElapsed : 0;
+    const projectedJobs = wdElapsed > 0 ? Math.round(dailyRate * wdTotal) : 0;
 
     const payload = {
       history,
@@ -534,7 +549,10 @@ app.get('/api/marketing', async (req, res) => {
         dailyRate,
         daysElapsed,
         daysLeft,
-        totalDays: daysInMonth
+        totalDays: daysInMonth,
+        wdElapsed,
+        wdLeft,
+        wdTotal
       }
     };
     cacheSet('marketing', payload);
