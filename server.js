@@ -374,6 +374,54 @@ app.get('/', (req, res) => {
     .fin-trend-btn { padding:4px 12px;font-size:11px;font-weight:600;border:1px solid #e0e0e0;border-radius:20px;background:white;color:#888;cursor:pointer;transition:all 0.15s; }
     .fin-trend-btn.on { border-color:currentColor;background:currentColor;color:white!important; }
 
+    /* Monthly P&L grid */
+    .pnl-grid { width:100%;border-collapse:collapse;font-size:12px; }
+    .pnl-grid th { text-align:right;padding:6px 8px;font-weight:600;color:#888;font-size:10px;text-transform:uppercase;letter-spacing:0.3px;border-bottom:1px solid #eee;white-space:nowrap; }
+    .pnl-grid th:first-child { text-align:left; }
+    .pnl-grid td { padding:7px 8px;text-align:right;color:#333;border-bottom:1px solid #f5f5f5;white-space:nowrap; font-variant-numeric:tabular-nums; }
+    .pnl-grid td:first-child { text-align:left;font-weight:500; }
+    .pnl-grid tr.subtotal td { font-weight:700;background:#fafafa;color:#1a2d3a;border-top:1px solid #ddd; }
+    .pnl-grid tr.total td { font-weight:700;background:#1a2d3a;color:#fff;border-top:2px solid #1a2d3a; }
+    .pnl-grid tr.indent td:first-child { padding-left:22px;color:#666;font-weight:400; }
+    .pnl-grid td.spark-cell { text-align:center;padding:4px 6px; }
+    .pnl-grid td.neg { color:#E5484D; }
+    .pnl-grid td.highlight { background:#fff8ec; }
+
+    /* Card compare line */
+    .fin-compare-line { font-size:11px;color:#aaa;margin-top:4px; }
+
+    /* Breakeven widget */
+    .be-bar { height:24px;border-radius:12px;background:#f0f0f0;overflow:hidden;position:relative;margin:14px 0 10px; }
+    .be-bar-fill { height:100%;background:linear-gradient(90deg,#12A071,#0a8a5e);transition:width 0.3s; }
+    .be-bar-target { position:absolute;top:-4px;bottom:-4px;width:2px;background:#1a2d3a; }
+    .be-bar-target:after { content:attr(data-lbl);position:absolute;top:-16px;left:-20px;font-size:10px;color:#888;white-space:nowrap; }
+    .be-stats { display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:11px;margin-top:14px; }
+    .be-stat-label { color:#999;text-transform:uppercase;font-size:10px;font-weight:600;letter-spacing:0.3px; }
+    .be-stat-value { font-weight:700;font-size:14px;color:#1a2d3a;margin-top:2px; }
+    .be-headline { font-size:18px;font-weight:700;margin-bottom:4px; }
+    .be-headline.ok { color:#12A071; }
+    .be-headline.bad { color:#E5484D; }
+
+    /* Variance table */
+    .var-table { width:100%;border-collapse:collapse;font-size:12px; }
+    .var-table th { text-align:right;padding:6px 8px;font-weight:600;color:#888;font-size:10px;text-transform:uppercase;letter-spacing:0.3px;border-bottom:1px solid #eee; }
+    .var-table th:first-child { text-align:left; }
+    .var-table td { padding:7px 8px;text-align:right;color:#333;border-bottom:1px solid #f5f5f5;font-variant-numeric:tabular-nums; }
+    .var-table td:first-child { text-align:left;font-weight:500; }
+    .var-table tr.subtotal td { font-weight:700;background:#fafafa;color:#1a2d3a; }
+    .var-table td.pos { color:#12A071;font-weight:600; }
+    .var-table td.neg { color:#E5484D;font-weight:600; }
+
+    /* Cash cards */
+    .cash-row { display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px; }
+    .cash-cell { background:#fafafa;border-radius:8px;padding:12px 14px; }
+    .cash-cell-lbl { font-size:10px;color:#999;text-transform:uppercase;font-weight:600;letter-spacing:0.3px;margin-bottom:4px; }
+    .cash-cell-val { font-size:20px;font-weight:700;color:#1a2d3a; }
+    .cash-cell-sub { font-size:11px;color:#888;margin-top:2px; }
+    .cash-cell.ratio .cash-cell-val.ok { color:#12A071; }
+    .cash-cell.ratio .cash-cell-val.warn { color:#C9820A; }
+    .cash-cell.ratio .cash-cell-val.bad { color:#E5484D; }
+
     .fin-alerts { margin-bottom:1.4rem; }
     .fin-alerts-title { font-size:13px;font-weight:700;color:#1a2d3a;margin-bottom:10px; }
     .fin-alert { display:flex;align-items:flex-start;gap:12px;background:white;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,0.07);padding:14px 16px;margin-bottom:8px;border-left:4px solid transparent; }
@@ -453,14 +501,15 @@ app.get('/', (req, res) => {
     <div class="view-panel" id="ownersView">
       <!-- Filter bar -->
       <div class="fin-filter-bar" id="finFilterBar">
-        <span class="fin-filter-label">Period</span>
-        <div class="fin-toggle" id="finPeriodBtns">
-          <button class="active" data-period="last_month" onclick="setFinPeriod(this)">Last Mo</button>
-          <button data-period="last_3" onclick="setFinPeriod(this)">3 Mo</button>
-          <button data-period="last_12" onclick="setFinPeriod(this)">12 Mo</button>
-          <button data-period="ytd" onclick="setFinPeriod(this)">YTD</button>
-          <button data-period="last_year" onclick="setFinPeriod(this)">Last Year</button>
-        </div>
+        <span class="fin-filter-label">Month</span>
+        <select id="finMonthSel" class="fin-select" onchange="setFinMonth(this.value)"></select>
+        <span class="fin-filter-label" style="margin-left:8px">Compare to</span>
+        <select id="finCompareSel" class="fin-select" onchange="setFinCompare(this.value)">
+          <option value="prior_year_month" selected>Same month last year</option>
+          <option value="prior_month">Prior month</option>
+          <option value="prior_year_avg">Prior year avg</option>
+          <option value="none">No comparison</option>
+        </select>
         <span class="fin-filter-label" style="margin-left:8px">View</span>
         <div class="fin-toggle">
           <button id="finModeDollar" class="active" onclick="setFinMode('dollar')">$</button>
@@ -475,21 +524,39 @@ app.get('/', (req, res) => {
         <div style="text-align:center;padding:3rem;color:#aaa;font-size:14px;grid-column:1/-1">Loading financial data\u2026</div>
       </div>
 
-      <!-- Row 2: Waterfall + Donut -->
+      <!-- Monthly P&L grid -->
+      <div class="fin-chart-card" id="finPnlCard" style="display:none;margin-bottom:1.4rem;overflow-x:auto">
+        <div class="fin-chart-title">Monthly P&amp;L <span id="finPnlSubtitle"></span></div>
+        <div id="finPnlGrid"></div>
+      </div>
+
+      <!-- Row 2: Breakeven + Cost donut -->
       <div class="fin-row2" id="finRow2" style="display:none">
         <div class="fin-chart-card">
-          <div class="fin-chart-title">P&amp;L Waterfall <span>Revenue → Net Operating Income</span></div>
-          <div class="fin-chart-wrap" style="height:280px"><canvas id="waterfallChart"></canvas></div>
+          <div class="fin-chart-title">Breakeven <span id="beSubtitle"></span></div>
+          <div id="beWidget" style="padding:1.2rem 0.4rem"></div>
         </div>
         <div class="fin-chart-card">
-          <div class="fin-chart-title">Operating Expenses <span id="donutSubtitle"></span></div>
+          <div class="fin-chart-title">Cost Breakdown <span id="donutSubtitle"></span></div>
           <div class="fin-chart-wrap" style="height:260px"><canvas id="donutChart"></canvas></div>
         </div>
       </div>
 
-      <!-- Row 3: Trend lines -->
+      <!-- Row 3: Variance vs prior year + Cash -->
+      <div class="fin-row2" id="finRow3" style="display:none">
+        <div class="fin-chart-card">
+          <div class="fin-chart-title">Variance vs. Prior Year <span id="varSubtitle"></span></div>
+          <div id="finVariance"></div>
+        </div>
+        <div class="fin-chart-card">
+          <div class="fin-chart-title">Cash &amp; Working Capital <span id="cashSubtitle"></span></div>
+          <div id="finCash"></div>
+        </div>
+      </div>
+
+      <!-- Key Ratios trend -->
       <div class="fin-chart-card" id="finTrendCard" style="display:none;margin-bottom:1.4rem">
-        <div class="fin-chart-title">Key Ratios — Monthly Trend <span>% of Revenue</span></div>
+        <div class="fin-chart-title">Key Ratios \u2014 Monthly Trend <span>% of Revenue</span></div>
         <div class="fin-trend-toggles" id="trendToggles"></div>
         <div class="fin-chart-wrap" style="height:240px"><canvas id="trendChart"></canvas></div>
       </div>
@@ -1029,8 +1096,9 @@ app.get('/', (req, res) => {
   // ── Location Owners / Financial Tab ────────────────────────────
   var ownersData = null;
   var finMode = 'dollar'; // 'dollar' | 'pct'
-  var finPeriod = 'last_month'; // default: latest complete month
-  var waterfallChartInst = null;
+  var finMonth = null;    // YYYY-MM currently selected
+  var finCompare = 'prior_year_month'; // prior_month | prior_year_month | prior_year_avg | none
+  var ownersBalance = null;
   var donutChartInst = null;
   var trendChartInst = null;
   var trendVisibility = { gm: true, tl: false, parts: false, admin: false, om: true };
@@ -1042,25 +1110,32 @@ app.get('/', (req, res) => {
     if (ownersData && ownersData.connected) renderOwners();
   }
 
-  function setFinPeriod(btn) {
-    finPeriod = btn.dataset.period;
-    document.querySelectorAll('#finPeriodBtns button').forEach(function(b) {
-      b.classList.toggle('active', b === btn);
-    });
-    ownersData = null; // force reload
-    fetchOwnersData(true);
+  function setFinMonth(mk) {
+    finMonth = mk;
+    if (ownersData && ownersData.connected) renderOwners();
+  }
+
+  function setFinCompare(v) {
+    finCompare = v;
+    if (ownersData && ownersData.connected) renderOwners();
   }
 
   async function fetchOwnersData(force) {
     if (ownersData && !force) return;
     document.getElementById('finCards').innerHTML =
       '<div style="text-align:center;padding:3rem;color:#aaa;font-size:14px;grid-column:1/-1">Loading financial data\u2026</div>';
+    document.getElementById('finPnlCard').style.display = 'none';
     document.getElementById('finRow2').style.display = 'none';
+    document.getElementById('finRow3').style.display = 'none';
     document.getElementById('finTrendCard').style.display = 'none';
     document.getElementById('finAlerts').style.display = 'none';
     try {
-      var resp = await fetch('/api/owners-financial?period=' + finPeriod);
-      ownersData = await resp.json();
+      var [finResp, balResp] = await Promise.all([
+        fetch('/api/owners-financial').then(function(r){return r.json();}).catch(function(){return{connected:false,reason:'error'};}),
+        fetch('/api/qbo-balance').then(function(r){return r.json();}).catch(function(){return{connected:false};})
+      ]);
+      ownersData = finResp;
+      ownersBalance = balResp;
     } catch(e) {
       ownersData = { connected: false, reason: 'error' };
     }
@@ -1149,6 +1224,18 @@ app.get('/', (req, res) => {
       '</svg>';
   }
 
+  function fmtMk(mk) {
+    if (!mk) return '';
+    var p = mk.split('-');
+    var mn = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(p[1])-1] || '';
+    return mn + ' ' + p[0];
+  }
+  function fmtMkShort(mk) {
+    if (!mk) return '';
+    var p = mk.split('-');
+    return (['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(p[1])-1] || '') + ' ' + p[0].slice(2);
+  }
+
   function renderOwners() {
     if (!ownersData || !ownersData.connected) {
       var reason = ownersData && ownersData.reason || 'unknown';
@@ -1160,14 +1247,28 @@ app.get('/', (req, res) => {
         (isNoCreds ? '<a href="/connect-quickbooks" style="background:#FF9500;color:white;padding:8px 20px;border-radius:6px;font-size:13px;font-weight:600;text-decoration:none">Connect QuickBooks ›</a>' : '') +
         '</div>';
       document.getElementById('finCards').innerHTML = banner;
+      document.getElementById('finPnlCard').style.display = 'none';
       document.getElementById('finRow2').style.display = 'none';
+      document.getElementById('finRow3').style.display = 'none';
       document.getElementById('finTrendCard').style.display = 'none';
       document.getElementById('finAlerts').style.display = 'none';
       return;
     }
 
     var months = ownersData.months || [];
-    var last6 = months.slice(-6);
+    if (!months.length) return;
+
+    // ── Populate month picker (most-recent first) ───────────────
+    var sel = document.getElementById('finMonthSel');
+    if (sel.children.length !== months.length) {
+      sel.innerHTML = months.slice().reverse().map(function(m) {
+        return '<option value="' + m + '">' + fmtMk(m) + '</option>';
+      }).join('');
+    }
+    if (!finMonth || months.indexOf(finMonth) === -1) {
+      finMonth = months[months.length - 1];
+    }
+    sel.value = finMonth;
 
     // ── Key series (wired to exact QBO account labels) ──────────
     var revenue     = acct('Total Income');
@@ -1193,62 +1294,78 @@ app.get('/', (req, res) => {
     var noi         = revenue.map(function(r, i) { return r - (cogs[i] || 0) - (totalExp[i] || 0); });
     var netInc      = noi; // No below-the-line items in this P&L
 
-    // ── Current month (last column) ─────────────────────────────
-    var curRev   = last(revenue);
-    var curGP    = last(gp);
-    var curTL    = last(techLabor);
-    var curParts = last(parts);
-    var curNOI   = last(noi);
-    var prevRev  = revenue.length > 1 ? revenue[revenue.length - 2] : 0;
-    var prevGP   = gp.length > 1 ? gp[gp.length - 2] : 0;
-    var prevNOI  = noi.length > 1 ? noi[noi.length - 2] : 0;
+    // ── Selected-month index + comparison index ──────────────────
+    var curIdx = months.indexOf(finMonth);
+    if (curIdx < 0) curIdx = months.length - 1;
+    var cmpIdx = -1;
+    var cmpLabel = '';
+    var cmpValues = null; // function(seriesArr) -> number
+    if (finCompare === 'prior_month' && curIdx > 0) {
+      cmpIdx = curIdx - 1;
+      cmpLabel = 'vs. ' + fmtMkShort(months[cmpIdx]);
+      cmpValues = function(arr) { return arr[cmpIdx] || 0; };
+    } else if (finCompare === 'prior_year_month' && curIdx >= 12) {
+      cmpIdx = curIdx - 12;
+      cmpLabel = 'vs. ' + fmtMkShort(months[cmpIdx]);
+      cmpValues = function(arr) { return arr[cmpIdx] || 0; };
+    } else if (finCompare === 'prior_year_avg' && curIdx >= 12) {
+      var s = curIdx - 12, e = curIdx; // 12 months ending the month before selected
+      cmpLabel = 'vs. prior-yr avg';
+      cmpValues = function(arr) {
+        var sum = 0, n = 0;
+        for (var i = s; i < e; i++) { sum += arr[i] || 0; n++; }
+        return n > 0 ? sum / n : 0;
+      };
+    }
 
+    // Current month scalars
+    function at(arr) { return arr[curIdx] || 0; }
+    var curRev = at(revenue), curGP = at(gp), curTL = at(techLabor);
+    var curParts = at(parts), curNOI = at(noi);
     var gmPct    = curRev > 0 ? curGP / curRev * 100 : 0;
     var tlPct    = curRev > 0 ? curTL / curRev * 100 : 0;
     var partsPct = curRev > 0 ? curParts / curRev * 100 : 0;
     var noiPct   = curRev > 0 ? curNOI / curRev * 100 : 0;
+
+    // % series (for trend chart)
     var gmArr    = months.map(function(_, i) { return revenue[i] > 0 ? gp[i]/revenue[i]*100 : 0; });
     var tlArr    = months.map(function(_, i) { return revenue[i] > 0 ? techLabor[i]/revenue[i]*100 : 0; });
     var partsArr = months.map(function(_, i) { return revenue[i] > 0 ? parts[i]/revenue[i]*100 : 0; });
     var noiArr   = months.map(function(_, i) { return revenue[i] > 0 ? noi[i]/revenue[i]*100 : 0; });
     var adminArr = months.map(function(_, i) { return revenue[i] > 0 ? (adminPay[i]+officeExp[i])/revenue[i]*100 : 0; });
 
-    var curMonth = months.length ? months[months.length - 1] : '';
-    var prevMonth = months.length > 1 ? months[months.length - 2] : '';
-    function fmtMk(mk) {
-      if (!mk) return '';
-      var parts2 = mk.split('-');
-      var mn = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(parts2[1])-1] || '';
-      return mn + ' ' + parts2[0];
-    }
-
-    // ── Summary cards ────────────────────────────────────────────
-    function revDelta(cur, prev) {
-      if (!prev) return '';
-      var d = cur - prev;
-      var pct = Math.round(d / prev * 100);
+    // ── Summary card deltas (respect compare mode) ───────────────
+    function dollarCompare(curVal, arr) {
+      if (!cmpValues) return '';
+      var prev = cmpValues(arr);
+      if (!prev) return '<div class="fin-compare-line">' + cmpLabel + ': —</div>';
+      var d = curVal - prev;
+      var pct = prev !== 0 ? Math.round(d / Math.abs(prev) * 100) : 0;
       var cls = d >= 0 ? 'up' : 'down';
       var arrow = d >= 0 ? '▲' : '▼';
-      return '<span class="fin-card-delta ' + cls + '">' + arrow + ' ' + fmtDollar(Math.abs(d)) + ' (' + Math.abs(pct) + '% MoM)</span>';
+      return '<span class="fin-card-delta ' + cls + '">' + arrow + ' ' + fmtDollar(Math.abs(d)) + ' (' + (pct>=0?'+':'') + pct + '%)</span>' +
+        '<div class="fin-compare-line">' + cmpLabel + ': ' + fmtDollar(prev) + '</div>';
     }
-    function pctDelta(arr) {
-      if (arr.length < 2) return '';
-      var d = (arr[arr.length-1] - arr[arr.length-2]).toFixed(1);
-      var cls = parseFloat(d) <= 0 ? 'up' : 'down'; // for ratios, lower is generally better? depends on metric
-      var arrow = parseFloat(d) >= 0 ? '▲' : '▼';
-      return '<span class="fin-card-delta ' + (parseFloat(d) >= 0 ? 'up':'down') + '">' + arrow + ' ' + Math.abs(d) + 'pp MoM</span>';
+    function pctCompare(curPct, arr) {
+      // arr is the % series (already percentages)
+      if (!cmpValues) return '';
+      var prev = cmpValues(arr);
+      var d = curPct - prev;
+      var cls = d >= 0 ? 'up' : 'down';
+      var arrow = d >= 0 ? '▲' : '▼';
+      return '<span class="fin-card-delta ' + cls + '">' + arrow + ' ' + Math.abs(d).toFixed(1) + 'pp</span>' +
+        '<div class="fin-compare-line">' + cmpLabel + ': ' + prev.toFixed(1) + '%</div>';
     }
 
     var cards = [
-      { label: 'Total Revenue', val: finMode==='pct' ? '100%' : fmtDollar(curRev), sub: 'Current month', cls: '', spark: revenue.slice(-6), delta: revDelta(curRev, prevRev), color: '#1a2d3a' },
-      { label: 'Gross Profit', val: finMode==='pct' ? fmtPct(gmPct) : fmtDollar(curGP), sub: fmtPct(gmPct) + ' of Revenue', cls: colorClass('gm', gmPct), spark: finMode==='pct' ? gmArr.slice(-6) : gp.slice(-6), delta: revDelta(curGP, prevGP), color: '#12A071' },
-      { label: 'Gross Margin %', val: fmtPct(gmPct), sub: 'Target ≥ 43%', cls: colorClass('gm', gmPct), spark: gmArr.slice(-6), delta: pctDelta(gmArr), color: '#12A071' },
-      { label: 'Tech Labor %', val: fmtPct(tlPct), sub: 'Target ≤ 29%', cls: colorClass('tl', tlPct), spark: tlArr.slice(-6), delta: pctDelta(tlArr), color: '#FF9500' },
-      { label: 'Parts % of Revenue', val: fmtPct(partsPct), sub: 'Target ≤ 27%', cls: colorClass('parts', partsPct), spark: partsArr.slice(-6), delta: pctDelta(partsArr), color: '#FF6B35' },
-      { label: 'Net Operating Income', val: finMode==='pct' ? fmtPct(noiPct) : fmtDollar(curNOI), sub: fmtPct(noiPct) + ' of Revenue', cls: colorClass('om', noiPct), spark: finMode==='pct' ? noiArr.slice(-6) : noi.slice(-6), delta: revDelta(curNOI, prevNOI), color: '#4A90D9' }
+      { label: 'Total Revenue', val: finMode==='pct' ? '100%' : fmtDollar(curRev), sub: fmtMk(finMonth), cls: '', spark: revenue.slice(Math.max(0,curIdx-5), curIdx+1), delta: dollarCompare(curRev, revenue), color: '#1a2d3a' },
+      { label: 'Gross Profit', val: finMode==='pct' ? fmtPct(gmPct) : fmtDollar(curGP), sub: fmtPct(gmPct) + ' of Revenue', cls: colorClass('gm', gmPct), spark: gp.slice(Math.max(0,curIdx-5), curIdx+1), delta: dollarCompare(curGP, gp), color: '#12A071' },
+      { label: 'Gross Margin %', val: fmtPct(gmPct), sub: 'Target ≥ 43%', cls: colorClass('gm', gmPct), spark: gmArr.slice(Math.max(0,curIdx-5), curIdx+1), delta: pctCompare(gmPct, gmArr), color: '#12A071' },
+      { label: 'Tech Labor %', val: fmtPct(tlPct), sub: 'Target ≤ 29%', cls: colorClass('tl', tlPct), spark: tlArr.slice(Math.max(0,curIdx-5), curIdx+1), delta: pctCompare(tlPct, tlArr), color: '#FF9500' },
+      { label: 'Parts % of Revenue', val: fmtPct(partsPct), sub: 'Target ≤ 27%', cls: colorClass('parts', partsPct), spark: partsArr.slice(Math.max(0,curIdx-5), curIdx+1), delta: pctCompare(partsPct, partsArr), color: '#FF6B35' },
+      { label: 'Net Operating Income', val: finMode==='pct' ? fmtPct(noiPct) : fmtDollar(curNOI), sub: fmtPct(noiPct) + ' of Revenue', cls: colorClass('om', noiPct), spark: noi.slice(Math.max(0,curIdx-5), curIdx+1), delta: dollarCompare(curNOI, noi), color: '#4A90D9' }
     ];
-
-    var cardsHtml = cards.map(function(c) {
+    document.getElementById('finCards').innerHTML = cards.map(function(c) {
       return '<div class="fin-card">' +
         '<div class="fin-card-label">' + esc(c.label) + '</div>' +
         '<div class="fin-card-value ' + c.cls + '">' + c.val + '</div>' +
@@ -1257,123 +1374,118 @@ app.get('/', (req, res) => {
         '<div class="fin-card-spark">' + sparkSVG(c.spark, c.color) + '</div>' +
         '</div>';
     }).join('');
-    document.getElementById('finCards').innerHTML = cardsHtml;
 
-    // ── Show/hide structural elements ────────────────────────────
+    // ── Show structural elements ─────────────────────────────────
+    var multiMonth = months.length > 1;
+    document.getElementById('finPnlCard').style.display = multiMonth ? '' : 'none';
     document.getElementById('finRow2').style.display = '';
+    document.getElementById('finRow3').style.display = '';
     document.getElementById('finTrendCard').style.display = multiMonth ? '' : 'none';
     document.getElementById('finAlerts').style.display = '';
-    var updTxt = '';
-    if (ownersData.periodLabel) updTxt = ownersData.periodLabel + '  ·  ';
+    var updTxt = fmtMk(finMonth) + '  ·  ';
     if (ownersData.fetchedAt) updTxt += 'as of ' + new Date(ownersData.fetchedAt).toLocaleTimeString();
     document.getElementById('finUpdated').textContent = updTxt;
 
-    // Only show trend lines when we have multiple months
-    var multiMonth = months.length > 1;
-
-    // ── Waterfall chart ──────────────────────────────────────────
-    var wRevTotal  = sumArr(revenue);
-    var wParts     = sumArr(parts);
-    var wTL        = sumArr(techLabor);
-    var wSubs      = sumArr(subs);
-    var wGP        = sumArr(gp);
-    var wAdmin     = sumArr(adminPay);
-    var wMkt       = sumArr(mktTotal);
-    var wOffice    = sumArr(officeExp);
-    var wRent      = sumArr(rentExp);
-    var wVehicle   = sumArr(vehicleExp);
-    var wNOI       = sumArr(noi);
-    // Other opex = everything in Total Expenses not already broken out
-    var wOtherOpex = sumArr(totalExp) - wAdmin - wMkt - wOffice - wRent - wVehicle;
-
-    // Build floating bars: [bottom, top] for each step
-    var wfLabels = ['Revenue','Parts','Tech Labor','Subcontractors','Gross Profit','Admin Payroll','Marketing','Office','Rent','Vehicle','Other OpEx','Net Op. Income'];
-    var running = 0;
-    function subtractBar(val) {
-      var top = running;
-      running -= val;
-      return [running, top];
-    }
-    function totalBar(val) { return [0, val]; }
-
-    running = wRevTotal;
-    var wfBars = [
-      totalBar(wRevTotal),
-      subtractBar(wParts),
-      subtractBar(wTL),
-      subtractBar(wSubs),
-      totalBar(wGP),
-      subtractBar(wAdmin),
-      subtractBar(wMkt),
-      subtractBar(wOffice),
-      subtractBar(wRent),
-      subtractBar(wVehicle),
-      subtractBar(Math.max(wOtherOpex,0)),
-      totalBar(wNOI)
-    ];
-    // Reset running after gross profit subtotal
-    running = wGP;
-    wfBars[5] = subtractBar(wAdmin);
-    wfBars[6] = subtractBar(wMkt);
-    wfBars[7] = subtractBar(wOffice);
-    wfBars[8] = subtractBar(wRent);
-    wfBars[9] = subtractBar(wVehicle);
-    wfBars[10] = subtractBar(Math.max(wOtherOpex,0));
-    wfBars[11] = totalBar(wNOI);
-
-    var wfColors = ['#4A90D9','#E5484D','#E5484D','#E5484D','#12A071','#FF9500','#FF9500','#FF9500','#FF9500','#FF9500','#FF9500', wNOI >= 0 ? '#12A071' : '#E5484D'];
-
-    if (waterfallChartInst) waterfallChartInst.destroy();
-    var wfCtx = document.getElementById('waterfallChart').getContext('2d');
-    waterfallChartInst = new Chart(wfCtx, {
-      type: 'bar',
-      data: {
-        labels: wfLabels,
-        datasets: [{
-          data: wfBars,
-          backgroundColor: wfColors,
-          borderRadius: 3,
-          borderSkipped: false
-        }]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false },
-          tooltip: { callbacks: {
-            label: function(ctx) {
-              var v = ctx.raw;
-              var amt = Array.isArray(v) ? (v[1] - v[0]) : v;
-              var pct = wRevTotal > 0 ? (Math.abs(amt)/wRevTotal*100).toFixed(1) + '%' : '';
-              return fmtDollar(amt) + (pct ? '  (' + pct + ' of Rev)' : '');
-            }
-          }}
-        },
-        scales: {
-          x: { grid: { display: false }, ticks: { font: { size: 10 } } },
-          y: { ticks: { callback: function(v) { return fmtDollar(v); }, font: { size: 10 } }, grid: { color: '#f0f0f0' } }
-        }
-      }
+    // ── Monthly P&L grid ─────────────────────────────────────────
+    // Show last 12 months (or fewer if we have less data) ending at finMonth
+    var gridEnd = curIdx;
+    var gridStart = Math.max(0, gridEnd - 11);
+    var gridMonths = months.slice(gridStart, gridEnd + 1);
+    var otherOpex = totalExp.map(function(t, i) {
+      return t - (adminPay[i]||0) - (mktTotal[i]||0) - (officeExp[i]||0) - (rentExp[i]||0)
+        - (vehicleExp[i]||0) - (utilExp[i]||0) - (travelExp[i]||0) - (mealsExp[i]||0)
+        - (genExp[i]||0) - (taxesExp[i]||0) - (merchExp[i]||0) - (benefitsExp[i]||0);
     });
+    var pnlRows = [
+      { label: 'Revenue', arr: revenue, cls: 'subtotal' },
+      { label: 'Cost of Goods Sold', arr: cogs, cls: '' },
+      { label: 'Tech Labor', arr: techLabor, cls: 'indent' },
+      { label: 'Parts', arr: parts, cls: 'indent' },
+      { label: 'Subcontractors', arr: subs, cls: 'indent' },
+      { label: 'Gross Profit', arr: gp, cls: 'subtotal' },
+      { label: 'Operating Expenses', arr: totalExp, cls: '' },
+      { label: 'Admin Payroll', arr: adminPay, cls: 'indent' },
+      { label: 'Marketing', arr: mktTotal, cls: 'indent' },
+      { label: 'Rent', arr: rentExp, cls: 'indent' },
+      { label: 'Vehicle', arr: vehicleExp, cls: 'indent' },
+      { label: 'Office', arr: officeExp, cls: 'indent' },
+      { label: 'Utilities', arr: utilExp, cls: 'indent' },
+      { label: 'Merchant Fees', arr: merchExp, cls: 'indent' },
+      { label: 'Employee Benefits', arr: benefitsExp, cls: 'indent' },
+      { label: 'Taxes', arr: taxesExp, cls: 'indent' },
+      { label: 'Travel', arr: travelExp, cls: 'indent' },
+      { label: 'Meals', arr: mealsExp, cls: 'indent' },
+      { label: 'Other', arr: otherOpex, cls: 'indent' },
+      { label: 'Net Operating Income', arr: noi, cls: 'total' }
+    ];
+    var revGridTotal = 0;
+    gridMonths.forEach(function(_, gi) { revGridTotal += revenue[gridStart+gi] || 0; });
+    var pnlHead = '<tr><th>Line item</th>' +
+      gridMonths.map(function(m) { return '<th>' + fmtMkShort(m) + '</th>'; }).join('') +
+      '<th>Total</th><th>% Rev</th><th>Trend</th></tr>';
+    var pnlBody = pnlRows.map(function(row) {
+      var cells = gridMonths.map(function(_, gi) {
+        var v = row.arr[gridStart+gi] || 0;
+        var isHi = (gridStart+gi) === curIdx ? ' highlight' : '';
+        var neg = v < 0 ? ' neg' : '';
+        return '<td class="' + isHi + neg + '">' + (finMode==='pct' && revenue[gridStart+gi]>0 ? (v/revenue[gridStart+gi]*100).toFixed(1)+'%' : fmtDollar(v)) + '</td>';
+      }).join('');
+      var rowTotal = 0;
+      gridMonths.forEach(function(_, gi) { rowTotal += row.arr[gridStart+gi] || 0; });
+      var pctRev = revGridTotal > 0 ? (rowTotal / revGridTotal * 100).toFixed(1) + '%' : '—';
+      var spark = sparkSVG(row.arr.slice(gridStart, gridEnd+1), '#aaa');
+      return '<tr class="' + row.cls + '"><td>' + esc(row.label) + '</td>' + cells +
+        '<td>' + fmtDollar(rowTotal) + '</td>' +
+        '<td>' + pctRev + '</td>' +
+        '<td class="spark-cell">' + spark + '</td></tr>';
+    }).join('');
+    document.getElementById('finPnlGrid').innerHTML =
+      '<table class="pnl-grid"><thead>' + pnlHead + '</thead><tbody>' + pnlBody + '</tbody></table>';
+    document.getElementById('finPnlSubtitle').textContent = gridMonths.length + ' months ending ' + fmtMkShort(finMonth);
 
-    // ── Cost breakdown donut — shows ALL costs (COGS + OpEx) ──────
-    var dTechLabor = wTL;
-    var dParts     = wParts;
-    var dSubs      = wSubs;
-    var dAdmin     = wAdmin;
-    var dMkt       = wMkt;
-    var dRent      = wRent;
-    var dVehicle   = wVehicle;
-    var dOffice    = wOffice;
-    var dMerch     = acctTotal('Total Merchant account fees');
-    var dInsure    = acctTotal('Insurance');
-    var dBenefits  = acctTotal('Total Employee benefits');
-    var dUtil      = acctTotal('Total Utilities');
+    // ── Breakeven gauge (selected month) ─────────────────────────
+    // Fixed costs = admin + rent + insurance + office + merchant + utilities + benefits
+    var fixedAcct = (adminPay[curIdx]||0) + (rentExp[curIdx]||0) + (officeExp[curIdx]||0)
+      + (merchExp[curIdx]||0) + (benefitsExp[curIdx]||0) + (utilExp[curIdx]||0)
+      + (acct('Insurance')[curIdx] || 0);
+    var variableCosts = (cogs[curIdx]||0) + (mktTotal[curIdx]||0) + (vehicleExp[curIdx]||0); // scale w/ revenue roughly
+    var contribMargin = curRev > 0 ? Math.max(0, (curRev - variableCosts) / curRev) : 0;
+    var breakeven = contribMargin > 0 ? fixedAcct / contribMargin : 0;
+    var pctToBe = breakeven > 0 ? Math.min(150, curRev / breakeven * 100) : 0;
+    var surplus = curRev - breakeven;
+    var beHeadline = surplus >= 0
+      ? '<div class="be-headline ok">In the black by ' + fmtDollar(surplus) + '</div>'
+      : '<div class="be-headline bad">Short by ' + fmtDollar(Math.abs(surplus)) + '</div>';
+    document.getElementById('beWidget').innerHTML = beHeadline +
+      '<div style="font-size:11px;color:#999">Revenue ' + fmtDollar(curRev) + ' vs. Breakeven ' + fmtDollar(breakeven) + '</div>' +
+      '<div class="be-bar">' +
+        '<div class="be-bar-fill" style="width:' + Math.min(100, pctToBe) + '%"></div>' +
+        (breakeven > 0 ? '<div class="be-bar-target" style="left:' + Math.min(100, (breakeven/Math.max(curRev,breakeven))*100) + '%" data-lbl="Breakeven"></div>' : '') +
+      '</div>' +
+      '<div class="be-stats">' +
+        '<div><div class="be-stat-label">Fixed costs</div><div class="be-stat-value">' + fmtDollar(fixedAcct) + '</div></div>' +
+        '<div><div class="be-stat-label">Contribution margin</div><div class="be-stat-value">' + (contribMargin*100).toFixed(1) + '%</div></div>' +
+        '<div><div class="be-stat-label">Breakeven point</div><div class="be-stat-value">' + fmtDollar(breakeven) + '</div></div>' +
+      '</div>';
+    document.getElementById('beSubtitle').textContent = fmtMk(finMonth);
+
+    // ── Cost breakdown donut (selected month) ────────────────────
+    var dTechLabor = at(techLabor);
+    var dParts     = at(parts);
+    var dSubs      = at(subs);
+    var dAdmin     = at(adminPay);
+    var dMkt       = at(mktTotal);
+    var dRent      = at(rentExp);
+    var dVehicle   = at(vehicleExp);
+    var dOffice    = at(officeExp);
+    var dMerch     = at(merchExp);
+    var dInsure    = acct('Insurance')[curIdx] || 0;
+    var dBenefits  = at(benefitsExp);
+    var dUtil      = at(utilExp);
     var dAccounted = dTechLabor + dParts + dSubs + dAdmin + dMkt + dRent + dVehicle + dOffice + dMerch + dInsure + dBenefits + dUtil;
-    var dAllCosts  = sumArr(cogs) + sumArr(totalExp);
+    var dAllCosts  = at(cogs) + at(totalExp);
     var dOther     = Math.max(dAllCosts - dAccounted, 0);
-    var dTotal     = dAllCosts;
-
-    document.getElementById('donutSubtitle').textContent = fmtDollar(dTotal) + ' total costs';
+    document.getElementById('donutSubtitle').textContent = fmtDollar(dAllCosts) + ' · ' + fmtMkShort(finMonth);
 
     if (donutChartInst) donutChartInst.destroy();
     var dCtx = document.getElementById('donutChart').getContext('2d');
@@ -1388,20 +1500,81 @@ app.get('/', (req, res) => {
         }]
       },
       options: {
-        responsive: true, maintainAspectRatio: false,
-        cutout: '60%',
+        responsive: true, maintainAspectRatio: false, cutout: '60%',
         plugins: {
-          legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 10, boxWidth: 12 } },
+          legend: { position: 'bottom', labels: { font: { size: 10 }, padding: 8, boxWidth: 10 } },
           tooltip: { callbacks: {
             label: function(ctx) {
               var v = ctx.parsed;
-              var pct = dTotal > 0 ? (v/dTotal*100).toFixed(1) + '%' : '';
+              var pct = dAllCosts > 0 ? (v/dAllCosts*100).toFixed(1) + '%' : '';
               return ctx.label + ': ' + fmtDollar(v) + (pct ? ' (' + pct + ')' : '');
             }
           }}
         }
       }
     });
+
+    // ── Variance vs. prior year (selected month vs. same month last year) ─
+    var pyIdx = curIdx - 12;
+    if (pyIdx < 0) {
+      document.getElementById('finVariance').innerHTML =
+        '<div style="padding:2rem;text-align:center;color:#aaa;font-size:12px">Not enough history — need data from 12 months before ' + fmtMk(finMonth) + '.</div>';
+      document.getElementById('varSubtitle').textContent = '';
+    } else {
+      var pyMonth = months[pyIdx];
+      var varLines = [
+        { label: 'Revenue', cur: revenue[curIdx], py: revenue[pyIdx], good: 'up', sub: false },
+        { label: 'Cost of Goods Sold', cur: cogs[curIdx], py: cogs[pyIdx], good: 'down', sub: false },
+        { label: 'Gross Profit', cur: gp[curIdx], py: gp[pyIdx], good: 'up', sub: true },
+        { label: 'Operating Expenses', cur: totalExp[curIdx], py: totalExp[pyIdx], good: 'down', sub: false },
+        { label: 'Net Operating Income', cur: noi[curIdx], py: noi[pyIdx], good: 'up', sub: true }
+      ];
+      var varBody = varLines.map(function(l) {
+        var d = (l.cur||0) - (l.py||0);
+        var pct = l.py ? (d / Math.abs(l.py) * 100) : 0;
+        var isGood = l.good === 'up' ? d >= 0 : d <= 0;
+        var cls = isGood ? 'pos' : 'neg';
+        var signStr = d >= 0 ? '+' : '';
+        return '<tr class="' + (l.sub ? 'subtotal' : '') + '">' +
+          '<td>' + esc(l.label) + '</td>' +
+          '<td>' + fmtDollar(l.cur || 0) + '</td>' +
+          '<td>' + fmtDollar(l.py || 0) + '</td>' +
+          '<td class="' + cls + '">' + signStr + fmtDollar(d) + '</td>' +
+          '<td class="' + cls + '">' + (l.py ? signStr + pct.toFixed(1) + '%' : '—') + '</td>' +
+          '</tr>';
+      }).join('');
+      document.getElementById('finVariance').innerHTML =
+        '<table class="var-table"><thead><tr>' +
+        '<th>Line item</th><th>' + fmtMkShort(finMonth) + '</th><th>' + fmtMkShort(pyMonth) + '</th>' +
+        '<th>Δ $</th><th>Δ %</th></tr></thead><tbody>' + varBody + '</tbody></table>';
+      document.getElementById('varSubtitle').textContent = fmtMkShort(finMonth) + ' vs. ' + fmtMkShort(pyMonth);
+    }
+
+    // ── Cash / Working Capital ───────────────────────────────────
+    if (ownersBalance && ownersBalance.connected) {
+      var b = ownersBalance;
+      var cr = b.currentRatio;
+      var crCls = cr == null ? '' : (cr >= 1.5 ? 'ok' : cr >= 1.0 ? 'warn' : 'bad');
+      var crText = cr == null ? '—' : cr.toFixed(2) + 'x';
+      document.getElementById('finCash').innerHTML =
+        '<div class="cash-row">' +
+          '<div class="cash-cell"><div class="cash-cell-lbl">Cash on hand</div><div class="cash-cell-val">' + fmtDollar(b.cash||0) + '</div></div>' +
+          '<div class="cash-cell ratio"><div class="cash-cell-lbl">Current ratio</div><div class="cash-cell-val ' + crCls + '">' + crText + '</div><div class="cash-cell-sub">Assets ÷ Liabilities</div></div>' +
+        '</div>' +
+        '<div class="cash-row">' +
+          '<div class="cash-cell"><div class="cash-cell-lbl">Accounts receivable</div><div class="cash-cell-val">' + fmtDollar(b.accountsReceivable||0) + '</div></div>' +
+          '<div class="cash-cell"><div class="cash-cell-lbl">Accounts payable</div><div class="cash-cell-val">' + fmtDollar(b.accountsPayable||0) + '</div></div>' +
+        '</div>' +
+        '<div class="cash-row">' +
+          '<div class="cash-cell"><div class="cash-cell-lbl">Total current assets</div><div class="cash-cell-val">' + fmtDollar(b.currentAssets||0) + '</div></div>' +
+          '<div class="cash-cell"><div class="cash-cell-lbl">Total current liabilities</div><div class="cash-cell-val">' + fmtDollar(b.currentLiabilities||0) + '</div></div>' +
+        '</div>';
+      document.getElementById('cashSubtitle').textContent = 'as of ' + b.asOf;
+    } else {
+      document.getElementById('finCash').innerHTML =
+        '<div style="padding:2rem;text-align:center;color:#aaa;font-size:12px">Balance sheet data unavailable.</div>';
+      document.getElementById('cashSubtitle').textContent = '';
+    }
 
     // ── Trend lines ──────────────────────────────────────────────
     var TREND_SERIES = [
@@ -2057,38 +2230,14 @@ app.get('/api/owners-financial', async (req, res) => {
     const token = await getQBOAccessToken();
     if (!token) return res.json({ connected: false, reason: 'no_token' });
 
+    // Always return 24 months ending at latest reliable month — client
+    // picks which single month to display and computes comparisons from
+    // this range (prior month, same month last year, etc.)
     const now = new Date();
     const reliableEnd = getReliableEndDate(now);
-    const period = req.query.period || 'last_month';
-
-    let startDate, endDate;
-
-    if (period === 'last_month') {
-      // Just the single latest complete month
-      const start = new Date(reliableEnd.getFullYear(), reliableEnd.getMonth(), 1);
-      startDate = start.toISOString().slice(0, 10);
-      endDate   = reliableEnd.toISOString().slice(0, 10);
-    } else if (period === 'last_3') {
-      const start = new Date(reliableEnd.getFullYear(), reliableEnd.getMonth() - 2, 1);
-      startDate = start.toISOString().slice(0, 10);
-      endDate   = reliableEnd.toISOString().slice(0, 10);
-    } else if (period === 'last_12') {
-      const start = new Date(reliableEnd.getFullYear(), reliableEnd.getMonth() - 11, 1);
-      startDate = start.toISOString().slice(0, 10);
-      endDate   = reliableEnd.toISOString().slice(0, 10);
-    } else if (period === 'ytd') {
-      startDate = reliableEnd.getFullYear() + '-01-01';
-      endDate   = reliableEnd.toISOString().slice(0, 10);
-    } else if (period === 'last_year') {
-      const y = reliableEnd.getFullYear() - 1;
-      startDate = y + '-01-01';
-      endDate   = y + '-12-31';
-    } else {
-      // fallback: last 12 months
-      const start = new Date(reliableEnd.getFullYear(), reliableEnd.getMonth() - 11, 1);
-      startDate = start.toISOString().slice(0, 10);
-      endDate   = reliableEnd.toISOString().slice(0, 10);
-    }
+    const start = new Date(reliableEnd.getFullYear(), reliableEnd.getMonth() - 23, 1);
+    const startDate = start.toISOString().slice(0, 10);
+    const endDate = reliableEnd.toISOString().slice(0, 10);
 
     const pnlRes = await axios.get(
       QBO_BASE + '/v3/company/' + qboTokens.realmId + '/reports/ProfitAndLoss',
@@ -2105,11 +2254,14 @@ app.get('/api/owners-financial', async (req, res) => {
     );
 
     const parsed = parseFinancialReport(pnlRes.data);
-    const periodLabel = new Date(startDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-      + (startDate !== endDate
-          ? ' – ' + new Date(endDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-          : '');
-    res.json({ connected: true, ...parsed, fetchedAt: new Date().toISOString(), periodLabel, startDate, endDate });
+    res.json({
+      connected: true,
+      ...parsed,
+      fetchedAt: new Date().toISOString(),
+      startDate,
+      endDate,
+      latestReliableMonth: parsed.months[parsed.months.length - 1]
+    });
   } catch (err) {
     console.error('[/api/owners-financial]', err.response?.status || '', err.message);
     if (err.response?.status === 401) {
@@ -2145,6 +2297,71 @@ app.get('/api/qbo-accounts', async (req, res) => {
     const parsed = parseFinancialReport(pnlRes.data);
     res.json({ connected: true, months: parsed.months, accounts: Object.keys(parsed.accounts).sort() });
   } catch (err) {
+    res.status(500).json({ connected: false, error: err.message });
+  }
+});
+// Cash / Working Capital — latest Balance Sheet snapshot.
+// Returns: cash, accountsReceivable, accountsPayable, currentRatio.
+app.get('/api/qbo-balance', async (req, res) => {
+  if (!qboReady()) return res.json({ connected: false });
+  try {
+    const token = await getQBOAccessToken();
+    if (!token) return res.json({ connected: false });
+    const asOf = getReliableEndDate(new Date()).toISOString().slice(0, 10);
+    const bsRes = await axios.get(
+      QBO_BASE + '/v3/company/' + qboTokens.realmId + '/reports/BalanceSheet',
+      {
+        headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
+        params: { as_of: asOf, accounting_method: 'Cash', minorversion: 75 }
+      }
+    );
+    // Walk the BS report — section names contain "Bank", "Accounts Receivable",
+    // "Accounts Payable", "Current Assets", "Current Liabilities".
+    const byName = {};
+    (function walk(rows) {
+      if (!Array.isArray(rows)) return;
+      rows.forEach(row => {
+        if (row.Summary && row.Summary.ColData) {
+          const n = (row.Summary.ColData[0].value || '').trim();
+          const v = parseFloat((row.Summary.ColData[row.Summary.ColData.length - 1].value || '0').replace(/,/g, '')) || 0;
+          if (n) byName[n] = v;
+        }
+        if (row.ColData && row.ColData[0]) {
+          const n = (row.ColData[0].value || '').trim();
+          const v = parseFloat((row.ColData[row.ColData.length - 1].value || '0').replace(/,/g, '')) || 0;
+          if (n) byName[n] = v;
+        }
+        if (row.Rows && row.Rows.Row) walk(row.Rows.Row);
+      });
+    })((bsRes.data.Rows && bsRes.data.Rows.Row) || []);
+
+    const findByKeyword = (kws) => {
+      for (const k of Object.keys(byName)) {
+        const kl = k.toLowerCase();
+        if (kws.every(kw => kl.includes(kw))) return byName[k];
+      }
+      return 0;
+    };
+
+    const cash = findByKeyword(['total', 'bank']);
+    const ar = findByKeyword(['total', 'receivable']);
+    const ap = findByKeyword(['total', 'payable']);
+    const currentAssets = findByKeyword(['total current assets']);
+    const currentLiabs = findByKeyword(['total current liabilities']);
+    const currentRatio = currentLiabs > 0 ? currentAssets / currentLiabs : null;
+
+    res.json({
+      connected: true, asOf,
+      cash, accountsReceivable: ar, accountsPayable: ap,
+      currentAssets, currentLiabilities: currentLiabs, currentRatio,
+      accounts: Object.keys(byName).sort()
+    });
+  } catch (err) {
+    console.error('[/api/qbo-balance]', err.response?.status || '', err.message);
+    if (err.response?.status === 401) {
+      qboTokens.accessToken = null;
+      return res.json({ connected: false, reason: 'token_expired' });
+    }
     res.status(500).json({ connected: false, error: err.message });
   }
 });
