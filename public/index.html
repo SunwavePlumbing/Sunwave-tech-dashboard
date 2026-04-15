@@ -72,9 +72,10 @@
       <!-- Filter bar -->
       <div class="fin-filter-bar" id="finFilterBar">
         <label class="fin-filter-field">
-          <span class="fin-filter-label">Month</span>
+          <span class="fin-filter-label">Showing</span>
           <select id="finMonthSel" class="fin-select" onchange="setFinMonth(this.value)"></select>
         </label>
+        <span class="fin-filter-vs">vs.</span>
         <label class="fin-filter-field">
           <span class="fin-filter-label">Compare to</span>
           <select id="finCompareSel" class="fin-select" onchange="setFinCompare(this.value)">
@@ -84,7 +85,6 @@
             <option value="none">No comparison</option>
           </select>
         </label>
-        <button class="fin-refresh-btn" onclick="fetchOwnersData(true)" aria-label="Refresh">&#8635;</button>
       </div>
 
       <!-- Formula card — the centerpiece -->

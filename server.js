@@ -726,6 +726,10 @@ app.get('/api/owners-financial', async (req, res) => {
   if (!qboReady()) {
     return res.json({ connected: false, reason: qboConfigured() ? 'not_connected' : 'not_configured' });
   }
+  // 4-hour cache — QBO P&L data only changes meaningfully once a month
+  const FIN_TTL = 4 * 60 * 60 * 1000;
+  const cached = cacheGet('owners-financial', FIN_TTL);
+  if (cached) return res.json(cached);
   try {
     const token = await getQBOAccessToken();
     if (!token) return res.json({ connected: false, reason: 'no_token' });
@@ -754,14 +758,16 @@ app.get('/api/owners-financial', async (req, res) => {
     );
 
     const parsed = parseFinancialReport(pnlRes.data);
-    res.json({
+    const payload = {
       connected: true,
       ...parsed,
       fetchedAt: new Date().toISOString(),
       startDate,
       endDate,
       latestReliableMonth: parsed.months[parsed.months.length - 1]
-    });
+    };
+    cacheSet('owners-financial', payload);
+    res.json(payload);
   } catch (err) {
     console.error('[/api/owners-financial]', err.response?.status || '', err.message);
     if (err.response?.status === 401) {
@@ -804,6 +810,9 @@ app.get('/api/qbo-accounts', async (req, res) => {
 // Returns: cash, accountsReceivable, accountsPayable, currentRatio.
 app.get('/api/qbo-balance', async (req, res) => {
   if (!qboReady()) return res.json({ connected: false });
+  const BAL_TTL = 4 * 60 * 60 * 1000;
+  const cachedBal = cacheGet('qbo-balance', BAL_TTL);
+  if (cachedBal) return res.json(cachedBal);
   try {
     const token = await getQBOAccessToken();
     if (!token) return res.json({ connected: false });
@@ -862,14 +871,16 @@ app.get('/api/qbo-balance', async (req, res) => {
     if (!totalLiabs) totalLiabs = (currentLiabs || 0) + (longTermLiabs || 0);
     const currentRatio = currentLiabs > 0 ? currentAssets / currentLiabs : null;
 
-    res.json({
+    const balPayload = {
       connected: true, asOf,
       cash, accountsReceivable: ar, accountsPayable: ap,
       currentAssets, currentLiabilities: currentLiabs,
       longTermLiabilities: longTermLiabs, totalLiabilities: totalLiabs,
       currentRatio,
       accounts: Object.keys(byName).sort()
-    });
+    };
+    cacheSet('qbo-balance', balPayload);
+    res.json(balPayload);
   } catch (err) {
     console.error('[/api/qbo-balance]', err.response?.status || '', err.message);
     if (err.response?.status === 401) {
