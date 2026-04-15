@@ -9,19 +9,19 @@ const BASE_URL = 'https://api.housecallpro.com';
 // ── QuickBooks Online ────────────────────────────────────────────────────────
 const QBO_CLIENT_ID     = process.env.QBO_CLIENT_ID;
 const QBO_CLIENT_SECRET = process.env.QBO_CLIENT_SECRET;
-const QBO_REALM_ID      = process.env.QBO_REALM_ID;
 const QBO_REDIRECT_URI  = process.env.QBO_REDIRECT_URI || 'http://localhost:' + (process.env.PORT || 3000) + '/auth/quickbooks/callback';
 const QBO_BASE          = 'https://quickbooks.api.intuit.com';
 
-// In-memory tokens — seeded from env var on startup, rotated in memory on each refresh
+// In-memory tokens + realmId — seeded from env vars on startup, updated after OAuth
 const qboTokens = {
   accessToken:  null,
   refreshToken: process.env.QBO_REFRESH_TOKEN || null,
-  expiresAt:    0
+  expiresAt:    0,
+  realmId:      process.env.QBO_REALM_ID || null   // captured automatically from OAuth callback
 };
 
 function qboConfigured() {
-  return !!(QBO_CLIENT_ID && QBO_CLIENT_SECRET && QBO_REALM_ID);
+  return !!(QBO_CLIENT_ID && QBO_CLIENT_SECRET && qboTokens.realmId);
 }
 
 async function getQBOAccessToken() {
@@ -42,7 +42,7 @@ async function getQBOAccessToken() {
   qboTokens.accessToken  = resp.data.access_token;
   qboTokens.refreshToken = resp.data.refresh_token;   // QBO rotates refresh tokens
   qboTokens.expiresAt    = Date.now() + resp.data.expires_in * 1000;
-  console.log('[QBO] Tokens refreshed. If refresh token rotated, update QBO_REFRESH_TOKEN in Railway to: ' + qboTokens.refreshToken);
+  console.log('[QBO] Access token refreshed. Refresh token: ' + qboTokens.refreshToken);
   return qboTokens.accessToken;
 }
 
@@ -1247,30 +1247,54 @@ app.get('/auth/quickbooks/callback', async (req, res) => {
     qboTokens.accessToken  = resp.data.access_token;
     qboTokens.refreshToken = resp.data.refresh_token;
     qboTokens.expiresAt    = Date.now() + resp.data.expires_in * 1000;
-    const connectedRealmId = realmId || QBO_REALM_ID;
-    console.log('[QBO] Connected! Realm ID: ' + connectedRealmId);
+    // Save realmId in memory so API calls work immediately (no restart needed)
+    if (realmId) qboTokens.realmId = realmId;
+    console.log('[QBO] Connected! Realm ID: ' + qboTokens.realmId);
     console.log('[QBO] Refresh Token: ' + qboTokens.refreshToken);
-    // Show success page with instructions to save the refresh token in Railway
+    // Show success page — both values ready to copy into Railway
     res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>QuickBooks Connected</title>
-<style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:600px;margin:60px auto;padding:0 20px;color:#333}
-.box{background:#f5f5f5;border-radius:10px;padding:20px 24px;margin:20px 0;word-break:break-all;font-family:monospace;font-size:13px;background:#1a2d3a;color:#7dd3a8}
-.btn{display:inline-block;background:#FF9500;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;margin-top:8px}
-.step{background:#fffbf5;border:1px solid #FFE0B2;border-radius:8px;padding:16px 20px;margin:12px 0}
-h2{color:#12A071}
-</style></head><body>
+<style>
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:620px;margin:60px auto;padding:0 20px;color:#333}
+  h2{color:#12A071;margin-bottom:6px}
+  p{color:#666;margin-bottom:20px;font-size:14px}
+  .step{background:#fffbf5;border:1px solid #FFE0B2;border-radius:10px;padding:18px 20px;margin:12px 0}
+  .step strong{display:block;font-size:13px;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px}
+  .var-name{font-family:monospace;font-size:13px;background:#f0f0f0;padding:3px 8px;border-radius:4px;color:#333}
+  .var-val{font-family:monospace;font-size:12px;background:#1a2d3a;color:#7dd3a8;padding:12px 16px;border-radius:8px;margin-top:8px;word-break:break-all;display:block;line-height:1.5}
+  .copy-btn{display:inline-block;margin-top:8px;background:#f0f0f0;border:none;padding:6px 14px;border-radius:6px;font-size:12px;cursor:pointer;color:#555}
+  .copy-btn:hover{background:#e0e0e0}
+  .instructions{background:#f8f8f8;border-radius:10px;padding:18px 20px;margin:20px 0;font-size:13px;color:#666;line-height:1.8}
+  .instructions ol{padding-left:18px;margin:0}
+  .btn{display:inline-block;background:#FF9500;color:white;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;margin-top:4px}
+</style>
+</head><body>
 <h2>✅ QuickBooks Connected!</h2>
-<p>QuickBooks is now connected. To make this permanent across Railway restarts, add this refresh token as an environment variable:</p>
+<p>QuickBooks data will load immediately. To keep this connection after Railway restarts, add these two variables to your Railway project:</p>
+
 <div class="step">
-  <strong>1.</strong> Go to your Railway project → Variables<br>
-  <strong>2.</strong> Add a new variable:<br><br>
-  <strong>Name:</strong> <code>QBO_REFRESH_TOKEN</code><br>
-  <strong>Value:</strong> <div class="box">${qboTokens.refreshToken}</div>
+  <strong>Variable 1 — Realm ID</strong>
+  <span class="var-name">QBO_REALM_ID</span>
+  <code class="var-val" id="v1">${qboTokens.realmId}</code>
+  <button class="copy-btn" onclick="navigator.clipboard.writeText('${qboTokens.realmId}');this.textContent='Copied!'">Copy</button>
 </div>
+
 <div class="step">
-  <strong>3.</strong> Redeploy (Railway will restart automatically after saving the variable)<br>
-  <strong>4.</strong> You won't need to reconnect unless you manually revoke access in QuickBooks
+  <strong>Variable 2 — Refresh Token</strong>
+  <span class="var-name">QBO_REFRESH_TOKEN</span>
+  <code class="var-val" id="v2">${qboTokens.refreshToken}</code>
+  <button class="copy-btn" onclick="navigator.clipboard.writeText('${qboTokens.refreshToken}');this.textContent='Copied!'">Copy</button>
 </div>
-<a href="/" class="btn">← Back to Dashboard</a>
+
+<div class="instructions">
+  <ol>
+    <li>Go to your <strong>Railway project → Variables</strong></li>
+    <li>Add <code>QBO_REALM_ID</code> and <code>QBO_REFRESH_TOKEN</code> using the values above</li>
+    <li>Railway will redeploy automatically — no need to connect again</li>
+  </ol>
+  <br>⚠️ The refresh token rotates every ~100 days. If the marketing tab stops loading QBO data, just visit <code>/auth/quickbooks</code> again to reconnect.
+</div>
+
+<a href="/" class="btn">← Go to Dashboard</a>
 </body></html>`);
   } catch (err) {
     console.error('[QBO] OAuth callback error:', err.response?.data || err.message);
@@ -1294,7 +1318,7 @@ app.get('/api/qbo-marketing', async (req, res) => {
     const startDate = new Date(now.getFullYear(), now.getMonth() - 11, 1).toISOString().slice(0, 10);
 
     const pnlRes = await axios.get(
-      QBO_BASE + '/v3/company/' + QBO_REALM_ID + '/reports/ProfitAndLoss',
+      QBO_BASE + '/v3/company/' + qboTokens.realmId + '/reports/ProfitAndLoss',
       {
         headers: {
           Authorization: 'Bearer ' + token,
