@@ -2,18 +2,18 @@ const express = require('express');
 const axios = require('axios');
 const app = express();
 
-// Log every request so we can see in Railway logs what's actually hitting Express
-app.use((req, res, next) => {
-  console.log('[REQ]', req.method, req.path);
-  next();
-});
-
-// Simple test route
-app.get('/ping', (req, res) => res.send('pong'));
-
 const API_KEY = process.env.HOUSECALL_PRO_API_KEY;
 const PORT = process.env.PORT || 3000;
 const BASE_URL = 'https://api.housecallpro.com';
+
+// Shared axios defaults — prevents any single slow upstream from hanging the server
+const HTTP_TIMEOUT = 25000;
+axios.defaults.timeout = HTTP_TIMEOUT;
+
+// Headers for Housecall Pro requests
+function hcpHeaders() {
+  return { 'Authorization': 'Token ' + API_KEY, 'Accept': 'application/json' };
+}
 
 // ── QuickBooks Online ────────────────────────────────────────────────────────
 const QBO_CLIENT_ID     = process.env.QBO_CLIENT_ID;
@@ -43,85 +43,35 @@ async function getQBOAccessToken() {
   if (qboTokens.accessToken && Date.now() < qboTokens.expiresAt - 60000) {
     return qboTokens.accessToken;
   }
-  const resp = await axios.post(
-    'https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer',
-    new URLSearchParams({
-      grant_type: 'refresh_token',
-      refresh_token: qboTokens.refreshToken,
-      client_id: QBO_CLIENT_ID,
-      client_secret: QBO_CLIENT_SECRET
-    }).toString(),
-    {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json'
-      }
-    }
-  );
-  qboTokens.accessToken  = resp.data.access_token;
-  qboTokens.refreshToken = resp.data.refresh_token;   // QBO rotates refresh tokens
-  qboTokens.expiresAt    = Date.now() + resp.data.expires_in * 1000;
-  console.log('[QBO] Access token refreshed. Refresh token: ' + qboTokens.refreshToken);
-  return qboTokens.accessToken;
-}
-
-// Parse QBO P&L response: extract "Advertising & Marketing" spend per month
-// Returns { 'YYYY-MM': dollars, ... }
-function extractMarketingSpend(report) {
-  const spend = {};
-
-  // Build a map: column index → 'YYYY-MM'
-  const colIndexToMonth = {};
-  const columns = (report.Columns && report.Columns.Column) || [];
-  columns.forEach((col, idx) => {
-    if (col.ColType !== 'Money') return;
-    const meta = col.MetaData || [];
-    const startMeta = meta.find(m => m.Name === 'StartDate');
-    if (!startMeta) return;
-    const d = new Date(startMeta.Value);
-    colIndexToMonth[idx] = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-  });
-
-  const KEYWORDS = ['advertising', 'marketing'];
-  function isMarketing(name) {
-    const n = (name || '').toLowerCase();
-    return KEYWORDS.some(k => n.includes(k));
-  }
-
-  function addRow(colData) {
-    // colData[0] = label, colData[1..] = values
-    Object.entries(colIndexToMonth).forEach(([idx, month]) => {
-      const raw = (colData[idx] && colData[idx].value) || '0';
-      const val = parseFloat(raw.replace(/,/g, '')) || 0;
-      if (val !== 0) spend[month] = (spend[month] || 0) + val;
-    });
-  }
-
-  function walk(rows) {
-    if (!Array.isArray(rows)) return;
-    rows.forEach(row => {
-      const headerName = row.Header && row.Header.ColData && row.Header.ColData[0] && row.Header.ColData[0].value;
-      if (isMarketing(headerName)) {
-        // Use the Summary totals for this section (avoids double-counting sub-rows)
-        if (row.Summary && row.Summary.ColData) {
-          addRow(row.Summary.ColData);
-        } else if (row.Rows && row.Rows.Row) {
-          walk(row.Rows.Row); // no summary — walk sub-rows
+  try {
+    const resp = await axios.post(
+      'https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer',
+      new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: qboTokens.refreshToken,
+        client_id: QBO_CLIENT_ID,
+        client_secret: QBO_CLIENT_SECRET
+      }).toString(),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'application/json'
         }
-        return; // don't recurse further into marketing section
       }
-      // Check plain data rows (no sub-rows)
-      if (row.ColData && isMarketing(row.ColData[0] && row.ColData[0].value)) {
-        addRow(row.ColData);
-      }
-      // Recurse into sections
-      if (row.Rows && row.Rows.Row) walk(row.Rows.Row);
-    });
+    );
+    qboTokens.accessToken  = resp.data.access_token;
+    qboTokens.refreshToken = resp.data.refresh_token;   // QBO rotates refresh tokens
+    qboTokens.expiresAt    = Date.now() + resp.data.expires_in * 1000;
+    return qboTokens.accessToken;
+  } catch (err) {
+    // Refresh failed — wipe in-memory tokens so callers see "not connected" cleanly
+    qboTokens.accessToken = null;
+    qboTokens.expiresAt = 0;
+    console.error('[QBO refresh]', err.response?.status || '', err.response?.data?.error || err.message);
+    return null;
   }
-
-  walk((report.Rows && report.Rows.Row) || []);
-  return spend;
 }
+
 // Parse a full QBO P&L report — extracts every named account per month
 // Returns { months: ['YYYY-MM',...], accounts: { 'Account Name': { 'YYYY-MM': value } } }
 function parseFinancialReport(report) {
@@ -178,6 +128,24 @@ function parseFinancialReport(report) {
 
   walk((report.Rows && report.Rows.Row) || []);
   return { months, accounts };
+}
+
+// Pull monthly marketing spend from a parsed report — sums every account whose
+// name contains "advertising" or "marketing" (case-insensitive). Returns { 'YYYY-MM': $ }
+function marketingSpendByMonth(parsed) {
+  const spend = {};
+  (parsed.months || []).forEach(mk => { spend[mk] = 0; });
+  Object.entries(parsed.accounts || {}).forEach(([name, byMonth]) => {
+    const n = name.toLowerCase();
+    if (!n.startsWith('total for ')) return; // use rollup lines only, avoid double counting
+    if (!(n.includes('advertising') || n.includes('marketing'))) return;
+    Object.entries(byMonth).forEach(([mk, v]) => {
+      spend[mk] = (spend[mk] || 0) + v;
+    });
+  });
+  // Strip zero-only entries for a cleaner response
+  Object.keys(spend).forEach(k => { if (!spend[k]) delete spend[k]; });
+  return spend;
 }
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -1100,11 +1068,37 @@ app.get('/', (req, res) => {
   }
 
   function acct(name) {
-    // Get monthly values array for a named QBO account
+    // Get monthly values for a QBO account. Matches exact name first, then
+    // falls back to case-insensitive contains/startsWith — QBO labels
+    // ("Total Income" vs "Total for Income") vary by company file.
     if (!ownersData || !ownersData.accounts) return [];
-    var a = ownersData.accounts[name];
-    if (!a) return ownersData.months.map(function() { return 0; });
-    return ownersData.months.map(function(mk) { return a[mk] || 0; });
+    var months = ownersData.months || [];
+    var empty = months.map(function() { return 0; });
+    var accts = ownersData.accounts;
+    var a = accts[name];
+    if (!a) {
+      var target = name.toLowerCase();
+      // Strip "total for " / "total " prefix to get the core label
+      var core = target.replace(/^total (for )?/, '').trim();
+      var match = null;
+      Object.keys(accts).forEach(function(k) {
+        if (match) return;
+        var kl = k.toLowerCase();
+        if (kl === target) match = k;
+        else if (kl === 'total ' + core || kl === 'total for ' + core) match = k;
+      });
+      if (!match) {
+        // Looser contains fallback
+        Object.keys(accts).forEach(function(k) {
+          if (match) return;
+          var kl = k.toLowerCase();
+          if (kl.indexOf(core) !== -1 && kl.indexOf('total') !== -1) match = k;
+        });
+      }
+      if (match) a = accts[match];
+    }
+    if (!a) return empty;
+    return months.map(function(mk) { return a[mk] || 0; });
   }
 
   function acctTotal(name) {
@@ -1624,12 +1618,8 @@ app.get('/api/metrics', async (req, res) => {
         periodLabel = 'This Month';
     }
 
-    const headers = {
-      'Authorization': 'Token ' + API_KEY,
-      'Accept': 'application/json'
-    };
+    const headers = hcpHeaders();
 
-    console.log('Fetching jobs from: ' + BASE_URL + '/jobs');
     const allJobs = [];
     let page = 1;
     const pageSize = 200;
@@ -1650,7 +1640,6 @@ app.get('/api/metrics', async (req, res) => {
       if (page >= totalPages) break;
       page++;
     }
-    console.log('Got ' + allJobs.length + ' jobs');
 
     // Fetch original estimates to identify who sold each job (the seller gets 1/3 credit)
     const estimateIds = [...new Set(
@@ -1660,7 +1649,6 @@ app.get('/api/metrics', async (req, res) => {
     )];
     const estimateSellerMap = {};
     if (estimateIds.length > 0) {
-      console.log('Fetching ' + estimateIds.length + ' estimates for seller attribution');
       const BATCH = 10;
       for (let i = 0; i < estimateIds.length; i += BATCH) {
         const batch = estimateIds.slice(i, i + BATCH);
@@ -1793,12 +1781,8 @@ app.get('/api/metrics', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Full error:', {
-      status: error.response?.status,
-      message: error.message,
-      data: error.response?.data
-    });
-    res.status(500).json({ error: error.message, details: error.response?.data });
+    console.error('[/api/tech]', error.response?.status || '', error.message);
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -1807,10 +1791,7 @@ app.get('/api/marketing', async (req, res) => {
     return res.status(500).json({ error: 'API key not configured' });
   }
   try {
-    const headers = {
-      'Authorization': 'Token ' + API_KEY,
-      'Accept': 'application/json'
-    };
+    const headers = hcpHeaders();
 
     const now = new Date();
     const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -1885,26 +1866,13 @@ app.get('/api/marketing', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Marketing API error:', error.message);
-    res.status(500).json({ error: error.message, details: error.response?.data });
+    console.error('[/api/marketing]', error.response?.status || '', error.message);
+    res.status(500).json({ error: error.message });
   }
 });
 
 // ── QuickBooks OAuth ─────────────────────────────────────────────────────────
 // Safe debug — shows credential shape without exposing full values
-app.get('/qbo-debug', (req, res) => {
-  res.json({
-    client_id_length:     QBO_CLIENT_ID     ? QBO_CLIENT_ID.length     : 0,
-    client_id_first4:     QBO_CLIENT_ID     ? QBO_CLIENT_ID.slice(0,4) : null,
-    client_id_last4:      QBO_CLIENT_ID     ? QBO_CLIENT_ID.slice(-4)  : null,
-    secret_length:        QBO_CLIENT_SECRET ? QBO_CLIENT_SECRET.length  : 0,
-    secret_first4:        QBO_CLIENT_SECRET ? QBO_CLIENT_SECRET.slice(0,4) : null,
-    redirect_uri:         QBO_REDIRECT_URI,
-    realm_id_in_memory:   !!qboTokens.realmId,
-    refresh_token_in_memory: !!qboTokens.refreshToken
-  });
-});
-
 app.get('/connect-quickbooks', (req, res) => {
   if (!qboConfigured()) {
     return res.send('<h2>QBO not configured</h2><p>Set QBO_CLIENT_ID and QBO_CLIENT_SECRET environment variables in Railway, then visit this page again.</p>');
@@ -1945,8 +1913,6 @@ app.get('/connect-quickbooks/callback', async (req, res) => {
     qboTokens.expiresAt    = Date.now() + resp.data.expires_in * 1000;
     // Save realmId in memory so API calls work immediately (no restart needed)
     if (realmId) qboTokens.realmId = realmId;
-    console.log('[QBO] Connected! Realm ID: ' + qboTokens.realmId);
-    console.log('[QBO] Refresh Token: ' + qboTokens.refreshToken);
     // Show success page — both values ready to copy into Railway
     res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>QuickBooks Connected</title>
 <style>
@@ -1994,9 +1960,7 @@ app.get('/connect-quickbooks/callback', async (req, res) => {
 </body></html>`);
   } catch (err) {
     const detail = err.response?.data;
-    console.error('[QBO] OAuth callback error - status:', err.response?.status);
-    console.error('[QBO] OAuth callback error - body:', JSON.stringify(detail));
-    console.error('[QBO] redirect_uri used:', QBO_REDIRECT_URI);
+    console.error('[QBO OAuth callback]', err.response?.status || '', detail?.error || err.message);
     res.status(500).send(
       '<h3>QuickBooks authorization failed</h3>' +
       '<p><strong>Error:</strong> ' + (detail?.error || err.message) + '</p>' +
@@ -2039,10 +2003,10 @@ app.get('/api/qbo-marketing', async (req, res) => {
       }
     );
 
-    const monthlyMarketing = extractMarketingSpend(pnlRes.data);
+    const monthlyMarketing = marketingSpendByMonth(parseFinancialReport(pnlRes.data));
     res.json({ connected: true, monthlyMarketing });
   } catch (err) {
-    console.error('[QBO] P&L error:', err.response?.data || err.message);
+    console.error('[/api/qbo-marketing]', err.response?.status || '', err.message);
     const status = err.response?.status;
     if (status === 401) {
       qboTokens.accessToken = null; // force refresh next time
@@ -2128,7 +2092,7 @@ app.get('/api/owners-financial', async (req, res) => {
           : '');
     res.json({ connected: true, ...parsed, fetchedAt: new Date().toISOString(), periodLabel, startDate, endDate });
   } catch (err) {
-    console.error('[QBO] owners-financial error:', err.response?.data || err.message);
+    console.error('[/api/owners-financial]', err.response?.status || '', err.message);
     if (err.response?.status === 401) {
       qboTokens.accessToken = null;
       return res.json({ connected: false, reason: 'token_expired' });
@@ -2136,10 +2100,42 @@ app.get('/api/owners-financial', async (req, res) => {
     res.status(500).json({ connected: false, reason: 'error', error: err.message });
   }
 });
+// Returns the list of QBO account/section labels found in the most recent P&L.
+// Use /api/qbo-accounts to verify mapping when a card shows $0.
+app.get('/api/qbo-accounts', async (req, res) => {
+  if (!qboReady()) return res.json({ connected: false });
+  try {
+    const token = await getQBOAccessToken();
+    if (!token) return res.json({ connected: false });
+    const now = new Date();
+    const end = getReliableEndDate(now);
+    const start = new Date(end.getFullYear(), end.getMonth() - 2, 1);
+    const pnlRes = await axios.get(
+      QBO_BASE + '/v3/company/' + qboTokens.realmId + '/reports/ProfitAndLoss',
+      {
+        headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
+        params: {
+          start_date: start.toISOString().slice(0, 10),
+          end_date: end.toISOString().slice(0, 10),
+          accounting_method: 'Cash',
+          summarize_column_by: 'Month',
+          minorversion: 75
+        }
+      }
+    );
+    const parsed = parseFinancialReport(pnlRes.data);
+    res.json({ connected: true, months: parsed.months, accounts: Object.keys(parsed.accounts).sort() });
+  } catch (err) {
+    res.status(500).json({ connected: false, error: err.message });
+  }
+});
 // ────────────────────────────────────────────────────────────────────────────
 
 app.listen(PORT, () => {
-  console.log('Dashboard running on port ' + PORT);
-  console.log('API Key configured: ' + (!!API_KEY));
-  console.log('QBO configured: ' + qboConfigured() + (qboReady() ? ' (ready)' : ' (visit /connect-quickbooks to connect)'));
+  const parts = [
+    'Dashboard running on port ' + PORT,
+    'HCP:' + (API_KEY ? 'configured' : 'MISSING'),
+    'QBO:' + (qboReady() ? 'ready' : qboConfigured() ? 'awaiting OAuth' : 'MISSING')
+  ];
+  console.log(parts.join(' | '));
 });
