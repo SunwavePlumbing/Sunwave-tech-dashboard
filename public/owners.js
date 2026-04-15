@@ -460,7 +460,7 @@ function renderOwners() {
   var pyIdx = curIdx - 12;
   if (pyIdx < 0) {
     document.getElementById('finVariance').innerHTML =
-      '<div style="padding:2rem;text-align:center;color:#aaa;font-size:12px">Not enough history — need data from 12 months before ' + fmtMk(finMonth) + '.</div>';
+      '<div style="padding:2rem;text-align:center;color:#aaa;font-size:15px">Not enough history — need data from 12 months before ' + fmtMk(finMonth) + '.</div>';
     document.getElementById('varSubtitle').textContent = '';
   } else {
     var pyMonth = months[pyIdx];
@@ -505,7 +505,7 @@ function renderOwners() {
       }
       var rowCls = l.kind === 'indent' ? 'indent' : (l.kind === 'sub' ? 'sub' : '');
       return '<div class="var-flow-row ' + rowCls + '">' +
-        '<span>' + (l.op ? l.op + ' ' : '') + esc(l.label) + ' <span style="color:#aaa;font-size:12px">' + fmtDollar(l.cur||0) + '</span></span>' +
+        '<span>' + (l.op ? l.op + ' ' : '') + esc(l.label) + ' <span class="var-row-amt">' + fmtDollar(l.cur||0) + '</span></span>' +
         '<span class="var-chg ' + p.cls + '">' + (l.py ? p.signStr + p.pct.toFixed(0) + '%' : '—') + '</span>' +
         '</div>';
     }).join('');
@@ -571,7 +571,7 @@ function renderOwners() {
     document.getElementById('cashSubtitle').textContent = 'as of ' + b.asOf;
   } else {
     document.getElementById('finCash').innerHTML =
-      '<div style="padding:2rem;text-align:center;color:#aaa;font-size:12px">Balance sheet data unavailable.</div>';
+      '<div style="padding:2rem;text-align:center;color:#aaa;font-size:15px">Balance sheet data unavailable.</div>';
     document.getElementById('cashSubtitle').textContent = '';
   }
 

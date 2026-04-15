@@ -598,3 +598,80 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .fin-alert-msg { font-size:13px;color:#333;line-height:1.5; }
 .fin-alert-range { font-size:11px;color:#aaa;margin-top:2px; }
 .fin-no-alerts { background:white;border-radius:10px;padding:16px 18px;font-size:13px;color:#aaa;box-shadow:0 1px 3px rgba(0,0,0,0.07); }
+
+/* ── Location Owners — mobile font/spacing bump ─────────────────
+   Base sizes above are desktop-first. This block bumps everything
+   up to comfortable reading size on phones (≥14px body, ≥12px labels). */
+@media (max-width: 768px) {
+
+  /* Section headers */
+  .fin-row-title       { font-size:12px; letter-spacing:1px; }
+  .fin-compare-line    { font-size:13px; }
+
+  /* Summary cards */
+  .fin-card            { padding:16px; }
+  .fin-card-label      { font-size:12px; }
+  .fin-card-sub        { font-size:14px; }
+  .fin-card-hint       { font-size:13px; line-height:1.5; }
+  .fin-card-delta      { font-size:14px; }
+
+  /* Formula / Big Picture card */
+  .fin-flow-card-title { font-size:13px; }
+  .fin-flow-card-stamp { font-size:13px; }
+  .fin-stop-title      { font-size:15px; }
+  .fin-stop-desc       { font-size:14px; }
+  .fin-stop-sub        { font-size:14px; }
+  .fin-stop-delta      { font-size:15px; }
+  .fin-flow-arrow      { font-size:14px; padding:8px 16px; }
+
+  /* Efficiency tiles */
+  .fin-pct-tile        { padding:16px; }
+  .fin-pct-tile-label  { font-size:12px; }
+  .fin-pct-tile-value  { font-size:32px; }
+  .fin-pct-tile-sub    { font-size:14px; }
+  .fin-pct-tile-delta  { font-size:14px; }
+  .fin-pct-tile-hint   { font-size:13px; line-height:1.5; }
+
+  /* Chart cards + trend toggles */
+  .fin-chart-card      { padding:16px; }
+  .fin-chart-title     { font-size:15px; margin-bottom:10px; }
+  .fin-chart-title span{ font-size:13px; }
+  .fin-trend-btn       { font-size:13px; padding:8px 16px; min-height:38px; }
+  .fin-toggle button   { font-size:13px; padding:9px 16px; min-height:40px; }
+
+  /* P&L grid */
+  .pnl-grid            { font-size:14px; }
+  .pnl-grid th         { font-size:12px; padding:10px 10px; }
+  .pnl-grid td         { font-size:14px; padding:13px 10px; }
+
+  /* Variance mobile flow */
+  .var-row-amt                         { color:#aaa; font-size:14px; }
+  .var-flow-row                        { font-size:15px; padding:12px 4px; }
+  .var-flow-row.noi .var-noi-lbl       { font-size:12px; }
+  .var-flow-row.noi .var-noi-vs        { font-size:14px; }
+  .var-flow-row.noi .var-noi-change    { font-size:17px; }
+
+  /* Cash / balance card */
+  .cash-cell           { padding:14px 16px; }
+  .cash-cell-lbl       { font-size:12px; }
+  .cash-cell-val       { font-size:22px; }
+  .cash-cell-sub       { font-size:13px; }
+  .cash-flow-head      { font-size:13px; }
+  .cash-flow-row       { font-size:15px; padding:11px 4px; }
+  .cash-flow-row .lbl-sub { font-size:13px; }
+  .cash-cushion        { padding:14px 16px; }
+  .cash-cushion .lbl-top  { font-size:15px; }
+  .cash-cushion .lbl-sub  { font-size:13px; }
+  .cash-cushion .val      { font-size:24px; }
+
+  /* Breakeven widget */
+  .be-stat-label       { font-size:12px; }
+  .be-stat-value       { font-size:16px; }
+  .be-headline         { font-size:20px; }
+
+  /* Alerts */
+  .fin-alert           { padding:16px; }
+  .fin-alert-msg       { font-size:15px; }
+  .fin-alert-range     { font-size:13px; }
+  .fin-no-alerts       { font-size:15px; }
+}
