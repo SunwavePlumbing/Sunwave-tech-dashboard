@@ -1642,7 +1642,15 @@ app.get('/api/metrics', async (req, res) => {
         }
       });
       const pageJobs = jobsRes.data.jobs || [];
-      allJobs.push(...pageJobs);
+      // Defensive: HCP sometimes returns jobs outside the filter. Drop
+      // anything whose work_status isn't actually "completed" AND that
+      // doesn't have a real completed_at timestamp.
+      const safeJobs = pageJobs.filter(j => {
+        const statusOk = (j.work_status || '').toLowerCase() === 'completed';
+        const hasCompletedAt = !!(j.work_timestamps && j.work_timestamps.completed_at);
+        return statusOk && hasCompletedAt;
+      });
+      allJobs.push(...safeJobs);
       const totalPages = jobsRes.data.total_pages || 1;
       if (page >= totalPages) break;
       page++;
@@ -1837,7 +1845,11 @@ app.get('/api/marketing', async (req, res) => {
             page_size: 200
           }
         });
-        const jobs = r.data.jobs || [];
+        const jobs = (r.data.jobs || []).filter(j => {
+          const statusOk = (j.work_status || '').toLowerCase() === 'completed';
+          const hasCompletedAt = !!(j.work_timestamps && j.work_timestamps.completed_at);
+          return statusOk && hasCompletedAt;
+        });
         allJobs.push(...jobs);
         if (page >= (r.data.total_pages || 1)) break;
         page++;
