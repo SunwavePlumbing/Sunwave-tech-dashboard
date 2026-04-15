@@ -6,6 +6,7 @@ var finCompare = 'prior_year_month'; // prior_month | prior_year_month | prior_y
 var ownersBalance = null;
 var donutChartInst = null;
 var trendChartInst = null;
+var cfBarChartInst = null;
 var trendActive = 'gm'; // single-select key-ratio trend line
 
 // Toggle expandable detail panel in the money-flow card
@@ -46,6 +47,7 @@ async function fetchOwnersData(force) {
   document.getElementById('finRow2').style.display = 'none';
   document.getElementById('finRow3').style.display = 'none';
   document.getElementById('finTrendCard').style.display = 'none';
+  document.getElementById('finCashFlowCard').style.display = 'none';
   try {
     var [finResp, balResp] = await Promise.all([
       fetch('/api/owners-financial').then(function(r){return r.json();}).catch(function(){return{connected:false,reason:'error'};}),
@@ -168,6 +170,7 @@ function renderOwners() {
     document.getElementById('finRow2').style.display = 'none';
     document.getElementById('finRow3').style.display = 'none';
     document.getElementById('finTrendCard').style.display = 'none';
+    document.getElementById('finCashFlowCard').style.display = 'none';
     return;
   }
 
@@ -739,6 +742,129 @@ function renderOwners() {
       }
     }
   });
+
+  // ── Cash Flow over time ──────────────────────────────────────
+  var cfCard = document.getElementById('finCashFlowCard');
+  if (cfCard && multiMonth) {
+    cfCard.style.display = '';
+
+    // Up to 18 months ending at the most recent available month
+    var cfEnd   = months.length - 1;
+    var cfStart = Math.max(0, cfEnd - 17);
+    var cfMonths = months.slice(cfStart, cfEnd + 1);
+    var cfNoi    = noi.slice(cfStart, cfEnd + 1);
+    var cfLabels = cfMonths.map(function(mk) { return fmtMkShort(mk); });
+
+    // Green for profit, red for loss; highlighted shade for selected month
+    var cfColors = cfNoi.map(function(v, i) {
+      var isCur = (cfStart + i) === curIdx;
+      if (v >= 0) return isCur ? '#0a7a55' : '#12A071';
+      return isCur ? '#b91c1c' : '#E5484D';
+    });
+
+    if (cfBarChartInst) cfBarChartInst.destroy();
+    var cfCtx = document.getElementById('cfBarChart').getContext('2d');
+    cfBarChartInst = new Chart(cfCtx, {
+      type: 'bar',
+      data: {
+        labels: cfLabels,
+        datasets: [{
+          data: cfNoi,
+          backgroundColor: cfColors,
+          borderRadius: 4,
+          borderSkipped: false
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: function(items) { return items[0].label; },
+              label: function(ctx) {
+                var v = ctx.parsed.y;
+                var rev = revenue[cfStart + ctx.dataIndex] || 0;
+                var pct = rev > 0 ? ' (' + (v / rev * 100).toFixed(1) + '% of rev)' : '';
+                return (v >= 0 ? 'Profit: ' : 'Loss: ') + fmtDollar(v) + pct;
+              }
+            }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 45 } },
+          y: {
+            ticks: { callback: function(v) { return fmtDollar(v); }, font: { size: 10 } },
+            grid: { color: '#f0f0f0' }
+          }
+        }
+      }
+    });
+    document.getElementById('cfSubtitle').textContent = cfMonths.length + ' months';
+
+    // ── Drivers: trailing 12 vs prior 12 ────────────────────────
+    // Use the full data range, not the currently selected month, so it
+    // always reflects the most recent full-year picture.
+    var dr12End   = months.length - 1;
+    var dr12Start = Math.max(0, dr12End - 11);
+    var drPrEnd   = dr12Start - 1;
+    var drPrStart = Math.max(0, drPrEnd - 11);
+    var hasPrior  = drPrEnd >= 0 && drPrEnd >= drPrStart;
+
+    function sumSlice(arr, s, e) {
+      var t = 0;
+      for (var i = s; i <= e && i < arr.length; i++) t += arr[i] || 0;
+      return t;
+    }
+
+    var cfDriversEl = document.getElementById('cfDrivers');
+    if (hasPrior) {
+      var lastLabel  = fmtMkShort(months[dr12Start]) + '\u2013' + fmtMkShort(months[dr12End]);
+      var priorLabel = fmtMkShort(months[drPrStart]) + '\u2013' + fmtMkShort(months[drPrEnd]);
+
+      var drvRows = [
+        { label: 'Revenue',          arr: revenue,  inv: false },
+        { label: 'Job Costs',        arr: cogs,     inv: true  },
+        { label: 'Overhead',         arr: totalExp, inv: true  },
+        { label: 'Operating Profit', arr: noi,      inv: false, highlight: true }
+      ];
+
+      var headHtml =
+        '<div class="cf-drivers-head">' +
+          '<span></span>' +
+          '<span>' + lastLabel + '</span>' +
+          '<span class="cf-hide-mobile">' + priorLabel + '</span>' +
+          '<span>Change</span>' +
+        '</div>';
+
+      var rowsHtml = drvRows.map(function(row) {
+        var last12  = sumSlice(row.arr, dr12Start, dr12End);
+        var prior12 = sumSlice(row.arr, drPrStart, drPrEnd);
+        var d       = last12 - prior12;
+        var pct     = prior12 !== 0 ? d / Math.abs(prior12) * 100 : 0;
+        var isGood  = row.inv ? d <= 0 : d >= 0;
+        var cls     = isGood ? 'pos' : 'neg';
+        var arrow   = d >= 0 ? '\u25b2' : '\u25bc';
+        var sign    = d >= 0 ? '+' : '';
+        return '<div class="cf-driver-row' + (row.highlight ? ' highlight' : '') + '">' +
+          '<span class="cf-drv-label">' + esc(row.label) + '</span>' +
+          '<span class="cf-drv-val">' + fmtDollar(last12) + '</span>' +
+          '<span class="cf-drv-val muted cf-hide-mobile">' + fmtDollar(prior12) + '</span>' +
+          '<span class="cf-drv-chg ' + cls + '">' + arrow + ' ' + sign + fmtDollar(Math.abs(d)) +
+            (prior12 !== 0 ? ' (' + sign + pct.toFixed(0) + '%)' : '') + '</span>' +
+        '</div>';
+      }).join('');
+
+      cfDriversEl.innerHTML =
+        '<div class="cf-drivers-title">What\u2019s Moving It \u2014 Trailing 12 vs. Prior 12 months</div>' +
+        headHtml + rowsHtml;
+    } else {
+      cfDriversEl.innerHTML =
+        '<div style="font-size:13px;color:#aaa;padding:14px 0">Not enough history for a year-over-year comparison &mdash; need at least 24 months of data.</div>';
+    }
+  } else if (cfCard) {
+    cfCard.style.display = 'none';
+  }
 
 }
 

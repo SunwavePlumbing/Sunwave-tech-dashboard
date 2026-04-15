@@ -119,6 +119,14 @@
         </div>
       </div>
 
+      <!-- Cash flow over time -->
+      <div class="fin-chart-card" id="finCashFlowCard" style="display:none;margin-bottom:1.4rem">
+        <div class="fin-chart-title">Operating Profit Over Time <span id="cfSubtitle"></span></div>
+        <div style="font-size:11px;color:#888;margin-top:-8px;margin-bottom:14px">Monthly operating profit — green = positive, red = in the hole. Tap a bar to see the amount.</div>
+        <div class="fin-chart-wrap" style="height:200px"><canvas id="cfBarChart"></canvas></div>
+        <div class="cf-drivers" id="cfDrivers"></div>
+      </div>
+
       <!-- Key Ratios trend -->
       <div class="fin-chart-card" id="finTrendCard" style="display:none;margin-bottom:1.4rem">
         <div class="fin-chart-title">How The Ratios Have Moved, Month by Month</div>
