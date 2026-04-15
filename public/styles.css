@@ -841,12 +841,12 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 }
 
 /* Segments — widths set inline via JS */
-.mf-sb-prior { background: #bfdbfe; flex-shrink: 0; }  /* light blue: COGS already consumed */
+.mf-sb-prior { background: #fecaca; flex-shrink: 0; }  /* light red: COGS already consumed */
 .mf-sb-cogs  { background: #f87171; flex-shrink: 0; }  /* light red: cost of goods sold */
 .mf-sb-ovhd  { background: #f97316; flex-shrink: 0; }  /* orange: overhead */
 .mf-sb-pass  { flex: 1; min-width: 2px; }              /* remainder fills rest */
 /* Color the pass-through: NOI = green (profit is profit) */
-.mf-split-wrap--ovhd  .mf-sb-pass { background: #22c55e; }  /* green → becomes NOI */
+.mf-split-wrap--ovhd  .mf-sb-pass { background: #bfdbfe; }  /* light blue: becomes NOI */
 
 /* Greyed-out passive remainder (used in COGS bar for the GP slot) */
 .mf-sb-dim { flex: 1; min-width: 2px; background: #d1d5db; }
@@ -909,12 +909,12 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .mf-sl-cogs.mf-sl-btn:hover    { color: #ef4444; }
 .mf-sl-ovhd.mf-sl-btn:hover    { color: #ea580c; }
 .mf-sl-gp-btn.mf-sl-btn:hover  { color: #16a34a; }
-.mf-sl-prior::before    { background: #bfdbfe; }
+.mf-sl-prior::before    { background: #fecaca; }
 .mf-sl-cogs::before     { background: #f87171; }
 .mf-sl-ovhd::before     { background: #f97316; }
 .mf-sl-gp-btn::before   { background: #22c55e; }
 .mf-sl-pass-gp::before  { background: #22c55e; }
-.mf-sl-pass-noi::before { background: #22c55e; }
+.mf-sl-pass-noi::before { background: #bfdbfe; }
 
 /* Compare delta + status pills */
 .mf-delta { font-size:13px; font-weight:600; margin-top:8px; }
@@ -972,6 +972,72 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .fin-trend-toggles { display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px; }
 .fin-trend-btn { padding:4px 12px;font-size:11px;font-weight:600;border:1px solid #e0e0e0;border-radius:20px;background:white;color:#888;cursor:pointer;transition:all 0.15s; }
 .fin-trend-btn.on { border-color:currentColor;background:currentColor;color:white!important; }
+
+/* ── Chart legend ──────────────────────────────────────────── */
+.fin-trend-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
+}
+.fin-tl-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px 5px 8px;
+  border-radius: 8px;
+  border: 1.5px solid #e5e5e5;
+  background: white;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.fin-tl-item:hover { border-color: #ccc; }
+.fin-tl-item.active {
+  border-color: currentColor;
+  background: color-mix(in srgb, currentColor 8%, white);
+}
+.fin-tl-item--target {
+  cursor: default;
+  border-style: dashed;
+  border-color: #D4A017;
+  background: #fffbeb;
+}
+.fin-tl-swatch {
+  display: inline-block;
+  width: 22px;
+  height: 3px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.fin-tl-swatch--dashed {
+  background: none;
+  border-bottom: 2.5px dashed #D4A017;
+  height: 0;
+  margin-top: 1px;
+}
+.fin-tl-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #555;
+  white-space: nowrap;
+}
+.fin-tl-val {
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.fin-tl-goal {
+  font-size: 10px;
+  color: #aaa;
+  font-weight: 500;
+  white-space: nowrap;
+}
+/* Active item: label takes the series color */
+.fin-tl-item.active .fin-tl-label { color: inherit; }
 
 /* Monthly P&L grid */
 .pnl-grid { width:100%;border-collapse:collapse;font-size:12px; }

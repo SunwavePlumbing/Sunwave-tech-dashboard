@@ -1069,6 +1069,24 @@ function renderOwners() {
     }
   });
 
+  // ── Legend below the chart ──────────────────────────────────
+  var legHtml = TREND_SERIES.map(function(s) {
+    var isActive = trendActive === s.key;
+    var curVal   = (s.data[curIdx] != null) ? s.data[curIdx].toFixed(1) + '%' : '\u2014';
+    return '<div class="fin-tl-item' + (isActive ? ' active' : '') + '" data-key="' + s.key + '" onclick="selectTrendLine(this)">' +
+      '<span class="fin-tl-swatch" style="background:' + s.color + '"></span>' +
+      '<span class="fin-tl-label">' + esc(s.label) + '</span>' +
+      '<span class="fin-tl-val" style="color:' + s.color + '">' + curVal + '</span>' +
+      (s.goal != null ? '<span class="fin-tl-goal">target&nbsp;' + s.goal + '%</span>' : '') +
+    '</div>';
+  }).join('');
+  // Target-line entry
+  legHtml += '<div class="fin-tl-item fin-tl-item--target">' +
+    '<span class="fin-tl-swatch fin-tl-swatch--dashed"></span>' +
+    '<span class="fin-tl-label" style="color:#D4A017;font-weight:600">Gold line = target</span>' +
+  '</div>';
+  document.getElementById('trendLegend').innerHTML = legHtml;
+
   // ── Cash in the Bank Over Time ───────────────────────────────
   // Uses balance sheet bank history (from /api/qbo-balance) rather than
   // P&L data, so it shows the actual end-of-month bank balance.
@@ -1202,8 +1220,12 @@ function renderOwners() {
 function selectTrendLine(btn) {
   var key = btn.dataset.key;
   trendActive = key;
+  // Sync toggle buttons above chart
   var btns = document.querySelectorAll('#trendToggles .fin-trend-btn');
   btns.forEach(function(b) { b.classList.toggle('on', b.dataset.key === key); });
+  // Sync legend items below chart
+  var legItems = document.querySelectorAll('#trendLegend .fin-tl-item');
+  legItems.forEach(function(el) { el.classList.toggle('active', el.dataset.key === key); });
   if (trendChartInst) {
     var keys = ['gm','tl','parts','admin','om'];
     var goals = { gm:50, tl:25, parts:25, admin:null, om:15 };
