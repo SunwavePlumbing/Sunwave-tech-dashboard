@@ -635,14 +635,14 @@ function renderOwners() {
       '<div class="mf-op">' +
         '<div class="mf-op-label"><span class="mf-op-sign">\u2212</span> Cost of Goods Sold</div>' +
         '<div class="mf-op-total">\u2212' + fmtDollar(curCOGS) + '</div>' +
-        // 2-part split bar: red = COGS (clickable), grey = GP remainder (passive)
+        // 2-part split bar: red = COGS (clickable), pale-green = GP remainder (passive)
         '<div class="mf-split-wrap mf-split-wrap--cogs">' +
           '<div class="mf-split-bar">' +
             '<div class="mf-sb-cogs mf-seg-click" onclick="mfToggle(\'mfCogsDetail\',this)"' +
                 ' style="width:' + Math.max(0,Math.min(cogsPct,99)).toFixed(1) + '%">' +
               '<span class="mf-op-chev">\u25be</span>' +
             '</div>' +
-            '<div class="mf-sb-dim"></div>' +
+            '<div style="flex:1;min-width:2px;background:#bbf7d0"></div>' +
           '</div>' +
           '<div class="mf-split-leg">' +
             '<button class="mf-sl-cogs mf-sl-btn" onclick="mfToggle(\'mfCogsDetail\',null)">COGS</button>' +
@@ -656,10 +656,10 @@ function renderOwners() {
       '<div class="mf-step mf-step--gp">' +
         '<div class="mf-step-label"><span class="mf-step-eq">=</span> Gross Profit ' + mfPill('gp', gmPct) + '</div>' +
         '<div class="mf-step-num">' + fmtDollar(curGP) + '</div>' +
-        // Mirrored bar: grey COGS on left, green GP on right — always visible, no interaction
+        // Mirrored bar: pale-red COGS on left (fixed width), green GP fills right
         '<div class="mf-split-bar mf-gp-mirror-bar">' +
-          '<div class="mf-sb-dim" style="width:' + Math.max(0,Math.min(cogsPct,99)).toFixed(1) + '%"></div>' +
-          '<div class="mf-sb-gp-fill"></div>' +
+          '<div style="flex-shrink:0;min-width:2px;width:' + Math.max(0,Math.min(cogsPct,99)).toFixed(1) + '%;background:#fecaca"></div>' +
+          '<div style="flex:1;min-width:2px;background:#22c55e"></div>' +
         '</div>' +
         gpDetailHtml +
       '</div>' +
