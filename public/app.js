@@ -230,12 +230,10 @@ window.addEventListener('hashchange', function() {
   activateTab(tab);
 });
 
-// On first load, read hash from URL
-(function() {
+// init() is called from index.html after all script files have loaded
+function init() {
   var tab = window.location.hash.replace('#', '') || DEFAULT_TAB;
   activateTab(tab);
-})();
-
-// Kick off initial data load
-fetchData();
-setInterval(fetchData, 5 * 60 * 1000);
+  fetchData();
+  setInterval(fetchData, 5 * 60 * 1000);
+}
