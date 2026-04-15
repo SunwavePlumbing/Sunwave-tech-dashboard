@@ -39,7 +39,7 @@ body {
 .header-logo {
   height: 48px;
   width: auto;
-  border-radius: 2px;
+  border-radius: 5px;
   flex-shrink: 0;
 }
 .header-main h1 {
@@ -670,7 +670,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .mf-gp-revbar {
   display: flex;
   height: 26px;
-  border-radius: 2px;
+  border-radius: 5px;
   overflow: hidden;
 }
 .mf-gp-revbar-cogs {
@@ -803,9 +803,18 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   animation: mfRowIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
   animation-delay: calc(0.3s + var(--i, 0) * 0.055s);
 }
-/* Hover: brighten the row's own tint rather than overriding with grey */
+/* Hover: brighten the row's own tint */
 .mf-zoom-leg-row.mf-zoom-hl { filter: brightness(0.93); }
 .mf-zoom-leg-row.mf-zoom-hl .mf-zoom-leg-name { font-weight: 600; color: #1a2d3a; }
+
+/* Click-selected state (persistent on touch) — stronger than hover */
+.mf-zoom-leg-row.mf-zoom-sel { filter: brightness(0.86); }
+.mf-zoom-leg-row.mf-zoom-sel .mf-zoom-leg-name { font-weight: 700; color: #1a2d3a; }
+.mf-zoom-seg.mf-zoom-sel { filter: brightness(1.25) saturate(1.2); z-index: 2; position: relative; }
+
+/* Touch target: make rows finger-friendly */
+.mf-zoom-leg-row { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.mf-zoom-seg     { -webkit-tap-highlight-color: transparent; }
 
 .mf-zoom-leg-name { flex: 1; color: #444; }
 .mf-zoom-leg-pct  { font-size: 12px; color: #888; min-width: 38px; text-align: right; font-weight: 600; }
@@ -814,7 +823,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 
 /* ── Revenue full bar ──────────────────────────────────────── */
 .mf-rev-bar {
-  height: 10px; background: #3b82f6; border-radius: 4px;
+  height: 20px; background: #3b82f6; border-radius: 5px;
   margin: 10px 0 6px;
 }
 .mf-rev-bar-leg {
@@ -825,7 +834,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .mf-split-wrap { margin: 10px 0 4px; }
 
 .mf-split-bar {
-  display: flex; height: 20px; border-radius: 2px;
+  display: flex; height: 20px; border-radius: 5px;
   overflow: hidden; gap: 0;
 }
 
@@ -874,7 +883,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .mf-split-leg span::before,
 .mf-split-leg .mf-sl-btn::before {
   content: ''; display: inline-block;
-  width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0;
+  width: 8px; height: 8px; border-radius: 5px; flex-shrink: 0;
 }
 
 /* Clickable legend label (COGS / Overhead) */

@@ -43,6 +43,27 @@ function mfZoomHL(zid, on) {
   }
 }
 
+// Persistent click-select: highlights a row+segment pair and toggles it off on re-tap.
+// Clears other selections within the same panel (same zid prefix).
+function mfZoomSel(zid) {
+  var prefix = zid.replace(/-\d+$/, '');
+  var wasSelected = !!document.querySelector('[data-zid="' + zid + '"].mf-zoom-sel');
+  // Clear existing selections in the same panel
+  var cur = document.querySelectorAll('.mf-zoom-sel');
+  for (var i = 0; i < cur.length; i++) {
+    if ((cur[i].getAttribute('data-zid') || '').replace(/-\d+$/, '') === prefix) {
+      cur[i].classList.remove('mf-zoom-sel');
+    }
+  }
+  // Re-select if it wasn't already selected (toggle off on second tap)
+  if (!wasSelected) {
+    var els = document.querySelectorAll('[data-zid="' + zid + '"]');
+    for (var i = 0; i < els.length; i++) {
+      els[i].classList.add('mf-zoom-sel');
+    }
+  }
+}
+
 // Hex color → rgba(r,g,b,a) string — used by mfZoomDetail and GP panel
 function hexAlpha(hex, a) {
   var rv = parseInt(hex.slice(1,3),16), gv = parseInt(hex.slice(3,5),16), bv = parseInt(hex.slice(5,7),16);
@@ -68,17 +89,20 @@ function mfZoomDetail(id, items, segStart, segEnd, palette, segColor, segLabel) 
   // Segments with hover handlers + inline % label (hidden by overflow when too narrow)
   var segs = visible.map(function(r, i) {
     var zid    = id + '-' + i;
-    var segPct = (r.val / total * 100).toFixed(0);
+    var rawPct = r.val / total * 100;
+    // Only render % label when segment is >= 10% wide — prevents partial/clipped text
+    var pctLabel = rawPct >= 10 ? '<span class="mf-zoom-seg-pct">' + rawPct.toFixed(0) + '%</span>' : '';
     return '<div class="mf-zoom-seg" data-zid="' + zid + '"' +
            ' style="flex:' + r.val.toFixed(0) + ';background:' + pal[i % pal.length] + '"' +
            ' onmouseenter="mfZoomHL(\'' + zid + '\',true)"' +
            ' onmouseleave="mfZoomHL(\'' + zid + '\',false)"' +
+           ' onclick="mfZoomSel(\'' + zid + '\')"' +
            ' title="' + esc(r.label) + '">' +
-           '<span class="mf-zoom-seg-pct">' + segPct + '%</span>' +
+           pctLabel +
            '</div>';
   }).join('');
 
-  // Legend rows — full-row color tint + left accent stripe; no dot bubble
+  // Legend rows — full-row color tint + left accent stripe; click to cross-highlight
   var legend = visible.map(function(r, i) {
     var zid      = id + '-' + i;
     var rowColor = pal[i % pal.length];
@@ -87,7 +111,8 @@ function mfZoomDetail(id, items, segStart, segEnd, palette, segColor, segLabel) 
     return '<div class="mf-zoom-leg-row" data-zid="' + zid + '"' +
       ' style="--i:' + i + ';background:' + rowBg + ';border-left:3px solid ' + rowColor + '"' +
       ' onmouseenter="mfZoomHL(\'' + zid + '\',true)"' +
-      ' onmouseleave="mfZoomHL(\'' + zid + '\',false)">' +
+      ' onmouseleave="mfZoomHL(\'' + zid + '\',false)"' +
+      ' onclick="mfZoomSel(\'' + zid + '\')">' +
       '<span class="mf-zoom-leg-name">' + esc(r.label) + '</span>' +
       '<span class="mf-zoom-leg-pct">' + pct + '%</span>' +
       '<span class="mf-zoom-leg-val">' + fmtDollar(r.val) + '</span>' +
@@ -533,13 +558,15 @@ function renderOwners() {
   var gpBreakTot = gpBreakItems.reduce(function(s, r) { return s + r.val; }, 0);
 
   var gpBreakSegs = gpBreakItems.map(function(r, i) {
-    var zid = 'gpb-' + i;
-    var sp  = gpBreakTot > 0 ? (r.val / gpBreakTot * 100).toFixed(0) : 0;
+    var zid    = 'gpb-' + i;
+    var rawPct = gpBreakTot > 0 ? r.val / gpBreakTot * 100 : 0;
+    var pctLabel = rawPct >= 10 ? '<span class="mf-zoom-seg-pct">' + rawPct.toFixed(0) + '%</span>' : '';
     return '<div class="mf-zoom-seg" data-zid="' + zid + '"' +
       ' style="flex:' + r.val.toFixed(0) + ';background:' + gpBreakPal[i] + '"' +
       ' onmouseenter="mfZoomHL(\'' + zid + '\',true)"' +
-      ' onmouseleave="mfZoomHL(\'' + zid + '\',false)">' +
-      '<span class="mf-zoom-seg-pct">' + sp + '%</span></div>';
+      ' onmouseleave="mfZoomHL(\'' + zid + '\',false)"' +
+      ' onclick="mfZoomSel(\'' + zid + '\')">' +
+      pctLabel + '</div>';
   }).join('');
 
   var gpBreakLeg = gpBreakItems.map(function(r, i) {
@@ -549,7 +576,8 @@ function renderOwners() {
     return '<div class="mf-zoom-leg-row" data-zid="' + zid + '"' +
       ' style="--i:' + i + ';background:' + hexAlpha(c, 0.09) + ';border-left:3px solid ' + c + '"' +
       ' onmouseenter="mfZoomHL(\'' + zid + '\',true)"' +
-      ' onmouseleave="mfZoomHL(\'' + zid + '\',false)">' +
+      ' onmouseleave="mfZoomHL(\'' + zid + '\',false)"' +
+      ' onclick="mfZoomSel(\'' + zid + '\')">' +
       '<span class="mf-zoom-leg-name">' + esc(r.label) + '</span>' +
       '<span class="mf-zoom-leg-pct">' + pct + '%</span>' +
       '<span class="mf-zoom-leg-val">' + fmtDollar(r.val) + '</span>' +
