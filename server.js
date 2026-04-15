@@ -358,6 +358,11 @@ app.get('/', (req, res) => {
     .fin-card-value.c-yellow { color:#C9820A; }
     .fin-card-value.c-red { color:#E5484D; }
     .fin-card-sub { font-size:12px;color:#888;margin-bottom:8px; }
+    .fin-card-hint { font-size:11px;color:#9aa4ad;margin-top:8px;line-height:1.35;font-style:italic;border-top:1px dashed #eee;padding-top:6px; }
+    .fin-flow { background:white;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,0.08);padding:14px 18px;margin-bottom:1.2rem;font-size:13px;color:#555;line-height:1.5; }
+    .fin-flow strong { color:#1a2d3a; }
+    .fin-flow .eq { color:#aaa;margin:0 6px; }
+    .fin-row-title { font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1.2px;margin:0.6rem 0 0.5rem 2px; }
     .fin-card-delta { font-size:12px;font-weight:600; }
     .fin-card-delta.up { color:#12A071; }
     .fin-card-delta.down { color:#E5484D; }
@@ -519,41 +524,60 @@ app.get('/', (req, res) => {
         <span class="fin-updated" id="finUpdated"></span>
       </div>
 
-      <!-- Summary cards -->
+      <!-- Money-flow explainer -->
+      <div class="fin-flow" id="finFlow" style="display:none">
+        <strong>How the money flows:</strong>
+        <strong>Revenue</strong> <span class="eq">&minus;</span> Job costs (crew + parts + subs)
+        <span class="eq">=</span> <strong>Gross Profit</strong>
+        <span class="eq">&minus;</span> Overhead (rent, admin, marketing, vehicles&hellip;)
+        <span class="eq">=</span> <strong>Net Operating Income</strong> <span style="color:#888">(what&rsquo;s left for you)</span>
+      </div>
+
+      <!-- Headline dollars -->
+      <div class="fin-row-title" id="finCardsTitle1" style="display:none">The big picture &mdash; in dollars</div>
       <div class="fin-cards" id="finCards">
         <div style="text-align:center;padding:3rem;color:#aaa;font-size:14px;grid-column:1/-1">Loading financial data\u2026</div>
       </div>
 
-      <!-- Row 2: Cost donut only -->
+      <!-- Efficiency ratios -->
+      <div class="fin-row-title" id="finCardsTitle2" style="display:none">Where the money goes &mdash; as a share of revenue</div>
+      <div class="fin-cards" id="finCards2"></div>
+
+      <!-- Row 2: Where the money went + what's on hand -->
       <div class="fin-row2" id="finRow2" style="display:none">
         <div class="fin-chart-card">
-          <div class="fin-chart-title">Cost Breakdown <span id="donutSubtitle"></span></div>
+          <div class="fin-chart-title">Where Every Dollar Went <span id="donutSubtitle"></span></div>
+          <div style="font-size:11px;color:#888;margin-top:-8px;margin-bottom:10px">Hover a slice to see the category and dollar amount.</div>
           <div class="fin-chart-wrap" style="height:260px"><canvas id="donutChart"></canvas></div>
         </div>
         <div class="fin-chart-card">
-          <div class="fin-chart-title">Cash &amp; Working Capital <span id="cashSubtitle"></span></div>
+          <div class="fin-chart-title">What You Have &amp; What You Owe <span id="cashSubtitle"></span></div>
+          <div style="font-size:11px;color:#888;margin-top:-8px;margin-bottom:10px">Snapshot of the bank accounts, receivables, and debts from the balance sheet.</div>
           <div id="finCash"></div>
         </div>
       </div>
 
-      <!-- Row 3: Variance vs prior year -->
+      <!-- Row 3: Year-over-year comparison -->
       <div class="fin-row2" id="finRow3" style="display:none">
         <div class="fin-chart-card" style="grid-column:1/-1">
-          <div class="fin-chart-title">Variance vs. Prior Year <span id="varSubtitle"></span></div>
+          <div class="fin-chart-title">Same Month, Last Year vs. This Year <span id="varSubtitle"></span></div>
+          <div style="font-size:11px;color:#888;margin-top:-8px;margin-bottom:10px">Are we bigger and more profitable than a year ago? Green = better, red = worse.</div>
           <div id="finVariance"></div>
         </div>
       </div>
 
       <!-- Key Ratios trend -->
       <div class="fin-chart-card" id="finTrendCard" style="display:none;margin-bottom:1.4rem">
-        <div class="fin-chart-title">Key Ratios <span style="font-weight:400;color:#aaa">Click a ratio to view its trend &middot; % of Revenue</span></div>
+        <div class="fin-chart-title">How The Ratios Have Moved, Month by Month</div>
+        <div style="font-size:11px;color:#888;margin-top:-8px;margin-bottom:10px">Click a ratio below to plot just that one. Each line is that category&rsquo;s share of monthly revenue.</div>
         <div class="fin-trend-toggles" id="trendToggles"></div>
         <div class="fin-chart-wrap" style="height:240px"><canvas id="trendChart"></canvas></div>
       </div>
 
       <!-- Monthly P&L grid (moved to bottom) -->
       <div class="fin-chart-card" id="finPnlCard" style="display:none;margin-bottom:1.4rem;overflow-x:auto">
-        <div class="fin-chart-title">Monthly P&amp;L <span id="finPnlSubtitle"></span></div>
+        <div class="fin-chart-title">Full Picture &mdash; Month by Month <span id="finPnlSubtitle"></span></div>
+        <div style="font-size:11px;color:#888;margin-top:-8px;margin-bottom:10px">Every income and expense line, month by month. The selected month is highlighted. % Rev shows each line as a share of revenue over the whole window.</div>
         <div id="finPnlGrid"></div>
       </div>
     </div>
@@ -1349,22 +1373,76 @@ app.get('/', (req, res) => {
         '<div class="fin-compare-line">' + cmpLabel + ': ' + prev.toFixed(1) + '%</div>';
     }
 
-    var cards = [
-      { label: 'Total Revenue', val: finMode==='pct' ? '100%' : fmtDollar(curRev), sub: fmtMk(finMonth), cls: '', spark: revenue.slice(Math.max(0,curIdx-5), curIdx+1), delta: dollarCompare(curRev, revenue), color: '#1a2d3a' },
-      { label: 'Gross Profit', val: finMode==='pct' ? fmtPct(gmPct) : fmtDollar(curGP), sub: fmtPct(gmPct) + ' of Revenue', cls: colorClass('gm', gmPct), spark: gp.slice(Math.max(0,curIdx-5), curIdx+1), delta: dollarCompare(curGP, gp), color: '#12A071' },
-      { label: 'Gross Margin %', val: fmtPct(gmPct), sub: 'Target ≥ 43%', cls: colorClass('gm', gmPct), spark: gmArr.slice(Math.max(0,curIdx-5), curIdx+1), delta: pctCompare(gmPct, gmArr), color: '#12A071' },
-      { label: 'Tech Labor %', val: fmtPct(tlPct), sub: 'Target ≤ 29%', cls: colorClass('tl', tlPct), spark: tlArr.slice(Math.max(0,curIdx-5), curIdx+1), delta: pctCompare(tlPct, tlArr), color: '#FF9500' },
-      { label: 'Parts % of Revenue', val: fmtPct(partsPct), sub: 'Target ≤ 27%', cls: colorClass('parts', partsPct), spark: partsArr.slice(Math.max(0,curIdx-5), curIdx+1), delta: pctCompare(partsPct, partsArr), color: '#FF6B35' },
-      { label: 'Net Operating Income', val: finMode==='pct' ? fmtPct(noiPct) : fmtDollar(curNOI), sub: fmtPct(noiPct) + ' of Revenue', cls: colorClass('om', noiPct), spark: noi.slice(Math.max(0,curIdx-5), curIdx+1), delta: dollarCompare(curNOI, noi), color: '#4A90D9' }
+    // Row 1 — the three headline dollar figures (money in → money kept → money left)
+    var dollarCards = [
+      {
+        label: '1. Money In (Revenue)',
+        val: finMode==='pct' ? '100%' : fmtDollar(curRev),
+        sub: fmtMk(finMonth),
+        cls: '',
+        delta: dollarCompare(curRev, revenue),
+        hint: 'Every dollar customers paid for completed jobs this month.'
+      },
+      {
+        label: '2. Kept After Job Costs (Gross Profit)',
+        val: finMode==='pct' ? fmtPct(gmPct) : fmtDollar(curGP),
+        sub: fmtPct(gmPct) + ' of revenue',
+        cls: colorClass('gm', gmPct),
+        delta: dollarCompare(curGP, gp),
+        hint: 'Revenue minus what it cost to do the work (crew wages, parts, subs). This pays for everything else.'
+      },
+      {
+        label: '3. Left Over (Operating Profit)',
+        val: finMode==='pct' ? fmtPct(noiPct) : fmtDollar(curNOI),
+        sub: fmtPct(noiPct) + ' of revenue',
+        cls: colorClass('om', noiPct),
+        delta: dollarCompare(curNOI, noi),
+        hint: 'What\\'s left after every bill is paid &mdash; rent, admin, marketing, vehicles. This is the real profit.'
+      }
     ];
-    document.getElementById('finCards').innerHTML = cards.map(function(c) {
+
+    // Row 2 — efficiency ratios (how big is each bite out of revenue)
+    var pctCards = [
+      {
+        label: 'Gross Margin %',
+        val: fmtPct(gmPct),
+        sub: 'Healthy: 43% or higher',
+        cls: colorClass('gm', gmPct),
+        delta: pctCompare(gmPct, gmArr),
+        hint: 'Share of revenue you keep after paying for the work itself. Higher = more breathing room for overhead and profit.'
+      },
+      {
+        label: 'Tech Labor %',
+        val: fmtPct(tlPct),
+        sub: 'Healthy: under 29%',
+        cls: colorClass('tl', tlPct),
+        delta: pctCompare(tlPct, tlArr),
+        hint: 'Share of every dollar that went to crew wages. High = overtime, overstaffing, or underpriced jobs.'
+      },
+      {
+        label: 'Parts %',
+        val: fmtPct(partsPct),
+        sub: 'Healthy: under 27%',
+        cls: colorClass('parts', partsPct),
+        delta: pctCompare(partsPct, partsArr),
+        hint: 'Share of every dollar that went to materials. High = supplier prices up, or not marking parts up enough.'
+      }
+    ];
+
+    function renderCard(c) {
       return '<div class="fin-card">' +
         '<div class="fin-card-label">' + esc(c.label) + '</div>' +
         '<div class="fin-card-value ' + c.cls + '">' + c.val + '</div>' +
         '<div class="fin-card-sub">' + c.sub + '</div>' +
-        c.delta +
+        (c.delta || '') +
+        '<div class="fin-card-hint">' + c.hint + '</div>' +
         '</div>';
-    }).join('');
+    }
+    document.getElementById('finCards').innerHTML = dollarCards.map(renderCard).join('');
+    document.getElementById('finCards2').innerHTML = pctCards.map(renderCard).join('');
+    document.getElementById('finFlow').style.display = '';
+    document.getElementById('finCardsTitle1').style.display = '';
+    document.getElementById('finCardsTitle2').style.display = '';
 
     // ── Show structural elements ─────────────────────────────────
     var multiMonth = months.length > 1;
@@ -1507,8 +1585,8 @@ app.get('/', (req, res) => {
       }).join('');
       document.getElementById('finVariance').innerHTML =
         '<table class="var-table"><thead><tr>' +
-        '<th>Line item</th><th>' + fmtMkShort(finMonth) + '</th><th>' + fmtMkShort(pyMonth) + '</th>' +
-        '<th>Δ $</th><th>Δ %</th></tr></thead><tbody>' + varBody + '</tbody></table>';
+        '<th>Line item</th><th>This year (' + fmtMkShort(finMonth) + ')</th><th>Last year (' + fmtMkShort(pyMonth) + ')</th>' +
+        '<th>Change ($)</th><th>Change (%)</th></tr></thead><tbody>' + varBody + '</tbody></table>';
       document.getElementById('varSubtitle').textContent = fmtMkShort(finMonth) + ' vs. ' + fmtMkShort(pyMonth);
     }
 
