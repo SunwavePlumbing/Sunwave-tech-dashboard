@@ -464,36 +464,137 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 
 .mf-step-desc { font-size:13px; color:#999; margin:2px 0 8px; line-height:1.4; }
 
-/* Progress bar vs target inside result rows
-   Intentionally thinner (5px) and tinted-track so they read as
-   "how close are we to the goal?" not "share of revenue breakdown" */
-.mf-target-wrap { margin:12px 0 6px; }
-.mf-target-track {
-  position:relative; height:5px; background:#e5e7eb; border-radius:2px;
+/* ── Finish-line target bar (GP + NOI scorecards) ─────────────
+   Intentionally different from the split bars above:
+   — taller track (20px vs 10px) = tactile, meaningful weight
+   — target marker extends beyond track = "the finish line"
+   — below target: magnetic tinted zone pulls fill toward goal
+   — above target: bonus zone + glowing marker = visual reward  */
+
+/* "of revenue" context line above the bar */
+.mf-score-pct-line {
+  font-size: 13px; color: #777; margin: 0 0 0; font-weight: 400; line-height: 1.4;
 }
-/* GP track: light green tint */
-.mf-step--gp  .mf-target-track { background:#dcfce7; }
-/* NOI track: light blue tint */
-.mf-step--noi .mf-target-track { background:#dbeafe; }
-.mf-target-fill {
-  position:absolute; left:0; top:0; height:100%;
-  border-radius:2px; transition:width 0.6s ease;
+
+/* Outer wrapper — needs overflow:visible so the target marker label
+   can escape above the track */
+.mf-score-wrap {
+  position: relative;
+  margin: 14px 0 2px;
+  padding-top: 24px;   /* headroom for the target label above the bar */
 }
-.mf-step--gp  .mf-target-fill { background:#22c55e; }
-.mf-step--noi .mf-target-fill { background:#2563eb; }
-.mf-target-pin {
-  position:absolute; top:-5px; width:2px; height:15px;
-  background:#d4a017; border-radius:1px;
+
+/* The actual bar — clips the fill segments to the rounded track shape */
+.mf-score-track-inner {
+  position: relative;
+  height: 20px;
+  background: #eef0f3;
+  border-radius: 10px;
+  overflow: hidden;
 }
-.mf-target-legend {
-  font-size:11px; color:#aaa; margin-top:5px;
-  display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+
+/* ── Fill segments ── */
+
+/* Base fill — 0 to min(current, target). Square right edge faces target. */
+.mf-score-fill {
+  position: absolute;
+  left: 0; top: 0; height: 100%;
+  border-radius: 10px 0 0 10px;
+  transition: width 0.9s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.mf-target-legend .gold { color:#d4a017; font-weight:700; }
-.mf-target-gap { font-size:11px; font-weight:600; }
-.mf-target-gap.on-track  { color:#22c55e; }
-.mf-target-gap.near      { color:#C9820A; }
-.mf-target-gap.off-track { color:#E5484D; }
+.mf-step--gp  .mf-score-fill { background: #22c55e; }
+.mf-step--noi .mf-score-fill { background: #3b82f6; }
+
+/* Bonus zone — from target to current when above goal. Deeper/richer. */
+.mf-score-bonus {
+  position: absolute;
+  top: 0; height: 100%;
+  transition: width 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.mf-step--gp  .mf-score-bonus {
+  background: linear-gradient(90deg, #16a34a 0%, #15803d 100%);
+}
+.mf-step--noi .mf-score-bonus {
+  background: linear-gradient(90deg, #1d4ed8 0%, #1e40af 100%);
+}
+
+/* Magnetic zone — the unfilled gap between fill and target. Barely visible
+   but creates a sense of "this space wants to be filled." */
+.mf-score-magnet {
+  position: absolute;
+  top: 0; height: 100%;
+}
+.mf-step--gp  .mf-score-magnet { background: rgba(34, 197, 94, 0.13); }
+.mf-step--noi .mf-score-magnet { background: rgba(59, 130, 246, 0.13); }
+
+/* ── Target marker — the finish line ── */
+/* Lives on the outer wrapper (not inside the clip) so it can extend
+   both above and below the track. This is the hero element. */
+.mf-score-target {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+  z-index: 4;
+}
+
+/* Label above the bar */
+.mf-score-target-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #d4a017;
+  white-space: nowrap;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  height: 20px;            /* sits in the padding-top zone */
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 3px;
+}
+
+/* The gold tick — taller than the bar, extending 4px above and below */
+.mf-score-target-line {
+  width: 2.5px;
+  height: 28px;            /* 4px above + 20px bar + 4px below */
+  background: #d4a017;
+  border-radius: 1.5px;
+  transition: box-shadow 0.4s ease, background 0.3s ease;
+}
+
+/* "Hit" state — pct >= target. Marker glows. Signals docking success. */
+.mf-score-target.hit .mf-score-target-line {
+  background: #c9820a;
+  box-shadow:
+    0 0 0 3px rgba(212, 160, 23, 0.18),
+    0 0 10px rgba(212, 160, 23, 0.35);
+}
+.mf-score-target.hit .mf-score-target-label {
+  color: #c9820a;
+}
+
+/* Scale — 0% on left, max% on right */
+.mf-score-scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 5px;
+  font-size: 10px;
+  color: #c4c9d0;
+  letter-spacing: 0.2px;
+}
+
+/* Gap/status text — the "how far" line below the bar */
+.mf-score-gap {
+  font-size: 12px;
+  font-weight: 700;
+  margin-top: 4px;
+  letter-spacing: 0.2px;
+}
+.mf-score-gap.below { color: #E5484D; }
+.mf-score-gap.near  { color: #C9820A; }
+.mf-score-gap.above { color: #16a34a; }
 
 /* ── Operation rows: − Job Costs, − Overhead ── */
 .mf-op {
@@ -616,7 +717,8 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   .mf-op-item-val   { font-size:14px; }
   .mf-delta      { font-size:14px; }
   .mf-pill       { font-size:11px; }
-  .mf-target-legend { font-size:12px; }
+  .mf-score-gap { font-size:13px; }
+  .mf-score-pct-line { font-size:14px; }
 }
 
 /* Efficiency tiles */

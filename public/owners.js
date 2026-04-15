@@ -349,32 +349,55 @@ function renderOwners() {
   }
 
   // ── Helpers for the money-flow card ─────────────────────────
-  function mfProgressBar(pct, targetPct) {
-    var fillPct = Math.max(0, Math.min(pct, 100));
-    var pinPos  = Math.min(targetPct || 0, 100);
-    // Gap label — how far above/below target
-    var gapHtml = '';
-    if (targetPct) {
-      var gap = pct - targetPct;
-      var aboveTarget = gap >= 0;
-      var nearTarget  = !aboveTarget && gap >= -3;
-      var gapCls      = aboveTarget ? 'on-track' : (nearTarget ? 'near' : 'off-track');
-      var gapSign     = aboveTarget ? '+' : '';
-      gapHtml = '<span class="mf-target-gap ' + gapCls + '">' +
-        (aboveTarget ? '✓ ' : '') + gapSign + gap.toFixed(1) + 'pp vs target' +
-      '</span>';
-    }
-    return '<div class="mf-target-wrap">' +
-      '<div class="mf-target-track">' +
-        '<div class="mf-target-fill" style="width:' + fillPct.toFixed(1) + '%"></div>' +
-        (targetPct ? '<div class="mf-target-pin" style="left:' + pinPos + '%"></div>' : '') +
+  // ── Finish-line target bar ───────────────────────────────────
+  // pct       = current value (% of revenue)
+  // targetPct = goal (e.g. 50 for GP, 15 for NOI)
+  // maxPct    = right edge of the scale (e.g. 65 for GP, 25 for NOI)
+  // Below target: fill stops short, magnetic zone tints the gap.
+  // At/above target: gold marker glows, bonus zone shows the excess.
+  function mfTargetBar(pct, targetPct, maxPct) {
+    var scale    = maxPct || 100;
+    var isAbove  = pct >= targetPct;
+    var gap      = Math.abs(pct - targetPct);
+
+    // Positions as % of track width
+    var baseFillW  = Math.min(pct, targetPct) / scale * 100;
+    var bonusW     = Math.max(0, pct - targetPct) / scale * 100;
+    var magnetW    = isAbove ? 0 : (targetPct - pct) / scale * 100;
+    var targetX    = targetPct / scale * 100;
+
+    // Gap label
+    var gapCls  = isAbove ? 'above' : (gap <= 3 ? 'near' : 'below');
+    var gapIcon = isAbove ? (gap < 0.05 ? '✓ On target' : '▲') : '▼';
+    var gapText = isAbove
+      ? (gap < 0.05 ? 'On target' : gapIcon + ' ' + gap.toFixed(1) + ' pts above target')
+      : gap.toFixed(1) + ' pts below target';
+
+    return (
+      '<div class="mf-score-wrap">' +
+        '<div class="mf-score-track-inner">' +
+          // Base fill: 0 → min(current, target). Flat right edge faces the target.
+          '<div class="mf-score-fill" style="width:' + baseFillW.toFixed(2) + '%"></div>' +
+          // Bonus zone: target → current when exceeding goal. Deeper/richer color.
+          (bonusW > 0
+            ? '<div class="mf-score-bonus" style="left:' + targetX.toFixed(2) + '%;width:' + bonusW.toFixed(2) + '%"></div>'
+            : '') +
+          // Magnetic zone: subtle tint in the gap between fill and target.
+          (magnetW > 0
+            ? '<div class="mf-score-magnet" style="left:' + baseFillW.toFixed(2) + '%;width:' + magnetW.toFixed(2) + '%"></div>'
+            : '') +
+        '</div>' +
+        // Target marker — lives outside the clipped track so it can extend above/below.
+        '<div class="mf-score-target' + (isAbove ? ' hit' : '') + '" style="left:' + targetX.toFixed(2) + '%">' +
+          '<div class="mf-score-target-label">Target ' + targetPct + '%</div>' +
+          '<div class="mf-score-target-line"></div>' +
+        '</div>' +
+        // Scale endpoints
+        '<div class="mf-score-scale"><span>0%</span><span>' + scale + '%</span></div>' +
       '</div>' +
-      '<div class="mf-target-legend">' +
-        fmtPct(pct) + ' of revenue' +
-        (targetPct ? ' &nbsp;<span class="gold">&#9475; Target: ' + targetPct + '%</span>' : '') +
-        (gapHtml ? ' &nbsp;' + gapHtml : '') +
-      '</div>' +
-    '</div>';
+      // Gap / status line
+      '<div class="mf-score-gap ' + gapCls + '">' + gapText + '</div>'
+    );
   }
 
   function mfCostItem(label, val, revTotal) {
@@ -437,8 +460,8 @@ function renderOwners() {
       '<div class="mf-step mf-step--gp">' +
         '<div class="mf-step-label"><span class="mf-step-eq">=</span> Gross Profit ' + mfPill('gp', gmPct) + '</div>' +
         '<div class="mf-step-num">' + fmtDollar(curGP) + '</div>' +
-        '<div class="mf-step-desc">What\u2019s left from revenue after paying for the work \u2014 the green remainder in the bar above</div>' +
-        mfProgressBar(gmPct, 50) +
+        '<div class="mf-score-pct-line">We kept ' + fmtPct(gmPct) + ' of every dollar — goal is 50%</div>' +
+        mfTargetBar(gmPct, 50, 65) +
         mfDelta(curGP, gp) +
       '</div>' +
 
@@ -474,7 +497,8 @@ function renderOwners() {
       '<div class="mf-step mf-step--noi">' +
         '<div class="mf-step-label"><span class="mf-step-eq">=</span> Operating Profit ' + mfPill('op', noiPct) + '</div>' +
         '<div class="mf-step-num">' + fmtDollar(curNOI) + '</div>' +
-        mfProgressBar(noiPct, 15) +
+        '<div class="mf-score-pct-line">We kept ' + fmtPct(noiPct) + ' of every dollar — goal is 15%</div>' +
+        mfTargetBar(noiPct, 15, 25) +
         mfDelta(curNOI, noi) +
       '</div>' +
 
