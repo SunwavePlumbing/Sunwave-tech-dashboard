@@ -325,12 +325,13 @@ app.get('/', (req, res) => {
   <div class="content">
     <!-- Tab navigation -->
     <div class="tab-nav">
-      <button class="tab-btn active" data-tab="tech">Technicians</button>
+      <button class="tab-btn" data-tab="technicians">Technicians</button>
       <button class="tab-btn" data-tab="marketing">Marketing</button>
+      <button class="tab-btn" data-tab="owners">Location Owners</button>
     </div>
 
     <!-- Technicians view -->
-    <div class="view-panel active" id="techView">
+    <div class="view-panel" id="techView">
       <div class="stats" id="stats">
         <div class="stat-card"><div class="stat-label">Total Revenue</div><div class="stat-value">—</div></div>
         <div class="stat-card"><div class="stat-label">Avg Ticket</div><div class="stat-value">—</div></div>
@@ -365,6 +366,13 @@ app.get('/', (req, res) => {
     <div class="view-panel" id="marketingView">
       <div id="marketingContent">
         <div style="text-align:center;padding:3rem;color:#aaa;font-size:14px">Loading marketing data...</div>
+      </div>
+    </div>
+
+    <!-- Location Owners view -->
+    <div class="view-panel" id="ownersView">
+      <div id="ownersContent">
+        <div style="text-align:center;padding:3rem;color:#aaa;font-size:14px">Location Owners view coming soon.</div>
       </div>
     </div>
   </div>
@@ -675,22 +683,58 @@ app.get('/', (req, res) => {
   fetchData();
   setInterval(fetchData, 5 * 60 * 1000);
 
-  // ── Tab navigation ──────────────────────────────────────────────
+  // ── Tab navigation with hash-based URLs ────────────────────────
+  // URLs: /#technicians  /#marketing  /#owners
   var marketingLoaded = false;
+  var ownersLoaded = false;
+
+  var TAB_MAP = {
+    'technicians': { view: 'techView' },
+    'marketing':   { view: 'marketingView' },
+    'owners':      { view: 'ownersView' }
+  };
+  var DEFAULT_TAB = 'technicians';
+
+  function activateTab(tab) {
+    if (!TAB_MAP[tab]) tab = DEFAULT_TAB;
+    // Update buttons
+    document.querySelectorAll('.tab-btn').forEach(function(b) {
+      b.classList.toggle('active', b.dataset.tab === tab);
+    });
+    // Update panels
+    document.querySelectorAll('.view-panel').forEach(function(p) { p.classList.remove('active'); });
+    document.getElementById(TAB_MAP[tab].view).classList.add('active');
+    // Lazy-load tab data
+    if (tab === 'marketing' && !marketingLoaded) {
+      marketingLoaded = true;
+      fetchMarketing();
+      fetchQBOMarketing();
+    }
+    if (tab === 'owners' && !ownersLoaded) {
+      ownersLoaded = true;
+      // fetchOwners() — will be wired up once Location Owners view is defined
+    }
+  }
+
+  // Tab button clicks — update hash (triggers hashchange)
   document.querySelectorAll('.tab-btn').forEach(function(btn) {
     btn.addEventListener('click', function() {
-      var tab = this.dataset.tab;
-      document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
-      this.classList.add('active');
-      document.querySelectorAll('.view-panel').forEach(function(p) { p.classList.remove('active'); });
-      if (tab === 'tech') {
-        document.getElementById('techView').classList.add('active');
-      } else if (tab === 'marketing') {
-        document.getElementById('marketingView').classList.add('active');
-        if (!marketingLoaded) { marketingLoaded = true; fetchMarketing(); fetchQBOMarketing(); }
-      }
+      window.location.hash = this.dataset.tab;
     });
   });
+
+  // Handle hash changes (back/forward, direct link, refresh)
+  window.addEventListener('hashchange', function() {
+    var tab = window.location.hash.replace('#', '') || DEFAULT_TAB;
+    activateTab(tab);
+  });
+
+  // On first load, read hash from URL
+  (function() {
+    var tab = window.location.hash.replace('#', '') || DEFAULT_TAB;
+    activateTab(tab);
+  })();
+
 
   // ── Marketing ───────────────────────────────────────────────────
   var marketingData = null;
