@@ -1311,8 +1311,18 @@ app.get('/connect-quickbooks/callback', async (req, res) => {
 <a href="/" class="btn">← Go to Dashboard</a>
 </body></html>`);
   } catch (err) {
-    console.error('[QBO] OAuth callback error:', err.response?.data || err.message);
-    res.status(500).send('QuickBooks authorization failed: ' + (err.response?.data?.error_description || err.message));
+    const detail = err.response?.data;
+    console.error('[QBO] OAuth callback error - status:', err.response?.status);
+    console.error('[QBO] OAuth callback error - body:', JSON.stringify(detail));
+    console.error('[QBO] redirect_uri used:', QBO_REDIRECT_URI);
+    res.status(500).send(
+      '<h3>QuickBooks authorization failed</h3>' +
+      '<p><strong>Error:</strong> ' + (detail?.error || err.message) + '</p>' +
+      '<p><strong>Detail:</strong> ' + (detail?.error_description || 'none') + '</p>' +
+      '<p><strong>Redirect URI sent:</strong> <code>' + QBO_REDIRECT_URI + '</code></p>' +
+      '<p>Make sure this URI is listed exactly in your Intuit app\'s Redirect URIs.</p>' +
+      '<p><a href="/connect-quickbooks">Try again</a></p>'
+    );
   }
 });
 
