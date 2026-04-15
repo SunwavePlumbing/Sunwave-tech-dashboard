@@ -605,7 +605,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   border-bottom:1px solid #efefef;
   padding:14px 20px;
 }
-.mf-op-head {
+.mf-op-head { /* kept for legacy reference */
   display:flex; align-items:center;
   justify-content:space-between; gap:8px;
 }
@@ -728,7 +728,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .mf-split-wrap { margin: 10px 0 4px; }
 
 .mf-split-bar {
-  display: flex; height: 10px; border-radius: 4px;
+  display: flex; height: 20px; border-radius: 6px;
   overflow: hidden; gap: 0;
 }
 
@@ -741,18 +741,53 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .mf-split-wrap--cogs  .mf-sb-pass { background: #22c55e; }  /* green → becomes GP */
 .mf-split-wrap--ovhd  .mf-sb-pass { background: #22c55e; }  /* green → becomes NOI */
 
+/* Clickable bar segment — the red/orange portion the user taps to expand */
+.mf-seg-click {
+  cursor: pointer;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  transition: filter 0.15s;
+  position: relative;
+}
+.mf-seg-click:hover { filter: brightness(0.88); }
+.mf-seg-click .mf-op-chev {
+  color: rgba(255,255,255,0.9);
+  font-size: 11px;
+  font-weight: 900;
+  pointer-events: none;
+  line-height: 1;
+}
+
 .mf-split-leg {
   display: flex; gap: 12px; flex-wrap: wrap;
-  margin-top: 5px;
+  margin-top: 6px;
 }
-.mf-split-leg span {
+.mf-split-leg span,
+.mf-split-leg .mf-sl-btn {
   font-size: 11px; color: #666;
   display: flex; align-items: center; gap: 4px;
 }
-.mf-split-leg span::before {
+.mf-split-leg span::before,
+.mf-split-leg .mf-sl-btn::before {
   content: ''; display: inline-block;
   width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0;
 }
+
+/* Clickable legend label (COGS / Overhead) */
+.mf-sl-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+  transition: color 0.12s;
+}
+.mf-sl-cogs.mf-sl-btn:hover  { color: #ef4444; }
+.mf-sl-ovhd.mf-sl-btn:hover  { color: #ea580c; }
 .mf-sl-prior::before    { background: #bfdbfe; }
 .mf-sl-cogs::before     { background: #f87171; }
 .mf-sl-ovhd::before     { background: #f97316; }

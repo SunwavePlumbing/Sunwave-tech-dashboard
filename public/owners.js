@@ -530,22 +530,19 @@ function renderOwners() {
 
       // ── − Cost of Goods Sold ──────────────────────────────────
       '<div class="mf-op">' +
-        '<div class="mf-op-head">' +
-          '<div class="mf-op-label"><span class="mf-op-sign">\u2212</span> Cost of Goods Sold</div>' +
-          '<button class="mf-op-btn" onclick="mfToggle(\'mfCogsDetail\',this)">' +
-            'details <span class="mf-op-chev">\u25be</span>' +
-          '</button>' +
-        '</div>' +
-        // No "of rev" sub — that info is in the bar legend below
+        '<div class="mf-op-label"><span class="mf-op-sign">\u2212</span> Cost of Goods Sold</div>' +
         '<div class="mf-op-total">\u2212' + fmtDollar(curCOGS) + '</div>' +
-        // 2-part split bar: COGS (light red) + GP remainder (green)
+        // 2-part split bar: click the red COGS segment to expand the breakdown
         '<div class="mf-split-wrap mf-split-wrap--cogs">' +
           '<div class="mf-split-bar">' +
-            '<div class="mf-sb-cogs" style="width:' + Math.max(0,Math.min(cogsPct,99)).toFixed(1) + '%"></div>' +
+            '<div class="mf-sb-cogs mf-seg-click" onclick="mfToggle(\'mfCogsDetail\',this)"' +
+                ' style="width:' + Math.max(0,Math.min(cogsPct,99)).toFixed(1) + '%">' +
+              '<span class="mf-op-chev">\u25be</span>' +
+            '</div>' +
             '<div class="mf-sb-pass"></div>' +
           '</div>' +
           '<div class="mf-split-leg">' +
-            '<span class="mf-sl-cogs">COGS</span>' +
+            '<button class="mf-sl-cogs mf-sl-btn" onclick="mfToggle(\'mfCogsDetail\',null)">COGS</button>' +
             '<span class="mf-sl-pass-gp">Gross Profit</span>' +
           '</div>' +
         '</div>' +
@@ -563,24 +560,21 @@ function renderOwners() {
 
       // ── − Overhead ────────────────────────────────────────────
       '<div class="mf-op">' +
-        '<div class="mf-op-head">' +
-          '<div class="mf-op-label"><span class="mf-op-sign">\u2212</span> Overhead</div>' +
-          '<button class="mf-op-btn" onclick="mfToggle(\'mfOvhdDetail\',this)">' +
-            'details <span class="mf-op-chev">\u25be</span>' +
-          '</button>' +
-        '</div>' +
-        // Orange color to match the overhead bar segment
+        '<div class="mf-op-label"><span class="mf-op-sign">\u2212</span> Overhead</div>' +
         '<div class="mf-op-total mf-op-total--orange">\u2212' + fmtDollar(curOvhd) + '</div>' +
-        // 3-part split bar: COGS already consumed (light blue) + Overhead (orange) + NOI remainder (green)
+        // 3-part split bar: click the orange Overhead segment to expand the breakdown
         '<div class="mf-split-wrap mf-split-wrap--ovhd">' +
           '<div class="mf-split-bar">' +
             '<div class="mf-sb-prior" style="width:' + Math.max(0,Math.min(cogsPct,99)).toFixed(1) + '%"></div>' +
-            '<div class="mf-sb-ovhd"  style="width:' + Math.max(0,Math.min(ovhdPct,100-cogsPct)).toFixed(1) + '%"></div>' +
+            '<div class="mf-sb-ovhd mf-seg-click" onclick="mfToggle(\'mfOvhdDetail\',this)"' +
+                ' style="width:' + Math.max(0,Math.min(ovhdPct,100-cogsPct)).toFixed(1) + '%">' +
+              '<span class="mf-op-chev">\u25be</span>' +
+            '</div>' +
             '<div class="mf-sb-pass"></div>' +
           '</div>' +
           '<div class="mf-split-leg">' +
             '<span class="mf-sl-prior">COGS</span>' +
-            '<span class="mf-sl-ovhd">Overhead</span>' +
+            '<button class="mf-sl-ovhd mf-sl-btn" onclick="mfToggle(\'mfOvhdDetail\',null)">Overhead</button>' +
             '<span class="mf-sl-pass-noi">Operating Profit</span>' +
           '</div>' +
         '</div>' +
