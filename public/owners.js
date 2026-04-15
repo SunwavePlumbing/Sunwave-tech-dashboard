@@ -12,16 +12,13 @@ var ownersCashHistory = null;
 var trendActive = 'gm'; // single-select key-ratio trend line
 
 // Toggle expandable detail panel in the money-flow card
-function mfToggle(panelId) {
+function mfToggle(panelId, btn) {
   var panel = document.getElementById(panelId);
-  var btn   = panel && panel.previousElementSibling && panel.previousElementSibling.tagName === 'BUTTON'
-              ? panel.previousElementSibling
-              : panel && panel.parentElement.querySelector('.mf-chevron');
   if (!panel) return;
   var nowOpen = panel.hidden;
   panel.hidden = !nowOpen;
-  // Rotate chevron: ▾ closed → ▴ open
-  if (btn) btn.textContent = nowOpen ? '\u25b4' : '\u25be';
+  var chev = btn && btn.querySelector('.mf-op-chev');
+  if (chev) chev.textContent = nowOpen ? '\u25b4' : '\u25be';
 }
 
 function setFinMode(m) {
@@ -357,74 +354,97 @@ function renderOwners() {
     stamp = 'Updated ' + d.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
   }
 
+  // ── Helpers for the money-flow card ─────────────────────────
+  function mfProgressBar(pct, targetPct) {
+    var fillPct = Math.max(0, Math.min(pct, 100));
+    var pinPos  = Math.min(targetPct || 0, 100);
+    return '<div class="mf-target-wrap">' +
+      '<div class="mf-target-track">' +
+        '<div class="mf-target-fill" style="width:' + fillPct.toFixed(1) + '%"></div>' +
+        (targetPct ? '<div class="mf-target-pin" style="left:' + pinPos + '%"></div>' : '') +
+      '</div>' +
+      '<div class="mf-target-legend">' +
+        fmtPct(pct) + ' of revenue' +
+        (targetPct ? ' &nbsp;<span class="gold">&#9475; Target: ' + targetPct + '%</span>' : '') +
+      '</div>' +
+    '</div>';
+  }
+
+  function mfCostItem(label, val, revTotal) {
+    var pct  = revTotal > 0 ? val / revTotal * 100 : 0;
+    var barW = Math.min(pct / 55 * 100, 100); // 55% = full bar
+    return '<div class="mf-op-item">' +
+      '<span class="mf-op-item-label">' + esc(label) + '</span>' +
+      '<div class="mf-op-item-bar-wrap"><div class="mf-op-item-bar" style="width:' + barW.toFixed(0) + '%"></div></div>' +
+      '<span class="mf-op-item-pct">' + pct.toFixed(1) + '%</span>' +
+      '<span class="mf-op-item-val">' + fmtDollar(val) + '</span>' +
+    '</div>';
+  }
+
   var formulaHtml =
     '<div class="mf-card">' +
+
       // Header
       '<div class="mf-header">' +
         '<div class="mf-header-title">' + fmtMk(finMonth) + ' Financial Summary</div>' +
         (stamp ? '<div class="mf-header-stamp">' + stamp + '</div>' : '') +
       '</div>' +
-      // Continuous rail
-      '<div class="mf-rail">' +
 
-        // ── Revenue ─────────────────────────────────────────────
-        '<div class="mf-row mf-row--revenue">' +
-          '<div class="mf-row-label">Revenue</div>' +
-          '<div class="mf-value--hero">' + fmtDollar(curRev) + '</div>' +
-          '<div class="mf-row-desc">Total money collected from completed jobs</div>' +
-          mfDelta(curRev, revenue) +
+      // ── Revenue ───────────────────────────────────────────────
+      '<div class="mf-step">' +
+        '<div class="mf-step-label">Revenue</div>' +
+        '<div class="mf-step-num">' + fmtDollar(curRev) + '</div>' +
+        '<div class="mf-step-desc">Total money collected from completed jobs</div>' +
+        mfDelta(curRev, revenue) +
+      '</div>' +
+
+      // ── − Job Costs ───────────────────────────────────────────
+      '<div class="mf-op">' +
+        '<div class="mf-op-head">' +
+          '<div class="mf-op-label"><span class="mf-op-sign">\u2212</span> Job Costs</div>' +
+          '<button class="mf-op-btn" onclick="mfToggle(\'mfCogsDetail\',this)">' +
+            'details <span class="mf-op-chev">\u25be</span>' +
+          '</button>' +
         '</div>' +
-
-        // ── Job Costs ────────────────────────────────────────────
-        '<div class="mf-row mf-row--cost">' +
-          '<div class="mf-row-topline">' +
-            '<div class="mf-row-label">Job Costs' +
-              '<button class="mf-chevron" onclick="mfToggle(\'mfCogsDetail\')" aria-label="Show details">\u25be</button>' +
-            '</div>' +
-            '<span class="mf-row-pct">' + fmtPct(cogsPct) + ' of rev</span>' +
-          '</div>' +
-          '<div class="mf-amount-negative">\u2212 ' + fmtDollar(curCOGS) + '</div>' +
-          '<div class="mf-row-desc">tech labor + parts</div>' +
-          mfSubList('mfCogsDetail', cogsItems) +
+        '<div class="mf-op-total">\u2212' + fmtDollar(curCOGS) +
+          '<span class="mf-op-total-sub">' + fmtPct(cogsPct) + ' of rev</span></div>' +
+        '<div class="mf-op-items" id="mfCogsDetail" hidden>' +
+          cogsItems.filter(function(r){return r.val>0;}).map(function(r){return mfCostItem(r.label,r.val,curRev);}).join('') +
         '</div>' +
+      '</div>' +
 
-        // ── Gross Profit ─────────────────────────────────────────
-        '<div class="mf-row mf-row--profit">' +
-          '<div class="mf-row-topline">' +
-            '<div class="mf-row-label">Gross Profit</div>' +
-            '<span class="mf-row-pct">' + fmtPct(gmPct) + ' of rev ' + mfPill('gp', gmPct) + '</span>' +
-          '</div>' +
-          '<div class="mf-value--mid">' + fmtDollar(curGP) + '</div>' +
-          '<div class="mf-row-desc">Revenue after tech labor and parts &nbsp;&middot;&nbsp; Target: 50\u201358%</div>' +
-          mfDelta(curGP, gp) +
+      // ── = Gross Profit ────────────────────────────────────────
+      '<div class="mf-step mf-step--gp">' +
+        '<div class="mf-step-label"><span class="mf-step-eq">=</span> Gross Profit ' + mfPill('gp', gmPct) + '</div>' +
+        '<div class="mf-step-num">' + fmtDollar(curGP) + '</div>' +
+        mfProgressBar(gmPct, 50) +
+        mfDelta(curGP, gp) +
+      '</div>' +
+
+      // ── − Overhead ────────────────────────────────────────────
+      '<div class="mf-op">' +
+        '<div class="mf-op-head">' +
+          '<div class="mf-op-label"><span class="mf-op-sign">\u2212</span> Overhead</div>' +
+          '<button class="mf-op-btn" onclick="mfToggle(\'mfOvhdDetail\',this)">' +
+            'details <span class="mf-op-chev">\u25be</span>' +
+          '</button>' +
         '</div>' +
-
-        // ── Overhead ─────────────────────────────────────────────
-        '<div class="mf-row mf-row--cost">' +
-          '<div class="mf-row-topline">' +
-            '<div class="mf-row-label">Overhead' +
-              '<button class="mf-chevron" onclick="mfToggle(\'mfOvhdDetail\')" aria-label="Show details">\u25be</button>' +
-            '</div>' +
-            '<span class="mf-row-pct">' + fmtPct(ovhdPct) + ' of rev</span>' +
-          '</div>' +
-          '<div class="mf-amount-negative">\u2212 ' + fmtDollar(curOvhd) + '</div>' +
-          '<div class="mf-row-desc">office + rent + vehicles + marketing + software</div>' +
-          mfSubList('mfOvhdDetail', ovhdItems) +
+        '<div class="mf-op-total">\u2212' + fmtDollar(curOvhd) +
+          '<span class="mf-op-total-sub">' + fmtPct(ovhdPct) + ' of rev</span></div>' +
+        '<div class="mf-op-items" id="mfOvhdDetail" hidden>' +
+          ovhdItems.filter(function(r){return r.val>0;}).map(function(r){return mfCostItem(r.label,r.val,curRev);}).join('') +
         '</div>' +
+      '</div>' +
 
-        // ── Operating Profit ─────────────────────────────────────
-        '<div class="mf-row mf-row--noi">' +
-          '<div class="mf-row-topline">' +
-            '<div class="mf-row-label">Operating Profit</div>' +
-            '<span class="mf-row-pct">' + fmtPct(noiPct) + ' of rev ' + mfPill('op', noiPct) + '</span>' +
-          '</div>' +
-          '<div class="mf-value--noi">' + fmtDollar(curNOI) + '</div>' +
-          '<div class="mf-row-desc">Money left after all business expenses &nbsp;&middot;&nbsp; Target: 15\u201320%</div>' +
-          mfDelta(curNOI, noi) +
-        '</div>' +
+      // ── = Operating Profit ────────────────────────────────────
+      '<div class="mf-step mf-step--noi">' +
+        '<div class="mf-step-label"><span class="mf-step-eq">=</span> Operating Profit ' + mfPill('op', noiPct) + '</div>' +
+        '<div class="mf-step-num">' + fmtDollar(curNOI) + '</div>' +
+        mfProgressBar(noiPct, 15) +
+        mfDelta(curNOI, noi) +
+      '</div>' +
 
-      '</div>' + // .mf-rail
-    '</div>';   // .mf-card
+    '</div>'; // .mf-card
 
   document.getElementById('finCards').innerHTML = formulaHtml;
 

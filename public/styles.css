@@ -423,100 +423,145 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .fin-card-delta.down { color:#E5484D; }
 .fin-card-spark { position:absolute;bottom:0;right:0;opacity:0.6; }
 
-/* ── Money-flow card (vertical, connected rail) ─────────────── */
+/* ── Money-flow card — step layout ──────────────────────────── */
 .mf-card {
   background: white;
   border-radius: 14px;
   box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-  padding: 18px 20px 6px;
   margin-bottom: 1.2rem;
   overflow: hidden;
 }
 .mf-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-bottom: 16px;
+  padding: 16px 20px 14px;
+  border-bottom: 1px solid #f0f0f0;
+  display: flex; align-items: baseline;
+  justify-content: space-between; flex-wrap: wrap; gap: 8px;
 }
-.mf-header-title { font-size:14px;font-weight:700;color:#1a2d3a;letter-spacing:0.2px; }
-.mf-header-stamp { font-size:11px;color:#bbb; }
+.mf-header-title { font-size:15px; font-weight:700; color:#1a2d3a; }
+.mf-header-stamp { font-size:11px; color:#bbb; }
 
-/* Continuous left rail */
-.mf-rail { border-left:3px solid #e8eaed;margin-left:4px; }
+/* ── Step rows: Revenue, = Gross Profit, = Operating Profit ── */
+.mf-step { padding:18px 20px; }
+.mf-step--gp  { background:#f0fdf7; border-top:2px solid #bbf7d0; }
+.mf-step--noi { background:#eff6ff; border-top:2px solid #bfdbfe; }
 
-/* Row base */
-.mf-row { padding:14px 14px 14px 18px;position:relative; }
-.mf-row + .mf-row { border-top:1px solid #f0f1f3; }
-/* Colored rail segment per row — overrides the rail border-left via pseudo */
-.mf-row::before {
-  content:''; position:absolute; left:-3px; top:0; bottom:0; width:3px;
+.mf-step-label {
+  font-size:10px; font-weight:700; letter-spacing:1.4px;
+  text-transform:uppercase; color:#aaa;
+  display:flex; align-items:center; gap:8px; margin-bottom:8px;
 }
-.mf-row--revenue::before { background:#1a2d3a; top:0; }
-.mf-row--cost::before    { background:#f87171; }
-.mf-row--profit::before  { background:#12A071; }
-.mf-row--noi::before     { background:#3b82f6; }
+.mf-step--gp  .mf-step-label { color:#059669; }
+.mf-step--noi .mf-step-label { color:#2563eb; }
+.mf-step-eq { font-size:16px; font-weight:700; line-height:1; }
 
-/* Cost rows get a subtle tinted background */
-.mf-row--cost { background:#fafafa; }
-/* NOI row is slightly elevated */
-.mf-row--noi { background:#f8faff;border-radius:0 0 10px 10px; }
+.mf-step-num {
+  font-size:42px; font-weight:800; letter-spacing:-1.5px;
+  color:#1a2d3a; line-height:1.05; margin:0 0 4px;
+  font-variant-numeric:tabular-nums;
+}
+.mf-step--gp  .mf-step-num { color:#059669; }
+.mf-step--noi .mf-step-num { color:#1d4ed8; }
 
-.mf-row-topline { display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px; }
-.mf-row-label   { font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px;display:inline-flex;align-items:center;gap:4px; }
-.mf-row-desc    { font-size:13px;color:#888;line-height:1.4;margin-top:2px; }
-.mf-row-pct     { font-size:12px;color:#777;font-weight:500;display:flex;align-items:center;gap:5px;flex-wrap:wrap;white-space:nowrap; }
+.mf-step-desc { font-size:13px; color:#999; margin:2px 0 8px; line-height:1.4; }
 
-/* Dollar amounts */
-.mf-value--hero { font-size:42px;font-weight:800;color:#1a2d3a;line-height:1;letter-spacing:-1.5px;font-variant-numeric:tabular-nums;margin:6px 0 4px; }
-.mf-value--mid  { font-size:32px;font-weight:700;color:#1a2d3a;line-height:1.05;letter-spacing:-0.8px;font-variant-numeric:tabular-nums;margin:6px 0 4px; }
-.mf-value--noi  { font-size:38px;font-weight:800;color:#1a2d3a;line-height:1;letter-spacing:-1px;font-variant-numeric:tabular-nums;margin:6px 0 4px; }
-.mf-amount-negative { font-size:24px;font-weight:700;color:#dc2626;letter-spacing:-0.5px;font-variant-numeric:tabular-nums;margin:4px 0 2px; }
+/* Progress bar vs target inside result rows */
+.mf-target-wrap { margin:10px 0 6px; }
+.mf-target-track {
+  position:relative; height:6px; background:#e5e7eb; border-radius:3px;
+}
+.mf-target-fill {
+  position:absolute; left:0; top:0; height:100%;
+  border-radius:3px; transition:width 0.6s ease;
+}
+.mf-step--gp  .mf-target-fill { background:#059669; }
+.mf-step--noi .mf-target-fill { background:#2563eb; }
+.mf-target-pin {
+  position:absolute; top:-4px; width:2px; height:14px;
+  background:#d4a017; border-radius:1px;
+}
+.mf-target-legend {
+  font-size:11px; color:#aaa; margin-top:5px;
+  display:flex; align-items:center; gap:6px;
+}
+.mf-target-legend .gold { color:#d4a017; font-weight:700; }
 
-/* Compare delta */
-.mf-delta { font-size:13px;font-weight:600;margin-top:6px;display:flex;align-items:center;gap:4px;flex-wrap:wrap; }
-.mf-delta.up   { color:#12A071; }
+/* ── Operation rows: − Job Costs, − Overhead ── */
+.mf-op {
+  background:#f7f8f9;
+  border-top:1px solid #efefef;
+  border-bottom:1px solid #efefef;
+  padding:14px 20px;
+}
+.mf-op-head {
+  display:flex; align-items:center;
+  justify-content:space-between; gap:8px;
+}
+.mf-op-label {
+  font-size:10px; font-weight:700; letter-spacing:1.2px;
+  text-transform:uppercase; color:#999;
+  display:flex; align-items:center; gap:6px;
+}
+.mf-op-sign { font-size:20px; color:#ef4444; font-weight:800; line-height:1; }
+.mf-op-total {
+  font-size:26px; font-weight:700; color:#ef4444;
+  letter-spacing:-0.5px; margin:8px 0 0;
+  font-variant-numeric:tabular-nums; line-height:1.1;
+}
+.mf-op-total-sub { font-size:13px; font-weight:500; color:#bbb; margin-left:6px; }
+.mf-op-btn {
+  font-size:11px; color:#aaa; background:none;
+  border:1px solid #e5e7eb; border-radius:20px;
+  cursor:pointer; padding:4px 10px;
+  display:flex; align-items:center; gap:3px;
+  white-space:nowrap; transition:all 0.15s;
+}
+.mf-op-btn:hover { color:#555; border-color:#ccc; }
+.mf-op-chev { font-size:10px; }
+
+/* Detail items inside the operation rows */
+.mf-op-items {
+  margin-top:12px; border-top:1px solid #ebebeb; padding-top:8px;
+}
+.mf-op-item {
+  display:flex; align-items:center; gap:8px;
+  padding:7px 0; border-bottom:1px solid #f3f3f3;
+}
+.mf-op-item:last-child { border-bottom:none; }
+.mf-op-item-label { flex:1; font-size:13px; color:#666; }
+.mf-op-item-bar-wrap {
+  width:60px; height:4px; background:#e8e8e8;
+  border-radius:2px; flex-shrink:0; display:none;
+}
+.mf-op-item-bar  { height:100%; border-radius:2px; background:#fca5a5; }
+.mf-op-item-pct  { font-size:11px; color:#bbb; min-width:34px; text-align:right; display:none; }
+.mf-op-item-val  { font-size:13px; font-weight:600; color:#444; font-variant-numeric:tabular-nums; white-space:nowrap; min-width:40px; text-align:right; }
+@media (min-width:480px) {
+  .mf-op-item-bar-wrap { display:block; }
+  .mf-op-item-pct      { display:block; }
+}
+
+/* Compare delta + status pills */
+.mf-delta { font-size:13px; font-weight:600; margin-top:8px; }
+.mf-delta.up   { color:#059669; }
 .mf-delta.down { color:#E5484D; }
-.mf-cmp-lbl    { font-weight:400;color:#aaa;font-size:12px; }
+.mf-cmp-lbl    { font-weight:400; color:#aaa; font-size:11px; }
+.mf-pill { display:inline-block; font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px; letter-spacing:0.3px; text-transform:uppercase; vertical-align:middle; white-space:nowrap; }
+.pill-green  { background:#dcfce7; color:#15803d; }
+.pill-yellow { background:#fef9c3; color:#854d0e; }
+.pill-red    { background:#fee2e2; color:#b91c1c; }
 
-/* Status pills */
-.mf-pill { display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:0.3px;text-transform:uppercase;vertical-align:middle;white-space:nowrap; }
-.pill-green  { background:#dcfce7;color:#15803d; }
-.pill-yellow { background:#fef9c3;color:#854d0e; }
-.pill-red    { background:#fee2e2;color:#b91c1c; }
-
-/* Expand chevron */
-.mf-chevron { background:none;border:none;padding:0 3px;cursor:pointer;color:#bbb;font-size:14px;line-height:1;vertical-align:middle;transition:color 0.15s; }
-.mf-chevron:hover { color:#555; }
-
-/* Expandable sub-item list */
-.mf-sublist { margin-top:10px;display:flex;flex-direction:column;gap:5px;border-top:1px dashed #ebebeb;padding-top:10px;padding-bottom:4px; }
-.mf-subitem { display:flex;justify-content:space-between;align-items:baseline;font-size:13px; }
-.mf-subitem-label { color:#888; }
-.mf-subitem-val   { font-weight:600;color:#333;font-variant-numeric:tabular-nums; }
-
-/* Desktop: widen the value numbers */
-@media (min-width: 900px) {
-  .mf-value--hero { font-size:48px; }
-  .mf-value--mid  { font-size:36px; }
-  .mf-value--noi  { font-size:44px; }
-  .mf-amount-negative { font-size:28px; }
-  .mf-row { padding:16px 20px 16px 22px; }
-  .mf-row-desc { font-size:13px; }
-}
-
-/* Mobile bump (already covered by owners mobile block below,
-   but set base sizes large enough to be readable) */
-@media (max-width: 768px) {
-  .mf-header-title { font-size:15px; }
-  .mf-row-label    { font-size:12px; }
-  .mf-row-desc     { font-size:14px; }
-  .mf-row-pct      { font-size:13px; }
-  .mf-delta        { font-size:14px; }
-  .mf-subitem      { font-size:14px; }
-  .mf-pill         { font-size:11px; }
-  .mf-amount-negative { font-size:26px; }
+@media (max-width:768px) {
+  .mf-step       { padding:16px 16px; }
+  .mf-op         { padding:12px 16px; }
+  .mf-step-label { font-size:11px; }
+  .mf-step-num   { font-size:38px; }
+  .mf-step-desc  { font-size:13px; }
+  .mf-op-total   { font-size:22px; }
+  .mf-op-item-label { font-size:14px; }
+  .mf-op-item-val   { font-size:14px; }
+  .mf-delta      { font-size:14px; }
+  .mf-pill       { font-size:11px; }
+  .mf-target-legend { font-size:12px; }
 }
 
 /* Efficiency tiles */
@@ -750,15 +795,6 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   .fin-card-sub        { font-size:14px; }
   .fin-card-hint       { font-size:13px; line-height:1.5; }
   .fin-card-delta      { font-size:14px; }
-
-  /* Formula / Big Picture card */
-  .fin-flow-card-title { font-size:13px; }
-  .fin-flow-card-stamp { font-size:13px; }
-  .fin-stop-title      { font-size:15px; }
-  .fin-stop-desc       { font-size:14px; }
-  .fin-stop-sub        { font-size:14px; }
-  .fin-stop-delta      { font-size:15px; }
-  .fin-flow-arrow      { font-size:14px; padding:8px 16px; }
 
   /* Efficiency tiles */
   .fin-pct-tile        { padding:16px; }
