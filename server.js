@@ -524,29 +524,11 @@ app.get('/', (req, res) => {
         <div style="text-align:center;padding:3rem;color:#aaa;font-size:14px;grid-column:1/-1">Loading financial data\u2026</div>
       </div>
 
-      <!-- Monthly P&L grid -->
-      <div class="fin-chart-card" id="finPnlCard" style="display:none;margin-bottom:1.4rem;overflow-x:auto">
-        <div class="fin-chart-title">Monthly P&amp;L <span id="finPnlSubtitle"></span></div>
-        <div id="finPnlGrid"></div>
-      </div>
-
-      <!-- Row 2: Breakeven + Cost donut -->
+      <!-- Row 2: Cost donut only -->
       <div class="fin-row2" id="finRow2" style="display:none">
-        <div class="fin-chart-card">
-          <div class="fin-chart-title">Breakeven <span id="beSubtitle"></span></div>
-          <div id="beWidget" style="padding:1.2rem 0.4rem"></div>
-        </div>
         <div class="fin-chart-card">
           <div class="fin-chart-title">Cost Breakdown <span id="donutSubtitle"></span></div>
           <div class="fin-chart-wrap" style="height:260px"><canvas id="donutChart"></canvas></div>
-        </div>
-      </div>
-
-      <!-- Row 3: Variance vs prior year + Cash -->
-      <div class="fin-row2" id="finRow3" style="display:none">
-        <div class="fin-chart-card">
-          <div class="fin-chart-title">Variance vs. Prior Year <span id="varSubtitle"></span></div>
-          <div id="finVariance"></div>
         </div>
         <div class="fin-chart-card">
           <div class="fin-chart-title">Cash &amp; Working Capital <span id="cashSubtitle"></span></div>
@@ -554,17 +536,25 @@ app.get('/', (req, res) => {
         </div>
       </div>
 
+      <!-- Row 3: Variance vs prior year -->
+      <div class="fin-row2" id="finRow3" style="display:none">
+        <div class="fin-chart-card" style="grid-column:1/-1">
+          <div class="fin-chart-title">Variance vs. Prior Year <span id="varSubtitle"></span></div>
+          <div id="finVariance"></div>
+        </div>
+      </div>
+
       <!-- Key Ratios trend -->
       <div class="fin-chart-card" id="finTrendCard" style="display:none;margin-bottom:1.4rem">
-        <div class="fin-chart-title">Key Ratios \u2014 Monthly Trend <span>% of Revenue</span></div>
+        <div class="fin-chart-title">Key Ratios <span style="font-weight:400;color:#aaa">Click a ratio to view its trend &middot; % of Revenue</span></div>
         <div class="fin-trend-toggles" id="trendToggles"></div>
         <div class="fin-chart-wrap" style="height:240px"><canvas id="trendChart"></canvas></div>
       </div>
 
-      <!-- Alerts -->
-      <div class="fin-alerts" id="finAlerts" style="display:none">
-        <div class="fin-alerts-title">&#9888;&#65039; Alerts &amp; Insights</div>
-        <div id="finAlertsList"></div>
+      <!-- Monthly P&L grid (moved to bottom) -->
+      <div class="fin-chart-card" id="finPnlCard" style="display:none;margin-bottom:1.4rem;overflow-x:auto">
+        <div class="fin-chart-title">Monthly P&amp;L <span id="finPnlSubtitle"></span></div>
+        <div id="finPnlGrid"></div>
       </div>
     </div>
   </div>
@@ -1101,7 +1091,7 @@ app.get('/', (req, res) => {
   var ownersBalance = null;
   var donutChartInst = null;
   var trendChartInst = null;
-  var trendVisibility = { gm: true, tl: false, parts: false, admin: false, om: true };
+  var trendActive = 'gm'; // single-select key-ratio trend line
 
   function setFinMode(m) {
     finMode = m;
@@ -1347,13 +1337,15 @@ app.get('/', (req, res) => {
         '<div class="fin-compare-line">' + cmpLabel + ': ' + fmtDollar(prev) + '</div>';
     }
     function pctCompare(curPct, arr) {
-      // arr is the % series (already percentages)
+      // arr is the % series (already percentages). Show relative % change.
       if (!cmpValues) return '';
       var prev = cmpValues(arr);
+      if (!prev) return '<div class="fin-compare-line">' + cmpLabel + ': —</div>';
       var d = curPct - prev;
+      var relPct = Math.round(d / Math.abs(prev) * 100);
       var cls = d >= 0 ? 'up' : 'down';
       var arrow = d >= 0 ? '▲' : '▼';
-      return '<span class="fin-card-delta ' + cls + '">' + arrow + ' ' + Math.abs(d).toFixed(1) + 'pp</span>' +
+      return '<span class="fin-card-delta ' + cls + '">' + arrow + ' ' + (relPct>=0?'+':'') + relPct + '%</span>' +
         '<div class="fin-compare-line">' + cmpLabel + ': ' + prev.toFixed(1) + '%</div>';
     }
 
@@ -1371,7 +1363,6 @@ app.get('/', (req, res) => {
         '<div class="fin-card-value ' + c.cls + '">' + c.val + '</div>' +
         '<div class="fin-card-sub">' + c.sub + '</div>' +
         c.delta +
-        '<div class="fin-card-spark">' + sparkSVG(c.spark, c.color) + '</div>' +
         '</div>';
     }).join('');
 
@@ -1381,7 +1372,6 @@ app.get('/', (req, res) => {
     document.getElementById('finRow2').style.display = '';
     document.getElementById('finRow3').style.display = '';
     document.getElementById('finTrendCard').style.display = multiMonth ? '' : 'none';
-    document.getElementById('finAlerts').style.display = '';
     var updTxt = fmtMk(finMonth) + '  ·  ';
     if (ownersData.fetchedAt) updTxt += 'as of ' + new Date(ownersData.fetchedAt).toLocaleTimeString();
     document.getElementById('finUpdated').textContent = updTxt;
@@ -1422,7 +1412,7 @@ app.get('/', (req, res) => {
     gridMonths.forEach(function(_, gi) { revGridTotal += revenue[gridStart+gi] || 0; });
     var pnlHead = '<tr><th>Line item</th>' +
       gridMonths.map(function(m) { return '<th>' + fmtMkShort(m) + '</th>'; }).join('') +
-      '<th>Total</th><th>% Rev</th><th>Trend</th></tr>';
+      '<th>Total</th><th>% Rev</th></tr>';
     var pnlBody = pnlRows.map(function(row) {
       var cells = gridMonths.map(function(_, gi) {
         var v = row.arr[gridStart+gi] || 0;
@@ -1433,41 +1423,13 @@ app.get('/', (req, res) => {
       var rowTotal = 0;
       gridMonths.forEach(function(_, gi) { rowTotal += row.arr[gridStart+gi] || 0; });
       var pctRev = revGridTotal > 0 ? (rowTotal / revGridTotal * 100).toFixed(1) + '%' : '—';
-      var spark = sparkSVG(row.arr.slice(gridStart, gridEnd+1), '#aaa');
       return '<tr class="' + row.cls + '"><td>' + esc(row.label) + '</td>' + cells +
         '<td>' + fmtDollar(rowTotal) + '</td>' +
-        '<td>' + pctRev + '</td>' +
-        '<td class="spark-cell">' + spark + '</td></tr>';
+        '<td>' + pctRev + '</td></tr>';
     }).join('');
     document.getElementById('finPnlGrid').innerHTML =
       '<table class="pnl-grid"><thead>' + pnlHead + '</thead><tbody>' + pnlBody + '</tbody></table>';
     document.getElementById('finPnlSubtitle').textContent = gridMonths.length + ' months ending ' + fmtMkShort(finMonth);
-
-    // ── Breakeven gauge (selected month) ─────────────────────────
-    // Fixed costs = admin + rent + insurance + office + merchant + utilities + benefits
-    var fixedAcct = (adminPay[curIdx]||0) + (rentExp[curIdx]||0) + (officeExp[curIdx]||0)
-      + (merchExp[curIdx]||0) + (benefitsExp[curIdx]||0) + (utilExp[curIdx]||0)
-      + (acct('Insurance')[curIdx] || 0);
-    var variableCosts = (cogs[curIdx]||0) + (mktTotal[curIdx]||0) + (vehicleExp[curIdx]||0); // scale w/ revenue roughly
-    var contribMargin = curRev > 0 ? Math.max(0, (curRev - variableCosts) / curRev) : 0;
-    var breakeven = contribMargin > 0 ? fixedAcct / contribMargin : 0;
-    var pctToBe = breakeven > 0 ? Math.min(150, curRev / breakeven * 100) : 0;
-    var surplus = curRev - breakeven;
-    var beHeadline = surplus >= 0
-      ? '<div class="be-headline ok">In the black by ' + fmtDollar(surplus) + '</div>'
-      : '<div class="be-headline bad">Short by ' + fmtDollar(Math.abs(surplus)) + '</div>';
-    document.getElementById('beWidget').innerHTML = beHeadline +
-      '<div style="font-size:11px;color:#999">Revenue ' + fmtDollar(curRev) + ' vs. Breakeven ' + fmtDollar(breakeven) + '</div>' +
-      '<div class="be-bar">' +
-        '<div class="be-bar-fill" style="width:' + Math.min(100, pctToBe) + '%"></div>' +
-        (breakeven > 0 ? '<div class="be-bar-target" style="left:' + Math.min(100, (breakeven/Math.max(curRev,breakeven))*100) + '%" data-lbl="Breakeven"></div>' : '') +
-      '</div>' +
-      '<div class="be-stats">' +
-        '<div><div class="be-stat-label">Fixed costs</div><div class="be-stat-value">' + fmtDollar(fixedAcct) + '</div></div>' +
-        '<div><div class="be-stat-label">Contribution margin</div><div class="be-stat-value">' + (contribMargin*100).toFixed(1) + '%</div></div>' +
-        '<div><div class="be-stat-label">Breakeven point</div><div class="be-stat-value">' + fmtDollar(breakeven) + '</div></div>' +
-      '</div>';
-    document.getElementById('beSubtitle').textContent = fmtMk(finMonth);
 
     // ── Cost breakdown donut (selected month) ────────────────────
     var dTechLabor = at(techLabor);
@@ -1559,7 +1521,7 @@ app.get('/', (req, res) => {
       document.getElementById('finCash').innerHTML =
         '<div class="cash-row">' +
           '<div class="cash-cell"><div class="cash-cell-lbl">Cash on hand</div><div class="cash-cell-val">' + fmtDollar(b.cash||0) + '</div></div>' +
-          '<div class="cash-cell ratio"><div class="cash-cell-lbl">Current ratio</div><div class="cash-cell-val ' + crCls + '">' + crText + '</div><div class="cash-cell-sub">Assets ÷ Liabilities</div></div>' +
+          '<div class="cash-cell ratio"><div class="cash-cell-lbl">Current ratio</div><div class="cash-cell-val ' + crCls + '">' + crText + '</div><div class="cash-cell-sub">Current assets ÷ current liabilities</div></div>' +
         '</div>' +
         '<div class="cash-row">' +
           '<div class="cash-cell"><div class="cash-cell-lbl">Accounts receivable</div><div class="cash-cell-val">' + fmtDollar(b.accountsReceivable||0) + '</div></div>' +
@@ -1568,6 +1530,10 @@ app.get('/', (req, res) => {
         '<div class="cash-row">' +
           '<div class="cash-cell"><div class="cash-cell-lbl">Total current assets</div><div class="cash-cell-val">' + fmtDollar(b.currentAssets||0) + '</div></div>' +
           '<div class="cash-cell"><div class="cash-cell-lbl">Total current liabilities</div><div class="cash-cell-val">' + fmtDollar(b.currentLiabilities||0) + '</div></div>' +
+        '</div>' +
+        '<div class="cash-row">' +
+          '<div class="cash-cell"><div class="cash-cell-lbl">Long-term liabilities</div><div class="cash-cell-val">' + fmtDollar(b.longTermLiabilities||0) + '</div></div>' +
+          '<div class="cash-cell"><div class="cash-cell-lbl">Total liabilities</div><div class="cash-cell-val">' + fmtDollar(b.totalLiabilities||0) + '</div></div>' +
         '</div>';
       document.getElementById('cashSubtitle').textContent = 'as of ' + b.asOf;
     } else {
@@ -1585,10 +1551,10 @@ app.get('/', (req, res) => {
       { key: 'om',    label: 'Operating Margin %', color: '#4A90D9', data: noiArr,   targetLo: 6,  targetHi: 10 }
     ];
 
-    // Build trend toggle buttons
+    // Build trend toggle buttons (single-select)
     var togHtml = TREND_SERIES.map(function(s) {
-      var on = trendVisibility[s.key] ? ' on' : '';
-      return '<button class="fin-trend-btn' + on + '" data-key="' + s.key + '" style="color:' + s.color + '" onclick="toggleTrendLine(this)">' + esc(s.label) + '</button>';
+      var on = trendActive === s.key ? ' on' : '';
+      return '<button class="fin-trend-btn' + on + '" data-key="' + s.key + '" style="color:' + s.color + '" onclick="selectTrendLine(this)">' + esc(s.label) + '</button>';
     }).join('');
     document.getElementById('trendToggles').innerHTML = togHtml;
 
@@ -1602,7 +1568,7 @@ app.get('/', (req, res) => {
         label: s.label, data: s.data, borderColor: s.color,
         backgroundColor: s.color + '18',
         borderWidth: 2, pointRadius: 3, pointHoverRadius: 5,
-        tension: 0.3, hidden: !trendVisibility[s.key],
+        tension: 0.3, hidden: trendActive !== s.key,
         fill: false
       };
     });
@@ -1625,54 +1591,19 @@ app.get('/', (req, res) => {
       }
     });
 
-    // ── Alerts ───────────────────────────────────────────────────
-    var alerts = [];
-    months.forEach(function(mk, i) {
-      var rev = revenue[i];
-      if (!rev) return;
-      var label = mLabels[i];
-      var gm = rev > 0 ? gp[i]/rev*100 : 0;
-      var tl = rev > 0 ? techLabor[i]/rev*100 : 0;
-      var pt = rev > 0 ? parts[i]/rev*100 : 0;
-      var no = rev > 0 ? noi[i]/rev*100 : 0;
-      var adm = rev > 0 ? (adminPay[i]+officeExp[i])/rev*100 : 0;
-      if (gm < 38) alerts.push({ sev:'red', msg:'Gross margin dropped to ' + gm.toFixed(1) + '% in ' + label + '. Check parts costs and tech labor.', range: label });
-      if (tl > 33) alerts.push({ sev:'red', msg:'Tech labor hit ' + tl.toFixed(1) + '% of revenue in ' + label + '. Review overtime and crew sizing.', range: label });
-      if (pt > 30) alerts.push({ sev:'yellow', msg:'Parts cost reached ' + pt.toFixed(1) + '% in ' + label + '. Review supplier pricing or job estimates.', range: label });
-      if (adm > 15) alerts.push({ sev:'yellow', msg:'Admin overhead at ' + adm.toFixed(1) + '% in ' + label + '. Review software subscriptions and staffing.', range: label });
-      if (no < 3 && no > -50) alerts.push({ sev:'red', msg:'Operating margin is ' + no.toFixed(1) + '% in ' + label + '. This location is near breakeven.', range: label });
-    });
-    // Consecutive revenue decline
-    var declineCount = 0;
-    for (var di = revenue.length - 1; di > 0; di--) {
-      if (revenue[di] < revenue[di-1]) declineCount++;
-      else break;
-    }
-    if (declineCount >= 2) alerts.push({ sev:'red', msg:'Revenue has declined for ' + declineCount + ' consecutive months. Review lead flow and booking.', range: 'Last ' + declineCount + ' months' });
-
-    var alertsHtml = alerts.length
-      ? alerts.map(function(a) {
-          return '<div class="fin-alert ' + a.sev + '">' +
-            '<div class="fin-alert-dot"></div>' +
-            '<div class="fin-alert-body">' +
-            '<div class="fin-alert-msg">' + esc(a.msg) + '</div>' +
-            '<div class="fin-alert-range">' + esc(a.range) + '</div>' +
-            '</div></div>';
-        }).join('')
-      : '<div class="fin-no-alerts">&#10003; No alerts — all key metrics are within target ranges.</div>';
-    document.getElementById('finAlertsList').innerHTML = alertsHtml;
   }
 
-  function toggleTrendLine(btn) {
+  function selectTrendLine(btn) {
     var key = btn.dataset.key;
-    trendVisibility[key] = !trendVisibility[key];
-    btn.classList.toggle('on', trendVisibility[key]);
+    trendActive = key;
+    var btns = document.querySelectorAll('#trendToggles .fin-trend-btn');
+    btns.forEach(function(b) { b.classList.toggle('on', b.dataset.key === key); });
     if (trendChartInst) {
-      var idx = ['gm','tl','parts','admin','om'].indexOf(key);
-      if (idx >= 0) {
-        trendChartInst.data.datasets[idx].hidden = !trendVisibility[key];
-        trendChartInst.update();
-      }
+      var keys = ['gm','tl','parts','admin','om'];
+      keys.forEach(function(k, idx) {
+        trendChartInst.data.datasets[idx].hidden = k !== key;
+      });
+      trendChartInst.update();
     }
   }
 </script>
@@ -2344,12 +2275,26 @@ app.get('/api/qbo-balance', async (req, res) => {
     const ap = findByKeyword(['total', 'payable']);
     const currentAssets = findByKeyword(['total current assets']);
     const currentLiabs = findByKeyword(['total current liabilities']);
+    const longTermLiabs = findByKeyword(['total long-term liabilities'])
+      || findByKeyword(['total long term liabilities']);
+    // Prefer the grand "Total Liabilities" row if QBO emits it; else fall
+    // back to Total Liabilities and Equity minus Equity; else current+LT.
+    let totalLiabs = findByKeyword(['total liabilities']);
+    if (!totalLiabs) {
+      const totalLE = findByKeyword(['total liabilities and equity'])
+        || findByKeyword(['liabilities and equity']);
+      const totalEquity = findByKeyword(['total equity']);
+      if (totalLE && totalEquity) totalLiabs = totalLE - totalEquity;
+    }
+    if (!totalLiabs) totalLiabs = (currentLiabs || 0) + (longTermLiabs || 0);
     const currentRatio = currentLiabs > 0 ? currentAssets / currentLiabs : null;
 
     res.json({
       connected: true, asOf,
       cash, accountsReceivable: ar, accountsPayable: ap,
-      currentAssets, currentLiabilities: currentLiabs, currentRatio,
+      currentAssets, currentLiabilities: currentLiabs,
+      longTermLiabilities: longTermLiabs, totalLiabilities: totalLiabs,
+      currentRatio,
       accounts: Object.keys(byName).sort()
     });
   } catch (err) {
