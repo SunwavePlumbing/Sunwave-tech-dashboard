@@ -45,11 +45,16 @@ async function getQBOAccessToken() {
   }
   const resp = await axios.post(
     'https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer',
-    'grant_type=refresh_token&refresh_token=' + encodeURIComponent(qboTokens.refreshToken),
+    new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: qboTokens.refreshToken,
+      client_id: QBO_CLIENT_ID,
+      client_secret: QBO_CLIENT_SECRET
+    }).toString(),
     {
       headers: {
-        Authorization: 'Basic ' + Buffer.from(QBO_CLIENT_ID + ':' + QBO_CLIENT_SECRET).toString('base64'),
-        'Content-Type': 'application/x-www-form-urlencoded'
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json'
       }
     }
   );
@@ -793,9 +798,11 @@ app.get('/', (req, res) => {
 
     var tableRows = history.slice().reverse().map(function(m, i, arr) {
       var prev = arr[i + 1];
+      // Use projected jobs for current month so the number reflects end-of-month estimate
+      var displayJobs = (m.isCurrent && proj.projectedJobs > 0) ? proj.projectedJobs : m.jobs;
       var deltaJobs = '';
       if (prev && prev.jobs > 0) {
-        var diff = m.jobs - prev.jobs;
+        var diff = displayJobs - prev.jobs;
         var pctD = Math.round(diff / prev.jobs * 100);
         deltaJobs = diff > 0
           ? '<span class="delta delta-up">+' + pctD + '%</span>'
@@ -804,7 +811,7 @@ app.get('/', (req, res) => {
           : '';
       }
       var spend = mktSpend[m.month] || 0;
-      var costPerJob = (m.jobs > 0 && spend > 0) ? Math.round(spend / m.jobs) : 0;
+      var costPerJob = (displayJobs > 0 && spend > 0) ? Math.round(spend / displayJobs) : 0;
       var spendCell = showQBO
         ? (spend > 0 ? fmt(spend) : '<span style="color:#ccc">—</span>')
         : '<span style="color:#ddd">—</span>';
@@ -812,9 +819,12 @@ app.get('/', (req, res) => {
         ? (costPerJob > 0 ? fmt(costPerJob) : '<span style="color:#ccc">—</span>')
         : '<span style="color:#ddd">—</span>';
       var rowClass = m.isCurrent ? ' class="mkt-row-current"' : '';
+      var jobsLabel = m.isCurrent
+        ? displayJobs + ' <span style="font-size:10px;color:#FF9500;font-weight:600">PROJ</span>'
+        : displayJobs;
       return '<tr' + rowClass + '>' +
-        '<td>' + esc(m.fullLabel) + (m.isCurrent ? ' <span style="font-size:10px;color:#FF9500;font-weight:600">MTD</span>' : '') + '</td>' +
-        '<td>' + m.jobs + deltaJobs + '</td>' +
+        '<td>' + esc(m.fullLabel) + '</td>' +
+        '<td>' + jobsLabel + deltaJobs + '</td>' +
         '<td>' + fmt(m.revenue) + '</td>' +
         '<td>' + (m.jobs > 0 ? fmt(m.avgTicket) : '—') + '</td>' +
         '<td>' + spendCell + '</td>' +
@@ -1248,13 +1258,20 @@ app.get('/connect-quickbooks/callback', async (req, res) => {
   try {
     const { code, realmId } = req.query;
     if (!code) return res.status(400).send('Missing authorization code');
+    const tokenBody = new URLSearchParams({
+      grant_type: 'authorization_code',
+      code: code,
+      redirect_uri: QBO_REDIRECT_URI,
+      client_id: QBO_CLIENT_ID,
+      client_secret: QBO_CLIENT_SECRET
+    });
     const resp = await axios.post(
       'https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer',
-      'grant_type=authorization_code&code=' + encodeURIComponent(code) + '&redirect_uri=' + encodeURIComponent(QBO_REDIRECT_URI),
+      tokenBody.toString(),
       {
         headers: {
-          Authorization: 'Basic ' + Buffer.from(QBO_CLIENT_ID + ':' + QBO_CLIENT_SECRET).toString('base64'),
-          'Content-Type': 'application/x-www-form-urlencoded'
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'application/json'
         }
       }
     );
