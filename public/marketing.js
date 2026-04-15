@@ -126,12 +126,12 @@ function renderMarketing() {
       ? (costPerJob > 0 ? fmt(costPerJob) : '<span style="color:#ccc">—</span>')
       : '<span style="color:#ddd">—</span>';
     var rowClass = m.isCurrent ? ' class="mkt-row-current"' : '';
-    var jobsLabel = m.isCurrent
-      ? displayJobs + ' <span style="font-size:10px;color:#FF9500;font-weight:600">PROJ</span>'
-      : displayJobs;
+    var projTag = m.isCurrent
+      ? ' <span style="font-size:10px;color:#FF9500;font-weight:600">PROJ</span>'
+      : '';
     return '<tr' + rowClass + '>' +
       '<td>' + esc(m.fullLabel) + '</td>' +
-      '<td>' + jobsLabel + deltaJobs + '</td>' +
+      '<td>' + displayJobs + deltaJobs + projTag + '</td>' +
       '<td>' + fmt(m.revenue) + '</td>' +
       '<td>' + (m.jobs > 0 ? fmt(m.avgTicket) : '—') + '</td>' +
       '<td>' + spendCell + '</td>' +

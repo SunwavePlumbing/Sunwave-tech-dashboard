@@ -152,7 +152,7 @@ function marketingSpendByMonth(parsed) {
   (parsed.months || []).forEach(mk => { spend[mk] = 0; });
   Object.entries(parsed.accounts || {}).forEach(([name, byMonth]) => {
     const n = name.toLowerCase();
-    if (!n.startsWith('total for ')) return; // use rollup lines only, avoid double counting
+    if (!n.startsWith('total ')) return; // use rollup lines only, avoid double counting
     if (!(n.includes('advertising') || n.includes('marketing'))) return;
     Object.entries(byMonth).forEach(([mk, v]) => {
       spend[mk] = (spend[mk] || 0) + v;
