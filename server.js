@@ -1240,6 +1240,20 @@ app.get('/api/marketing', async (req, res) => {
 });
 
 // ── QuickBooks OAuth ─────────────────────────────────────────────────────────
+// Safe debug — shows credential shape without exposing full values
+app.get('/qbo-debug', (req, res) => {
+  res.json({
+    client_id_length:     QBO_CLIENT_ID     ? QBO_CLIENT_ID.length     : 0,
+    client_id_first4:     QBO_CLIENT_ID     ? QBO_CLIENT_ID.slice(0,4) : null,
+    client_id_last4:      QBO_CLIENT_ID     ? QBO_CLIENT_ID.slice(-4)  : null,
+    secret_length:        QBO_CLIENT_SECRET ? QBO_CLIENT_SECRET.length  : 0,
+    secret_first4:        QBO_CLIENT_SECRET ? QBO_CLIENT_SECRET.slice(0,4) : null,
+    redirect_uri:         QBO_REDIRECT_URI,
+    realm_id_in_memory:   !!qboTokens.realmId,
+    refresh_token_in_memory: !!qboTokens.refreshToken
+  });
+});
+
 app.get('/connect-quickbooks', (req, res) => {
   if (!qboConfigured()) {
     return res.send('<h2>QBO not configured</h2><p>Set QBO_CLIENT_ID and QBO_CLIENT_SECRET environment variables in Railway, then visit this page again.</p>');
