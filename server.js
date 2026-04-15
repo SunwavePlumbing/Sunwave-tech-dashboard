@@ -9,7 +9,7 @@ const BASE_URL = 'https://api.housecallpro.com';
 // ── QuickBooks Online ────────────────────────────────────────────────────────
 const QBO_CLIENT_ID     = process.env.QBO_CLIENT_ID;
 const QBO_CLIENT_SECRET = process.env.QBO_CLIENT_SECRET;
-const QBO_REDIRECT_URI  = process.env.QBO_REDIRECT_URI || 'http://localhost:' + (process.env.PORT || 3000) + '/auth/quickbooks/callback';
+const QBO_REDIRECT_URI  = process.env.QBO_REDIRECT_URI || 'http://localhost:' + (process.env.PORT || 3000) + '/connect-quickbooks/callback';
 const QBO_BASE          = 'https://quickbooks.api.intuit.com';
 
 // In-memory tokens + realmId — seeded from env vars on startup, updated after OAuth
@@ -726,7 +726,7 @@ app.get('/', (req, res) => {
       qboBanner =
         '<div style="background:#fff8f0;border:1px solid #FFE0B2;border-radius:8px;padding:12px 16px;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">' +
           '<span style="font-size:13px;color:#888">' + reason + 'Connect QuickBooks to see marketing spend columns.</span>' +
-          '<a href="/auth/quickbooks" style="background:#FF9500;color:white;padding:7px 16px;border-radius:6px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap">Connect QuickBooks \u203a</a>' +
+          '<a href="/connect-quickbooks" style="background:#FF9500;color:white;padding:7px 16px;border-radius:6px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap">Connect QuickBooks \u203a</a>' +
         '</div>';
     }
 
@@ -1216,9 +1216,9 @@ app.get('/api/marketing', async (req, res) => {
 });
 
 // ── QuickBooks OAuth ─────────────────────────────────────────────────────────
-app.get('/auth/quickbooks', (req, res) => {
+app.get('/connect-quickbooks', (req, res) => {
   if (!qboConfigured()) {
-    return res.send('<h2>QBO not configured</h2><p>Set QBO_CLIENT_ID, QBO_CLIENT_SECRET, and QBO_REALM_ID environment variables in Railway.</p>');
+    return res.send('<h2>QBO not configured</h2><p>Set QBO_CLIENT_ID and QBO_CLIENT_SECRET environment variables in Railway, then visit this page again.</p>');
   }
   const params = new URLSearchParams({
     client_id: QBO_CLIENT_ID,
@@ -1230,7 +1230,7 @@ app.get('/auth/quickbooks', (req, res) => {
   res.redirect('https://appcenter.intuit.com/connect/oauth2?' + params.toString());
 });
 
-app.get('/auth/quickbooks/callback', async (req, res) => {
+app.get('/connect-quickbooks/callback', async (req, res) => {
   try {
     const { code, realmId } = req.query;
     if (!code) return res.status(400).send('Missing authorization code');
