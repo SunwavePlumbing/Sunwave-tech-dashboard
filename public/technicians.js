@@ -48,11 +48,15 @@ function render() {
     var ticketClass = tech.averageTicket >= 1000 ? 'ticket-green'
       : tech.averageTicket >= 750 ? 'ticket-amber'
       : 'ticket-red';
+    var firstName = esc(tech.name.trim().split(/\s+/)[0]);
     return '<tr data-idx="' + idx + '">' +
       '<td><div class="tech-cell">' +
         '<div class="avatar" style="background:' + color + '">' + av + '</div>' +
         rankHtml +
-        '<span class="tech-name-label">' + esc(tech.name) + '</span>' +
+        '<span class="tech-name-label">' +
+          '<span class="tech-name-full">' + esc(tech.name) + '</span>' +
+          '<span class="tech-name-short">' + firstName + '</span>' +
+        '</span>' +
       '</div></td>' +
       '<td>' + fmt(tech.monthlyRevenue) + '</td>' +
       '<td class="' + ticketClass + '">' + fmt(tech.averageTicket) + '</td>' +
