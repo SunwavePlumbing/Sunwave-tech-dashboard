@@ -352,6 +352,18 @@ function renderOwners() {
   function mfProgressBar(pct, targetPct) {
     var fillPct = Math.max(0, Math.min(pct, 100));
     var pinPos  = Math.min(targetPct || 0, 100);
+    // Gap label — how far above/below target
+    var gapHtml = '';
+    if (targetPct) {
+      var gap = pct - targetPct;
+      var aboveTarget = gap >= 0;
+      var nearTarget  = !aboveTarget && gap >= -3;
+      var gapCls      = aboveTarget ? 'on-track' : (nearTarget ? 'near' : 'off-track');
+      var gapSign     = aboveTarget ? '+' : '';
+      gapHtml = '<span class="mf-target-gap ' + gapCls + '">' +
+        (aboveTarget ? '✓ ' : '') + gapSign + gap.toFixed(1) + 'pp vs target' +
+      '</span>';
+    }
     return '<div class="mf-target-wrap">' +
       '<div class="mf-target-track">' +
         '<div class="mf-target-fill" style="width:' + fillPct.toFixed(1) + '%"></div>' +
@@ -360,6 +372,7 @@ function renderOwners() {
       '<div class="mf-target-legend">' +
         fmtPct(pct) + ' of revenue' +
         (targetPct ? ' &nbsp;<span class="gold">&#9475; Target: ' + targetPct + '%</span>' : '') +
+        (gapHtml ? ' &nbsp;' + gapHtml : '') +
       '</div>' +
     '</div>';
   }
@@ -402,17 +415,17 @@ function renderOwners() {
             'details <span class="mf-op-chev">\u25be</span>' +
           '</button>' +
         '</div>' +
-        '<div class="mf-op-total">\u2212' + fmtDollar(curCOGS) +
-          '<span class="mf-op-total-sub">' + fmtPct(cogsPct) + ' of rev</span></div>' +
-        // 2-part split bar: COGS (red) + GP remainder (green)
+        // No "of rev" sub — that info is in the bar legend below
+        '<div class="mf-op-total">\u2212' + fmtDollar(curCOGS) + '</div>' +
+        // 2-part split bar: COGS (light red) + GP remainder (green)
         '<div class="mf-split-wrap mf-split-wrap--cogs">' +
           '<div class="mf-split-bar">' +
             '<div class="mf-sb-cogs" style="width:' + Math.max(0,Math.min(cogsPct,99)).toFixed(1) + '%"></div>' +
             '<div class="mf-sb-pass"></div>' +
           '</div>' +
           '<div class="mf-split-leg">' +
-            '<span class="mf-sl-cogs">COGS: ' + fmtPct(cogsPct) + '</span>' +
-            '<span class="mf-sl-pass-gp">Gross Profit: ' + fmtPct(gmPct) + '</span>' +
+            '<span class="mf-sl-cogs">COGS</span>' +
+            '<span class="mf-sl-pass-gp">Gross Profit</span>' +
           '</div>' +
         '</div>' +
         '<div class="mf-op-items" id="mfCogsDetail" hidden>' +
@@ -424,6 +437,7 @@ function renderOwners() {
       '<div class="mf-step mf-step--gp">' +
         '<div class="mf-step-label"><span class="mf-step-eq">=</span> Gross Profit ' + mfPill('gp', gmPct) + '</div>' +
         '<div class="mf-step-num">' + fmtDollar(curGP) + '</div>' +
+        '<div class="mf-step-desc">What\u2019s left from revenue after paying for the work \u2014 the green remainder in the bar above</div>' +
         mfProgressBar(gmPct, 50) +
         mfDelta(curGP, gp) +
       '</div>' +
@@ -436,9 +450,9 @@ function renderOwners() {
             'details <span class="mf-op-chev">\u25be</span>' +
           '</button>' +
         '</div>' +
-        '<div class="mf-op-total">\u2212' + fmtDollar(curOvhd) +
-          '<span class="mf-op-total-sub">' + fmtPct(ovhdPct) + ' of rev</span></div>' +
-        // 3-part split bar: COGS already consumed (grey) + Overhead (orange) + NOI remainder (blue)
+        // Orange color to match the overhead bar segment
+        '<div class="mf-op-total mf-op-total--orange">\u2212' + fmtDollar(curOvhd) + '</div>' +
+        // 3-part split bar: COGS already consumed (light blue) + Overhead (orange) + NOI remainder (green)
         '<div class="mf-split-wrap mf-split-wrap--ovhd">' +
           '<div class="mf-split-bar">' +
             '<div class="mf-sb-prior" style="width:' + Math.max(0,Math.min(cogsPct,99)).toFixed(1) + '%"></div>' +
@@ -446,9 +460,9 @@ function renderOwners() {
             '<div class="mf-sb-pass"></div>' +
           '</div>' +
           '<div class="mf-split-leg">' +
-            '<span class="mf-sl-prior">COGS (already cut): ' + fmtPct(cogsPct) + '</span>' +
-            '<span class="mf-sl-ovhd">Overhead: ' + fmtPct(ovhdPct) + '</span>' +
-            '<span class="mf-sl-pass-noi">Operating Profit: ' + fmtPct(noiPct) + '</span>' +
+            '<span class="mf-sl-prior">COGS</span>' +
+            '<span class="mf-sl-ovhd">Overhead</span>' +
+            '<span class="mf-sl-pass-noi">Operating Profit</span>' +
           '</div>' +
         '</div>' +
         '<div class="mf-op-items" id="mfOvhdDetail" hidden>' +

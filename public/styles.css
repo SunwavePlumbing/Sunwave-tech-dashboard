@@ -459,31 +459,41 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   color:#1a2d3a; line-height:1.05; margin:0 0 4px;
   font-variant-numeric:tabular-nums;
 }
-.mf-step--gp  .mf-step-num { color:#059669; }
+.mf-step--gp  .mf-step-num { color:#22c55e; }
 .mf-step--noi .mf-step-num { color:#1d4ed8; }
 
 .mf-step-desc { font-size:13px; color:#999; margin:2px 0 8px; line-height:1.4; }
 
-/* Progress bar vs target inside result rows */
-.mf-target-wrap { margin:10px 0 6px; }
+/* Progress bar vs target inside result rows
+   Intentionally thinner (5px) and tinted-track so they read as
+   "how close are we to the goal?" not "share of revenue breakdown" */
+.mf-target-wrap { margin:12px 0 6px; }
 .mf-target-track {
-  position:relative; height:6px; background:#e5e7eb; border-radius:3px;
+  position:relative; height:5px; background:#e5e7eb; border-radius:2px;
 }
+/* GP track: light green tint */
+.mf-step--gp  .mf-target-track { background:#dcfce7; }
+/* NOI track: light blue tint */
+.mf-step--noi .mf-target-track { background:#dbeafe; }
 .mf-target-fill {
   position:absolute; left:0; top:0; height:100%;
-  border-radius:3px; transition:width 0.6s ease;
+  border-radius:2px; transition:width 0.6s ease;
 }
-.mf-step--gp  .mf-target-fill { background:#059669; }
+.mf-step--gp  .mf-target-fill { background:#22c55e; }
 .mf-step--noi .mf-target-fill { background:#2563eb; }
 .mf-target-pin {
-  position:absolute; top:-4px; width:2px; height:14px;
+  position:absolute; top:-5px; width:2px; height:15px;
   background:#d4a017; border-radius:1px;
 }
 .mf-target-legend {
   font-size:11px; color:#aaa; margin-top:5px;
-  display:flex; align-items:center; gap:6px;
+  display:flex; align-items:center; gap:8px; flex-wrap:wrap;
 }
 .mf-target-legend .gold { color:#d4a017; font-weight:700; }
+.mf-target-gap { font-size:11px; font-weight:600; }
+.mf-target-gap.on-track  { color:#22c55e; }
+.mf-target-gap.near      { color:#C9820A; }
+.mf-target-gap.off-track { color:#E5484D; }
 
 /* ── Operation rows: − Job Costs, − Overhead ── */
 .mf-op {
@@ -507,6 +517,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   letter-spacing:-0.5px; margin:8px 0 0;
   font-variant-numeric:tabular-nums; line-height:1.1;
 }
+.mf-op-total--orange { color:#f97316; }  /* overhead deduction */
 .mf-op-total-sub { font-size:13px; font-weight:500; color:#bbb; margin-left:6px; }
 .mf-op-btn {
   font-size:11px; color:#aaa; background:none;
@@ -558,13 +569,13 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 }
 
 /* Segments — widths set inline via JS */
-.mf-sb-prior { background: #d1d5db; flex-shrink: 0; }  /* grey: already consumed (COGS) */
-.mf-sb-cogs  { background: #ef4444; flex-shrink: 0; }  /* red: cost of goods sold */
+.mf-sb-prior { background: #bfdbfe; flex-shrink: 0; }  /* light blue: COGS already consumed */
+.mf-sb-cogs  { background: #f87171; flex-shrink: 0; }  /* light red: cost of goods sold */
 .mf-sb-ovhd  { background: #f97316; flex-shrink: 0; }  /* orange: overhead */
 .mf-sb-pass  { flex: 1; min-width: 2px; }              /* remainder fills rest */
-/* Color the "pass-through" by context: revenue bar = blue, GP remainder = green, NOI remainder = blue */
-.mf-split-wrap--cogs  .mf-sb-pass { background: #22c55e; }   /* green → becomes GP */
-.mf-split-wrap--ovhd  .mf-sb-pass { background: #3b82f6; }   /* blue  → becomes NOI */
+/* Color the pass-through: GP = green, NOI = same green (profit is profit) */
+.mf-split-wrap--cogs  .mf-sb-pass { background: #22c55e; }  /* green → becomes GP */
+.mf-split-wrap--ovhd  .mf-sb-pass { background: #22c55e; }  /* green → becomes NOI */
 
 .mf-split-leg {
   display: flex; gap: 12px; flex-wrap: wrap;
@@ -578,15 +589,15 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   content: ''; display: inline-block;
   width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0;
 }
-.mf-sl-prior::before { background: #d1d5db; }
-.mf-sl-cogs::before  { background: #ef4444; }
-.mf-sl-ovhd::before  { background: #f97316; }
+.mf-sl-prior::before    { background: #bfdbfe; }
+.mf-sl-cogs::before     { background: #f87171; }
+.mf-sl-ovhd::before     { background: #f97316; }
 .mf-sl-pass-gp::before  { background: #22c55e; }
-.mf-sl-pass-noi::before { background: #3b82f6; }
+.mf-sl-pass-noi::before { background: #22c55e; }
 
 /* Compare delta + status pills */
 .mf-delta { font-size:13px; font-weight:600; margin-top:8px; }
-.mf-delta.up   { color:#059669; }
+.mf-delta.up   { color:#22c55e; }
 .mf-delta.down { color:#E5484D; }
 .mf-cmp-lbl    { font-weight:400; color:#aaa; font-size:11px; }
 .mf-pill { display:inline-block; font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px; letter-spacing:0.3px; text-transform:uppercase; vertical-align:middle; white-space:nowrap; }
