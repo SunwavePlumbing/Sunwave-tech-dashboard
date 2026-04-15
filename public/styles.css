@@ -14,13 +14,32 @@ body {
   color: #333;
 }
 
-.header { background: #1a2d3a; color: white; padding: 1.25rem 1rem 1.1rem; text-align: center; }
-.header-eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; opacity: 0.5; margin-bottom: 4px; }
-.header h1 { font-size: 26px; font-weight: 700; margin: 0 0 0.35rem 0; letter-spacing: -0.3px; }
+.header {
+  background: white;
+  padding: 1.1rem 1rem 1rem;
+  text-align: center;
+  border-bottom: 1px solid #efefef;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+}
+.header-eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2.2px;
+  text-transform: uppercase;
+  color: #FF9500;
+  margin-bottom: 3px;
+}
+.header h1 {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1a2d3a;
+  margin: 0 0 0.3rem 0;
+  letter-spacing: -0.4px;
+}
 .header-sub { display: flex; align-items: center; justify-content: center; gap: 10px; }
-.header-location { font-size: 12px; font-weight: 500; opacity: 0.6; letter-spacing: 0.5px; }
-.header-dot { width: 3px; height: 3px; border-radius: 50%; background: white; opacity: 0.35; display: inline-block; }
-.header-period { font-size: 12px; opacity: 0.75; }
+.header-location { font-size: 12px; font-weight: 500; color: #888; letter-spacing: 0.3px; }
+.header-dot { width: 3px; height: 3px; border-radius: 50%; background: #ccc; display: inline-block; }
+.header-period { font-size: 12px; color: #aaa; }
 
 /* ── Layout ──────────────────────────────────────────────────────── */
 .main-wrapper {
