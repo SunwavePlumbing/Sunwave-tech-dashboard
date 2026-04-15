@@ -18,7 +18,7 @@ const BASE_URL = 'https://api.housecallpro.com';
 // ── QuickBooks Online ────────────────────────────────────────────────────────
 const QBO_CLIENT_ID     = process.env.QBO_CLIENT_ID;
 const QBO_CLIENT_SECRET = process.env.QBO_CLIENT_SECRET;
-const QBO_REDIRECT_URI  = process.env.QBO_REDIRECT_URI || 'http://localhost:' + (process.env.PORT || 3000) + '/connect-quickbooks/callback';
+const QBO_REDIRECT_URI  = (process.env.QBO_REDIRECT_URI || 'http://localhost:' + (process.env.PORT || 3000) + '/connect-quickbooks/callback').trim();
 const QBO_BASE          = 'https://quickbooks.api.intuit.com';
 
 // In-memory tokens + realmId — seeded from env vars on startup, updated after OAuth
