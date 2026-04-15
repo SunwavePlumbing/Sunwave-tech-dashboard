@@ -1068,41 +1068,34 @@ app.get('/', (req, res) => {
   }
 
   function acct(name) {
-    // Get monthly values for a QBO account. Matches exact name first, then
-    // falls back to case-insensitive contains/startsWith — QBO labels
-    // ("Total Income" vs "Total for Income") vary by company file.
+    // Exact-match lookup against QBO account labels.
     if (!ownersData || !ownersData.accounts) return [];
     var months = ownersData.months || [];
-    var empty = months.map(function() { return 0; });
-    var accts = ownersData.accounts;
-    var a = accts[name];
-    if (!a) {
-      var target = name.toLowerCase();
-      // Strip "total for " / "total " prefix to get the core label
-      var core = target.replace(/^total (for )?/, '').trim();
-      var match = null;
-      Object.keys(accts).forEach(function(k) {
-        if (match) return;
-        var kl = k.toLowerCase();
-        if (kl === target) match = k;
-        else if (kl === 'total ' + core || kl === 'total for ' + core) match = k;
-      });
-      if (!match) {
-        // Looser contains fallback
-        Object.keys(accts).forEach(function(k) {
-          if (match) return;
-          var kl = k.toLowerCase();
-          if (kl.indexOf(core) !== -1 && kl.indexOf('total') !== -1) match = k;
-        });
-      }
-      if (match) a = accts[match];
-    }
-    if (!a) return empty;
+    var a = ownersData.accounts[name];
+    if (!a) return months.map(function() { return 0; });
     return months.map(function(mk) { return a[mk] || 0; });
+  }
+
+  function acctSum(names) {
+    // Sum multiple accounts month-by-month
+    if (!ownersData) return [];
+    var out = (ownersData.months || []).map(function() { return 0; });
+    names.forEach(function(n) {
+      acct(n).forEach(function(v, i) { out[i] += v; });
+    });
+    return out;
+  }
+
+  function calcDiff(arrA, arrB) {
+    return arrA.map(function(v, i) { return v - (arrB[i] || 0); });
   }
 
   function acctTotal(name) {
     return acct(name).reduce(function(s,v){ return s+v; }, 0);
+  }
+
+  function sumArr(arr) {
+    return (arr || []).reduce(function(s,v){ return s + (v||0); }, 0);
   }
 
   function last(arr) { return arr.length ? arr[arr.length - 1] : 0; }
@@ -1176,19 +1169,29 @@ app.get('/', (req, res) => {
     var months = ownersData.months || [];
     var last6 = months.slice(-6);
 
-    // ── Key series ───────────────────────────────────────────────
-    var revenue    = acct('Total for Income');
-    var gp         = acct('Gross Profit');
-    var techLabor  = acct('Total for Hourly Payroll Expense');
-    var parts      = acct('Cost of Goods Sold - Job Supplies');
-    var subs       = acct('Subcontractors');
-    var adminPay   = acct('Total for Salaried & Admin Payroll Expense');
-    var mktTotal   = acct('Total for Advertising & marketing');
-    var officeExp  = acct('Total for Office expenses');
-    var rentExp    = acct('Total for Rent');
-    var vehicleExp = acct('Total for Vehicle Expenses');
-    var noi        = acct('Net Operating Income');
-    var netInc     = acct('Net Income');
+    // ── Key series (wired to exact QBO account labels) ──────────
+    var revenue     = acct('Total Income');
+    var cogs        = acct('Total Cost of goods sold'); // grand COGS
+    var techLabor   = acct('Total Cost of Goods Sold - Labor');
+    var parts       = acct('Cost of Goods Sold - Job Supplies');
+    var subs        = acct('Subcontractors');
+    var totalExp    = acct('Total Expenses');           // all OpEx
+    var adminPay    = acct('Total Salaried & Admin Payroll Expense');
+    var mktTotal    = acct('Total Advertising & marketing');
+    var officeExp   = acct('Total Office expenses');
+    var rentExp     = acct('Total Rent');
+    var vehicleExp  = acct('Total Vehicle Expenses');
+    var utilExp     = acct('Total Utilities');
+    var travelExp   = acct('Total Travel');
+    var mealsExp    = acct('Total Meals');
+    var genExp      = acct('Total General Expenses');
+    var taxesExp    = acct('Total Taxes paid');
+    var merchExp    = acct('Total Merchant account fees');
+    var benefitsExp = acct('Total Employee benefits');
+    // Gross Profit & NOI aren't returned as rows — compute them.
+    var gp          = revenue.map(function(r, i) { return r - (cogs[i] || 0); });
+    var noi         = revenue.map(function(r, i) { return r - (cogs[i] || 0) - (totalExp[i] || 0); });
+    var netInc      = noi; // No below-the-line items in this P&L
 
     // ── Current month (last column) ─────────────────────────────
     var curRev   = last(revenue);
@@ -1269,19 +1272,19 @@ app.get('/', (req, res) => {
     var multiMonth = months.length > 1;
 
     // ── Waterfall chart ──────────────────────────────────────────
-    var wRevTotal  = acctTotal('Total for Income');
-    var wParts     = acctTotal('Cost of Goods Sold - Job Supplies');
-    var wTL        = acctTotal('Total for Hourly Payroll Expense');
-    var wSubs      = acctTotal('Subcontractors');
-    var wGP        = acctTotal('Gross Profit');
-    var wAdmin     = acctTotal('Total for Salaried & Admin Payroll Expense');
-    var wMkt       = acctTotal('Total for Advertising & marketing');
-    var wOffice    = acctTotal('Total for Office expenses');
-    var wRent      = acctTotal('Total for Rent');
-    var wVehicle   = acctTotal('Total for Vehicle Expenses');
-    var wNOI       = acctTotal('Net Operating Income');
-    // Other opex = NOI + all accounted opex subtracted from GP (catch-all)
-    var wOtherOpex = wGP - wAdmin - wMkt - wOffice - wRent - wVehicle - wNOI;
+    var wRevTotal  = sumArr(revenue);
+    var wParts     = sumArr(parts);
+    var wTL        = sumArr(techLabor);
+    var wSubs      = sumArr(subs);
+    var wGP        = sumArr(gp);
+    var wAdmin     = sumArr(adminPay);
+    var wMkt       = sumArr(mktTotal);
+    var wOffice    = sumArr(officeExp);
+    var wRent      = sumArr(rentExp);
+    var wVehicle   = sumArr(vehicleExp);
+    var wNOI       = sumArr(noi);
+    // Other opex = everything in Total Expenses not already broken out
+    var wOtherOpex = sumArr(totalExp) - wAdmin - wMkt - wOffice - wRent - wVehicle;
 
     // Build floating bars: [bottom, top] for each step
     var wfLabels = ['Revenue','Parts','Tech Labor','Subcontractors','Gross Profit','Admin Payroll','Marketing','Office','Rent','Vehicle','Other OpEx','Net Op. Income'];
@@ -1352,31 +1355,35 @@ app.get('/', (req, res) => {
       }
     });
 
-    // ── Expense donut ────────────────────────────────────────────
-    var dAdmin   = acctTotal('Total for Salaried & Admin Payroll Expense');
-    var dMkt     = acctTotal('Total for Advertising & marketing');
-    var dOffice  = acctTotal('Total for Office expenses');
-    var dRent    = acctTotal('Total for Rent');
-    var dVehicle = acctTotal('Total for Vehicle Expenses');
-    var dMerch   = acctTotal('Other Merchant Account Fees') || acctTotal('Total for Merchant account fees');
-    var dInsure  = acctTotal('Insurance');
-    var dTools   = acctTotal('Small Tools & Equipment') + acctTotal('Uniforms');
-    var dAccounted = dAdmin + dMkt + dOffice + dRent + dVehicle + dMerch + dInsure + dTools;
-    var dTotalOpex = acctTotal('Total for Expenses') || (acctTotal('Gross Profit') - acctTotal('Net Operating Income'));
-    var dOther   = Math.max(dTotalOpex - dAccounted, 0);
-    var dTotal   = dAdmin + dMkt + dOffice + dRent + dVehicle + dMerch + dInsure + dTools + dOther;
+    // ── Cost breakdown donut — shows ALL costs (COGS + OpEx) ──────
+    var dTechLabor = wTL;
+    var dParts     = wParts;
+    var dSubs      = wSubs;
+    var dAdmin     = wAdmin;
+    var dMkt       = wMkt;
+    var dRent      = wRent;
+    var dVehicle   = wVehicle;
+    var dOffice    = wOffice;
+    var dMerch     = acctTotal('Total Merchant account fees');
+    var dInsure    = acctTotal('Insurance');
+    var dBenefits  = acctTotal('Total Employee benefits');
+    var dUtil      = acctTotal('Total Utilities');
+    var dAccounted = dTechLabor + dParts + dSubs + dAdmin + dMkt + dRent + dVehicle + dOffice + dMerch + dInsure + dBenefits + dUtil;
+    var dAllCosts  = sumArr(cogs) + sumArr(totalExp);
+    var dOther     = Math.max(dAllCosts - dAccounted, 0);
+    var dTotal     = dAllCosts;
 
-    document.getElementById('donutSubtitle').textContent = fmtDollar(dTotal) + ' TTM';
+    document.getElementById('donutSubtitle').textContent = fmtDollar(dTotal) + ' total costs';
 
     if (donutChartInst) donutChartInst.destroy();
     var dCtx = document.getElementById('donutChart').getContext('2d');
     donutChartInst = new Chart(dCtx, {
       type: 'doughnut',
       data: {
-        labels: ['Admin Payroll','Marketing','Office & Software','Rent & Facilities','Vehicle & Fleet','Merchant Fees','Insurance','Tools & Uniforms','All Other'],
+        labels: ['Tech Labor','Parts','Subcontractors','Admin Payroll','Marketing','Rent','Vehicle','Office','Merchant','Insurance','Benefits','Utilities','Other'],
         datasets: [{
-          data: [dAdmin,dMkt,dOffice,dRent,dVehicle,dMerch,dInsure,dTools,dOther],
-          backgroundColor: ['#64748b','#14b8a6','#3b82f6','#f59e0b','#FF9500','#8b5cf6','#6366f1','#22c55e','#9ca3af'],
+          data: [dTechLabor,dParts,dSubs,dAdmin,dMkt,dRent,dVehicle,dOffice,dMerch,dInsure,dBenefits,dUtil,dOther],
+          backgroundColor: ['#FF6B35','#E5484D','#f59e0b','#64748b','#14b8a6','#8b5cf6','#FF9500','#3b82f6','#a855f7','#6366f1','#22c55e','#06b6d4','#9ca3af'],
           borderWidth: 2, borderColor: '#fff', hoverOffset: 6
         }]
       },
