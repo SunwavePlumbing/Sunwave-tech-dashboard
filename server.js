@@ -6,6 +6,105 @@ const API_KEY = process.env.HOUSECALL_PRO_API_KEY;
 const PORT = process.env.PORT || 3000;
 const BASE_URL = 'https://api.housecallpro.com';
 
+// ── QuickBooks Online ────────────────────────────────────────────────────────
+const QBO_CLIENT_ID     = process.env.QBO_CLIENT_ID;
+const QBO_CLIENT_SECRET = process.env.QBO_CLIENT_SECRET;
+const QBO_REALM_ID      = process.env.QBO_REALM_ID;
+const QBO_REDIRECT_URI  = process.env.QBO_REDIRECT_URI || 'http://localhost:' + (process.env.PORT || 3000) + '/auth/quickbooks/callback';
+const QBO_BASE          = 'https://quickbooks.api.intuit.com';
+
+// In-memory tokens — seeded from env var on startup, rotated in memory on each refresh
+const qboTokens = {
+  accessToken:  null,
+  refreshToken: process.env.QBO_REFRESH_TOKEN || null,
+  expiresAt:    0
+};
+
+function qboConfigured() {
+  return !!(QBO_CLIENT_ID && QBO_CLIENT_SECRET && QBO_REALM_ID);
+}
+
+async function getQBOAccessToken() {
+  if (!qboConfigured() || !qboTokens.refreshToken) return null;
+  if (qboTokens.accessToken && Date.now() < qboTokens.expiresAt - 60000) {
+    return qboTokens.accessToken;
+  }
+  const resp = await axios.post(
+    'https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer',
+    'grant_type=refresh_token&refresh_token=' + encodeURIComponent(qboTokens.refreshToken),
+    {
+      headers: {
+        Authorization: 'Basic ' + Buffer.from(QBO_CLIENT_ID + ':' + QBO_CLIENT_SECRET).toString('base64'),
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    }
+  );
+  qboTokens.accessToken  = resp.data.access_token;
+  qboTokens.refreshToken = resp.data.refresh_token;   // QBO rotates refresh tokens
+  qboTokens.expiresAt    = Date.now() + resp.data.expires_in * 1000;
+  console.log('[QBO] Tokens refreshed. If refresh token rotated, update QBO_REFRESH_TOKEN in Railway to: ' + qboTokens.refreshToken);
+  return qboTokens.accessToken;
+}
+
+// Parse QBO P&L response: extract "Advertising & Marketing" spend per month
+// Returns { 'YYYY-MM': dollars, ... }
+function extractMarketingSpend(report) {
+  const spend = {};
+
+  // Build a map: column index → 'YYYY-MM'
+  const colIndexToMonth = {};
+  const columns = (report.Columns && report.Columns.Column) || [];
+  columns.forEach((col, idx) => {
+    if (col.ColType !== 'Money') return;
+    const meta = col.MetaData || [];
+    const startMeta = meta.find(m => m.Name === 'StartDate');
+    if (!startMeta) return;
+    const d = new Date(startMeta.Value);
+    colIndexToMonth[idx] = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  });
+
+  const KEYWORDS = ['advertising', 'marketing'];
+  function isMarketing(name) {
+    const n = (name || '').toLowerCase();
+    return KEYWORDS.some(k => n.includes(k));
+  }
+
+  function addRow(colData) {
+    // colData[0] = label, colData[1..] = values
+    Object.entries(colIndexToMonth).forEach(([idx, month]) => {
+      const raw = (colData[idx] && colData[idx].value) || '0';
+      const val = parseFloat(raw.replace(/,/g, '')) || 0;
+      if (val !== 0) spend[month] = (spend[month] || 0) + val;
+    });
+  }
+
+  function walk(rows) {
+    if (!Array.isArray(rows)) return;
+    rows.forEach(row => {
+      const headerName = row.Header && row.Header.ColData && row.Header.ColData[0] && row.Header.ColData[0].value;
+      if (isMarketing(headerName)) {
+        // Use the Summary totals for this section (avoids double-counting sub-rows)
+        if (row.Summary && row.Summary.ColData) {
+          addRow(row.Summary.ColData);
+        } else if (row.Rows && row.Rows.Row) {
+          walk(row.Rows.Row); // no summary — walk sub-rows
+        }
+        return; // don't recurse further into marketing section
+      }
+      // Check plain data rows (no sub-rows)
+      if (row.ColData && isMarketing(row.ColData[0] && row.ColData[0].value)) {
+        addRow(row.ColData);
+      }
+      // Recurse into sections
+      if (row.Rows && row.Rows.Row) walk(row.Rows.Row);
+    });
+  }
+
+  walk((report.Rows && report.Rows.Row) || []);
+  return spend;
+}
+// ────────────────────────────────────────────────────────────────────────────
+
 app.get('/', (req, res) => {
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -417,7 +516,7 @@ app.get('/', (req, res) => {
       var desc = job.description ? esc(job.description) : (job.invoice ? 'Invoice #' + esc(job.invoice) : '\u2014');
       var roleBadge = job.role ? '<span class="role-badge ' + roleClass(job.role) + '">' + esc(job.role) + '</span>' : '';
       var splitNote = (job.splitWith && job.splitWith.length > 0)
-        ? '<div style="font-size:11px;color:#aaa;margin-top:2px">w/ ' + job.splitWith.map(esc).join(', ') + '</div>' : '';
+        ? '<div style="font-size:11px;color:#aaa;margin-top:2px">w/ ' + job.splitWith.map(function(s){ return esc(s.name || s) + (s.creditPct != null ? ' <span style="color:#ccc">(' + s.creditPct + '%)</span>' : ''); }).join(', ') + '</div>' : '';
       var jobTotal = job.jobTotal != null ? fmt(job.jobTotal) : fmt(job.credit);
       var shareHtml = job.creditPct != null && job.creditPct < 100
         ? fmt(job.credit) + '<span class="share-pct">(' + job.creditPct + '%)</span>'
@@ -438,7 +537,7 @@ app.get('/', (req, res) => {
       var desc = job.description ? esc(job.description) : (job.invoice ? 'Invoice #' + esc(job.invoice) : '\u2014');
       var roleBadge = job.role ? '<span class="role-badge ' + roleClass(job.role) + '">' + esc(job.role) + '</span>' : '';
       var splitNote = (job.splitWith && job.splitWith.length > 0)
-        ? ' <span style="font-size:11px;color:#bbb">w/ ' + job.splitWith.map(esc).join(', ') + '</span>' : '';
+        ? ' <span style="font-size:11px;color:#bbb">w/ ' + job.splitWith.map(function(s){ return esc(s.name || s) + (s.creditPct != null ? ' (' + s.creditPct + '%)' : ''); }).join(', ') + '</span>' : '';
       var creditAmt = fmt(job.credit != null ? job.credit : job.amount);
       var pctHtml = job.creditPct != null && job.creditPct < 100
         ? '<span class="job-card-credit-pct">(' + job.creditPct + '%)</span>' : '';
@@ -569,13 +668,24 @@ app.get('/', (req, res) => {
         document.getElementById('techView').classList.add('active');
       } else if (tab === 'marketing') {
         document.getElementById('marketingView').classList.add('active');
-        if (!marketingLoaded) { marketingLoaded = true; fetchMarketing(); }
+        if (!marketingLoaded) { marketingLoaded = true; fetchMarketing(); fetchQBOMarketing(); }
       }
     });
   });
 
   // ── Marketing ───────────────────────────────────────────────────
   var marketingData = null;
+  var qboData = null; // null=not fetched, {connected:false}=unavailable, {connected:true,...}=ready
+
+  async function fetchQBOMarketing() {
+    try {
+      var resp = await fetch('/api/qbo-marketing');
+      qboData = await resp.json();
+    } catch(e) {
+      qboData = { connected: false, reason: 'error' };
+    }
+    if (marketingData) renderMarketing();
+  }
 
   async function fetchMarketing() {
     document.getElementById('marketingContent').innerHTML =
@@ -589,7 +699,7 @@ app.get('/', (req, res) => {
         return;
       }
       marketingData = data;
-      renderMarketing();
+      renderMarketing(); // initial render; will re-render once qboData arrives
     } catch(e) {
       document.getElementById('marketingContent').innerHTML =
         '<div class="error-msg">Error loading marketing data. Check server logs.</div>';
@@ -599,7 +709,26 @@ app.get('/', (req, res) => {
   function renderMarketing() {
     if (!marketingData) return;
     var proj = marketingData.projection;
-    var history = marketingData.history; // array [{month, label, jobs, revenue, avgTicket}]
+    var history = marketingData.history;
+
+    // QBO availability
+    var qboReady = qboData && qboData.connected && qboData.monthlyMarketing;
+    var mktSpend = qboReady ? qboData.monthlyMarketing : {};
+
+    // Connect QBO banner (show while qboData is null = still loading, or when not connected)
+    var qboBanner = '';
+    if (!qboData) {
+      qboBanner = '<div style="background:#f5f5f5;border-radius:8px;padding:11px 16px;margin-bottom:1rem;font-size:13px;color:#aaa">Loading QuickBooks data\u2026</div>';
+    } else if (!qboData.connected) {
+      var reason = qboData.reason === 'not_configured'
+        ? 'Add QBO_CLIENT_ID, QBO_CLIENT_SECRET &amp; QBO_REALM_ID to Railway, then '
+        : 'QuickBooks token expired or missing. ';
+      qboBanner =
+        '<div style="background:#fff8f0;border:1px solid #FFE0B2;border-radius:8px;padding:12px 16px;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">' +
+          '<span style="font-size:13px;color:#888">' + reason + 'Connect QuickBooks to see marketing spend columns.</span>' +
+          '<a href="/auth/quickbooks" style="background:#FF9500;color:white;padding:7px 16px;border-radius:6px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap">Connect QuickBooks \u203a</a>' +
+        '</div>';
+    }
 
     // Projection cards
     var pct = proj.totalDays > 0 ? Math.min(Math.round(proj.jobsMtd / proj.projectedJobs * 100), 100) : 0;
@@ -615,15 +744,25 @@ app.get('/', (req, res) => {
         '<div class="progress-bar-bg"><div class="progress-bar-fill" style="width:' + pct + '%"></div></div>' +
       '</div>';
 
-    // Bar chart — last 12 months
-    var maxJobs = Math.max.apply(null, history.map(function(m) { return m.jobs; })) || 1;
+    // Bar chart
     var BAR_MAX_PX = 100;
-    var bars = history.map(function(m) {
-      var h = Math.max(3, Math.round(m.jobs / maxJobs * BAR_MAX_PX));
+    var effectiveJobs = history.map(function(m) {
+      return m.isCurrent ? (proj.projectedJobs || m.jobs) : m.jobs;
+    });
+    var maxJobs = Math.max.apply(null, effectiveJobs) || 1;
+    var bars = history.map(function(m, idx) {
+      var displayJobs = effectiveJobs[idx];
+      var h = Math.max(3, Math.round(displayJobs / maxJobs * BAR_MAX_PX));
       var isCur = m.isCurrent ? ' is-current' : '';
+      var barStyle = m.isCurrent
+        ? 'height:' + h + 'px;opacity:0.6;background:repeating-linear-gradient(135deg,#FF6B35 0,#FF6B35 4px,#ffb07a 4px,#ffb07a 8px)'
+        : 'height:' + h + 'px';
+      var valHtml = m.isCurrent
+        ? displayJobs + '<div style="font-size:7px;color:#FF9500;font-weight:700;line-height:1;margin-top:1px">PROJ</div>'
+        : (m.jobs > 0 ? m.jobs : '');
       return '<div class="bar-col">' +
-        '<div class="bar-val">' + (m.jobs > 0 ? m.jobs : '') + '</div>' +
-        '<div class="bar' + isCur + '" style="height:' + h + 'px"></div>' +
+        '<div class="bar-val">' + valHtml + '</div>' +
+        '<div class="bar' + isCur + '" style="' + barStyle + '"></div>' +
         '<div class="bar-lbl">' + esc(m.label) + '</div>' +
       '</div>';
     }).join('');
@@ -632,7 +771,12 @@ app.get('/', (req, res) => {
       '<div class="section-title">Jobs Per Month</div>' +
       '<div class="bar-chart-card"><div class="bar-chart">' + bars + '</div></div>';
 
-    // Monthly history table
+    // Monthly history table — with optional QBO spend columns
+    var showQBO = qboReady;
+    var qboHeaderCols = showQBO
+      ? '<th>Mktg Spend</th><th>Cost / Job</th>'
+      : '<th style="color:#ccc">Mktg Spend</th><th style="color:#ccc">Cost / Job</th>';
+
     var tableRows = history.slice().reverse().map(function(m, i, arr) {
       var prev = arr[i + 1];
       var deltaJobs = '';
@@ -643,31 +787,45 @@ app.get('/', (req, res) => {
           ? '<span class="delta delta-up">+' + pctD + '%</span>'
           : diff < 0
           ? '<span class="delta delta-down">' + pctD + '%</span>'
-          : '<span class="delta" style="color:#bbb">—</span>';
+          : '';
       }
+      var spend = mktSpend[m.month] || 0;
+      var costPerJob = (m.jobs > 0 && spend > 0) ? Math.round(spend / m.jobs) : 0;
+      var spendCell = showQBO
+        ? (spend > 0 ? fmt(spend) : '<span style="color:#ccc">—</span>')
+        : '<span style="color:#ddd">—</span>';
+      var costCell = showQBO
+        ? (costPerJob > 0 ? fmt(costPerJob) : '<span style="color:#ccc">—</span>')
+        : '<span style="color:#ddd">—</span>';
       var rowClass = m.isCurrent ? ' class="mkt-row-current"' : '';
       return '<tr' + rowClass + '>' +
         '<td>' + esc(m.fullLabel) + (m.isCurrent ? ' <span style="font-size:10px;color:#FF9500;font-weight:600">MTD</span>' : '') + '</td>' +
         '<td>' + m.jobs + deltaJobs + '</td>' +
         '<td>' + fmt(m.revenue) + '</td>' +
         '<td>' + (m.jobs > 0 ? fmt(m.avgTicket) : '—') + '</td>' +
+        '<td>' + spendCell + '</td>' +
+        '<td>' + costCell + '</td>' +
         '</tr>';
     }).join('');
 
-    // Totals for history table
     var totalHistJobs = history.reduce(function(s,m){ return s + m.jobs; }, 0);
-    var totalHistRev = history.reduce(function(s,m){ return s + m.revenue; }, 0);
+    var totalHistRev  = history.reduce(function(s,m){ return s + m.revenue; }, 0);
+    var totalSpend    = Object.values(mktSpend).reduce(function(s,v){ return s + v; }, 0);
     var avgHistTicket = totalHistJobs > 0 ? Math.round(totalHistRev / totalHistJobs) : 0;
+    var avgCostPerJob = totalHistJobs > 0 && totalSpend > 0 ? Math.round(totalSpend / totalHistJobs) : 0;
+
+    var footSpend = showQBO ? (totalSpend > 0 ? fmt(totalSpend) : '—') : '—';
+    var footCost  = showQBO ? (avgCostPerJob > 0 ? fmt(avgCostPerJob) : '—') : '—';
 
     var tableHTML =
       '<div class="section-title">Monthly History</div>' +
       '<div class="mkt-table-card"><table class="mkt-table">' +
-        '<thead><tr><th>Month</th><th># Jobs</th><th>Revenue</th><th>Avg Ticket</th></tr></thead>' +
+        '<thead><tr><th>Month</th><th># Jobs</th><th>Revenue</th><th>Avg Ticket</th>' + qboHeaderCols + '</tr></thead>' +
         '<tbody>' + tableRows + '</tbody>' +
-        '<tfoot><tr><td>12-Month Total</td><td>' + totalHistJobs + '</td><td>' + fmt(totalHistRev) + '</td><td>' + fmt(avgHistTicket) + '</td></tr></tfoot>' +
+        '<tfoot><tr><td>12-Month Total</td><td>' + totalHistJobs + '</td><td>' + fmt(totalHistRev) + '</td><td>' + fmt(avgHistTicket) + '</td><td>' + footSpend + '</td><td>' + footCost + '</td></tr></tfoot>' +
       '</table></div>';
 
-    document.getElementById('marketingContent').innerHTML = projHTML + chartHTML + tableHTML;
+    document.getElementById('marketingContent').innerHTML = qboBanner + projHTML + chartHTML + tableHTML;
   }
 </script>
 </body>
@@ -835,7 +993,13 @@ app.get('/api/metrics', async (req, res) => {
         const results = await Promise.all(
           batch.map(id =>
             axios.get(BASE_URL + '/estimates/' + id, { headers })
-              .then(r => ({ id, employees: r.data.assigned_employees || [] }))
+              .then(r => {
+                // HCP may return a single object (assigned_employee) or an array (assigned_employees)
+                const d = r.data;
+                const employees = d.assigned_employees
+                  || (d.assigned_employee ? [d.assigned_employee] : []);
+                return { id, employees };
+              })
               .catch(() => ({ id, employees: [] }))
           )
         );
@@ -904,7 +1068,16 @@ app.get('/api/metrics', async (req, res) => {
         const isDoer = doers.some(d => d.id === emp.id);
         const role = (isSeller && isDoer) ? 'Sold & Did' : isSeller ? 'Sold' : 'Did';
         const creditPct = Math.round(credit / jobRevenue * 100);
-        const splitWith = allInvolvedNames.filter(n => n !== ((emp.first_name || '') + ' ' + (emp.last_name || '')).trim());
+        const myName = ((emp.first_name || '') + ' ' + (emp.last_name || '')).trim();
+        const splitWith = allInvolved
+          .filter(e => e.id !== emp.id)
+          .map(e => {
+            const n = ((e.first_name || '') + ' ' + (e.last_name || '')).trim();
+            const c = creditMap[e.id] || 0;
+            const p = jobRevenue > 0 ? Math.round(c / jobRevenue * 100) : 0;
+            return { name: n, creditPct: p };
+          })
+          .filter(x => x.name);
 
         techMetrics[emp.id].revenue += credit;
         techMetrics[emp.id].jobs += 1;
@@ -1042,7 +1215,116 @@ app.get('/api/marketing', async (req, res) => {
   }
 });
 
+// ── QuickBooks OAuth ─────────────────────────────────────────────────────────
+app.get('/auth/quickbooks', (req, res) => {
+  if (!qboConfigured()) {
+    return res.send('<h2>QBO not configured</h2><p>Set QBO_CLIENT_ID, QBO_CLIENT_SECRET, and QBO_REALM_ID environment variables in Railway.</p>');
+  }
+  const params = new URLSearchParams({
+    client_id: QBO_CLIENT_ID,
+    response_type: 'code',
+    scope: 'com.intuit.quickbooks.accounting',
+    redirect_uri: QBO_REDIRECT_URI,
+    state: 'sunwave'
+  });
+  res.redirect('https://appcenter.intuit.com/connect/oauth2?' + params.toString());
+});
+
+app.get('/auth/quickbooks/callback', async (req, res) => {
+  try {
+    const { code, realmId } = req.query;
+    if (!code) return res.status(400).send('Missing authorization code');
+    const resp = await axios.post(
+      'https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer',
+      'grant_type=authorization_code&code=' + encodeURIComponent(code) + '&redirect_uri=' + encodeURIComponent(QBO_REDIRECT_URI),
+      {
+        headers: {
+          Authorization: 'Basic ' + Buffer.from(QBO_CLIENT_ID + ':' + QBO_CLIENT_SECRET).toString('base64'),
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      }
+    );
+    qboTokens.accessToken  = resp.data.access_token;
+    qboTokens.refreshToken = resp.data.refresh_token;
+    qboTokens.expiresAt    = Date.now() + resp.data.expires_in * 1000;
+    const connectedRealmId = realmId || QBO_REALM_ID;
+    console.log('[QBO] Connected! Realm ID: ' + connectedRealmId);
+    console.log('[QBO] Refresh Token: ' + qboTokens.refreshToken);
+    // Show success page with instructions to save the refresh token in Railway
+    res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>QuickBooks Connected</title>
+<style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:600px;margin:60px auto;padding:0 20px;color:#333}
+.box{background:#f5f5f5;border-radius:10px;padding:20px 24px;margin:20px 0;word-break:break-all;font-family:monospace;font-size:13px;background:#1a2d3a;color:#7dd3a8}
+.btn{display:inline-block;background:#FF9500;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;margin-top:8px}
+.step{background:#fffbf5;border:1px solid #FFE0B2;border-radius:8px;padding:16px 20px;margin:12px 0}
+h2{color:#12A071}
+</style></head><body>
+<h2>✅ QuickBooks Connected!</h2>
+<p>QuickBooks is now connected. To make this permanent across Railway restarts, add this refresh token as an environment variable:</p>
+<div class="step">
+  <strong>1.</strong> Go to your Railway project → Variables<br>
+  <strong>2.</strong> Add a new variable:<br><br>
+  <strong>Name:</strong> <code>QBO_REFRESH_TOKEN</code><br>
+  <strong>Value:</strong> <div class="box">${qboTokens.refreshToken}</div>
+</div>
+<div class="step">
+  <strong>3.</strong> Redeploy (Railway will restart automatically after saving the variable)<br>
+  <strong>4.</strong> You won't need to reconnect unless you manually revoke access in QuickBooks
+</div>
+<a href="/" class="btn">← Back to Dashboard</a>
+</body></html>`);
+  } catch (err) {
+    console.error('[QBO] OAuth callback error:', err.response?.data || err.message);
+    res.status(500).send('QuickBooks authorization failed: ' + (err.response?.data?.error_description || err.message));
+  }
+});
+
+// ── /api/qbo-marketing ───────────────────────────────────────────────────────
+app.get('/api/qbo-marketing', async (req, res) => {
+  if (!qboConfigured()) {
+    return res.json({ connected: false, reason: 'not_configured' });
+  }
+  try {
+    const token = await getQBOAccessToken();
+    if (!token) {
+      return res.json({ connected: false, reason: 'no_token' });
+    }
+    // Same 12-month window as /api/marketing
+    const now = new Date();
+    const endDate   = now.toISOString().slice(0, 10);
+    const startDate = new Date(now.getFullYear(), now.getMonth() - 11, 1).toISOString().slice(0, 10);
+
+    const pnlRes = await axios.get(
+      QBO_BASE + '/v3/company/' + QBO_REALM_ID + '/reports/ProfitAndLoss',
+      {
+        headers: {
+          Authorization: 'Bearer ' + token,
+          Accept: 'application/json'
+        },
+        params: {
+          start_date: startDate,
+          end_date: endDate,
+          summarize_column_by: 'Month',
+          minorversion: 65
+        }
+      }
+    );
+
+    const monthlyMarketing = extractMarketingSpend(pnlRes.data);
+    res.json({ connected: true, monthlyMarketing });
+  } catch (err) {
+    console.error('[QBO] P&L error:', err.response?.data || err.message);
+    const status = err.response?.status;
+    if (status === 401) {
+      qboTokens.accessToken = null; // force refresh next time
+      return res.json({ connected: false, reason: 'token_expired' });
+    }
+    res.status(500).json({ connected: false, reason: 'error', error: err.message });
+  }
+});
+// ────────────────────────────────────────────────────────────────────────────
+
 app.listen(PORT, () => {
   console.log('Dashboard running on port ' + PORT);
   console.log('API Key configured: ' + (!!API_KEY));
+  console.log('QBO configured: ' + qboConfigured() + (qboTokens.refreshToken ? ' (token ready)' : ' (visit /auth/quickbooks to connect)'));
 });
