@@ -181,10 +181,18 @@ function closeModal() {
 }
 
 // ── Sliding tab indicator ───────────────────────────────────────
-function updateTabIndicator(tab, animate) {
+// snap=true  → remove transition, set position instantly, re-enable after paint
+// snap=false → animate the slide (normal same-layout tab switch)
+function updateTabIndicator(tab, snap) {
   var btn = document.querySelector('.tab-btn[data-tab="' + tab + '"]');
   var indicator = document.getElementById('tabIndicator');
   if (!btn || !indicator) return;
+
+  if (snap) {
+    // Kill transition so the stale position doesn't visibly slide
+    indicator.classList.remove('tab-indicator-ready');
+  }
+
   var nav = btn.closest('.tab-nav');
   var navRect = nav.getBoundingClientRect();
   var btnRect = btn.getBoundingClientRect();
@@ -192,11 +200,17 @@ function updateTabIndicator(tab, animate) {
   indicator.style.left   = (btnRect.left   - navRect.left) + 'px';
   indicator.style.width  = btnRect.width  + 'px';
   indicator.style.height = btnRect.height + 'px';
-  if (animate) indicator.classList.add('tab-indicator-ready');
+
+  // Re-enable transition after two frames so the new position is painted first
+  requestAnimationFrame(function() {
+    requestAnimationFrame(function() {
+      indicator.classList.add('tab-indicator-ready');
+    });
+  });
 }
 window.addEventListener('resize', function() {
   var activeBtn = document.querySelector('.tab-btn.active');
-  if (activeBtn) updateTabIndicator(activeBtn.dataset.tab, false);
+  if (activeBtn) updateTabIndicator(activeBtn.dataset.tab, true);
 });
 
 // ── Tab navigation with hash-based URLs ────────────────────────
@@ -213,6 +227,12 @@ var DEFAULT_TAB = 'technicians';
 
 function activateTab(tab) {
   if (!TAB_MAP[tab]) tab = DEFAULT_TAB;
+
+  // Capture the currently-active tab BEFORE changing anything so we can
+  // detect whether this switch will cause a sidebar show/hide on desktop.
+  var prevBtn = document.querySelector('.tab-btn.active');
+  var prevTab = prevBtn ? prevBtn.dataset.tab : null;
+
   // Update buttons
   document.querySelectorAll('.tab-btn').forEach(function(b) {
     b.classList.toggle('active', b.dataset.tab === tab);
@@ -220,8 +240,7 @@ function activateTab(tab) {
   // Update panels
   document.querySelectorAll('.view-panel').forEach(function(p) { p.classList.remove('active'); });
   document.getElementById(TAB_MAP[tab].view).classList.add('active');
-  // Slide the pill indicator (animate=true after initial paint)
-  updateTabIndicator(tab, true);
+
   // Sidebar only on Technicians tab
   var isTech = tab === 'technicians';
   // On desktop the sidebar is a grid column — show/hide it and toggle the class.
@@ -231,6 +250,13 @@ function activateTab(tab) {
     document.getElementById('dateSidebar').style.display = isTech ? '' : 'none';
   }
   document.getElementById('mainWrapper').classList.toggle('no-sidebar', !isTech);
+
+  // Switching to/from Technicians on desktop changes the sidebar column width,
+  // so the tab-nav reflows to a different pixel width. The indicator's old left
+  // value becomes stale and the slide animation looks broken. Snap instead.
+  var layoutShifts = window.innerWidth > 768 &&
+    ((tab === 'technicians') !== (prevTab === 'technicians'));
+  updateTabIndicator(tab, layoutShifts);
   // Lazy-load tab data
   if (tab === 'marketing' && !marketingLoaded) {
     marketingLoaded = true;
@@ -266,11 +292,7 @@ function init() {
     techView.insertBefore(dateSidebar, techView.firstChild);
   }
   var tab = window.location.hash.replace('#', '') || DEFAULT_TAB;
-  // Place indicator without animation first, then enable sliding on next frame
-  activateTab(tab);
-  requestAnimationFrame(function() {
-    updateTabIndicator(tab, true); // ensures indicator is correctly sized after paint
-  });
+  activateTab(tab); // indicator snaps on first paint (no stale position to animate from)
   fetchData();
   setInterval(fetchData, 5 * 60 * 1000);
 }
