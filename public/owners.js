@@ -8,6 +8,19 @@ var donutChartInst = null;
 var trendChartInst = null;
 var trendActive = 'gm'; // single-select key-ratio trend line
 
+// Toggle expandable detail panel in the money-flow card
+function mfToggle(panelId) {
+  var panel = document.getElementById(panelId);
+  var btn   = panel && panel.previousElementSibling && panel.previousElementSibling.tagName === 'BUTTON'
+              ? panel.previousElementSibling
+              : panel && panel.parentElement.querySelector('.mf-chevron');
+  if (!panel) return;
+  var nowOpen = panel.hidden;
+  panel.hidden = !nowOpen;
+  // Rotate chevron: ▾ closed → ▴ open
+  if (btn) btn.textContent = nowOpen ? '\u25b4' : '\u25be';
+}
+
 function setFinMode(m) {
   finMode = m;
   document.getElementById('finModeDollar').classList.toggle('active', m === 'dollar');
