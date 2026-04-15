@@ -64,24 +64,29 @@ function mfZoomDetail(id, items, segStart, segEnd, palette, segColor, segLabel) 
   var topCol  = hexAlpha(color, 0.9);  // solid top bar (source segment marker)
   var gradId  = id + '-g';             // unique gradient id per panel
 
-  // Segments with hover handlers
+  // Segments with hover handlers + inline % label (hidden by overflow when too narrow)
   var segs = visible.map(function(r, i) {
-    var zid = id + '-' + i;
+    var zid    = id + '-' + i;
+    var segPct = (r.val / total * 100).toFixed(0);
     return '<div class="mf-zoom-seg" data-zid="' + zid + '"' +
            ' style="flex:' + r.val.toFixed(0) + ';background:' + pal[i % pal.length] + '"' +
            ' onmouseenter="mfZoomHL(\'' + zid + '\',true)"' +
            ' onmouseleave="mfZoomHL(\'' + zid + '\',false)"' +
-           ' title="' + esc(r.label) + '"></div>';
+           ' title="' + esc(r.label) + '">' +
+           '<span class="mf-zoom-seg-pct">' + segPct + '%</span>' +
+           '</div>';
   }).join('');
 
-  // Legend rows — stagger index via CSS var, hover cross-highlights segment
+  // Legend rows — full-row color tint + left accent stripe; no dot bubble
   var legend = visible.map(function(r, i) {
-    var zid = id + '-' + i;
-    var pct = (r.val / total * 100).toFixed(1);
-    return '<div class="mf-zoom-leg-row" data-zid="' + zid + '" style="--i:' + i + '"' +
+    var zid      = id + '-' + i;
+    var rowColor = pal[i % pal.length];
+    var rowBg    = hexAlpha(rowColor, 0.09);
+    var pct      = (r.val / total * 100).toFixed(1);
+    return '<div class="mf-zoom-leg-row" data-zid="' + zid + '"' +
+      ' style="--i:' + i + ';background:' + rowBg + ';border-left:3px solid ' + rowColor + '"' +
       ' onmouseenter="mfZoomHL(\'' + zid + '\',true)"' +
       ' onmouseleave="mfZoomHL(\'' + zid + '\',false)">' +
-      '<span class="mf-zoom-dot" style="background:' + pal[i % pal.length] + '"></span>' +
       '<span class="mf-zoom-leg-name">' + esc(r.label) + '</span>' +
       '<span class="mf-zoom-leg-pct">' + pct + '%</span>' +
       '<span class="mf-zoom-leg-val">' + fmtDollar(r.val) + '</span>' +

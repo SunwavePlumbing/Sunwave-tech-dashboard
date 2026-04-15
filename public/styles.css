@@ -677,12 +677,26 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   min-width: 2px;
   flex-shrink: 0;
   cursor: pointer;
+  overflow: hidden;                   /* clips % label in narrow segments */
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: filter 0.15s;
 }
 .mf-zoom-seg.mf-zoom-hl {
   filter: brightness(1.2) saturate(1.15);
   position: relative;
   z-index: 2;
+}
+/* Inline % label — hides itself when segment is too narrow via overflow:hidden */
+.mf-zoom-seg-pct {
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.92);
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  letter-spacing: 0.2px;
 }
 
 /* Staggered legend row fade-up */
@@ -694,28 +708,31 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   margin-top: 10px;
   border-top: 1px solid #f0f0f0;
   padding-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 .mf-zoom-leg-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 7px 6px;
-  border-radius: 6px;
+  padding: 7px 8px 7px 9px;   /* extra left pad clears the border stripe */
+  border-radius: 0 5px 5px 0; /* flat left (border takes that edge), rounded right */
   font-size: 13px;
   cursor: default;
-  transition: background 0.12s;
+  transition: filter 0.12s;
   opacity: 0; /* hidden until is-open triggers animation */
 }
 .mf-zoom-detail.is-open .mf-zoom-leg-row {
   animation: mfRowIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
   animation-delay: calc(0.3s + var(--i, 0) * 0.055s);
 }
-.mf-zoom-leg-row.mf-zoom-hl { background: #f3f4f6; }
+/* Hover: brighten the row's own tint rather than overriding with grey */
+.mf-zoom-leg-row.mf-zoom-hl { filter: brightness(0.93); }
 .mf-zoom-leg-row.mf-zoom-hl .mf-zoom-leg-name { font-weight: 600; color: #1a2d3a; }
 
-.mf-zoom-dot  { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
-.mf-zoom-leg-name { flex: 1; color: #555; }
-.mf-zoom-leg-pct  { font-size: 12px; color: #aaa; min-width: 38px; text-align: right; }
+.mf-zoom-leg-name { flex: 1; color: #444; }
+.mf-zoom-leg-pct  { font-size: 12px; color: #888; min-width: 38px; text-align: right; font-weight: 600; }
 .mf-zoom-leg-val  { font-size: 13px; font-weight: 700; color: #1a2d3a;
                     min-width: 44px; text-align: right; font-variant-numeric: tabular-nums; }
 
