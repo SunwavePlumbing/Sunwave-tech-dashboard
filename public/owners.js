@@ -585,7 +585,7 @@ function renderOwners() {
   }).join('');
 
   var gpDetailHtml =
-    '<div id="mfGpDetail" class="mf-zoom-detail mf-gp-detail" hidden>' +
+    '<div id="mfGpDetail" class="mf-zoom-detail mf-gp-detail is-open">' +
       // "We kept X%" context line
       '<div class="mf-score-pct-line mf-gp-pct-line">We kept ' + fmtPct(gmPct) + ' of every dollar \u2014 goal is 50%</div>' +
       // Reversed competition bar: COGS eating from left, GP defending the right
@@ -607,7 +607,7 @@ function renderOwners() {
       '</div>' +
       // Then: where that GP went (overhead vs operating profit)
       '<div class="mf-gp-breakdown-head">Then, of that ' + fmtDollar(curGP) + ' gross profit:</div>' +
-      '<div class="mf-zoom-bar-anim" style="--z-start:15%">' +
+      '<div class="mf-zoom-bar-anim mf-zoom-expanded" style="--z-start:100%">' +
         '<div class="mf-zoom-bar">' + gpBreakSegs + '</div>' +
       '</div>' +
       '<div class="mf-zoom-legend">' + gpBreakLeg + '</div>' +
@@ -635,20 +635,17 @@ function renderOwners() {
       '<div class="mf-op">' +
         '<div class="mf-op-label"><span class="mf-op-sign">\u2212</span> Cost of Goods Sold</div>' +
         '<div class="mf-op-total">\u2212' + fmtDollar(curCOGS) + '</div>' +
-        // 2-part split bar: click red (COGS) or green (GP) segment to expand each breakdown
+        // 2-part split bar: red = COGS (clickable), grey = GP remainder (passive)
         '<div class="mf-split-wrap mf-split-wrap--cogs">' +
           '<div class="mf-split-bar">' +
             '<div class="mf-sb-cogs mf-seg-click" onclick="mfToggle(\'mfCogsDetail\',this)"' +
                 ' style="width:' + Math.max(0,Math.min(cogsPct,99)).toFixed(1) + '%">' +
               '<span class="mf-op-chev">\u25be</span>' +
             '</div>' +
-            '<div class="mf-sb-pass mf-seg-click mf-seg-click--gp" onclick="mfToggle(\'mfGpDetail\',this)">' +
-              '<span class="mf-op-chev">\u25be</span>' +
-            '</div>' +
+            '<div class="mf-sb-dim"></div>' +
           '</div>' +
           '<div class="mf-split-leg">' +
             '<button class="mf-sl-cogs mf-sl-btn" onclick="mfToggle(\'mfCogsDetail\',null)">COGS</button>' +
-            '<button class="mf-sl-pass-gp mf-sl-btn mf-sl-gp-btn" onclick="mfToggle(\'mfGpDetail\',null)">Gross Profit</button>' +
           '</div>' +
         '</div>' +
         mfZoomDetail('mfCogsDetail', cogsItems, 0, cogsPct,
@@ -656,10 +653,14 @@ function renderOwners() {
       '</div>' +
 
       // ── = Gross Profit ────────────────────────────────────────
-      // Score line + target bar are hidden inside gpDetailHtml; only shown on expand
       '<div class="mf-step mf-step--gp">' +
         '<div class="mf-step-label"><span class="mf-step-eq">=</span> Gross Profit ' + mfPill('gp', gmPct) + '</div>' +
         '<div class="mf-step-num">' + fmtDollar(curGP) + '</div>' +
+        // Mirrored bar: grey COGS on left, green GP on right — always visible, no interaction
+        '<div class="mf-split-bar mf-gp-mirror-bar">' +
+          '<div class="mf-sb-dim" style="width:' + Math.max(0,Math.min(cogsPct,99)).toFixed(1) + '%"></div>' +
+          '<div class="mf-sb-gp-fill"></div>' +
+        '</div>' +
         gpDetailHtml +
       '</div>' +
 

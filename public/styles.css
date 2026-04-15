@@ -640,6 +640,8 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .mf-step--gp .mf-zoom-detail { margin-top: 8px; }
 /* Legend divider on the green card */
 .mf-step--gp .mf-zoom-legend { border-top-color: #bbf7d0; }
+/* GP detail is always open — skip the stagger animation, show rows immediately */
+.mf-gp-detail .mf-zoom-leg-row { opacity: 1; animation: none !important; }
 
 /* GP "We kept X%" line inside the panel */
 .mf-gp-pct-line { margin-bottom: 14px !important; }
@@ -843,9 +845,15 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .mf-sb-cogs  { background: #f87171; flex-shrink: 0; }  /* light red: cost of goods sold */
 .mf-sb-ovhd  { background: #f97316; flex-shrink: 0; }  /* orange: overhead */
 .mf-sb-pass  { flex: 1; min-width: 2px; }              /* remainder fills rest */
-/* Color the pass-through: GP = green, NOI = same green (profit is profit) */
-.mf-split-wrap--cogs  .mf-sb-pass { background: #22c55e; }  /* green → becomes GP */
+/* Color the pass-through: NOI = green (profit is profit) */
 .mf-split-wrap--ovhd  .mf-sb-pass { background: #22c55e; }  /* green → becomes NOI */
+
+/* Greyed-out passive remainder (used in COGS bar for the GP slot) */
+.mf-sb-dim { flex: 1; min-width: 2px; background: #d1d5db; }
+
+/* GP mirror bar: grey COGS slot on left, green GP on right */
+.mf-gp-mirror-bar { margin: 10px 0 14px; }
+.mf-sb-gp-fill { flex: 1; min-width: 2px; background: #22c55e; }
 
 /* Clickable bar segment — red/orange/green portions the user taps to expand */
 .mf-seg-click {
