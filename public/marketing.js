@@ -150,11 +150,11 @@ function renderMarketing() {
 
   var tableHTML =
     '<div class="section-title">Monthly History</div>' +
-    '<div class="mkt-table-card"><table class="mkt-table">' +
+    '<div class="mkt-table-card"><div class="mkt-table-scroll"><table class="mkt-table">' +
       '<thead><tr><th>Month</th><th># Jobs</th><th>Revenue</th><th>Avg Ticket</th>' + qboHeaderCols + '</tr></thead>' +
       '<tbody>' + tableRows + '</tbody>' +
       '<tfoot><tr><td>12-Month Total</td><td>' + totalHistJobs + '</td><td>' + fmt(totalHistRev) + '</td><td>' + fmt(avgHistTicket) + '</td><td>' + footSpend + '</td><td>' + footCost + '</td></tr></tfoot>' +
-    '</table></div>';
+    '</table></div></div>';
 
   document.getElementById('marketingContent').innerHTML = qboBanner + projHTML + chartHTML + tableHTML;
 }

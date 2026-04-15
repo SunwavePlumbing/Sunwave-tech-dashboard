@@ -136,42 +136,80 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .view-panel.active { display: block; }
 
 /* Marketing view */
-.proj-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
-.proj-card { background: white; padding: 1.1rem 1rem; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); text-align: center; }
+/* Projection summary cards */
+.proj-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 1.2rem; }
+@media (min-width: 600px) { .proj-cards { grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 1.5rem; } }
+.proj-card { background: white; padding: 1rem; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); text-align: center; }
 .proj-card-label { font-size: 11px; color: #888; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 6px; }
-.proj-card-value { font-size: 26px; font-weight: 700; color: #FF9500; }
+.proj-card-value { font-size: 30px; font-weight: 700; color: #FF9500; line-height: 1.1; }
+@media (min-width: 600px) { .proj-card-value { font-size: 26px; } }
 .proj-card-sub { font-size: 11px; color: #bbb; margin-top: 4px; }
+
+/* Month progress bar */
 .progress-wrap { background: white; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 1.1rem 1.2rem; margin-bottom: 1.5rem; }
 .progress-label-row { display: flex; justify-content: space-between; font-size: 12px; color: #888; margin-bottom: 8px; font-weight: 500; }
 .progress-bar-bg { background: #f0f0f0; border-radius: 8px; height: 10px; overflow: hidden; }
 .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #FF9500, #FF6B35); border-radius: 8px; transition: width 0.5s ease; }
-.section-title { font-size: 12px; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.75rem; }
-.bar-chart-card { background: white; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 1.2rem 1.4rem 0.8rem; margin-bottom: 1.5rem; }
-.bar-chart { display: flex; align-items: flex-end; gap: 6px; height: 130px; margin-bottom: 0; }
+
+/* Section label above chart / table */
+.section-title { font-size: 12px; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem; }
+
+/* Bar chart — bars intentionally poke above the white card */
+.bar-chart-card {
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  overflow: visible;            /* bars escape the top edge */
+  padding: 0 1rem 0.8rem;      /* no top padding — the "floor" is the card top */
+  margin-top: 110px;            /* reserve vertical room above for bars */
+  margin-bottom: 1.5rem;
+  position: relative;
+}
+.bar-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 110px;
+  margin-top: -110px;           /* pull bars above the card top */
+  overflow: visible;
+}
 .bar-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; flex: 1; min-width: 0; }
 .bar { width: 100%; background: #FF9500; border-radius: 4px 4px 0 0; min-height: 3px; }
 .bar.is-current { background: #FF6B35; }
-.bar-val { font-size: 9px; color: #888; font-weight: 600; margin-bottom: 2px; line-height: 1; }
+.bar-val { font-size: 9px; color: #555; font-weight: 600; margin-bottom: 2px; line-height: 1.1; text-align: center; }
 .bar-lbl { font-size: 9px; color: #bbb; margin-top: 5px; text-align: center; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Monthly history table */
 .mkt-table-card { background: white; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden; margin-bottom: 1.5rem; }
-.mkt-table { width: 100%; border-collapse: collapse; }
-.mkt-table thead th { padding: 11px 16px; font-size: 11px; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1px solid #f0f0f0; text-align: left; }
+.mkt-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.mkt-table { width: 100%; border-collapse: collapse; min-width: 480px; }
+.mkt-table thead th { padding: 11px 14px; font-size: 11px; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1px solid #f0f0f0; text-align: left; white-space: nowrap; }
 .mkt-table thead th:not(:first-child) { text-align: right; }
-.mkt-table tbody td { padding: 12px 16px; font-size: 13px; border-bottom: 1px solid #f7f7f7; color: #444; }
+.mkt-table tbody td { padding: 13px 14px; font-size: 14px; border-bottom: 1px solid #f7f7f7; color: #444; }
 .mkt-table tbody tr:last-child td { border-bottom: none; }
 .mkt-table tbody td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
-.mkt-table tfoot td { padding: 11px 16px; font-size: 12px; font-weight: 700; color: #555; border-top: 2px solid #f0f0f0; text-align: right; }
+.mkt-table tfoot td { padding: 11px 14px; font-size: 12px; font-weight: 700; color: #555; border-top: 2px solid #f0f0f0; text-align: right; }
 .mkt-table tfoot td:first-child { text-align: left; }
-.delta { font-size: 11px; margin-left: 5px; }
+/* Sticky month column while scrolling */
+.mkt-table thead th:first-child,
+.mkt-table tbody td:first-child,
+.mkt-table tfoot td:first-child { position: sticky; left: 0; background: white; z-index: 2; }
+.mkt-row-current td:first-child { background: #fffbf5; }
+
+.delta { font-size: 11px; margin-left: 4px; }
 .delta-up { color: #12A071; }
 .delta-down { color: #E5484D; }
 .mkt-row-current { background: #fffbf5; font-weight: 600; }
+
 @media (max-width: 768px) {
   .tab-btn { padding: 9px 14px; font-size: 13px; }
-  .bar-chart { gap: 3px; height: 90px; }
+  .bar-chart-card { margin-top: 90px; padding: 0 0.7rem 0.8rem; }
+  .bar-chart { height: 90px; margin-top: -90px; gap: 3px; }
   .bar-val { font-size: 8px; }
   .bar-lbl { font-size: 8px; }
-  .mkt-table thead th, .mkt-table tbody td, .mkt-table tfoot td { padding: 9px 10px; font-size: 12px; }
+  .mkt-table tbody td { font-size: 13px; padding: 11px 10px; }
+  .mkt-table thead th { font-size: 10px; padding: 9px 10px; }
+  .mkt-table tfoot td { padding: 9px 10px; font-size: 11px; }
 }
 
 /* ── Financial / Owners Tab ─────────────────────────────────── */
