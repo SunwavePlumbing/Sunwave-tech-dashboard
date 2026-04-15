@@ -536,18 +536,20 @@ function renderOwners() {
       '<div class="mf-op">' +
         '<div class="mf-op-label"><span class="mf-op-sign">\u2212</span> Cost of Goods Sold</div>' +
         '<div class="mf-op-total">\u2212' + fmtDollar(curCOGS) + '</div>' +
-        // 2-part split bar: click the red COGS segment to expand the breakdown
+        // 2-part split bar: click red (COGS) or green (GP) segment to expand each breakdown
         '<div class="mf-split-wrap mf-split-wrap--cogs">' +
           '<div class="mf-split-bar">' +
             '<div class="mf-sb-cogs mf-seg-click" onclick="mfToggle(\'mfCogsDetail\',this)"' +
                 ' style="width:' + Math.max(0,Math.min(cogsPct,99)).toFixed(1) + '%">' +
               '<span class="mf-op-chev">\u25be</span>' +
             '</div>' +
-            '<div class="mf-sb-pass"></div>' +
+            '<div class="mf-sb-pass mf-seg-click mf-seg-click--gp" onclick="mfToggle(\'mfGpDetail\',this)">' +
+              '<span class="mf-op-chev">\u25be</span>' +
+            '</div>' +
           '</div>' +
           '<div class="mf-split-leg">' +
             '<button class="mf-sl-cogs mf-sl-btn" onclick="mfToggle(\'mfCogsDetail\',null)">COGS</button>' +
-            '<span class="mf-sl-pass-gp">Gross Profit</span>' +
+            '<button class="mf-sl-pass-gp mf-sl-btn mf-sl-gp-btn" onclick="mfToggle(\'mfGpDetail\',null)">Gross Profit</button>' +
           '</div>' +
         '</div>' +
         mfZoomDetail('mfCogsDetail', cogsItems, 0, cogsPct,
@@ -560,6 +562,16 @@ function renderOwners() {
         '<div class="mf-step-num">' + fmtDollar(curGP) + '</div>' +
         '<div class="mf-score-pct-line">We kept ' + fmtPct(gmPct) + ' of every dollar — goal is 50%</div>' +
         mfTargetBar(gmPct, 50, 65) +
+        // GP breakdown: click the green bar segment above to reveal how GP was further spent
+        mfZoomDetail('mfGpDetail',
+          (curNOI >= 0
+            ? [{label:'Overhead',    val: curOvhd},
+               {label:'Operating Profit', val: curNOI}]
+            : [{label:'Overhead',    val: curOvhd},
+               {label:'Operating Loss (overhead exceeded GP)', val: Math.abs(curNOI)}]),
+          cogsPct, 100,
+          ['#fb923c','#3b82f6'],
+          '#22c55e', 'Gross Profit') +
       '</div>' +
 
       // ── − Overhead ────────────────────────────────────────────

@@ -636,6 +636,10 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 /* ── Zoom-in breakdown panel ───────────────────────────────── */
 
 .mf-zoom-detail { margin-top: 0; }
+/* GP detail lives inside the green GP step card — give it a gap from the target bar */
+.mf-step--gp .mf-zoom-detail { margin-top: 16px; }
+/* Legend divider blends on white; inside the green card use a slightly tinted line */
+.mf-step--gp .mf-zoom-legend { border-top-color: #bbf7d0; }
 
 /* Connector: gradient color block fanning out from the source segment */
 .mf-zoom-connector-wrap { position: relative; margin-bottom: 0; }
@@ -762,7 +766,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .mf-split-wrap--cogs  .mf-sb-pass { background: #22c55e; }  /* green → becomes GP */
 .mf-split-wrap--ovhd  .mf-sb-pass { background: #22c55e; }  /* green → becomes NOI */
 
-/* Clickable bar segment — the red/orange portion the user taps to expand */
+/* Clickable bar segment — red/orange/green portions the user taps to expand */
 .mf-seg-click {
   cursor: pointer;
   display: flex !important;
@@ -770,6 +774,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   justify-content: center;
   transition: filter 0.15s;
   position: relative;
+  overflow: hidden;
 }
 .mf-seg-click:hover { filter: brightness(0.88); }
 .mf-seg-click .mf-op-chev {
@@ -778,6 +783,11 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   font-weight: 900;
   pointer-events: none;
   line-height: 1;
+}
+/* Green GP segment: chevron right-aligned since it fills flex remainder */
+.mf-seg-click--gp .mf-op-chev {
+  margin-left: auto;
+  padding-right: 8px;
 }
 
 .mf-split-leg {
@@ -807,11 +817,13 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   text-underline-offset: 2px;
   transition: color 0.12s;
 }
-.mf-sl-cogs.mf-sl-btn:hover  { color: #ef4444; }
-.mf-sl-ovhd.mf-sl-btn:hover  { color: #ea580c; }
+.mf-sl-cogs.mf-sl-btn:hover    { color: #ef4444; }
+.mf-sl-ovhd.mf-sl-btn:hover    { color: #ea580c; }
+.mf-sl-gp-btn.mf-sl-btn:hover  { color: #16a34a; }
 .mf-sl-prior::before    { background: #bfdbfe; }
 .mf-sl-cogs::before     { background: #f87171; }
 .mf-sl-ovhd::before     { background: #f97316; }
+.mf-sl-gp-btn::before   { background: #22c55e; }
 .mf-sl-pass-gp::before  { background: #22c55e; }
 .mf-sl-pass-noi::before { background: #22c55e; }
 
