@@ -400,31 +400,46 @@ app.get('/', (req, res) => {
     .fin-card-spark { position:absolute;bottom:0;right:0;opacity:0.6; }
 
     /* Formula card — the centerpiece */
-    .fin-flow-card { background:white;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.08);padding:16px 14px 4px;margin-bottom:1.2rem; }
-    .fin-flow-card-head { display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px;padding:0 4px; }
-    .fin-flow-card-title { font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1.2px; }
+    .fin-flow-card { background:white;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.08);padding:18px 18px 14px;margin-bottom:1.2rem; }
+    .fin-flow-card-head { display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;padding:0 2px; }
+    .fin-flow-card-title { font-size:12px;font-weight:700;color:#1a2d3a;text-transform:uppercase;letter-spacing:1.4px; }
     .fin-flow-card-stamp { font-size:11px;color:#bbb; }
     .fin-flow-stops { display:flex;flex-direction:column;gap:0; }
-    .fin-flow-stop { position:relative;padding:14px 14px 14px 18px;border-left:5px solid #1a2d3a;background:#fafafa;border-radius:8px;margin:0 4px; }
+    .fin-flow-stop { position:relative;padding:14px 14px 14px 18px;border-left:5px solid #1a2d3a;background:#fafafa;border-radius:8px;display:flex;flex-direction:column; }
     .fin-flow-stop.rev { border-left-color:#1a2d3a; }
     .fin-flow-stop.gp  { border-left-color:#12A071; }
     .fin-flow-stop.noi { border-left-color:#3b82f6; }
-    .fin-stop-label { font-size:12px;color:#555;font-weight:600;margin-bottom:2px; }
-    .fin-stop-label strong { color:#1a2d3a;font-size:13px;text-transform:uppercase;letter-spacing:0.4px; }
-    .fin-stop-value { font-size:32px;font-weight:700;color:#1a2d3a;line-height:1.1;margin:4px 0 2px;font-variant-numeric:tabular-nums; }
+    .fin-stop-title { font-size:13px;font-weight:700;color:#1a2d3a;text-transform:uppercase;letter-spacing:0.6px;line-height:1.2; }
+    .fin-stop-desc  { font-size:12px;color:#777;font-weight:500;margin-top:2px;line-height:1.3; }
+    .fin-stop-value { font-size:34px;font-weight:700;color:#1a2d3a;line-height:1.05;margin:10px 0 2px;font-variant-numeric:tabular-nums;letter-spacing:-0.5px; }
     .fin-stop-sub { font-size:12px;color:#888;margin-bottom:4px; }
-    .fin-stop-delta { font-size:12px;font-weight:600;margin-top:4px; }
+    .fin-stop-delta { font-size:12px;font-weight:600;margin-top:auto;padding-top:4px; }
     .fin-stop-delta.up { color:#12A071; }
     .fin-stop-delta.down { color:#E5484D; }
     .fin-stop-delta .cmp-lbl { font-weight:400;color:#aaa;margin-left:4px; }
-    .fin-flow-arrow { display:flex;align-items:center;gap:8px;padding:8px 22px;font-size:12px;color:#888;line-height:1.3; }
-    .fin-flow-arrow-icon { font-size:18px;color:#ccc;flex-shrink:0; }
+
+    /* Arrow connector — vertical on phone, horizontal on desktop */
+    .fin-flow-arrow { display:flex;align-items:center;gap:10px;padding:10px 22px;font-size:12px;color:#888;line-height:1.3; }
+    .fin-flow-arrow-icon { font-size:20px;color:#c8cbd0;flex-shrink:0;font-weight:700; }
     .fin-flow-arrow-label { flex:1; }
+    .fin-flow-arrow-op { color:#c8cbd0;font-weight:700;margin-right:4px; }
+
     @media (min-width: 900px) {
-      .fin-flow-stops { flex-direction:row;align-items:stretch; }
-      .fin-flow-stop { flex:1;margin:0; }
-      .fin-flow-arrow { flex-direction:column;padding:0 6px;text-align:center; }
-      .fin-flow-arrow-label { font-size:11px; }
+      .fin-flow-card { padding:22px 20px 18px; }
+      .fin-flow-stops { flex-direction:row;align-items:stretch;gap:0; }
+      .fin-flow-stop { flex:1 1 0;min-width:0;padding:16px 18px; }
+      .fin-flow-arrow {
+        flex:0 0 auto;flex-direction:column;padding:0 14px;text-align:center;
+        justify-content:flex-start;align-items:center;
+        padding-top:52px; /* align with the big value row in each stop */
+      }
+      .fin-flow-arrow-icon { font-size:26px;margin-bottom:4px;transform:rotate(-90deg); }
+      .fin-flow-arrow-label { font-size:11px;max-width:130px;color:#999;line-height:1.35; }
+      .fin-stop-value { font-size:36px; }
+    }
+    @media (min-width: 1200px) {
+      .fin-flow-arrow-label { max-width:160px; }
+      .fin-stop-value { font-size:40px; }
     }
 
     /* Efficiency tiles */
@@ -522,6 +537,30 @@ app.get('/', (req, res) => {
     .cash-cell.ratio .cash-cell-val.bad { color:#E5484D; }
     .cash-cell.total { grid-column:1/-1;background:#fff5ed;border:1px solid #ffe0c2; }
     .cash-cell.total .cash-cell-val { color:#E5484D;font-size:22px; }
+
+    /* Cash/balance flow — reads like a mini subtraction table */
+    .cash-flow { display:flex;flex-direction:column;gap:0; }
+    .cash-flow-section { margin-bottom:14px; }
+    .cash-flow-head { font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;padding:0 2px; }
+    .cash-flow-row { display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:7px 4px;font-size:13px;color:#333;border-bottom:1px solid #f5f5f5; }
+    .cash-flow-row:last-child { border-bottom:none; }
+    .cash-flow-row .lbl { display:flex;flex-direction:column;line-height:1.25; }
+    .cash-flow-row .lbl-sub { font-size:11px;color:#9aa4ad;font-weight:400;margin-top:1px; }
+    .cash-flow-row .val { font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;color:#1a2d3a; }
+    .cash-flow-row .op { display:inline-block;width:14px;color:#bbb;font-weight:700; }
+    .cash-flow-row.subtotal { border-top:1px solid #ddd;background:#fafafa;font-weight:700;padding:9px 4px; }
+    .cash-flow-row.subtotal .val { color:#1a2d3a; }
+    .cash-flow-row.total { border-top:2px solid #1a2d3a;background:#fff5ed;padding:11px 6px;margin-top:4px;border-radius:6px; }
+    .cash-flow-row.total .val { font-size:18px;color:#E5484D; }
+    .cash-flow-row.total .lbl { font-weight:700;color:#1a2d3a; }
+    .cash-cushion { margin-top:12px;padding:12px 14px;background:#f3f8fb;border-radius:8px;display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap; }
+    .cash-cushion .lbl { display:flex;flex-direction:column; }
+    .cash-cushion .lbl-top { font-size:12px;font-weight:700;color:#1a2d3a; }
+    .cash-cushion .lbl-sub { font-size:11px;color:#888;margin-top:2px; }
+    .cash-cushion .val { font-size:20px;font-weight:700;font-variant-numeric:tabular-nums; }
+    .cash-cushion .val.ok { color:#12A071; }
+    .cash-cushion .val.warn { color:#C9820A; }
+    .cash-cushion .val.bad { color:#E5484D; }
 
     .fin-alerts { margin-bottom:1.4rem; }
     .fin-alerts-title { font-size:13px;font-weight:700;color:#1a2d3a;margin-bottom:10px; }
@@ -633,7 +672,7 @@ app.get('/', (req, res) => {
           <div class="fin-chart-wrap" style="height:260px"><canvas id="donutChart"></canvas></div>
         </div>
         <div class="fin-chart-card">
-          <div class="fin-chart-title">What You Have &amp; What You Owe <span id="cashSubtitle"></span></div>
+          <div class="fin-chart-title">What We Have and What We Owe <span id="cashSubtitle"></span></div>
           <div style="font-size:11px;color:#888;margin-top:-8px;margin-bottom:10px">Snapshot of the bank accounts, bills, and debts from the balance sheet.</div>
           <div id="finCash"></div>
         </div>
@@ -651,7 +690,7 @@ app.get('/', (req, res) => {
       <!-- Key Ratios trend -->
       <div class="fin-chart-card" id="finTrendCard" style="display:none;margin-bottom:1.4rem">
         <div class="fin-chart-title">How The Ratios Have Moved, Month by Month</div>
-        <div style="font-size:11px;color:#888;margin-top:-8px;margin-bottom:10px">Click a ratio below to plot just that one. Each line is that category&rsquo;s share of monthly revenue. <strong>Dashed line = healthy target.</strong></div>
+        <div style="font-size:11px;color:#888;margin-top:-8px;margin-bottom:10px">Click a ratio below to plot just that one. Each line is that category&rsquo;s share of monthly revenue. <span style="color:#D4A017;font-weight:700">&mdash;</span> <strong style="color:#D4A017">Gold line = target</strong></div>
         <div class="fin-trend-toggles" id="trendToggles"></div>
         <div class="fin-chart-wrap" style="height:240px"><canvas id="trendChart"></canvas></div>
       </div>
@@ -1476,7 +1515,6 @@ app.get('/', (req, res) => {
     var stamp = '';
     if (ownersData.fetchedAt) stamp = 'as of ' + new Date(ownersData.fetchedAt).toLocaleTimeString();
 
-    // Horizontal vs vertical arrow icon chosen by CSS via viewport; keep same glyph.
     var formulaHtml =
       '<div class="fin-flow-card">' +
         '<div class="fin-flow-card-head">' +
@@ -1485,27 +1523,30 @@ app.get('/', (req, res) => {
         '</div>' +
         '<div class="fin-flow-stops">' +
           '<div class="fin-flow-stop rev">' +
-            '<div class="fin-stop-label"><strong>Revenue</strong> &mdash; money in</div>' +
+            '<div class="fin-stop-title">Revenue</div>' +
+            '<div class="fin-stop-desc">Money in</div>' +
             '<div class="fin-stop-value">' + fmtDollar(curRev) + '</div>' +
             '<div class="fin-stop-sub">Completed jobs this month</div>' +
             stopDelta(curRev, revenue) +
           '</div>' +
           '<div class="fin-flow-arrow">' +
             '<span class="fin-flow-arrow-icon">&darr;</span>' +
-            '<span class="fin-flow-arrow-label">minus job costs (techs + parts)</span>' +
+            '<span class="fin-flow-arrow-label"><span class="fin-flow-arrow-op">&minus;</span>Job costs<br>(techs + parts)</span>' +
           '</div>' +
           '<div class="fin-flow-stop gp">' +
-            '<div class="fin-stop-label"><strong>Gross Profit</strong> &mdash; kept after the work</div>' +
+            '<div class="fin-stop-title">Gross Profit</div>' +
+            '<div class="fin-stop-desc">Kept after the work</div>' +
             '<div class="fin-stop-value">' + fmtDollar(curGP) + '</div>' +
             '<div class="fin-stop-sub">' + fmtPct(gmPct) + ' of revenue</div>' +
             stopDelta(curGP, gp) +
           '</div>' +
           '<div class="fin-flow-arrow">' +
             '<span class="fin-flow-arrow-icon">&darr;</span>' +
-            '<span class="fin-flow-arrow-label">minus overhead (rent, admin, marketing, vehicles)</span>' +
+            '<span class="fin-flow-arrow-label"><span class="fin-flow-arrow-op">&minus;</span>Overhead<br>(rent, admin, marketing, vehicles)</span>' +
           '</div>' +
           '<div class="fin-flow-stop noi">' +
-            '<div class="fin-stop-label"><strong>Operating Profit</strong> &mdash; what&rsquo;s left</div>' +
+            '<div class="fin-stop-title">Operating Profit</div>' +
+            '<div class="fin-stop-desc">What&rsquo;s left</div>' +
             '<div class="fin-stop-value">' + fmtDollar(curNOI) + '</div>' +
             '<div class="fin-stop-sub">' + fmtPct(noiPct) + ' of revenue</div>' +
             stopDelta(curNOI, noi) +
@@ -1718,23 +1759,51 @@ app.get('/', (req, res) => {
       var b = ownersBalance;
       var cr = b.currentRatio;
       var crCls = cr == null ? '' : (cr >= 1.5 ? 'ok' : cr >= 1.0 ? 'warn' : 'bad');
-      var crText = cr == null ? '—' : cr.toFixed(2) + 'x';
+      var crText = cr == null ? '—' : cr.toFixed(2) + '\u00d7';
+      var cash = b.cash || 0;
+      var curAssets = b.currentAssets || 0;
+      var otherCurAssets = Math.max(curAssets - cash, 0);
+      var ap = b.accountsPayable || 0;
+      var curLiab = b.currentLiabilities || 0;
+      var otherCurLiab = Math.max(curLiab - ap, 0);
+      var ltDebt = b.longTermLiabilities || 0;
+      var totalLiab = (b.totalLiabilities != null) ? b.totalLiabilities : (curLiab + ltDebt);
+
+      function row(label, sub, value, opts) {
+        opts = opts || {};
+        var cls = opts.cls ? ' ' + opts.cls : '';
+        var op = opts.op ? '<span class="op">' + opts.op + '</span>' : '';
+        return '<div class="cash-flow-row' + cls + '">' +
+          '<div class="lbl">' + op + '<span>' + label + '</span>' +
+          (sub ? '<span class="lbl-sub">' + sub + '</span>' : '') + '</div>' +
+          '<div class="val">' + fmtDollar(value) + '</div>' +
+          '</div>';
+      }
+
+      var haveHtml = '<div class="cash-flow-section">' +
+        '<div class="cash-flow-head">What we have</div>' +
+        row('Cash in the bank', 'Across all business accounts', cash) +
+        row('Other short-term assets', 'Stuff that turns into cash within a year', otherCurAssets, { op: '+' }) +
+        row('Short-term assets', 'Total we could pull from in a pinch', curAssets, { op: '=', cls: 'subtotal' }) +
+      '</div>';
+
+      var oweHtml = '<div class="cash-flow-section">' +
+        '<div class="cash-flow-head">What we owe</div>' +
+        row('Bills we owe', 'Unpaid supplier / vendor bills', ap) +
+        row('Other due within a year', 'Credit cards, short-term loan payments', otherCurLiab, { op: '+' }) +
+        row('Due within a year', 'Everything that has to be paid in 12 months', curLiab, { op: '=', cls: 'subtotal' }) +
+        row('Long-term debt', 'Vehicle loans, equipment notes, mortgages', ltDebt, { op: '+' }) +
+        row('Everything we owe', 'All debt combined, short + long-term', totalLiab, { op: '=', cls: 'total' }) +
+      '</div>';
+
+      var cushionHtml = '<div class="cash-cushion">' +
+        '<div class="lbl"><span class="lbl-top">Short-term cushion</span>' +
+        '<span class="lbl-sub">Short-term assets &divide; Due within a year. Above 1.5&times; = comfortable. Under 1&times; = tight.</span></div>' +
+        '<div class="val ' + crCls + '">' + crText + '</div>' +
+      '</div>';
+
       document.getElementById('finCash').innerHTML =
-        '<div class="cash-row">' +
-          '<div class="cash-cell"><div class="cash-cell-lbl">Cash in the bank</div><div class="cash-cell-val">' + fmtDollar(b.cash||0) + '</div><div class="cash-cell-sub">Across all business accounts</div></div>' +
-          '<div class="cash-cell ratio"><div class="cash-cell-lbl">Short-term cushion</div><div class="cash-cell-val ' + crCls + '">' + crText + '</div><div class="cash-cell-sub">Above 1.5&times; = comfortable. Under 1&times; = tight.</div></div>' +
-        '</div>' +
-        '<div class="cash-row">' +
-          '<div class="cash-cell"><div class="cash-cell-lbl">Bills we owe</div><div class="cash-cell-val">' + fmtDollar(b.accountsPayable||0) + '</div><div class="cash-cell-sub">Unpaid supplier / vendor bills</div></div>' +
-          '<div class="cash-cell"><div class="cash-cell-lbl">Due within a year</div><div class="cash-cell-val">' + fmtDollar(b.currentLiabilities||0) + '</div><div class="cash-cell-sub">Bills, credit cards, short-term loan payments</div></div>' +
-        '</div>' +
-        '<div class="cash-row">' +
-          '<div class="cash-cell"><div class="cash-cell-lbl">Short-term assets</div><div class="cash-cell-val">' + fmtDollar(b.currentAssets||0) + '</div><div class="cash-cell-sub">Cash + anything that turns into cash in a year</div></div>' +
-          '<div class="cash-cell"><div class="cash-cell-lbl">Long-term debt</div><div class="cash-cell-val">' + fmtDollar(b.longTermLiabilities||0) + '</div><div class="cash-cell-sub">Vehicle loans, equipment notes, mortgages</div></div>' +
-        '</div>' +
-        '<div class="cash-row">' +
-          '<div class="cash-cell total"><div class="cash-cell-lbl">Everything we owe</div><div class="cash-cell-val">' + fmtDollar(b.totalLiabilities||0) + '</div><div class="cash-cell-sub">All debt combined, short + long-term</div></div>' +
-        '</div>';
+        '<div class="cash-flow">' + haveHtml + oweHtml + '</div>' + cushionHtml;
       document.getElementById('cashSubtitle').textContent = 'as of ' + b.asOf;
     } else {
       document.getElementById('finCash').innerHTML =
@@ -1778,9 +1847,8 @@ app.get('/', (req, res) => {
       tDatasets.push({
         label: s.label + ' target',
         data: s.goal == null ? [] : months.map(function() { return s.goal; }),
-        borderColor: '#bbb',
-        borderDash: [6, 4],
-        borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 0,
+        borderColor: '#D4A017',
+        borderWidth: 2, pointRadius: 0, pointHoverRadius: 0,
         tension: 0, fill: false,
         hidden: trendActive !== s.key || s.goal == null
       });
