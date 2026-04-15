@@ -693,7 +693,18 @@ function renderOwners() {
       '<div class="mf-step mf-step--noi">' +
         '<div class="mf-step-label"><span class="mf-step-eq">=</span> Operating Profit ' + mfPill('op', noiPct) + '</div>' +
         '<div class="mf-step-num">' + fmtDollar(curNOI) + '</div>' +
-        '<div class="mf-score-pct-line">We kept ' + fmtPct(noiPct) + ' of every dollar — goal is 15%</div>' +
+        // Mirror bar: greyed COGS | greyed Overhead | active blue NOI
+        '<div class="mf-split-bar mf-noi-mirror-bar">' +
+          '<div style="width:' + Math.max(0, cogsPct).toFixed(1) + '%;background:#fecaca;flex-shrink:0"></div>' +
+          '<div style="width:' + Math.max(0, ovhdPct).toFixed(1) + '%;background:#fed7aa;flex-shrink:0"></div>' +
+          '<div style="flex:1;min-width:2px;background:#3b82f6"></div>' +
+        '</div>' +
+        '<div class="mf-split-leg">' +
+          '<span class="mf-sl-noi-cogs">COGS</span>' +
+          '<span class="mf-sl-noi-ovhd">Overhead</span>' +
+          '<span class="mf-sl-noi-profit">Operating Profit</span>' +
+        '</div>' +
+        '<div class="mf-score-pct-line" style="margin-top:10px">We kept ' + fmtPct(noiPct) + ' of every dollar — goal is 15%</div>' +
         mfTargetBar(noiPct, 15, 25) +
       '</div>' +
 
