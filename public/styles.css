@@ -633,35 +633,59 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .mf-op-chev { font-size:10px; }
 
 /* ── Zoom-in breakdown panel ───────────────────────────────── */
-/* Sits directly below the split bar; visually zooms into the segment */
 
-.mf-zoom-detail { margin-top:0; }
+.mf-zoom-detail { margin-top: 0; }
 
-/* Trapezoid SVG connector: segment slice fans out to full bar width */
-.mf-zoom-trap { display:block; width:100%; overflow:visible; }
+/* Connector wrapper — positions the SVG trapezoid + label together */
+.mf-zoom-connector-wrap { position: relative; margin-bottom: 0; }
+.mf-zoom-trap { display: block; width: 100%; overflow: visible; }
 
-/* The breakdown bar — starts at segment width, expands to 100% on open */
+/* Label overlaid in the center of the connector zone */
+.mf-zoom-conn-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+/* Breakdown bar — starts at segment width, expands to full on open */
 .mf-zoom-bar-anim {
   width: var(--z-start, 60%);
-  transition: width 0.65s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width 0.7s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
 }
 .mf-zoom-bar-anim.mf-zoom-expanded { width: 100%; }
 
 .mf-zoom-bar {
   display: flex;
-  height: 22px;
+  height: 24px;
   border-radius: 4px;
   overflow: hidden;
   gap: 1px;
 }
 .mf-zoom-seg {
   height: 100%;
-  min-width: 2px;
+  min-width: 3px;
   flex-shrink: 0;
+  cursor: pointer;
+  transition: filter 0.15s, outline 0.15s;
+}
+.mf-zoom-seg.mf-zoom-hl {
+  filter: brightness(1.18);
+  outline: 2px solid rgba(255,255,255,0.75);
+  outline-offset: -2px;
+  z-index: 2;
+  position: relative;
 }
 
-/* Legend list below the breakdown bar */
+/* Legend list */
 .mf-zoom-legend {
   margin-top: 10px;
   border-top: 1px solid #f0f0f0;
@@ -671,13 +695,18 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 0;
-  border-bottom: 1px solid #f8f8f8;
+  padding: 7px 6px;
+  border-radius: 6px;
   font-size: 13px;
+  cursor: default;
+  transition: background 0.12s;
 }
-.mf-zoom-leg-row:last-child { border-bottom: none; }
+.mf-zoom-leg-row.mf-zoom-hl {
+  background: #f3f4f6;
+}
+.mf-zoom-leg-row.mf-zoom-hl .mf-zoom-leg-name { font-weight: 600; color: #1a2d3a; }
 .mf-zoom-dot {
-  width: 8px; height: 8px;
+  width: 9px; height: 9px;
   border-radius: 50%;
   flex-shrink: 0;
 }

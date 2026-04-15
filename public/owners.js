@@ -31,30 +31,49 @@ function mfToggle(panelId, btn) {
   }
 }
 
+// Highlight a zoom item across both segment bar and legend row (by data-zid)
+function mfZoomHL(zid, on) {
+  var els = document.querySelectorAll('[data-zid="' + zid + '"]');
+  for (var i = 0; i < els.length; i++) {
+    els[i].classList.toggle('mf-zoom-hl', on);
+  }
+}
+
 // Build a zoom-in breakdown panel.
-// segStart / segEnd are the left/right boundaries (% of revenue) of the parent
-// bar segment — used to draw the trapezoid connector and start the animation.
-// items: [{label, val}]   palette: array of hex colors
-function mfZoomDetail(id, items, segStart, segEnd, palette) {
-  var pal = palette || ['#FF6B35','#E5484D','#f59e0b','#64748b','#14b8a6','#8b5cf6','#FF9500','#3b82f6','#06b6d4','#a855f7','#22c55e','#ec4899','#9ca3af','#6366f1','#fbbf24'];
+// segStart / segEnd = left/right % of revenue for the parent bar segment.
+// palette = hex colors per item.
+// segColor = the parent segment's bar color (used for the connector).
+// segLabel = short name shown in the connector zone e.g. "COGS" or "Overhead".
+function mfZoomDetail(id, items, segStart, segEnd, palette, segColor, segLabel) {
+  var pal   = palette  || ['#FF6B35','#E5484D','#f59e0b','#64748b','#14b8a6','#8b5cf6','#FF9500','#3b82f6','#06b6d4','#a855f7','#22c55e','#ec4899','#9ca3af','#6366f1','#fbbf24'];
+  var color = segColor || '#888';
+  var label = segLabel || '';
   var visible = items.filter(function(r) { return r.val > 0; });
   var total   = visible.reduce(function(s, r) { return s + r.val; }, 0);
   if (!visible.length || !total) return '<div id="' + id + '" hidden></div>';
 
   var s  = Math.max(0,   segStart).toFixed(1);
   var e  = Math.min(100, segEnd).toFixed(1);
-  var sw = (parseFloat(e) - parseFloat(s)).toFixed(1); // initial bar width %
+  var sw = (parseFloat(e) - parseFloat(s)).toFixed(1);
+  var mid = ((parseFloat(s) + parseFloat(e)) / 2).toFixed(1);
 
-  // Colored segments — flex proportional to dollar value
+  // Colored segments — flex proportional to dollar value, with hover handlers
   var segs = visible.map(function(r, i) {
-    return '<div class="mf-zoom-seg" style="flex:' + r.val.toFixed(0) +
-           ';background:' + pal[i % pal.length] + '"></div>';
+    var zid = id + '-' + i;
+    return '<div class="mf-zoom-seg" data-zid="' + zid + '"' +
+           ' style="flex:' + r.val.toFixed(0) + ';background:' + pal[i % pal.length] + '"' +
+           ' onmouseenter="mfZoomHL(\'' + zid + '\',true)"' +
+           ' onmouseleave="mfZoomHL(\'' + zid + '\',false)"' +
+           ' title="' + esc(r.label) + '"></div>';
   }).join('');
 
-  // Legend rows below the bar
+  // Legend rows — hover highlights matching segment
   var legend = visible.map(function(r, i) {
+    var zid = id + '-' + i;
     var pct = (r.val / total * 100).toFixed(1);
-    return '<div class="mf-zoom-leg-row">' +
+    return '<div class="mf-zoom-leg-row" data-zid="' + zid + '"' +
+      ' onmouseenter="mfZoomHL(\'' + zid + '\',true)"' +
+      ' onmouseleave="mfZoomHL(\'' + zid + '\',false)">' +
       '<span class="mf-zoom-dot" style="background:' + pal[i % pal.length] + '"></span>' +
       '<span class="mf-zoom-leg-name">' + esc(r.label) + '</span>' +
       '<span class="mf-zoom-leg-pct">' + pct + '%</span>' +
@@ -62,14 +81,34 @@ function mfZoomDetail(id, items, segStart, segEnd, palette) {
     '</div>';
   }).join('');
 
+  // Hex → rgba helper for inline SVG fill
+  function hexAlpha(hex, a) {
+    var r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+    return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+  }
+  var fillCol  = hexAlpha(color, 0.12);
+  var lineCol  = hexAlpha(color, 0.7);
+  var topCol   = hexAlpha(color, 0.9);
+
   return (
     '<div class="mf-zoom-detail" id="' + id + '" hidden>' +
-      // Trapezoid SVG: segment slice at top fans out to full width at bottom
-      '<svg class="mf-zoom-trap" viewBox="0 0 100 18" preserveAspectRatio="none" width="100%" height="18">' +
-        '<polygon points="' + s + ',0 ' + e + ',0 100,18 0,18" fill="rgba(0,0,0,0.03)"/>' +
-        '<line x1="' + s + '" y1="0" x2="0"   y2="18" stroke="#d1d5db" stroke-width="0.6" vector-effect="non-scaling-stroke"/>' +
-        '<line x1="' + e + '" y1="0" x2="100" y2="18" stroke="#d1d5db" stroke-width="0.6" vector-effect="non-scaling-stroke"/>' +
-      '</svg>' +
+      // Connector: bold trapezoid + top source-segment highlight + centered label
+      '<div class="mf-zoom-connector-wrap">' +
+        '<svg class="mf-zoom-trap" viewBox="0 0 100 32" preserveAspectRatio="none" width="100%" height="32">' +
+          // Trapezoid fill
+          '<polygon points="' + s + ',4 ' + e + ',4 100,32 0,32" fill="' + fillCol + '"/>' +
+          // Top bar: highlights the source segment in the main bar
+          '<rect x="' + s + '" y="0" width="' + sw + '" height="4" fill="' + topCol + '"/>' +
+          // Left expansion line
+          '<line x1="' + s + '" y1="4" x2="0"   y2="32" stroke="' + lineCol + '" stroke-width="1.5" vector-effect="non-scaling-stroke"/>' +
+          // Right expansion line
+          '<line x1="' + e + '" y1="4" x2="100" y2="32" stroke="' + lineCol + '" stroke-width="1.5" vector-effect="non-scaling-stroke"/>' +
+        '</svg>' +
+        // Label floated over the connector
+        '<div class="mf-zoom-conn-label" style="color:' + color + '">' +
+          (label ? label + ' breakdown \u2193' : 'breakdown \u2193') +
+        '</div>' +
+      '</div>' +
       // Bar starts at segment width and expands to full on open
       '<div class="mf-zoom-bar-anim" style="--z-start:' + sw + '%">' +
         '<div class="mf-zoom-bar">' + segs + '</div>' +
@@ -511,7 +550,7 @@ function renderOwners() {
           '</div>' +
         '</div>' +
         mfZoomDetail('mfCogsDetail', cogsItems, 0, cogsPct,
-          ['#FF6B35','#E5484D','#f59e0b']) +
+          ['#FF6B35','#E5484D','#f59e0b'], '#f87171', 'COGS') +
       '</div>' +
 
       // ── = Gross Profit ────────────────────────────────────────
@@ -546,7 +585,8 @@ function renderOwners() {
           '</div>' +
         '</div>' +
         mfZoomDetail('mfOvhdDetail', ovhdItems, cogsPct, cogsPct + ovhdPct,
-          ['#64748b','#14b8a6','#8b5cf6','#FF9500','#3b82f6','#06b6d4','#22c55e','#a855f7','#6366f1','#fbbf24','#ec4899','#9ca3af']) +
+          ['#64748b','#14b8a6','#8b5cf6','#FF9500','#3b82f6','#06b6d4','#22c55e','#a855f7','#6366f1','#fbbf24','#ec4899','#9ca3af'],
+          '#f97316', 'Overhead') +
       '</div>' +
 
       // ── = Operating Profit ────────────────────────────────────
