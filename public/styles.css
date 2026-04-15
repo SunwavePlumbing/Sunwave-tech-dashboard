@@ -616,7 +616,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 }
 .mf-op-sign { font-size:20px; color:#ef4444; font-weight:800; line-height:1; }
 .mf-op-total {
-  font-size:26px; font-weight:700; color:#ef4444;
+  font-size:42px; font-weight:800; color:#ef4444; letter-spacing:-1.5px;
   letter-spacing:-0.5px; margin:8px 0 0;
   font-variant-numeric:tabular-nums; line-height:1.1;
 }
@@ -632,27 +632,59 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .mf-op-btn:hover { color:#555; border-color:#ccc; }
 .mf-op-chev { font-size:10px; }
 
-/* Detail items inside the operation rows */
-.mf-op-items {
-  margin-top:12px; border-top:1px solid #ebebeb; padding-top:8px;
+/* ── Zoom-in breakdown panel ───────────────────────────────── */
+/* Sits directly below the split bar; visually zooms into the segment */
+
+.mf-zoom-detail { margin-top:0; }
+
+/* Trapezoid SVG connector: segment slice fans out to full bar width */
+.mf-zoom-trap { display:block; width:100%; overflow:visible; }
+
+/* The breakdown bar — starts at segment width, expands to 100% on open */
+.mf-zoom-bar-anim {
+  width: var(--z-start, 60%);
+  transition: width 0.65s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
 }
-.mf-op-item {
-  display:flex; align-items:center; gap:8px;
-  padding:7px 0; border-bottom:1px solid #f3f3f3;
+.mf-zoom-bar-anim.mf-zoom-expanded { width: 100%; }
+
+.mf-zoom-bar {
+  display: flex;
+  height: 22px;
+  border-radius: 4px;
+  overflow: hidden;
+  gap: 1px;
 }
-.mf-op-item:last-child { border-bottom:none; }
-.mf-op-item-label { flex:1; font-size:13px; color:#666; }
-.mf-op-item-bar-wrap {
-  width:60px; height:4px; background:#e8e8e8;
-  border-radius:2px; flex-shrink:0; display:none;
+.mf-zoom-seg {
+  height: 100%;
+  min-width: 2px;
+  flex-shrink: 0;
 }
-.mf-op-item-bar  { height:100%; border-radius:2px; background:#fca5a5; }
-.mf-op-item-pct  { font-size:11px; color:#bbb; min-width:34px; text-align:right; display:none; }
-.mf-op-item-val  { font-size:13px; font-weight:600; color:#444; font-variant-numeric:tabular-nums; white-space:nowrap; min-width:40px; text-align:right; }
-@media (min-width:480px) {
-  .mf-op-item-bar-wrap { display:block; }
-  .mf-op-item-pct      { display:block; }
+
+/* Legend list below the breakdown bar */
+.mf-zoom-legend {
+  margin-top: 10px;
+  border-top: 1px solid #f0f0f0;
+  padding-top: 4px;
 }
+.mf-zoom-leg-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid #f8f8f8;
+  font-size: 13px;
+}
+.mf-zoom-leg-row:last-child { border-bottom: none; }
+.mf-zoom-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.mf-zoom-leg-name { flex: 1; color: #555; }
+.mf-zoom-leg-pct  { font-size: 12px; color: #aaa; min-width: 38px; text-align: right; }
+.mf-zoom-leg-val  { font-size: 13px; font-weight: 700; color: #1a2d3a;
+                    min-width: 44px; text-align: right; font-variant-numeric: tabular-nums; }
 
 /* ── Revenue full bar ──────────────────────────────────────── */
 .mf-rev-bar {
@@ -714,7 +746,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   .mf-step-label { font-size:11px; }
   .mf-step-num   { font-size:38px; }
   .mf-step-desc  { font-size:13px; }
-  .mf-op-total   { font-size:22px; }
+  .mf-op-total   { font-size:38px; }
   .mf-op-item-label { font-size:14px; }
   .mf-op-item-val   { font-size:14px; }
   .mf-delta      { font-size:14px; }

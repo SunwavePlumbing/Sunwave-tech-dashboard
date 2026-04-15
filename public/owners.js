@@ -9,7 +9,7 @@ var trendChartInst = null;
 var cfBarChartInst = null;
 var trendActive = 'gm'; // single-select key-ratio trend line
 
-// Toggle expandable detail panel in the money-flow card
+// Toggle expandable detail panel; triggers zoom-bar animation on open
 function mfToggle(panelId, btn) {
   var panel = document.getElementById(panelId);
   if (!panel) return;
@@ -17,6 +17,66 @@ function mfToggle(panelId, btn) {
   panel.hidden = !nowOpen;
   var chev = btn && btn.querySelector('.mf-op-chev');
   if (chev) chev.textContent = nowOpen ? '\u25b4' : '\u25be';
+  var anim = panel.querySelector('.mf-zoom-bar-anim');
+  if (anim) {
+    if (nowOpen) {
+      // Opening: reset to collapsed width, then animate to full
+      anim.classList.remove('mf-zoom-expanded');
+      requestAnimationFrame(function() {
+        requestAnimationFrame(function() { anim.classList.add('mf-zoom-expanded'); });
+      });
+    } else {
+      anim.classList.remove('mf-zoom-expanded');
+    }
+  }
+}
+
+// Build a zoom-in breakdown panel.
+// segStart / segEnd are the left/right boundaries (% of revenue) of the parent
+// bar segment — used to draw the trapezoid connector and start the animation.
+// items: [{label, val}]   palette: array of hex colors
+function mfZoomDetail(id, items, segStart, segEnd, palette) {
+  var pal = palette || ['#FF6B35','#E5484D','#f59e0b','#64748b','#14b8a6','#8b5cf6','#FF9500','#3b82f6','#06b6d4','#a855f7','#22c55e','#ec4899','#9ca3af','#6366f1','#fbbf24'];
+  var visible = items.filter(function(r) { return r.val > 0; });
+  var total   = visible.reduce(function(s, r) { return s + r.val; }, 0);
+  if (!visible.length || !total) return '<div id="' + id + '" hidden></div>';
+
+  var s  = Math.max(0,   segStart).toFixed(1);
+  var e  = Math.min(100, segEnd).toFixed(1);
+  var sw = (parseFloat(e) - parseFloat(s)).toFixed(1); // initial bar width %
+
+  // Colored segments — flex proportional to dollar value
+  var segs = visible.map(function(r, i) {
+    return '<div class="mf-zoom-seg" style="flex:' + r.val.toFixed(0) +
+           ';background:' + pal[i % pal.length] + '"></div>';
+  }).join('');
+
+  // Legend rows below the bar
+  var legend = visible.map(function(r, i) {
+    var pct = (r.val / total * 100).toFixed(1);
+    return '<div class="mf-zoom-leg-row">' +
+      '<span class="mf-zoom-dot" style="background:' + pal[i % pal.length] + '"></span>' +
+      '<span class="mf-zoom-leg-name">' + esc(r.label) + '</span>' +
+      '<span class="mf-zoom-leg-pct">' + pct + '%</span>' +
+      '<span class="mf-zoom-leg-val">' + fmtDollar(r.val) + '</span>' +
+    '</div>';
+  }).join('');
+
+  return (
+    '<div class="mf-zoom-detail" id="' + id + '" hidden>' +
+      // Trapezoid SVG: segment slice at top fans out to full width at bottom
+      '<svg class="mf-zoom-trap" viewBox="0 0 100 18" preserveAspectRatio="none" width="100%" height="18">' +
+        '<polygon points="' + s + ',0 ' + e + ',0 100,18 0,18" fill="rgba(0,0,0,0.03)"/>' +
+        '<line x1="' + s + '" y1="0" x2="0"   y2="18" stroke="#d1d5db" stroke-width="0.6" vector-effect="non-scaling-stroke"/>' +
+        '<line x1="' + e + '" y1="0" x2="100" y2="18" stroke="#d1d5db" stroke-width="0.6" vector-effect="non-scaling-stroke"/>' +
+      '</svg>' +
+      // Bar starts at segment width and expands to full on open
+      '<div class="mf-zoom-bar-anim" style="--z-start:' + sw + '%">' +
+        '<div class="mf-zoom-bar">' + segs + '</div>' +
+      '</div>' +
+      '<div class="mf-zoom-legend">' + legend + '</div>' +
+    '</div>'
+  );
 }
 
 function setFinMode(m) {
@@ -450,9 +510,8 @@ function renderOwners() {
             '<span class="mf-sl-pass-gp">Gross Profit</span>' +
           '</div>' +
         '</div>' +
-        '<div class="mf-op-items" id="mfCogsDetail" hidden>' +
-          cogsItems.filter(function(r){return r.val>0;}).map(function(r){return mfCostItem(r.label,r.val,curRev);}).join('') +
-        '</div>' +
+        mfZoomDetail('mfCogsDetail', cogsItems, 0, cogsPct,
+          ['#FF6B35','#E5484D','#f59e0b']) +
       '</div>' +
 
       // ── = Gross Profit ────────────────────────────────────────
@@ -486,9 +545,8 @@ function renderOwners() {
             '<span class="mf-sl-pass-noi">Operating Profit</span>' +
           '</div>' +
         '</div>' +
-        '<div class="mf-op-items" id="mfOvhdDetail" hidden>' +
-          ovhdItems.filter(function(r){return r.val>0;}).map(function(r){return mfCostItem(r.label,r.val,curRev);}).join('') +
-        '</div>' +
+        mfZoomDetail('mfOvhdDetail', ovhdItems, cogsPct, cogsPct + ovhdPct,
+          ['#64748b','#14b8a6','#8b5cf6','#FF9500','#3b82f6','#06b6d4','#22c55e','#a855f7','#6366f1','#fbbf24','#ec4899','#9ca3af']) +
       '</div>' +
 
       // ── = Operating Profit ────────────────────────────────────
