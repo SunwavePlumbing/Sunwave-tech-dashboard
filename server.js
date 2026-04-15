@@ -353,15 +353,31 @@ app.get('/', (req, res) => {
     .fin-connect-banner { background:#fff8f0;border:1px solid #FFE0B2;border-radius:10px;padding:20px 24px;text-align:center;margin:2rem 0; }
     .fin-connect-banner p { font-size:14px;color:#888;margin-bottom:12px; }
 
-    .fin-filter-bar { display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:1.4rem;background:white;padding:10px 14px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,0.07); }
+    /* Filter bar — mobile first: stacked, full-width selects */
+    .fin-filter-bar { display:flex;flex-direction:column;align-items:stretch;gap:10px;margin-bottom:1.2rem;background:white;padding:12px 14px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,0.07); }
+    .fin-filter-field { display:flex;flex-direction:column;gap:4px; }
     .fin-filter-label { font-size:11px;color:#aaa;text-transform:uppercase;font-weight:600;letter-spacing:0.4px; }
-    .fin-select { padding:6px 10px;font-size:13px;border:1px solid #e5e5e5;border-radius:6px;background:white;color:#333;cursor:pointer; }
-    .fin-toggle { display:flex;border:1px solid #e5e5e5;border-radius:6px;overflow:hidden; }
-    .fin-toggle button { padding:5px 12px;font-size:12px;font-weight:600;border:none;background:white;color:#888;cursor:pointer;transition:all 0.15s; }
+    .fin-select { width:100%;padding:10px 12px;font-size:15px;min-height:44px;border:1px solid #e5e5e5;border-radius:8px;background:white;color:#333;cursor:pointer; }
+    .fin-toggle { display:inline-flex;border:1px solid #e5e5e5;border-radius:6px;overflow:hidden;align-self:flex-start; }
+    .fin-toggle button { padding:8px 14px;min-height:36px;font-size:12px;font-weight:600;border:none;background:white;color:#888;cursor:pointer;transition:all 0.15s; }
     .fin-toggle button.active { background:#1a2d3a;color:white; }
-    .fin-refresh-btn { margin-left:auto;padding:6px 14px;font-size:12px;font-weight:600;border:1px solid #e0e0e0;border-radius:6px;background:white;color:#555;cursor:pointer;transition:background 0.15s; }
+    .fin-refresh-btn { align-self:flex-end;padding:10px 16px;min-height:40px;font-size:14px;font-weight:600;border:1px solid #e0e0e0;border-radius:8px;background:white;color:#555;cursor:pointer;transition:background 0.15s; }
     .fin-refresh-btn:hover { background:#f5f5f5; }
     .fin-updated { font-size:11px;color:#bbb; }
+    @media (min-width: 700px) {
+      .fin-filter-bar { flex-direction:row;align-items:flex-end;flex-wrap:wrap; }
+      .fin-filter-field { flex:0 1 auto;min-width:160px; }
+      .fin-select { width:auto;min-width:160px;padding:8px 10px;font-size:13px; }
+      .fin-refresh-btn { margin-left:auto;align-self:flex-end; }
+    }
+
+    /* P&L card head — title + $/% toggle */
+    .fin-pnl-head { display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap; }
+    .fin-pnl-scroll { overflow-x:auto;-webkit-overflow-scrolling:touch; }
+    /* Sticky first column on P&L so names stay visible while scrolling months */
+    .pnl-grid th:first-child, .pnl-grid td:first-child { position:sticky;left:0;background:#fff;z-index:2; }
+    .pnl-grid tr.subtotal td:first-child { background:#fafafa; }
+    .pnl-grid tr.total td:first-child { background:#1a2d3a;color:#fff; }
 
     .fin-cards { display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:1.4rem; }
     @media(max-width:900px) { .fin-cards { grid-template-columns:repeat(2,1fr); } }
@@ -439,7 +455,8 @@ app.get('/', (req, res) => {
     .pnl-grid { width:100%;border-collapse:collapse;font-size:12px; }
     .pnl-grid th { text-align:right;padding:6px 8px;font-weight:600;color:#888;font-size:10px;text-transform:uppercase;letter-spacing:0.3px;border-bottom:1px solid #eee;white-space:nowrap; }
     .pnl-grid th:first-child { text-align:left; }
-    .pnl-grid td { padding:7px 8px;text-align:right;color:#333;border-bottom:1px solid #f5f5f5;white-space:nowrap; font-variant-numeric:tabular-nums; }
+    .pnl-grid td { padding:10px 10px;text-align:right;color:#333;border-bottom:1px solid #f5f5f5;white-space:nowrap; font-variant-numeric:tabular-nums; }
+    @media (min-width:700px) { .pnl-grid td { padding:7px 8px; } }
     .pnl-grid td:first-child { text-align:left;font-weight:500; }
     .pnl-grid tr.subtotal td { font-weight:700;background:#fafafa;color:#1a2d3a;border-top:1px solid #ddd; }
     .pnl-grid tr.total td { font-weight:700;background:#1a2d3a;color:#fff;border-top:2px solid #1a2d3a; }
@@ -583,22 +600,20 @@ app.get('/', (req, res) => {
     <div class="view-panel" id="ownersView">
       <!-- Filter bar -->
       <div class="fin-filter-bar" id="finFilterBar">
-        <span class="fin-filter-label">Month</span>
-        <select id="finMonthSel" class="fin-select" onchange="setFinMonth(this.value)"></select>
-        <span class="fin-filter-label" style="margin-left:8px">Compare to</span>
-        <select id="finCompareSel" class="fin-select" onchange="setFinCompare(this.value)">
-          <option value="prior_year_month" selected>Same month last year</option>
-          <option value="prior_month">Prior month</option>
-          <option value="prior_year_avg">Prior year avg</option>
-          <option value="none">No comparison</option>
-        </select>
-        <span class="fin-filter-label" style="margin-left:8px">View</span>
-        <div class="fin-toggle">
-          <button id="finModeDollar" class="active" onclick="setFinMode('dollar')">$</button>
-          <button id="finModePct" onclick="setFinMode('pct')">% Rev</button>
-        </div>
-        <button class="fin-refresh-btn" onclick="fetchOwnersData(true)">&#8635; Refresh</button>
-        <span class="fin-updated" id="finUpdated"></span>
+        <label class="fin-filter-field">
+          <span class="fin-filter-label">Month</span>
+          <select id="finMonthSel" class="fin-select" onchange="setFinMonth(this.value)"></select>
+        </label>
+        <label class="fin-filter-field">
+          <span class="fin-filter-label">Compare to</span>
+          <select id="finCompareSel" class="fin-select" onchange="setFinCompare(this.value)">
+            <option value="prior_year_month" selected>Same month last year</option>
+            <option value="prior_month">Prior month</option>
+            <option value="prior_year_avg">Prior year avg</option>
+            <option value="none">No comparison</option>
+          </select>
+        </label>
+        <button class="fin-refresh-btn" onclick="fetchOwnersData(true)" aria-label="Refresh">&#8635;</button>
       </div>
 
       <!-- Formula card — the centerpiece -->
@@ -642,10 +657,16 @@ app.get('/', (req, res) => {
       </div>
 
       <!-- Monthly P&L grid (moved to bottom) -->
-      <div class="fin-chart-card" id="finPnlCard" style="display:none;margin-bottom:1.4rem;overflow-x:auto">
-        <div class="fin-chart-title">Full Picture &mdash; Month by Month <span id="finPnlSubtitle"></span></div>
-        <div style="font-size:11px;color:#888;margin-top:-8px;margin-bottom:10px">Every income and expense line, month by month. The selected month is highlighted. % Rev shows each line as a share of revenue over the whole window.</div>
-        <div id="finPnlGrid"></div>
+      <div class="fin-chart-card" id="finPnlCard" style="display:none;margin-bottom:1.4rem">
+        <div class="fin-pnl-head">
+          <div class="fin-chart-title" style="margin-bottom:0">Full Picture &mdash; Month by Month <span id="finPnlSubtitle"></span></div>
+          <div class="fin-toggle" aria-label="Show dollars or percent of revenue">
+            <button id="finModeDollar" class="active" onclick="setFinMode('dollar')">$</button>
+            <button id="finModePct" onclick="setFinMode('pct')">% Rev</button>
+          </div>
+        </div>
+        <div style="font-size:11px;color:#888;margin-top:4px;margin-bottom:10px">Every income and expense line, month by month. The selected month is highlighted. % Rev shows each line as a share of revenue over the whole window.</div>
+        <div id="finPnlGrid" class="fin-pnl-scroll"></div>
       </div>
     </div>
   </div>
@@ -1522,14 +1543,18 @@ app.get('/', (req, res) => {
     document.getElementById('finRow2').style.display = '';
     document.getElementById('finRow3').style.display = '';
     document.getElementById('finTrendCard').style.display = multiMonth ? '' : 'none';
-    var updTxt = fmtMk(finMonth) + '  ·  ';
-    if (ownersData.fetchedAt) updTxt += 'as of ' + new Date(ownersData.fetchedAt).toLocaleTimeString();
-    document.getElementById('finUpdated').textContent = updTxt;
+    var updEl = document.getElementById('finUpdated');
+    if (updEl) {
+      var updTxt = fmtMk(finMonth) + '  ·  ';
+      if (ownersData.fetchedAt) updTxt += 'as of ' + new Date(ownersData.fetchedAt).toLocaleTimeString();
+      updEl.textContent = updTxt;
+    }
 
     // ── Monthly P&L grid ─────────────────────────────────────────
-    // Show last 12 months (or fewer if we have less data) ending at finMonth
+    // On phone, show last 6 months; desktop, last 12.
+    var isPhone = window.innerWidth < 700;
     var gridEnd = curIdx;
-    var gridStart = Math.max(0, gridEnd - 11);
+    var gridStart = Math.max(0, gridEnd - (isPhone ? 5 : 11));
     var gridMonths = months.slice(gridStart, gridEnd + 1);
     var otherOpex = totalExp.map(function(t, i) {
       return t - (adminPay[i]||0) - (mktTotal[i]||0) - (officeExp[i]||0) - (rentExp[i]||0)
