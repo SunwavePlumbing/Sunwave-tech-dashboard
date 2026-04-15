@@ -810,7 +810,7 @@ app.get('/', (req, res) => {
           ? '<span class="delta delta-down">' + pctD + '%</span>'
           : '';
       }
-      var spend = mktSpend[m.month] || 0;
+      var spend = mktSpend[m.monthKey || (m.year + '-' + String(m.month + 1).padStart(2, '0'))] || 0;
       var costPerJob = (displayJobs > 0 && spend > 0) ? Math.round(spend / displayJobs) : 0;
       var spendCell = showQBO
         ? (spend > 0 ? fmt(spend) : '<span style="color:#ccc">—</span>')
@@ -1178,6 +1178,7 @@ app.get('/api/marketing', async (req, res) => {
         ? new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1) // MTD
         : new Date(year, month + 1, 1);
       buckets.push({ year, month, isCurrent, start, end,
+        monthKey: year + '-' + String(month + 1).padStart(2, '0'),
         label: MONTH_NAMES[month],
         fullLabel: MONTH_FULL[month] + ' ' + year
       });
