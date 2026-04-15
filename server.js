@@ -383,6 +383,47 @@ app.get('/', (req, res) => {
     .fin-card-delta.down { color:#E5484D; }
     .fin-card-spark { position:absolute;bottom:0;right:0;opacity:0.6; }
 
+    /* Formula card — the centerpiece */
+    .fin-flow-card { background:white;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.08);padding:16px 14px 4px;margin-bottom:1.2rem; }
+    .fin-flow-card-head { display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px;padding:0 4px; }
+    .fin-flow-card-title { font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1.2px; }
+    .fin-flow-card-stamp { font-size:11px;color:#bbb; }
+    .fin-flow-stops { display:flex;flex-direction:column;gap:0; }
+    .fin-flow-stop { position:relative;padding:14px 14px 14px 18px;border-left:5px solid #1a2d3a;background:#fafafa;border-radius:8px;margin:0 4px; }
+    .fin-flow-stop.rev { border-left-color:#1a2d3a; }
+    .fin-flow-stop.gp  { border-left-color:#12A071; }
+    .fin-flow-stop.noi { border-left-color:#3b82f6; }
+    .fin-stop-label { font-size:12px;color:#555;font-weight:600;margin-bottom:2px; }
+    .fin-stop-label strong { color:#1a2d3a;font-size:13px;text-transform:uppercase;letter-spacing:0.4px; }
+    .fin-stop-value { font-size:32px;font-weight:700;color:#1a2d3a;line-height:1.1;margin:4px 0 2px;font-variant-numeric:tabular-nums; }
+    .fin-stop-sub { font-size:12px;color:#888;margin-bottom:4px; }
+    .fin-stop-delta { font-size:12px;font-weight:600;margin-top:4px; }
+    .fin-stop-delta.up { color:#12A071; }
+    .fin-stop-delta.down { color:#E5484D; }
+    .fin-stop-delta .cmp-lbl { font-weight:400;color:#aaa;margin-left:4px; }
+    .fin-flow-arrow { display:flex;align-items:center;gap:8px;padding:8px 22px;font-size:12px;color:#888;line-height:1.3; }
+    .fin-flow-arrow-icon { font-size:18px;color:#ccc;flex-shrink:0; }
+    .fin-flow-arrow-label { flex:1; }
+    @media (min-width: 900px) {
+      .fin-flow-stops { flex-direction:row;align-items:stretch; }
+      .fin-flow-stop { flex:1;margin:0; }
+      .fin-flow-arrow { flex-direction:column;padding:0 6px;text-align:center; }
+      .fin-flow-arrow-label { font-size:11px; }
+    }
+
+    /* Efficiency tiles */
+    .fin-pct-tiles { display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:1.4rem; }
+    @media (min-width: 700px) { .fin-pct-tiles { grid-template-columns:repeat(3,1fr); } }
+    .fin-pct-tile { background:white;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,0.08);padding:14px 16px; }
+    .fin-pct-tile-label { font-size:11px;color:#888;text-transform:uppercase;font-weight:600;letter-spacing:0.4px;margin-bottom:4px; }
+    .fin-pct-tile-value { font-size:28px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums; }
+    .fin-pct-tile-value.c-green { color:#12A071; }
+    .fin-pct-tile-value.c-yellow { color:#C9820A; }
+    .fin-pct-tile-value.c-red { color:#E5484D; }
+    .fin-pct-tile-sub { font-size:12px;color:#888;margin-top:2px; }
+    .fin-pct-tile-delta { font-size:12px;font-weight:600;margin-top:4px; }
+    .fin-pct-tile-hint { font-size:11px;color:#9aa4ad;margin-top:8px;line-height:1.35;font-style:italic;border-top:1px dashed #eee;padding-top:6px; }
+
     .fin-row2 { display:grid;grid-template-columns:3fr 2fr;gap:14px;margin-bottom:1.4rem; }
     @media(max-width:768px) { .fin-row2 { grid-template-columns:1fr; } }
     .fin-chart-card { background:white;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,0.08);padding:18px; }
@@ -539,24 +580,14 @@ app.get('/', (req, res) => {
         <span class="fin-updated" id="finUpdated"></span>
       </div>
 
-      <!-- Money-flow explainer -->
-      <div class="fin-flow" id="finFlow" style="display:none">
-        <strong>How the money flows:</strong>
-        <strong>Revenue</strong> <span class="eq">&minus;</span> Job costs (techs + parts)
-        <span class="eq">=</span> <strong>Gross Profit</strong>
-        <span class="eq">&minus;</span> Overhead (rent, admin, marketing, vehicles&hellip;)
-        <span class="eq">=</span> <strong>Net Operating Income</strong> <span style="color:#888">(what&rsquo;s left for you)</span>
+      <!-- Formula card — the centerpiece -->
+      <div id="finCards">
+        <div style="text-align:center;padding:3rem;color:#aaa;font-size:14px">Loading financial data\u2026</div>
       </div>
 
-      <!-- Headline dollars -->
-      <div class="fin-row-title" id="finCardsTitle1" style="display:none">The big picture &mdash; in dollars</div>
-      <div class="fin-cards" id="finCards">
-        <div style="text-align:center;padding:3rem;color:#aaa;font-size:14px;grid-column:1/-1">Loading financial data\u2026</div>
-      </div>
-
-      <!-- Efficiency ratios -->
+      <!-- Efficiency tiles -->
       <div class="fin-row-title" id="finCardsTitle2" style="display:none">Where the money goes &mdash; as a share of revenue</div>
-      <div class="fin-cards" id="finCards2"></div>
+      <div class="fin-pct-tiles" id="finCards2"></div>
 
       <!-- Row 2: Where the money went + what's on hand -->
       <div class="fin-row2" id="finRow2" style="display:none">
@@ -1280,7 +1311,6 @@ app.get('/', (req, res) => {
       document.getElementById('finRow2').style.display = 'none';
       document.getElementById('finRow3').style.display = 'none';
       document.getElementById('finTrendCard').style.display = 'none';
-      document.getElementById('finAlerts').style.display = 'none';
       return;
     }
 
@@ -1388,75 +1418,81 @@ app.get('/', (req, res) => {
         '<div class="fin-compare-line">' + cmpLabel + ': ' + prev.toFixed(1) + '%</div>';
     }
 
-    // Row 1 — the three headline dollar figures (money in → money kept → money left)
-    var dollarCards = [
-      {
-        label: '1. Money In (Revenue)',
-        val: finMode==='pct' ? '100%' : fmtDollar(curRev),
-        sub: fmtMk(finMonth),
-        cls: '',
-        delta: dollarCompare(curRev, revenue),
-        hint: 'Every dollar customers paid for completed jobs this month.'
-      },
-      {
-        label: '2. Kept After Job Costs (Gross Profit)',
-        val: finMode==='pct' ? fmtPct(gmPct) : fmtDollar(curGP),
-        sub: fmtPct(gmPct) + ' of revenue',
-        cls: colorClass('gm', gmPct),
-        delta: dollarCompare(curGP, gp),
-        hint: 'Revenue minus what it cost to do the work (crew wages, parts, subs). This pays for everything else.'
-      },
-      {
-        label: '3. Left Over (Operating Profit)',
-        val: finMode==='pct' ? fmtPct(noiPct) : fmtDollar(curNOI),
-        sub: fmtPct(noiPct) + ' of revenue',
-        cls: colorClass('om', noiPct),
-        delta: dollarCompare(curNOI, noi),
-        hint: 'What&rsquo;s left after every bill is paid &mdash; rent, admin, marketing, vehicles. This is the real profit.'
-      }
-    ];
-
-    // Row 2 — efficiency ratios (how big is each bite out of revenue)
-    var pctCards = [
-      {
-        label: 'Gross Margin %',
-        val: fmtPct(gmPct),
-        sub: 'Healthy: 50% or higher',
-        cls: colorClass('gm', gmPct),
-        delta: pctCompare(gmPct, gmArr),
-        hint: 'Share of revenue you keep after paying for the work itself. Higher = more breathing room for overhead and profit.'
-      },
-      {
-        label: 'Tech Labor %',
-        val: fmtPct(tlPct),
-        sub: 'Healthy: under 25%',
-        cls: colorClass('tl', tlPct),
-        delta: pctCompare(tlPct, tlArr),
-        hint: 'Share of every dollar that went to crew wages. High = overtime, overstaffing, or underpriced jobs.'
-      },
-      {
-        label: 'Parts %',
-        val: fmtPct(partsPct),
-        sub: 'Healthy: under 25%',
-        cls: colorClass('parts', partsPct),
-        delta: pctCompare(partsPct, partsArr),
-        hint: 'Share of every dollar that went to materials. High = supplier prices up, or not marking parts up enough.'
-      }
-    ];
-
-    function renderCard(c) {
-      return '<div class="fin-card">' +
-        '<div class="fin-card-label">' + esc(c.label) + '</div>' +
-        '<div class="fin-card-value ' + c.cls + '">' + c.val + '</div>' +
-        '<div class="fin-card-sub">' + c.sub + '</div>' +
-        (c.delta || '') +
-        '<div class="fin-card-hint">' + c.hint + '</div>' +
-        '</div>';
+    // Build compare-delta for a dollar value (inline, for formula-stop layout)
+    function stopDelta(curVal, arr) {
+      if (!cmpValues) return '';
+      var prev = cmpValues(arr);
+      if (!prev) return '<div class="fin-stop-delta"><span class="cmp-lbl">' + cmpLabel + ': —</span></div>';
+      var d = curVal - prev;
+      var pct = prev !== 0 ? Math.round(d / Math.abs(prev) * 100) : 0;
+      var cls = d >= 0 ? 'up' : 'down';
+      var arrow = d >= 0 ? '▲' : '▼';
+      return '<div class="fin-stop-delta ' + cls + '">' + arrow + ' ' + fmtDollar(Math.abs(d)) +
+        ' (' + (pct>=0?'+':'') + pct + '%) <span class="cmp-lbl">' + cmpLabel + '</span></div>';
     }
-    document.getElementById('finCards').innerHTML = dollarCards.map(renderCard).join('');
-    document.getElementById('finCards2').innerHTML = pctCards.map(renderCard).join('');
-    document.getElementById('finFlow').style.display = '';
-    document.getElementById('finCardsTitle1').style.display = '';
+
+    var stamp = '';
+    if (ownersData.fetchedAt) stamp = 'as of ' + new Date(ownersData.fetchedAt).toLocaleTimeString();
+
+    // Horizontal vs vertical arrow icon chosen by CSS via viewport; keep same glyph.
+    var formulaHtml =
+      '<div class="fin-flow-card">' +
+        '<div class="fin-flow-card-head">' +
+          '<div class="fin-flow-card-title">The Big Picture &mdash; ' + fmtMk(finMonth) + '</div>' +
+          '<div class="fin-flow-card-stamp">' + stamp + '</div>' +
+        '</div>' +
+        '<div class="fin-flow-stops">' +
+          '<div class="fin-flow-stop rev">' +
+            '<div class="fin-stop-label"><strong>Revenue</strong> &mdash; money in</div>' +
+            '<div class="fin-stop-value">' + fmtDollar(curRev) + '</div>' +
+            '<div class="fin-stop-sub">Completed jobs this month</div>' +
+            stopDelta(curRev, revenue) +
+          '</div>' +
+          '<div class="fin-flow-arrow">' +
+            '<span class="fin-flow-arrow-icon">&darr;</span>' +
+            '<span class="fin-flow-arrow-label">minus job costs (techs + parts)</span>' +
+          '</div>' +
+          '<div class="fin-flow-stop gp">' +
+            '<div class="fin-stop-label"><strong>Gross Profit</strong> &mdash; kept after the work</div>' +
+            '<div class="fin-stop-value">' + fmtDollar(curGP) + '</div>' +
+            '<div class="fin-stop-sub">' + fmtPct(gmPct) + ' of revenue</div>' +
+            stopDelta(curGP, gp) +
+          '</div>' +
+          '<div class="fin-flow-arrow">' +
+            '<span class="fin-flow-arrow-icon">&darr;</span>' +
+            '<span class="fin-flow-arrow-label">minus overhead (rent, admin, marketing, vehicles)</span>' +
+          '</div>' +
+          '<div class="fin-flow-stop noi">' +
+            '<div class="fin-stop-label"><strong>Operating Profit</strong> &mdash; what&rsquo;s left</div>' +
+            '<div class="fin-stop-value">' + fmtDollar(curNOI) + '</div>' +
+            '<div class="fin-stop-sub">' + fmtPct(noiPct) + ' of revenue</div>' +
+            stopDelta(curNOI, noi) +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    document.getElementById('finCards').innerHTML = formulaHtml;
+
+    // Efficiency tiles — share of revenue
+    var pctTiles = [
+      { label: 'Gross Margin', val: fmtPct(gmPct), sub: 'Healthy: 50% or higher',
+        cls: colorClass('gm', gmPct), delta: pctCompare(gmPct, gmArr),
+        hint: 'Share of revenue you keep after paying for the work itself.' },
+      { label: 'Tech Labor',   val: fmtPct(tlPct), sub: 'Healthy: under 25%',
+        cls: colorClass('tl', tlPct), delta: pctCompare(tlPct, tlArr),
+        hint: 'Share of every dollar that went to crew wages.' },
+      { label: 'Parts',        val: fmtPct(partsPct), sub: 'Healthy: under 25%',
+        cls: colorClass('parts', partsPct), delta: pctCompare(partsPct, partsArr),
+        hint: 'Share of every dollar that went to materials.' }
+    ];
+    document.getElementById('finCards2').innerHTML = pctTiles.map(function(c) {
+      return '<div class="fin-pct-tile">' +
+        '<div class="fin-pct-tile-label">' + esc(c.label) + '</div>' +
+        '<div class="fin-pct-tile-value ' + c.cls + '">' + c.val + '</div>' +
+        '<div class="fin-pct-tile-sub">' + c.sub + '</div>' +
+        (c.delta || '').replace(/fin-card-delta/g, 'fin-pct-tile-delta').replace(/fin-compare-line/g, 'fin-pct-tile-sub') +
+        '<div class="fin-pct-tile-hint">' + c.hint + '</div>' +
+        '</div>';
+    }).join('');
     document.getElementById('finCardsTitle2').style.display = '';
 
     // ── Show structural elements ─────────────────────────────────
