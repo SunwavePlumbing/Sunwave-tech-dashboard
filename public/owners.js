@@ -43,6 +43,12 @@ function mfZoomHL(zid, on) {
   }
 }
 
+// Hex color → rgba(r,g,b,a) string — used by mfZoomDetail and GP panel
+function hexAlpha(hex, a) {
+  var rv = parseInt(hex.slice(1,3),16), gv = parseInt(hex.slice(3,5),16), bv = parseInt(hex.slice(5,7),16);
+  return 'rgba(' + rv + ',' + gv + ',' + bv + ',' + a + ')';
+}
+
 // Build a zoom-in breakdown panel.
 function mfZoomDetail(id, items, segStart, segEnd, palette, segColor, segLabel) {
   var pal   = palette  || ['#FF6B35','#E5484D','#f59e0b','#64748b','#14b8a6','#8b5cf6','#FF9500','#3b82f6','#06b6d4','#a855f7','#22c55e','#ec4899','#9ca3af','#6366f1','#fbbf24'];
@@ -56,11 +62,6 @@ function mfZoomDetail(id, items, segStart, segEnd, palette, segColor, segLabel) 
   var e  = Math.min(100, segEnd).toFixed(1);
   var sw = (parseFloat(e) - parseFloat(s)).toFixed(1);
 
-  // Hex → rgba helper
-  function hexAlpha(hex, a) {
-    var rv = parseInt(hex.slice(1,3),16), gv = parseInt(hex.slice(3,5),16), bv = parseInt(hex.slice(5,7),16);
-    return 'rgba(' + rv + ',' + gv + ',' + bv + ',' + a + ')';
-  }
   var topCol  = hexAlpha(color, 0.9);  // solid top bar (source segment marker)
   var gradId  = id + '-g';             // unique gradient id per panel
 
@@ -514,6 +515,76 @@ function renderOwners() {
     '</div>';
   }
 
+  // ── GP expandable detail panel ──────────────────────────────
+  // Hidden by default; revealed when the green bar or "Gross Profit" label is tapped.
+  var gpGap     = Math.abs(gmPct - 50);
+  var gpGapCls  = gmPct >= 50 ? 'above' : (gpGap <= 3 ? 'near' : 'below');
+  var gpGapTxt  = gmPct >= 50
+    ? '\u25b2 ' + gpGap.toFixed(1) + ' pts above target \u2014 you\'re in the zone!'
+    : gpGap.toFixed(1) + ' pts below the 50% target';
+
+  // Breakdown: how GP was further split into overhead + profit
+  var gpBreakPal   = ['#fb923c', curNOI >= 0 ? '#3b82f6' : '#ef4444'];
+  var gpBreakItems = curNOI >= 0
+    ? [{label: 'Overhead',          val: curOvhd},
+       {label: 'Operating Profit',  val: curNOI}]
+    : [{label: 'Overhead',          val: curOvhd},
+       {label: 'Operating Loss',    val: Math.abs(curNOI)}];
+  var gpBreakTot = gpBreakItems.reduce(function(s, r) { return s + r.val; }, 0);
+
+  var gpBreakSegs = gpBreakItems.map(function(r, i) {
+    var zid = 'gpb-' + i;
+    var sp  = gpBreakTot > 0 ? (r.val / gpBreakTot * 100).toFixed(0) : 0;
+    return '<div class="mf-zoom-seg" data-zid="' + zid + '"' +
+      ' style="flex:' + r.val.toFixed(0) + ';background:' + gpBreakPal[i] + '"' +
+      ' onmouseenter="mfZoomHL(\'' + zid + '\',true)"' +
+      ' onmouseleave="mfZoomHL(\'' + zid + '\',false)">' +
+      '<span class="mf-zoom-seg-pct">' + sp + '%</span></div>';
+  }).join('');
+
+  var gpBreakLeg = gpBreakItems.map(function(r, i) {
+    var zid = 'gpb-' + i;
+    var c   = gpBreakPal[i];
+    var pct = gpBreakTot > 0 ? (r.val / gpBreakTot * 100).toFixed(1) : '0.0';
+    return '<div class="mf-zoom-leg-row" data-zid="' + zid + '"' +
+      ' style="--i:' + i + ';background:' + hexAlpha(c, 0.09) + ';border-left:3px solid ' + c + '"' +
+      ' onmouseenter="mfZoomHL(\'' + zid + '\',true)"' +
+      ' onmouseleave="mfZoomHL(\'' + zid + '\',false)">' +
+      '<span class="mf-zoom-leg-name">' + esc(r.label) + '</span>' +
+      '<span class="mf-zoom-leg-pct">' + pct + '%</span>' +
+      '<span class="mf-zoom-leg-val">' + fmtDollar(r.val) + '</span>' +
+    '</div>';
+  }).join('');
+
+  var gpDetailHtml =
+    '<div id="mfGpDetail" class="mf-zoom-detail mf-gp-detail" hidden>' +
+      // "We kept X%" context line
+      '<div class="mf-score-pct-line mf-gp-pct-line">We kept ' + fmtPct(gmPct) + ' of every dollar \u2014 goal is 50%</div>' +
+      // Reversed competition bar: COGS eating from left, GP defending the right
+      '<div class="mf-gp-revbar-wrap">' +
+        '<div class="mf-gp-revbar-head">Of ' + fmtDollar(curRev) + ' revenue, COGS consumed:</div>' +
+        '<div class="mf-gp-revbar-outer">' +
+          '<div class="mf-gp-revbar-tlabel">Target 50/50</div>' +
+          '<div class="mf-gp-revbar">' +
+            '<div class="mf-gp-revbar-cogs" style="width:' + Math.min(cogsPct, 99).toFixed(1) + '%">' +
+              '<span class="mf-gp-revbar-txt">COGS ' + fmtPct(cogsPct) + '</span>' +
+            '</div>' +
+            '<div class="mf-gp-revbar-gp">' +
+              '<span class="mf-gp-revbar-txt">GP ' + fmtPct(gmPct) + '</span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="mf-gp-target-mark"></div>' +
+        '</div>' +
+        '<div class="mf-score-gap ' + gpGapCls + '">' + gpGapTxt + '</div>' +
+      '</div>' +
+      // Then: where that GP went (overhead vs operating profit)
+      '<div class="mf-gp-breakdown-head">Then, of that ' + fmtDollar(curGP) + ' gross profit:</div>' +
+      '<div class="mf-zoom-bar-anim" style="--z-start:15%">' +
+        '<div class="mf-zoom-bar">' + gpBreakSegs + '</div>' +
+      '</div>' +
+      '<div class="mf-zoom-legend">' + gpBreakLeg + '</div>' +
+    '</div>';
+
   var formulaHtml =
     '<div class="mf-card">' +
 
@@ -553,25 +624,15 @@ function renderOwners() {
           '</div>' +
         '</div>' +
         mfZoomDetail('mfCogsDetail', cogsItems, 0, cogsPct,
-          ['#FF6B35','#E5484D','#f59e0b'], '#f87171', 'COGS') +
+          ['#3b82f6','#8b5cf6','#f59e0b'], '#f87171', 'COGS') +
       '</div>' +
 
       // ── = Gross Profit ────────────────────────────────────────
+      // Score line + target bar are hidden inside gpDetailHtml; only shown on expand
       '<div class="mf-step mf-step--gp">' +
         '<div class="mf-step-label"><span class="mf-step-eq">=</span> Gross Profit ' + mfPill('gp', gmPct) + '</div>' +
         '<div class="mf-step-num">' + fmtDollar(curGP) + '</div>' +
-        '<div class="mf-score-pct-line">We kept ' + fmtPct(gmPct) + ' of every dollar — goal is 50%</div>' +
-        mfTargetBar(gmPct, 50, 65) +
-        // GP breakdown: click the green bar segment above to reveal how GP was further spent
-        mfZoomDetail('mfGpDetail',
-          (curNOI >= 0
-            ? [{label:'Overhead',    val: curOvhd},
-               {label:'Operating Profit', val: curNOI}]
-            : [{label:'Overhead',    val: curOvhd},
-               {label:'Operating Loss (overhead exceeded GP)', val: Math.abs(curNOI)}]),
-          cogsPct, 100,
-          ['#fb923c','#3b82f6'],
-          '#22c55e', 'Gross Profit') +
+        gpDetailHtml +
       '</div>' +
 
       // ── − Overhead ────────────────────────────────────────────
