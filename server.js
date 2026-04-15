@@ -1815,14 +1815,12 @@ app.get('/api/metrics', async (req, res) => {
         }
       });
       const pageJobs = jobsRes.data.jobs || [];
-      // Defensive: HCP sometimes returns jobs outside the filter. Drop
-      // anything whose work_status isn't actually "completed" AND that
-      // doesn't have a real completed_at timestamp.
-      const safeJobs = pageJobs.filter(j => {
-        const statusOk = (j.work_status || '').toLowerCase() === 'completed';
-        const hasCompletedAt = !!(j.work_timestamps && j.work_timestamps.completed_at);
-        return statusOk && hasCompletedAt;
-      });
+      // Defensive: double-check work_status in case HCP ignores the filter.
+      // (We can't require completed_at — HCP doesn't always populate it
+      // even for genuinely completed jobs.)
+      const safeJobs = pageJobs.filter(j =>
+        (j.work_status || '').toLowerCase() === 'completed'
+      );
       allJobs.push(...safeJobs);
       const totalPages = jobsRes.data.total_pages || 1;
       if (page >= totalPages) break;
@@ -2018,11 +2016,9 @@ app.get('/api/marketing', async (req, res) => {
             page_size: 200
           }
         });
-        const jobs = (r.data.jobs || []).filter(j => {
-          const statusOk = (j.work_status || '').toLowerCase() === 'completed';
-          const hasCompletedAt = !!(j.work_timestamps && j.work_timestamps.completed_at);
-          return statusOk && hasCompletedAt;
-        });
+        const jobs = (r.data.jobs || []).filter(j =>
+          (j.work_status || '').toLowerCase() === 'completed'
+        );
         allJobs.push(...jobs);
         if (page >= (r.data.total_pages || 1)) break;
         page++;
