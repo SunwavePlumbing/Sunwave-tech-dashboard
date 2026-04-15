@@ -15,6 +15,21 @@ function hcpHeaders() {
   return { 'Authorization': 'Token ' + API_KEY, 'Accept': 'application/json' };
 }
 
+// ── Tiny in-memory response cache ────────────────────────────────────────────
+// Keyed by request URL + key; value = { at, data }. Separate TTLs per endpoint.
+// Lets repeat page loads return instantly while real data refreshes in the
+// background. Cache is cleared in-process on server restart.
+const _cache = new Map();
+function cacheGet(key, ttlMs) {
+  const e = _cache.get(key);
+  if (!e) return null;
+  if (Date.now() - e.at > ttlMs) { _cache.delete(key); return null; }
+  return e.data;
+}
+function cacheSet(key, data) {
+  _cache.set(key, { at: Date.now(), data });
+}
+
 // ── QuickBooks Online ────────────────────────────────────────────────────────
 const QBO_CLIENT_ID     = process.env.QBO_CLIENT_ID;
 const QBO_CLIENT_SECRET = process.env.QBO_CLIENT_SECRET;
@@ -1142,7 +1157,6 @@ app.get('/', (req, res) => {
     document.getElementById('finRow2').style.display = 'none';
     document.getElementById('finRow3').style.display = 'none';
     document.getElementById('finTrendCard').style.display = 'none';
-    document.getElementById('finAlerts').style.display = 'none';
     try {
       var [finResp, balResp] = await Promise.all([
         fetch('/api/owners-financial').then(function(r){return r.json();}).catch(function(){return{connected:false,reason:'error'};}),
@@ -1397,7 +1411,7 @@ app.get('/', (req, res) => {
         sub: fmtPct(noiPct) + ' of revenue',
         cls: colorClass('om', noiPct),
         delta: dollarCompare(curNOI, noi),
-        hint: 'What\\'s left after every bill is paid &mdash; rent, admin, marketing, vehicles. This is the real profit.'
+        hint: 'What&rsquo;s left after every bill is paid &mdash; rent, admin, marketing, vehicles. This is the real profit.'
       }
     ];
 
@@ -1979,6 +1993,12 @@ app.get('/api/marketing', async (req, res) => {
   if (!API_KEY) {
     return res.status(500).json({ error: 'API key not configured' });
   }
+  // 10-minute cache: job counts don't shift materially minute-to-minute
+  const MKT_TTL = 10 * 60 * 1000;
+  if (req.query.refresh !== '1') {
+    const cached = cacheGet('marketing', MKT_TTL);
+    if (cached) return res.json(cached);
+  }
   try {
     const headers = hcpHeaders();
 
@@ -2043,7 +2063,7 @@ app.get('/api/marketing', async (req, res) => {
     const dailyRate = daysElapsed > 0 ? cur.jobs / daysElapsed : 0;
     const projectedJobs = daysElapsed > 0 ? Math.round(dailyRate * daysInMonth) : 0;
 
-    res.json({
+    const payload = {
       history,
       projection: {
         jobsMtd: cur.jobs,
@@ -2053,7 +2073,9 @@ app.get('/api/marketing', async (req, res) => {
         daysLeft,
         totalDays: daysInMonth
       }
-    });
+    };
+    cacheSet('marketing', payload);
+    res.json(payload);
   } catch (error) {
     console.error('[/api/marketing]', error.response?.status || '', error.message);
     res.status(500).json({ error: error.message });
