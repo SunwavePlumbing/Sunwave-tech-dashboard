@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sunwave Tech Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<div class="header">
+  <div class="header-eyebrow">Tech Performance</div>
+  <h1>Sunwave</h1>
+  <div class="header-sub">
+    <span class="header-location">&#x1F4CD; Charlottesville</span>
+  </div>
+</div>
+
+<div class="main-wrapper" id="mainWrapper">
+  <div class="sidebar" id="dateSidebar"></div>
+  <div class="content">
+    <!-- Tab navigation -->
+    <div class="tab-nav">
+      <button class="tab-btn" data-tab="technicians">Technicians</button>
+      <button class="tab-btn" data-tab="marketing">Marketing</button>
+      <button class="tab-btn" data-tab="owners">Location Owners</button>
+    </div>
+
+    <!-- Technicians view -->
+    <div class="view-panel" id="techView">
+      <div class="stats" id="stats">
+        <div class="stat-card"><div class="stat-label">Total Revenue</div><div class="stat-value">&mdash;</div></div>
+        <div class="stat-card"><div class="stat-label">Avg Ticket</div><div class="stat-value">&mdash;</div></div>
+        <div class="stat-card"><div class="stat-label">Total Jobs</div><div class="stat-value">&mdash;</div></div>
+      </div>
+      <div class="sort-section">
+        <span class="sort-label">Sort:</span>
+        <button class="sort-btn active" data-sort="revenue">Revenue</button>
+        <button class="sort-btn" data-sort="ticket">Avg Ticket</button>
+        <button class="sort-btn" data-sort="jobs"># Jobs</button>
+      </div>
+      <div class="table-wrapper" id="tableWrapper">
+        <div class="spinner"></div>
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Revenue</th>
+              <th>Avg Ticket</th>
+              <th># Jobs</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboardBody">
+            <tr><td colspan="4" style="padding:2rem;text-align:center;color:#aaa">Loading...</td></tr>
+          </tbody>
+          <tfoot id="leaderboardFoot"></tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- Marketing view -->
+    <div class="view-panel" id="marketingView">
+      <div id="marketingContent">
+        <div style="text-align:center;padding:3rem;color:#aaa;font-size:14px">Loading marketing data...</div>
+      </div>
+    </div>
+
+    <!-- Location Owners view -->
+    <div class="view-panel" id="ownersView">
+      <!-- Filter bar -->
+      <div class="fin-filter-bar" id="finFilterBar">
+        <label class="fin-filter-field">
+          <span class="fin-filter-label">Month</span>
+          <select id="finMonthSel" class="fin-select" onchange="setFinMonth(this.value)"></select>
+        </label>
+        <label class="fin-filter-field">
+          <span class="fin-filter-label">Compare to</span>
+          <select id="finCompareSel" class="fin-select" onchange="setFinCompare(this.value)">
+            <option value="prior_year_month" selected>Same month last year</option>
+            <option value="prior_month">Prior month</option>
+            <option value="prior_year_avg">Prior year avg</option>
+            <option value="none">No comparison</option>
+          </select>
+        </label>
+        <button class="fin-refresh-btn" onclick="fetchOwnersData(true)" aria-label="Refresh">&#8635;</button>
+      </div>
+
+      <!-- Formula card — the centerpiece -->
+      <div id="finCards">
+        <div style="text-align:center;padding:3rem;color:#aaa;font-size:14px">Loading financial data&hellip;</div>
+      </div>
+
+      <!-- Efficiency tiles -->
+      <div class="fin-row-title" id="finCardsTitle2" style="display:none">Where the money goes &mdash; as a share of revenue</div>
+      <div class="fin-pct-tiles" id="finCards2"></div>
+
+      <!-- Row 2: Where the money went + what's on hand -->
+      <div class="fin-row2" id="finRow2" style="display:none">
+        <div class="fin-chart-card">
+          <div class="fin-chart-title">Where Every Dollar Went <span id="donutSubtitle"></span></div>
+          <div style="font-size:11px;color:#888;margin-top:-8px;margin-bottom:10px">Hover a slice to see the category and dollar amount.</div>
+          <div class="fin-chart-wrap" style="height:260px"><canvas id="donutChart"></canvas></div>
+        </div>
+        <div class="fin-chart-card">
+          <div class="fin-chart-title">What We Have and What We Owe <span id="cashSubtitle"></span></div>
+          <div style="font-size:11px;color:#888;margin-top:-8px;margin-bottom:10px">Snapshot of the bank accounts, bills, and debts from the balance sheet.</div>
+          <div id="finCash"></div>
+        </div>
+      </div>
+
+      <!-- Row 3: Year-over-year comparison -->
+      <div class="fin-row2" id="finRow3" style="display:none">
+        <div class="fin-chart-card" style="grid-column:1/-1">
+          <div class="fin-chart-title">Same Month, Last Year vs. This Year <span id="varSubtitle"></span></div>
+          <div style="font-size:11px;color:#888;margin-top:-8px;margin-bottom:10px">Are we bigger and more profitable than a year ago? Green = better, red = worse.</div>
+          <div id="finVariance"></div>
+        </div>
+      </div>
+
+      <!-- Key Ratios trend -->
+      <div class="fin-chart-card" id="finTrendCard" style="display:none;margin-bottom:1.4rem">
+        <div class="fin-chart-title">How The Ratios Have Moved, Month by Month</div>
+        <div style="font-size:11px;color:#888;margin-top:-8px;margin-bottom:10px">Click a ratio below to plot just that one. Each line is that category&rsquo;s share of monthly revenue. <span style="color:#D4A017;font-weight:700">&mdash;</span> <strong style="color:#D4A017">Gold line = target</strong></div>
+        <div class="fin-trend-toggles" id="trendToggles"></div>
+        <div class="fin-chart-wrap" style="height:240px"><canvas id="trendChart"></canvas></div>
+      </div>
+
+      <!-- Monthly P&L grid (moved to bottom) -->
+      <div class="fin-chart-card" id="finPnlCard" style="display:none;margin-bottom:1.4rem">
+        <div class="fin-pnl-head">
+          <div class="fin-chart-title" style="margin-bottom:0">Full Picture &mdash; Month by Month <span id="finPnlSubtitle"></span></div>
+          <div class="fin-toggle" aria-label="Show dollars or percent of revenue">
+            <button id="finModeDollar" class="active" onclick="setFinMode('dollar')">$</button>
+            <button id="finModePct" onclick="setFinMode('pct')">% Rev</button>
+          </div>
+        </div>
+        <div style="font-size:11px;color:#888;margin-top:4px;margin-bottom:10px">Every income and expense line, month by month. The selected month is highlighted. % Rev shows each line as a share of revenue over the whole window.</div>
+        <div id="finPnlGrid" class="fin-pnl-scroll"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  Updates every 5 minutes &bull; Last updated: <span id="lastUpdate">Never</span>
+</div>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">Jobs</span>
+      <button class="modal-close" id="modalClose">&times;</button>
+    </div>
+    <div class="modal-body">
+      <table class="modal-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Description</th>
+            <th>Customer</th>
+            <th>Job Total</th>
+            <th>Their Share</th>
+          </tr>
+        </thead>
+        <tbody id="modalBody"></tbody>
+      </table>
+      <div id="modalCards" class="modal-cards"></div>
+    </div>
+    <div class="modal-footer">
+      <span class="modal-footer-left" id="modalJobCount"></span>
+      <span class="modal-footer-right" id="modalTotal"></span>
+    </div>
+  </div>
+</div>
+
+<script src="/app.js"></script>
+<script src="/technicians.js"></script>
+<script src="/marketing.js"></script>
+<script src="/owners.js"></script>
+</body>
+</html>
