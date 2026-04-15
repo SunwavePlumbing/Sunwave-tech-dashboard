@@ -2,6 +2,15 @@ const express = require('express');
 const axios = require('axios');
 const app = express();
 
+// Log every request so we can see in Railway logs what's actually hitting Express
+app.use((req, res, next) => {
+  console.log('[REQ]', req.method, req.path);
+  next();
+});
+
+// Simple test route
+app.get('/ping', (req, res) => res.send('pong'));
+
 const API_KEY = process.env.HOUSECALL_PRO_API_KEY;
 const PORT = process.env.PORT || 3000;
 const BASE_URL = 'https://api.housecallpro.com';
