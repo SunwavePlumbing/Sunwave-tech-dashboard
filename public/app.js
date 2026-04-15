@@ -180,6 +180,25 @@ function closeModal() {
   document.body.style.overflow = '';
 }
 
+// ── Sliding tab indicator ───────────────────────────────────────
+function updateTabIndicator(tab, animate) {
+  var btn = document.querySelector('.tab-btn[data-tab="' + tab + '"]');
+  var indicator = document.getElementById('tabIndicator');
+  if (!btn || !indicator) return;
+  var nav = btn.closest('.tab-nav');
+  var navRect = nav.getBoundingClientRect();
+  var btnRect = btn.getBoundingClientRect();
+  indicator.style.top    = (btnRect.top    - navRect.top)  + 'px';
+  indicator.style.left   = (btnRect.left   - navRect.left) + 'px';
+  indicator.style.width  = btnRect.width  + 'px';
+  indicator.style.height = btnRect.height + 'px';
+  if (animate) indicator.classList.add('tab-indicator-ready');
+}
+window.addEventListener('resize', function() {
+  var activeBtn = document.querySelector('.tab-btn.active');
+  if (activeBtn) updateTabIndicator(activeBtn.dataset.tab, false);
+});
+
 // ── Tab navigation with hash-based URLs ────────────────────────
 // URLs: /#technicians  /#marketing  /#owners
 var marketingLoaded = false;
@@ -201,6 +220,8 @@ function activateTab(tab) {
   // Update panels
   document.querySelectorAll('.view-panel').forEach(function(p) { p.classList.remove('active'); });
   document.getElementById(TAB_MAP[tab].view).classList.add('active');
+  // Slide the pill indicator (animate=true after initial paint)
+  updateTabIndicator(tab, true);
   // Sidebar only on Technicians tab
   var isTech = tab === 'technicians';
   // On desktop the sidebar is a grid column — show/hide it and toggle the class.
@@ -245,7 +266,11 @@ function init() {
     techView.insertBefore(dateSidebar, techView.firstChild);
   }
   var tab = window.location.hash.replace('#', '') || DEFAULT_TAB;
+  // Place indicator without animation first, then enable sliding on next frame
   activateTab(tab);
+  requestAnimationFrame(function() {
+    updateTabIndicator(tab, true); // ensures indicator is correctly sized after paint
+  });
   fetchData();
   setInterval(fetchData, 5 * 60 * 1000);
 }
