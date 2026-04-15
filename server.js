@@ -203,6 +203,7 @@ app.get('/', (req, res) => {
     .header-period { font-size: 12px; opacity: 0.75; }
 
     .main-wrapper { display: grid; grid-template-columns: 180px 1fr; min-height: calc(100vh - 100px); }
+    .main-wrapper.no-sidebar { grid-template-columns: 1fr; }
     .sidebar { background: white; padding: 1.5rem 1rem; border-right: 1px solid #e5e5e5; overflow-y: auto; }
     .date-btn { display: block; width: 100%; padding: 9px 12px; font-size: 13px; border: none; background: transparent; color: #444; cursor: pointer; text-align: left; border-radius: 6px; margin-bottom: 3px; transition: background 0.15s; }
     .date-btn:hover { background: #f0f0f0; }
@@ -431,7 +432,7 @@ app.get('/', (req, res) => {
   </div>
 </div>
 
-<div class="main-wrapper">
+<div class="main-wrapper" id="mainWrapper">
   <div class="sidebar" id="dateSidebar"></div>
   <div class="content">
     <!-- Tab navigation -->
@@ -483,8 +484,16 @@ app.get('/', (req, res) => {
     <!-- Location Owners view -->
     <div class="view-panel" id="ownersView">
       <!-- Filter bar -->
-      <div class="fin-filter-bar" id="finFilterBar" style="display:none">
-        <span class="fin-filter-label">View</span>
+      <div class="fin-filter-bar" id="finFilterBar">
+        <span class="fin-filter-label">Period</span>
+        <div class="fin-toggle" id="finPeriodBtns">
+          <button class="active" data-period="last_month" onclick="setFinPeriod(this)">Last Mo</button>
+          <button data-period="last_3" onclick="setFinPeriod(this)">3 Mo</button>
+          <button data-period="last_12" onclick="setFinPeriod(this)">12 Mo</button>
+          <button data-period="ytd" onclick="setFinPeriod(this)">YTD</button>
+          <button data-period="last_year" onclick="setFinPeriod(this)">Last Year</button>
+        </div>
+        <span class="fin-filter-label" style="margin-left:8px">View</span>
         <div class="fin-toggle">
           <button id="finModeDollar" class="active" onclick="setFinMode('dollar')">$</button>
           <button id="finModePct" onclick="setFinMode('pct')">% Rev</button>
@@ -852,6 +861,10 @@ app.get('/', (req, res) => {
     // Update panels
     document.querySelectorAll('.view-panel').forEach(function(p) { p.classList.remove('active'); });
     document.getElementById(TAB_MAP[tab].view).classList.add('active');
+    // Sidebar only on Technicians
+    var isTech = tab === 'technicians';
+    document.getElementById('dateSidebar').style.display = isTech ? '' : 'none';
+    document.getElementById('mainWrapper').classList.toggle('no-sidebar', !isTech);
     // Lazy-load tab data
     if (tab === 'marketing' && !marketingLoaded) {
       marketingLoaded = true;
@@ -1003,7 +1016,8 @@ app.get('/', (req, res) => {
           : '';
       }
       var spend = mktSpend[m.monthKey || (m.year + '-' + String(m.month + 1).padStart(2, '0'))] || 0;
-      var costPerJob = (displayJobs > 0 && spend > 0) ? Math.round(spend / displayJobs) : 0;
+      // Use actual completed jobs (m.jobs) for spend ratio — not projected — so both sides are real numbers
+      var costPerJob = (m.jobs > 0 && spend > 0) ? Math.round(spend / m.jobs) : 0;
       var spendCell = showQBO
         ? (spend > 0 ? fmt(spend) : '<span style="color:#ccc">—</span>')
         : '<span style="color:#ddd">—</span>';
@@ -1047,6 +1061,7 @@ app.get('/', (req, res) => {
   // ── Location Owners / Financial Tab ────────────────────────────
   var ownersData = null;
   var finMode = 'dollar'; // 'dollar' | 'pct'
+  var finPeriod = 'last_month'; // default: latest complete month
   var waterfallChartInst = null;
   var donutChartInst = null;
   var trendChartInst = null;
@@ -1059,12 +1074,24 @@ app.get('/', (req, res) => {
     if (ownersData && ownersData.connected) renderOwners();
   }
 
+  function setFinPeriod(btn) {
+    finPeriod = btn.dataset.period;
+    document.querySelectorAll('#finPeriodBtns button').forEach(function(b) {
+      b.classList.toggle('active', b === btn);
+    });
+    ownersData = null; // force reload
+    fetchOwnersData(true);
+  }
+
   async function fetchOwnersData(force) {
     if (ownersData && !force) return;
     document.getElementById('finCards').innerHTML =
       '<div style="text-align:center;padding:3rem;color:#aaa;font-size:14px;grid-column:1/-1">Loading financial data\u2026</div>';
+    document.getElementById('finRow2').style.display = 'none';
+    document.getElementById('finTrendCard').style.display = 'none';
+    document.getElementById('finAlerts').style.display = 'none';
     try {
-      var resp = await fetch('/api/owners-financial');
+      var resp = await fetch('/api/owners-financial?period=' + finPeriod);
       ownersData = await resp.json();
     } catch(e) {
       ownersData = { connected: false, reason: 'error' };
@@ -1149,7 +1176,6 @@ app.get('/', (req, res) => {
       document.getElementById('finRow2').style.display = 'none';
       document.getElementById('finTrendCard').style.display = 'none';
       document.getElementById('finAlerts').style.display = 'none';
-      document.getElementById('finFilterBar').style.display = 'none';
       return;
     }
 
@@ -1237,14 +1263,16 @@ app.get('/', (req, res) => {
     document.getElementById('finCards').innerHTML = cardsHtml;
 
     // ── Show/hide structural elements ────────────────────────────
-    document.getElementById('finFilterBar').style.display = '';
     document.getElementById('finRow2').style.display = '';
-    document.getElementById('finTrendCard').style.display = '';
+    document.getElementById('finTrendCard').style.display = multiMonth ? '' : 'none';
     document.getElementById('finAlerts').style.display = '';
-    if (ownersData.fetchedAt) {
-      document.getElementById('finUpdated').textContent =
-        'Data as of ' + new Date(ownersData.fetchedAt).toLocaleString();
-    }
+    var updTxt = '';
+    if (ownersData.periodLabel) updTxt = ownersData.periodLabel + '  ·  ';
+    if (ownersData.fetchedAt) updTxt += 'as of ' + new Date(ownersData.fetchedAt).toLocaleTimeString();
+    document.getElementById('finUpdated').textContent = updTxt;
+
+    // Only show trend lines when we have multiple months
+    var multiMonth = months.length > 1;
 
     // ── Waterfall chart ──────────────────────────────────────────
     var wRevTotal  = acctTotal('Total for Income');
@@ -2026,6 +2054,18 @@ app.get('/api/qbo-marketing', async (req, res) => {
 // ────────────────────────────────────────────────────────────────────────────
 
 // ── /api/owners-financial ────────────────────────────────────────────────────
+// Smart date helper: books close ~15th of the month after month-end.
+// Before the 15th → latest complete month is 2 months ago.
+// On/after the 15th → latest complete month is last month.
+function getReliableEndDate(now) {
+  const latestCompleteMonth = now.getDate() < 15
+    ? new Date(now.getFullYear(), now.getMonth() - 2, 1)  // 2 months back
+    : new Date(now.getFullYear(), now.getMonth() - 1, 1); // last month
+  // End = last day of that month
+  const end = new Date(latestCompleteMonth.getFullYear(), latestCompleteMonth.getMonth() + 1, 0);
+  return end;
+}
+
 app.get('/api/owners-financial', async (req, res) => {
   if (!qboReady()) {
     return res.json({ connected: false, reason: qboConfigured() ? 'not_connected' : 'not_configured' });
@@ -2035,8 +2075,37 @@ app.get('/api/owners-financial', async (req, res) => {
     if (!token) return res.json({ connected: false, reason: 'no_token' });
 
     const now = new Date();
-    const endDate   = now.toISOString().slice(0, 10);
-    const startDate = new Date(now.getFullYear(), now.getMonth() - 11, 1).toISOString().slice(0, 10);
+    const reliableEnd = getReliableEndDate(now);
+    const period = req.query.period || 'last_month';
+
+    let startDate, endDate;
+
+    if (period === 'last_month') {
+      // Just the single latest complete month
+      const start = new Date(reliableEnd.getFullYear(), reliableEnd.getMonth(), 1);
+      startDate = start.toISOString().slice(0, 10);
+      endDate   = reliableEnd.toISOString().slice(0, 10);
+    } else if (period === 'last_3') {
+      const start = new Date(reliableEnd.getFullYear(), reliableEnd.getMonth() - 2, 1);
+      startDate = start.toISOString().slice(0, 10);
+      endDate   = reliableEnd.toISOString().slice(0, 10);
+    } else if (period === 'last_12') {
+      const start = new Date(reliableEnd.getFullYear(), reliableEnd.getMonth() - 11, 1);
+      startDate = start.toISOString().slice(0, 10);
+      endDate   = reliableEnd.toISOString().slice(0, 10);
+    } else if (period === 'ytd') {
+      startDate = reliableEnd.getFullYear() + '-01-01';
+      endDate   = reliableEnd.toISOString().slice(0, 10);
+    } else if (period === 'last_year') {
+      const y = reliableEnd.getFullYear() - 1;
+      startDate = y + '-01-01';
+      endDate   = y + '-12-31';
+    } else {
+      // fallback: last 12 months
+      const start = new Date(reliableEnd.getFullYear(), reliableEnd.getMonth() - 11, 1);
+      startDate = start.toISOString().slice(0, 10);
+      endDate   = reliableEnd.toISOString().slice(0, 10);
+    }
 
     const pnlRes = await axios.get(
       QBO_BASE + '/v3/company/' + qboTokens.realmId + '/reports/ProfitAndLoss',
@@ -2053,7 +2122,11 @@ app.get('/api/owners-financial', async (req, res) => {
     );
 
     const parsed = parseFinancialReport(pnlRes.data);
-    res.json({ connected: true, ...parsed, fetchedAt: new Date().toISOString() });
+    const periodLabel = new Date(startDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+      + (startDate !== endDate
+          ? ' – ' + new Date(endDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+          : '');
+    res.json({ connected: true, ...parsed, fetchedAt: new Date().toISOString(), periodLabel, startDate, endDate });
   } catch (err) {
     console.error('[QBO] owners-financial error:', err.response?.data || err.message);
     if (err.response?.status === 401) {
