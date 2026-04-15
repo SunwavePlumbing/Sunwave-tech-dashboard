@@ -7,6 +7,8 @@ var ownersBalance = null;
 var donutChartInst = null;
 var trendChartInst = null;
 var cfBarChartInst = null;
+var cbLineChartInst = null;
+var ownersCashHistory = null;
 var trendActive = 'gm'; // single-select key-ratio trend line
 
 // Toggle expandable detail panel in the money-flow card
@@ -48,13 +50,16 @@ async function fetchOwnersData(force) {
   document.getElementById('finRow3').style.display = 'none';
   document.getElementById('finTrendCard').style.display = 'none';
   document.getElementById('finCashFlowCard').style.display = 'none';
+  document.getElementById('finCashBalCard').style.display = 'none';
   try {
-    var [finResp, balResp] = await Promise.all([
+    var [finResp, balResp, cashHistResp] = await Promise.all([
       fetch('/api/owners-financial').then(function(r){return r.json();}).catch(function(){return{connected:false,reason:'error'};}),
-      fetch('/api/qbo-balance').then(function(r){return r.json();}).catch(function(){return{connected:false};})
+      fetch('/api/qbo-balance').then(function(r){return r.json();}).catch(function(){return{connected:false};}),
+      fetch('/api/qbo-cash-history').then(function(r){return r.json();}).catch(function(){return{connected:false};})
     ]);
     ownersData = finResp;
     ownersBalance = balResp;
+    ownersCashHistory = cashHistResp;
   } catch(e) {
     ownersData = { connected: false, reason: 'error' };
   }
@@ -171,6 +176,7 @@ function renderOwners() {
     document.getElementById('finRow3').style.display = 'none';
     document.getElementById('finTrendCard').style.display = 'none';
     document.getElementById('finCashFlowCard').style.display = 'none';
+    document.getElementById('finCashBalCard').style.display = 'none';
     return;
   }
 
@@ -864,6 +870,126 @@ function renderOwners() {
     }
   } else if (cfCard) {
     cfCard.style.display = 'none';
+  }
+
+  // ── Cash in the Bank over time ───────────────────────────────
+  var cbCard = document.getElementById('finCashBalCard');
+  var hasHistory = ownersCashHistory && ownersCashHistory.connected &&
+                   ownersCashHistory.history && ownersCashHistory.history.length > 1;
+
+  if (cbCard && hasHistory) {
+    cbCard.style.display = '';
+
+    var hist = ownersCashHistory.history.filter(function(h) { return h.cash !== null; });
+    var cbLabels = hist.map(function(h) { return fmtMkShort(h.mk); });
+    var cbCash   = hist.map(function(h) { return h.cash; });
+
+    // Color the line: green if cash is above the first recorded month, blue otherwise
+    var cbColor = '#3b82f6'; // blue baseline
+
+    if (cbLineChartInst) cbLineChartInst.destroy();
+    var cbCtx = document.getElementById('cbLineChart').getContext('2d');
+    // Gradient fill
+    var grad = cbCtx.createLinearGradient(0, 0, 0, 200);
+    grad.addColorStop(0, 'rgba(59,130,246,0.25)');
+    grad.addColorStop(1, 'rgba(59,130,246,0)');
+    cbLineChartInst = new Chart(cbCtx, {
+      type: 'line',
+      data: {
+        labels: cbLabels,
+        datasets: [{
+          data: cbCash,
+          borderColor: cbColor,
+          backgroundColor: grad,
+          borderWidth: 2.5,
+          pointRadius: 4,
+          pointBackgroundColor: cbColor,
+          pointHoverRadius: 6,
+          tension: 0.3,
+          fill: true
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: function(items) { return items[0].label; },
+              label: function(ctx) { return 'Cash: ' + fmtDollar(ctx.parsed.y); }
+            }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 45 } },
+          y: {
+            ticks: { callback: function(v) { return fmtDollar(v); }, font: { size: 10 } },
+            grid: { color: '#f0f0f0' }
+          }
+        }
+      }
+    });
+    document.getElementById('cbSubtitle').textContent = hist.length + ' months';
+
+    // ── What's Moving Cash (month-over-month breakdown) ──────────
+    // Align cash history months with P&L noi array using month keys.
+    var noiByMk = {};
+    months.forEach(function(mk, i) { noiByMk[mk] = noi[i] || 0; });
+
+    // Build rows for months where we have consecutive cash readings
+    var cbRows = [];
+    for (var ci = 1; ci < hist.length; ci++) {
+      var mk = hist[ci].mk;
+      var cashNow  = hist[ci].cash;
+      var cashPrev = hist[ci - 1].cash;
+      var delta    = cashNow - cashPrev;
+      var ops      = noiByMk[mk] != null ? noiByMk[mk] : null;
+      var other    = ops !== null ? delta - ops : null;
+      cbRows.push({ mk: mk, cash: cashNow, delta: delta, ops: ops, other: other });
+    }
+
+    // Show last 6 on phone, all on desktop
+    var cbIsPhone = window.innerWidth < 700;
+    var cbShow = cbIsPhone ? cbRows.slice(-6) : cbRows;
+
+    var moversHtml =
+      '<div class="cb-movers-title">What\u2019s Moving Cash &mdash; Month-over-Month Breakdown</div>' +
+      '<div style="font-size:11px;color:#aaa;margin-bottom:10px">Cash change = Operating Profit &plus; non-operating (owner draws, loan payments, equipment purchases, etc.)</div>' +
+      '<div class="cb-movers-head">' +
+        '<span>Month</span>' +
+        '<span>Balance</span>' +
+        '<span>Change</span>' +
+        '<span class="cb-hide-mobile">Ops Profit</span>' +
+        '<span class="cb-hide-mobile">Non-Operating</span>' +
+      '</div>' +
+      cbShow.map(function(r) {
+        var dCls   = r.delta >= 0 ? 'pos' : 'neg';
+        var dArrow = r.delta >= 0 ? '\u25b2' : '\u25bc';
+        var opCell = r.ops !== null
+          ? '<span class="cb-hide-mobile cb-mover-val ' + (r.ops >= 0 ? 'pos' : 'neg') + '">' + fmtDollar(r.ops) + '</span>'
+          : '<span class="cb-hide-mobile cb-mover-val muted">\u2014</span>';
+        var otherCell = r.other !== null
+          ? (function() {
+              var cls = Math.abs(r.other) < 500 ? 'muted'   // near-zero, irrelevant
+                      : r.other > 0  ? 'pos'   // money came in (loan proceeds, etc.)
+                      : 'neg';                  // money went out (draws, debt payments, capex)
+              var hint = r.other > 500  ? ' \u2191loan/other'
+                       : r.other < -500 ? ' \u2193draw/debt'
+                       : '';
+              return '<span class="cb-hide-mobile cb-mover-val ' + cls + '">' + fmtDollar(r.other) + '<span class="cb-mover-hint">' + hint + '</span></span>';
+            })()
+          : '<span class="cb-hide-mobile cb-mover-val muted">\u2014</span>';
+        return '<div class="cb-mover-row">' +
+          '<span class="cb-mover-lbl">' + fmtMkShort(r.mk) + '</span>' +
+          '<span class="cb-mover-val">' + fmtDollar(r.cash) + '</span>' +
+          '<span class="cb-mover-chg ' + dCls + '">' + dArrow + ' ' + fmtDollar(Math.abs(r.delta)) + '</span>' +
+          opCell + otherCell +
+        '</div>';
+      }).join('');
+
+    document.getElementById('cbMovers').innerHTML = moversHtml;
+  } else if (cbCard) {
+    cbCard.style.display = 'none';
   }
 
 }

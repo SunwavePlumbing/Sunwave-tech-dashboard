@@ -890,6 +890,80 @@ app.get('/api/qbo-balance', async (req, res) => {
     res.status(500).json({ connected: false, error: err.message });
   }
 });
+// Cash-in-bank history — end-of-month balance sheet snapshots for past 12 months.
+// Makes parallel QBO BalanceSheet calls, one per month, then caches the result.
+app.get('/api/qbo-cash-history', async (req, res) => {
+  if (!qboReady()) return res.json({ connected: false });
+  const TTL = 4 * 60 * 60 * 1000;
+  const cached = cacheGet('qbo-cash-history', TTL);
+  if (cached) return res.json(cached);
+  try {
+    const token = await getQBOAccessToken();
+    if (!token) return res.json({ connected: false });
+
+    // Build end-of-month dates for the past 12 completed months
+    const today = new Date();
+    const dates = [];
+    for (let m = 11; m >= 0; m--) {
+      // day 0 of (month - m + 1) = last day of (month - m)
+      const d = new Date(today.getFullYear(), today.getMonth() - m + 1, 0);
+      if (d > today) continue;
+      dates.push(d.toISOString().slice(0, 10));
+    }
+
+    const fetchOne = async (asOf) => {
+      try {
+        const r = await axios.get(
+          QBO_BASE + '/v3/company/' + qboTokens.realmId + '/reports/BalanceSheet',
+          {
+            headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
+            params: { as_of: asOf, accounting_method: 'Cash', minorversion: 75 }
+          }
+        );
+        const byName = {};
+        (function walk(rows) {
+          if (!Array.isArray(rows)) return;
+          rows.forEach(row => {
+            if (row.Summary && row.Summary.ColData) {
+              const n = (row.Summary.ColData[0].value || '').trim();
+              const v = parseFloat((row.Summary.ColData[row.Summary.ColData.length - 1].value || '0').replace(/,/g, '')) || 0;
+              if (n) byName[n] = v;
+            }
+            if (row.ColData && row.ColData[0]) {
+              const n = (row.ColData[0].value || '').trim();
+              const v = parseFloat((row.ColData[row.ColData.length - 1].value || '0').replace(/,/g, '')) || 0;
+              if (n) byName[n] = v;
+            }
+            if (row.Rows && row.Rows.Row) walk(row.Rows.Row);
+          });
+        })((r.data.Rows && r.data.Rows.Row) || []);
+
+        const findKW = (kws) => {
+          for (const k of Object.keys(byName)) {
+            if (kws.every(kw => k.toLowerCase().includes(kw))) return byName[k];
+          }
+          return null;
+        };
+        const cash = findKW(['total', 'bank']) || findKW(['total', 'checking']) || findKW(['total', 'cash']) || 0;
+        return { mk: asOf.slice(0, 7), cash };
+      } catch (e) {
+        return { mk: asOf.slice(0, 7), cash: null };
+      }
+    };
+
+    const history = await Promise.all(dates.map(fetchOne));
+    const payload = { connected: true, history, fetchedAt: new Date().toISOString() };
+    cacheSet('qbo-cash-history', payload);
+    res.json(payload);
+  } catch (err) {
+    console.error('[/api/qbo-cash-history]', err.message);
+    if (err.response?.status === 401) {
+      qboTokens.accessToken = null;
+      return res.json({ connected: false, reason: 'token_expired' });
+    }
+    res.json({ connected: false, reason: 'error' });
+  }
+});
 // ────────────────────────────────────────────────────────────────────────────
 
 app.listen(PORT, () => {
