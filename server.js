@@ -1146,8 +1146,13 @@ app.get('/api/depreciation-schedule', async (req, res) => {
   try {
     // Load asset register
     const registerPath = path.join(__dirname, 'assets-register.json');
+    if (!fs.existsSync(registerPath)) {
+      console.error('[depreciation] Asset register file not found at:', registerPath);
+      return res.json(payload);
+    }
     const registerData = fs.readFileSync(registerPath, 'utf8');
     const assetRegister = JSON.parse(registerData);
+    console.log('[depreciation] Loaded asset register with', assetRegister.assets.length, 'assets');
 
     // Parse asOfDate: use query param or today
     const asOfDateStr = req.query.asOfDate || payload.asOfDate;
@@ -1169,7 +1174,11 @@ app.get('/api/depreciation-schedule', async (req, res) => {
               params: { minorversion: 75 }
             }
           );
-          console.log('[depreciation] Balance sheet fetch successful, rows:', bsRes.data.Rows ? 'yes' : 'no');
+          const hasRows = !!(bsRes.data.Rows && bsRes.data.Rows.Row);
+          console.log('[depreciation] Balance sheet fetch successful, has Rows:', hasRows);
+          if (!hasRows) {
+            console.warn('[depreciation] No rows in balance sheet response - this is unexpected');
+          }
 
           // Parse balance sheet for asset accounts and accumulated depreciation
           // Extract the last money column (current balance) from ColData
@@ -1225,8 +1234,8 @@ app.get('/api/depreciation-schedule', async (req, res) => {
           walkBalanceSheet((bsRes.data.Rows && bsRes.data.Rows.Row) || []);
 
           // Debug logging
-          console.log('[depreciation] Found asset accounts:', Object.keys(assetAccounts));
-          console.log('[depreciation] Found depreciation accounts:', Object.keys(depreciationAccounts));
+          console.log('[depreciation] Found', Object.keys(assetAccounts).length, 'asset accounts:', Object.keys(assetAccounts));
+          console.log('[depreciation] Found', Object.keys(depreciationAccounts).length, 'depreciation accounts:', Object.keys(depreciationAccounts));
 
           payload.connected = true;
 
