@@ -699,7 +699,7 @@ function renderOwners() {
 
       // ── = Gross Profit ────────────────────────────────────────
       '<div class="mf-step mf-step--gp" id="mfGpSection" hidden>' +
-        '<div class="mf-step-label"><span class="mf-step-eq">=</span> Gross Profit ' + mfPill('gp', gmPct) + '</div>' +
+        '<div class="mf-step-label"><span class="mf-step-eq">=</span> Gross Profit</div>' +
         '<div class="mf-step-num">' + fmtDollar(curGP) + '</div>' +
         gpDetailHtml +
       '</div>' +
@@ -770,7 +770,7 @@ function renderOwners() {
 
         return (
           '<div class="mf-step mf-step--noi">' +
-            '<div class="mf-step-label"><span class="mf-step-eq">=</span> Operating Profit ' + mfPill('op', noiPct) + '</div>' +
+            '<div class="mf-step-label"><span class="mf-step-eq">=</span> Operating Profit</div>' +
             '<div class="mf-step-num">' + fmtDollar(curNOI) + '</div>' +
             // Bar wrapper — position:relative so target line can sit on top
             '<div class="mf-noi-bar-wrap">' +
