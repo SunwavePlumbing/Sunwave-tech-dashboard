@@ -21,7 +21,12 @@ function mfToggle(panelId, btn) {
   if (!panel) return;
   var nowOpen = panel.hidden; // true = was hidden, about to open
   panel.hidden = !nowOpen;
+  // Find chevron: inside the button, or in a sibling .mf-cogs-chev-wrap (COGS bar case)
   var chev = btn && btn.querySelector('.mf-op-chev');
+  if (!chev && btn) {
+    var wrap = btn.closest('.mf-cogs-bar-wrap');
+    if (wrap) chev = wrap.querySelector('.mf-cogs-chev-wrap .mf-op-chev');
+  }
   if (chev) chev.classList.toggle('mf-op-chev--open', nowOpen);
   var anim = panel.querySelector('.mf-zoom-bar-anim');
   if (nowOpen) {
@@ -776,7 +781,6 @@ function renderOwners() {
               '<div class="mf-sb-cogs mf-seg-click" onclick="mfToggle(\'mfCogsDetail\',this)"' +
                   ' style="width:' + Math.max(0,Math.min(cogsPct,99)).toFixed(1) + '%">' +
                 '<span class="mf-bar-label">Cost of Goods Sold</span>' +
-                MF_CHEV +
               '</div>' +
               '<div class="mf-sb-gp mf-seg-click" onclick="mfToggleGp(this)">' +
                 '<span class="mf-bar-label">Gross Profit</span>' +
@@ -784,6 +788,7 @@ function renderOwners() {
               '</div>' +
             '</div>' +
             '<div class="mf-cogs-target-line"></div>' +
+            '<div class="mf-cogs-chev-wrap">' + MF_CHEV + '</div>' +
           '</div>' +
         '</div>' +
         mfZoomDetail('mfCogsDetail', cogsItems, 0, cogsPct,
