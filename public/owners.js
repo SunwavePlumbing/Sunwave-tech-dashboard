@@ -1397,6 +1397,8 @@ function showExpModalTxns(title, monthLabel, txns, color) {
     var desc = t.name || t.memo || t.type || '\u2014';
     var memo = t.memo && t.name ? t.memo : '';
     var barPct = total > 0 ? (Math.abs(t.amount) / total * 100) : 0;
+    // Show percentage label on the bar when wide enough to read (≥ 6%)
+    var barLabel = barPct >= 6 ? barPct.toFixed(0) + '% of total' : '';
     return '<div class="exp-row">' +
       '<div class="exp-row-top">' +
         '<span class="exp-row-name">' +
@@ -1407,7 +1409,9 @@ function showExpModalTxns(title, monthLabel, txns, color) {
         '<span class="exp-row-val">' + fmtDollar(Math.abs(t.amount)) + '</span>' +
       '</div>' +
       '<div class="exp-bar-track">' +
-        '<div class="exp-bar-fill" style="width:' + barPct.toFixed(1) + '%;background:' + (color || '#f97316') + '"></div>' +
+        '<div class="exp-bar-fill" style="width:' + barPct.toFixed(1) + '%;background:' + (color || '#f97316') + '">' +
+          (barLabel ? '<span class="exp-bar-label">' + barLabel + '</span>' : '') +
+        '</div>' +
       '</div>' +
     '</div>';
   }).join('');

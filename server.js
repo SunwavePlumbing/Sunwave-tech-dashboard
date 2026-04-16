@@ -209,15 +209,21 @@ function parsePnLDetail(report) {
   // Identify column indices from column metadata
   const ci = {};
   cols.forEach((col, i) => {
-    const t = (col.ColTitle || '').toLowerCase().trim();
-    const ct = (col.ColType || '').toLowerCase();
+    const t  = (col.ColTitle || '').toLowerCase().trim();
+    const ct = (col.ColType  || '').toLowerCase();
     if (t === 'date' || t.includes('date')) ci.date = ci.date == null ? i : ci.date;
     else if (t === 'transaction type' || t === 'type') ci.type = i;
     else if (t === 'num' || t === 'no.' || t === 'doc. no.') ci.num = i;
     else if (t === 'name') ci.name = i;
     else if (t === 'memo' || t.includes('memo') || t.includes('description')) ci.memo = i;
-    // Amount = last Money column (skip intermediate sub-total columns)
-    if (ct === 'money') ci.amount = i;
+    // Explicitly find the "Amount" column — QBO also returns a "Balance" (running total)
+    // column which is the LAST money column and would give wildly inflated values.
+    // Prefer the column explicitly titled "amount"; fall back to first money column.
+    if (t === 'amount') {
+      ci.amount = i;
+    } else if ((ct === 'money' || ct === 'subt_nat_amount') && ci.amount == null) {
+      ci.amount = i; // first money column as fallback
+    }
   });
 
   const txnMap = {}; // "Total X" → [transactions]
