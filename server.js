@@ -38,13 +38,42 @@ const QBO_CLIENT_SECRET = process.env.QBO_CLIENT_SECRET;
 const QBO_REDIRECT_URI  = (process.env.QBO_REDIRECT_URI || 'http://localhost:' + (process.env.PORT || 3000) + '/connect-quickbooks/callback').trim();
 const QBO_BASE          = 'https://quickbooks.api.intuit.com';
 
-// In-memory tokens + realmId — seeded from env vars on startup, updated after OAuth
+// ── QBO token persistence ─────────────────────────────────────────────────────
+// QBO rotates refresh tokens on every use. We persist the latest token to a
+// local JSON file so server restarts (Railway deploys etc.) don't lose it.
+// Priority: persisted file > QBO_REFRESH_TOKEN env var.
+const TOKEN_FILE = path.join(__dirname, '.qbo-tokens.json');
+
+function loadPersistedTokens() {
+  try {
+    const raw = fs.readFileSync(TOKEN_FILE, 'utf8');
+    return JSON.parse(raw);
+  } catch (_) {
+    return {};
+  }
+}
+
+function persistTokens(tokens) {
+  try {
+    fs.writeFileSync(TOKEN_FILE, JSON.stringify(tokens, null, 2), 'utf8');
+  } catch (err) {
+    console.warn('[QBO] Could not persist tokens to file:', err.message);
+  }
+}
+
+const _persisted = loadPersistedTokens();
+
+// In-memory tokens + realmId — seeded from persisted file (or env vars) on startup, updated after OAuth
 const qboTokens = {
   accessToken:  null,
-  refreshToken: process.env.QBO_REFRESH_TOKEN || null,
+  refreshToken: _persisted.refreshToken || process.env.QBO_REFRESH_TOKEN || null,
   expiresAt:    0,
-  realmId:      process.env.QBO_REALM_ID || null   // captured automatically from OAuth callback
+  realmId:      _persisted.realmId      || process.env.QBO_REALM_ID      || null
 };
+
+if (_persisted.refreshToken) {
+  console.log('[QBO] Loaded persisted refresh token from', TOKEN_FILE);
+}
 
 function qboConfigured() {
   // Only needs client credentials — realmId is captured automatically during OAuth
@@ -79,6 +108,8 @@ async function getQBOAccessToken() {
     qboTokens.accessToken  = resp.data.access_token;
     qboTokens.refreshToken = resp.data.refresh_token;   // QBO rotates refresh tokens
     qboTokens.expiresAt    = Date.now() + resp.data.expires_in * 1000;
+    // Persist the rotated token immediately so restarts don't lose it
+    persistTokens({ refreshToken: qboTokens.refreshToken, realmId: qboTokens.realmId });
     return qboTokens.accessToken;
   } catch (err) {
     // Refresh failed — wipe in-memory tokens so callers see "not connected" cleanly
@@ -695,6 +726,8 @@ app.get('/connect-quickbooks/callback', async (req, res) => {
     qboTokens.expiresAt    = Date.now() + resp.data.expires_in * 1000;
     // Save realmId in memory so API calls work immediately (no restart needed)
     if (realmId) qboTokens.realmId = realmId;
+    // Persist tokens to file so server restarts don't lose the rotated refresh token
+    persistTokens({ refreshToken: qboTokens.refreshToken, realmId: qboTokens.realmId });
     // Show success page — both values ready to copy into Railway
     res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>QuickBooks Connected</title>
 <style>
