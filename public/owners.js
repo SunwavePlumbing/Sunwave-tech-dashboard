@@ -1136,6 +1136,12 @@ function renderOwners() {
 
   if (donutChartInst) donutChartInst.destroy();
   var dCtx = document.getElementById('donutChart').getContext('2d');
+  // Detect mobile for responsive chart legend sizing
+  var isMobile = window.innerWidth <= 768;
+  var legendFontSize = isMobile ? 13 : 11;
+  var legendBoxWidth = isMobile ? 16 : 12;
+  var legendPadding = isMobile ? 12 : 8;
+
   donutChartInst = new Chart(dCtx, {
     type: 'doughnut',
     data: {
@@ -1149,7 +1155,7 @@ function renderOwners() {
     options: {
       responsive: true, maintainAspectRatio: false, cutout: '60%',
       plugins: {
-        legend: { position: 'bottom', labels: { font: { size: 10 }, padding: 8, boxWidth: 10 } },
+        legend: { position: 'bottom', labels: { font: { size: legendFontSize, weight: '600' }, padding: legendPadding, boxWidth: legendBoxWidth } },
         tooltip: { callbacks: {
           label: function(ctx) {
             var v = ctx.parsed;
@@ -1332,6 +1338,13 @@ function renderOwners() {
       }
     };
 
+    // Mobile-aware x-axis label configuration
+    var isMobile = window.innerWidth <= 768;
+    var xAxisRotation = isMobile ? 45 : 0;
+    var xAxisFontSize = isMobile ? 9 : 11;
+    var xAxisAutoSkip = isMobile ? true : false;  // skip some labels on mobile to prevent overlap
+    var xAxisMaxTicksLimit = isMobile ? 8 : 15;   // show max 8 labels on mobile
+
     revBarChartInst = new Chart(revCtx, {
       type: 'bar',
       data: {
@@ -1342,7 +1355,7 @@ function renderOwners() {
       options: {
         responsive: true, maintainAspectRatio: false,
         animation: false,
-        layout: { padding: { top: 26, left: 6, right: 6, bottom: 0 } },
+        layout: { padding: { top: 26, left: 6, right: isMobile ? 12 : 6, bottom: isMobile ? 30 : 0 } },
         plugins: {
           legend: { display: false },
           tooltip: {
@@ -1377,10 +1390,10 @@ function renderOwners() {
         scales: {
           x: {
             grid: { display: false }, border: { display: false },
-            ticks: { font: { size: 11, weight: '600' }, color: '#94a3b8', maxRotation: 0, minRotation: 0, autoSkip: false }
+            ticks: { font: { size: xAxisFontSize, weight: '600' }, color: '#94a3b8', maxRotation: xAxisRotation, minRotation: xAxisRotation, autoSkip: xAxisAutoSkip, maxTicksLimit: xAxisMaxTicksLimit }
           },
           y: {
-            ticks: { callback: function(v) { return fmtDollar(v); }, font: { size: 10 }, color: '#94a3b8', maxTicksLimit: 5 },
+            ticks: { callback: function(v) { return fmtDollar(v); }, font: { size: 11 }, color: '#94a3b8', maxTicksLimit: 5 },
             grid: { color: '#f0f0f0', lineWidth: 1 }, border: { display: false }
           }
         }
