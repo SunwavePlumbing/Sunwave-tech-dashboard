@@ -500,7 +500,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 /* ── Step rows: Revenue, = Gross Profit, = Operating Profit ── */
 .mf-step { padding:18px 20px; }
 .mf-step--gp  { background:#f0fdf7; border-top:2px solid #bbf7d0; }
-.mf-step--noi { background:#eff6ff; border-top:2px solid #bfdbfe; }
+.mf-step--noi { background:#f9fafb; border-top:2px solid #e5e7eb; }
 
 .mf-step-label {
   font-size:10px; font-weight:700; letter-spacing:1.4px;
@@ -918,18 +918,18 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .mf-noi-profit-seg:hover { filter: brightness(1.08); }
 .mf-noi-profit-seg .mf-op-chev { color: rgba(255,255,255,0.85); font-size: 12px; pointer-events: none; }
 
-/* Gold vertical target line on the mirror bar */
+/* Blue vertical target line on the mirror bar */
 .mf-noi-target-line {
   position: absolute;
   bottom: 0;
   height: 20px;          /* matches bar height */
   width: 2px;
-  background: #D4A017;
+  background: #2563eb;
   transform: translateX(-50%);
   pointer-events: none;
 }
 
-/* Gold "Profit Goal 15%" label above the bar */
+/* Blue "Profit Goal 15%" label above the bar */
 .mf-noi-goal-lbl {
   position: absolute;
   top: -20px;
@@ -938,7 +938,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   font-weight: 700;
   letter-spacing: 0.8px;
   text-transform: uppercase;
-  color: #D4A017;
+  color: #2563eb;
   white-space: nowrap;
   pointer-events: none;
 }
@@ -950,39 +950,40 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 /* ── NOI expandable detail ───────────────────────────────────── */
 .mf-noi-detail { margin-top: 10px; }
 .mf-noi-explain {
-  padding: 14px 16px;
-  background: #f0f7ff;
+  padding: 16px 18px;
+  background: #2563eb;
   border-radius: 10px;
-  border-left: 3px solid #3b82f6;
 }
 .mf-noi-explain-head {
-  font-size: 13px; font-weight: 700; color: #1e3a5f;
+  font-size: 13px; font-weight: 700; color: #fff;
   margin-bottom: 7px;
 }
 .mf-noi-explain-body {
-  font-size: 13px; color: #444; line-height: 1.55;
+  font-size: 13px; color: rgba(255,255,255,0.88); line-height: 1.55;
   margin-bottom: 12px;
 }
 .mf-noi-explain-row {
-  display: flex; gap: 16px; margin-bottom: 12px;
+  display: flex; gap: 12px; margin-bottom: 12px;
 }
 .mf-noi-explain-stat {
-  flex: 1; background: white; border-radius: 8px;
+  flex: 1; background: rgba(255,255,255,0.15); border-radius: 8px;
   padding: 10px 12px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
 }
 .mf-noi-explain-stat-label {
   font-size: 10px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.8px; color: #aaa; margin-bottom: 4px;
+  letter-spacing: 0.8px; color: rgba(255,255,255,0.65); margin-bottom: 4px;
 }
 .mf-noi-explain-stat-val {
-  font-size: 22px; font-weight: 700; color: #1a2d3a;
+  font-size: 22px; font-weight: 700; color: #fff;
 }
 .mf-noi-explain-tip {
-  font-size: 12px; color: #666; line-height: 1.5;
-  border-top: 1px solid #dbeafe; padding-top: 10px;
+  font-size: 12px; color: rgba(255,255,255,0.78); line-height: 1.5;
+  border-top: 1px solid rgba(255,255,255,0.2); padding-top: 10px;
 }
-.mf-noi-tip-head { font-weight: 700; color: #1e3a5f; }
+.mf-noi-tip-head { font-weight: 700; color: #fff; }
+/* color-status overrides inside the blue panel */
+.mf-noi-explain .c-green { color: #6ee7b7; }
+.mf-noi-explain .c-red   { color: #fca5a5; }
 
 /* Clickable bar segment — red/orange/green portions the user taps to expand */
 .mf-seg-click {
@@ -1102,71 +1103,49 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .fin-trend-btn { padding:4px 12px;font-size:11px;font-weight:600;border:1px solid #e0e0e0;border-radius:20px;background:white;color:#888;cursor:pointer;transition:all 0.15s; }
 .fin-trend-btn.on { border-color:currentColor;background:currentColor;color:white!important; }
 
-/* ── Chart legend ──────────────────────────────────────────── */
-.fin-trend-legend {
+/* ── Trend chart overlay legend (inside the chart canvas area) ── */
+.tcl-overlay {
+  position: absolute;
+  top: 10px;
+  left: 10px;
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid #f0f0f0;
+  flex-direction: column;
+  gap: 5px;
+  background: rgba(255,255,255,0.88);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  padding: 8px 12px;
+  border-radius: 8px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+  pointer-events: none;
+  z-index: 2;
 }
-.fin-tl-item {
+.tcl-item {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 10px 5px 8px;
-  border-radius: 8px;
-  border: 1.5px solid #e5e5e5;
-  background: white;
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
-  -webkit-tap-highlight-color: transparent;
+  gap: 7px;
 }
-.fin-tl-item:hover { border-color: #ccc; }
-.fin-tl-item.active {
-  border-color: currentColor;
-  background: color-mix(in srgb, currentColor 8%, white);
-}
-.fin-tl-item--target {
-  cursor: default;
-  border-style: dashed;
-  border-color: #D4A017;
-  background: #fffbeb;
-}
-.fin-tl-swatch {
+.tcl-swatch {
   display: inline-block;
-  width: 22px;
-  height: 3px;
+  width: 20px;
+  height: 2.5px;
   border-radius: 2px;
   flex-shrink: 0;
 }
-.fin-tl-swatch--dashed {
-  background: none;
-  border-bottom: 2.5px dashed #D4A017;
-  height: 0;
-  margin-top: 1px;
-}
-.fin-tl-label {
+.tcl-swatch--gold { background: #D4A017; }
+.tcl-label {
   font-size: 11px;
   font-weight: 600;
   color: #555;
   white-space: nowrap;
 }
-.fin-tl-val {
-  font-size: 12px;
+.tcl-val {
+  font-size: 11px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  margin-left: 2px;
 }
-.fin-tl-goal {
-  font-size: 10px;
-  color: #aaa;
-  font-weight: 500;
-  white-space: nowrap;
-}
-/* Active item: label takes the series color */
-.fin-tl-item.active .fin-tl-label { color: inherit; }
 
 /* Monthly P&L grid */
 .pnl-grid { width:100%;border-collapse:collapse;font-size:12px; }

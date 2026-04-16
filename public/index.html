@@ -94,20 +94,23 @@
       <!-- Key Ratios trend — second card -->
       <div class="fin-chart-card" id="finTrendCard" style="display:none;margin-bottom:1.4rem">
         <div class="fin-chart-title">How The Ratios Have Moved, Month by Month</div>
-        <div style="font-size:11px;color:#888;margin-top:-8px;margin-bottom:10px">Click a ratio below to plot just that one. Each line is that category&rsquo;s share of monthly revenue. <span style="color:#D4A017;font-weight:700">&mdash;</span> <strong style="color:#D4A017">Gold line = target</strong></div>
+        <div style="font-size:11px;color:#888;margin-top:-8px;margin-bottom:10px">Click a ratio below to plot just that one. Each line is that metric&rsquo;s share of monthly revenue.</div>
         <div class="fin-trend-toggles" id="trendToggles"></div>
-        <div class="fin-chart-wrap" style="height:240px"><canvas id="trendChart"></canvas></div>
-        <div id="trendLegend" class="fin-trend-legend"></div>
+        <div class="fin-chart-wrap" style="height:240px">
+          <canvas id="trendChart"></canvas>
+          <div id="trendLegendOverlay" class="tcl-overlay"></div>
+        </div>
       </div>
 
-      <!-- Row 2: Where the money went + what's on hand -->
-      <div class="fin-row2" id="finRow2" style="display:none">
-        <div class="fin-chart-card">
+      <!-- Row 2: Where the money went (full-width) -->
+      <div id="finRow2" style="display:none">
+        <div class="fin-chart-card" style="margin-bottom:1.4rem">
           <div class="fin-chart-title">Where Every Dollar Went <span id="donutSubtitle"></span></div>
           <div style="font-size:11px;color:#888;margin-top:-8px;margin-bottom:10px">Hover a slice to see the category and dollar amount.</div>
-          <div class="fin-chart-wrap" style="height:260px"><canvas id="donutChart"></canvas></div>
+          <div class="fin-chart-wrap" style="height:300px"><canvas id="donutChart"></canvas></div>
         </div>
-        <div class="fin-chart-card">
+        <!-- Balance card — full-width below donut -->
+        <div class="fin-chart-card" style="margin-bottom:1.4rem">
           <div class="fin-chart-title">What We Have and What We Owe <span id="cashSubtitle"></span></div>
           <div style="font-size:11px;color:#888;margin-top:-8px;margin-bottom:10px">Snapshot of the bank accounts, bills, and debts from the balance sheet.</div>
           <div id="finCash"></div>

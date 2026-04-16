@@ -1075,6 +1075,7 @@ function renderOwners() {
     { key: 'admin', label: 'Admin & Office %',   color: '#8b5cf6', data: adminArr, goal: null },
     { key: 'om',    label: 'Operating Margin %', color: '#4A90D9', data: noiArr,   goal: 15 }
   ];
+  _trendSeries = TREND_SERIES; // cache for selectTrendLine
 
   // Build trend toggle buttons (single-select)
   var togHtml = TREND_SERIES.map(function(s) {
@@ -1098,7 +1099,7 @@ function renderOwners() {
       fill: false
     });
   });
-  // Secondary goal-line datasets (dashed, grey) synced 1:1 with main series.
+  // Goal-line datasets — solid gold, no dash, one per series
   TREND_SERIES.forEach(function(s) {
     tDatasets.push({
       label: s.label + ' target',
@@ -1131,23 +1132,8 @@ function renderOwners() {
     }
   });
 
-  // ── Legend below the chart ──────────────────────────────────
-  var legHtml = TREND_SERIES.map(function(s) {
-    var isActive = trendActive === s.key;
-    var curVal   = (s.data[curIdx] != null) ? s.data[curIdx].toFixed(1) + '%' : '\u2014';
-    return '<div class="fin-tl-item' + (isActive ? ' active' : '') + '" data-key="' + s.key + '" onclick="selectTrendLine(this)">' +
-      '<span class="fin-tl-swatch" style="background:' + s.color + '"></span>' +
-      '<span class="fin-tl-label">' + esc(s.label) + '</span>' +
-      '<span class="fin-tl-val" style="color:' + s.color + '">' + curVal + '</span>' +
-      (s.goal != null ? '<span class="fin-tl-goal">target&nbsp;' + s.goal + '%</span>' : '') +
-    '</div>';
-  }).join('');
-  // Target-line entry
-  legHtml += '<div class="fin-tl-item fin-tl-item--target">' +
-    '<span class="fin-tl-swatch fin-tl-swatch--dashed"></span>' +
-    '<span class="fin-tl-label" style="color:#D4A017;font-weight:600">Gold line = target</span>' +
-  '</div>';
-  document.getElementById('trendLegend').innerHTML = legHtml;
+  // Build the 2-item overlay legend (active series + target if it exists)
+  buildTrendLegend(TREND_SERIES, curIdx);
 
   // ── Cash in the Bank Over Time ───────────────────────────────
   // Uses balance sheet bank history (from /api/qbo-balance) rather than
@@ -1279,25 +1265,55 @@ function renderOwners() {
 
 }
 
+// Build the 2-item overlay legend inside the chart (active series + gold target)
+function buildTrendLegend(series, curIdx) {
+  var el = document.getElementById('trendLegendOverlay');
+  if (!el) return;
+  var active = series.filter(function(s) { return s.key === trendActive; })[0];
+  if (!active) return;
+  var curVal = (active.data && active.data[curIdx] != null) ? active.data[curIdx].toFixed(1) + '%' : '\u2014';
+  var html =
+    '<div class="tcl-item">' +
+      '<span class="tcl-swatch" style="background:' + active.color + '"></span>' +
+      '<span class="tcl-label">' + esc(active.label) + '</span>' +
+      '<span class="tcl-val" style="color:' + active.color + '">' + curVal + '</span>' +
+    '</div>';
+  if (active.goal != null) {
+    html +=
+      '<div class="tcl-item">' +
+        '<span class="tcl-swatch tcl-swatch--gold"></span>' +
+        '<span class="tcl-label" style="color:#D4A017">Target ' + active.goal + '%</span>' +
+      '</div>';
+  }
+  el.innerHTML = html;
+}
+
+// Cache series reference for selectTrendLine to call buildTrendLegend
+var _trendSeries = null;
+
 function selectTrendLine(btn) {
   var key = btn.dataset.key;
   trendActive = key;
   // Sync toggle buttons above chart
   var btns = document.querySelectorAll('#trendToggles .fin-trend-btn');
   btns.forEach(function(b) { b.classList.toggle('on', b.dataset.key === key); });
-  // Sync legend items below chart
-  var legItems = document.querySelectorAll('#trendLegend .fin-tl-item');
-  legItems.forEach(function(el) { el.classList.toggle('active', el.dataset.key === key); });
   if (trendChartInst) {
     var keys = ['gm','tl','parts','admin','om'];
     var goals = { gm:50, tl:25, parts:25, admin:null, om:15 };
     keys.forEach(function(k, idx) {
-      // main series at idx, goal series at idx + keys.length
       trendChartInst.data.datasets[idx].hidden = k !== key;
       if (trendChartInst.data.datasets[idx + keys.length]) {
         trendChartInst.data.datasets[idx + keys.length].hidden = k !== key || goals[k] == null;
       }
     });
     trendChartInst.update();
+  }
+  // Rebuild the 2-item overlay legend
+  if (_trendSeries) {
+    // Find current curIdx from ownersData
+    var months = ownersData && ownersData.months || [];
+    var ci = finMonth ? months.indexOf(finMonth) : months.length - 1;
+    if (ci < 0) ci = months.length - 1;
+    buildTrendLegend(_trendSeries, ci);
   }
 }
