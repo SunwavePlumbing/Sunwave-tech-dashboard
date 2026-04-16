@@ -1012,6 +1012,8 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 /* Segments — widths set inline via JS */
 .mf-sb-prior { background: #fecaca; flex-shrink: 0; position: relative; }  /* light red: COGS reference */
 .mf-sb-cogs  { background: #f87171; flex-shrink: 0; position: relative; }  /* red: cost of goods sold */
+/* Pin the COGS chevron to the LEFT edge so it never overlaps the 50% target line */
+.mf-sb-cogs .mf-op-chev { right: auto; left: 10px; }
 .mf-sb-gp    { background: #bfdbfe; flex: 1; min-width: 2px; position: relative; }  /* pale blue: gross profit */
 .mf-sb-ovhd  { background: #f97316; flex-shrink: 0; position: relative; }  /* orange: overhead */
 .mf-sb-pass  { flex: 1; min-width: 2px; position: relative; background: #bbf7d0; }  /* pale green: operating profit */
