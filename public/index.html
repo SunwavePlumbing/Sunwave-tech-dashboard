@@ -73,12 +73,17 @@
 
     <!-- Location Owners view -->
     <div class="view-panel" id="ownersView">
-      <!-- Filter bar -->
-      <div class="fin-filter-bar" id="finFilterBar">
-        <label class="fin-filter-field">
-          <span class="fin-filter-label">Showing</span>
-          <select id="finMonthSel" class="fin-select" onchange="setFinMonth(this.value)"></select>
-        </label>
+      <!-- Month header / picker -->
+      <div class="fin-month-header" id="finMonthHeader" onclick="toggleMonthPicker()">
+        <span class="fin-month-title" id="finMonthTitle">Loading&hellip;</span>
+        <svg class="fin-month-chev" id="finMonthChev" viewBox="0 0 12 7" width="18" height="11">
+          <path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <!-- Hidden month picker dropdown -->
+      <div class="fin-month-picker" id="finMonthPicker" hidden>
+        <select id="finMonthSel" class="fin-month-sel-native" onchange="setFinMonth(this.value);closMonthPicker()" size="1"></select>
+        <div class="fin-month-list" id="finMonthList"></div>
       </div>
 
       <!-- Formula card — the centerpiece -->

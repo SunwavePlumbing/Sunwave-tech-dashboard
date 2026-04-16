@@ -148,6 +148,34 @@ function mfZoomDetail(id, items, segStart, segEnd, palette, segColor, segLabel) 
   );
 }
 
+// Full month name helper (used by header title)
+function fmtMkFull(mk) {
+  if (!mk) return '';
+  var p = mk.split('-');
+  var full = ['January','February','March','April','May','June','July','August','September','October','November','December'][parseInt(p[1])-1] || '';
+  return full + ' ' + p[0];
+}
+
+// Month picker open/close
+function toggleMonthPicker() {
+  var picker = document.getElementById('finMonthPicker');
+  var hdr    = document.getElementById('finMonthHeader');
+  var isOpen = !picker.hidden;
+  picker.hidden = isOpen;
+  hdr.classList.toggle('is-open', !isOpen);
+}
+function closMonthPicker() {
+  document.getElementById('finMonthPicker').hidden = true;
+  document.getElementById('finMonthHeader').classList.remove('is-open');
+}
+
+// Select a month from the custom list
+function pickFinMonth(mk) {
+  finMonth = mk;
+  closMonthPicker();
+  if (ownersData && ownersData.connected) renderOwners();
+}
+
 function setFinMode(m) {
   finMode = m;
   document.getElementById('finModeDollar').classList.toggle('active', m === 'dollar');
@@ -164,6 +192,16 @@ function setFinCompare(v) {
   finCompare = v;
   if (ownersData && ownersData.connected) renderOwners();
 }
+
+// Close picker when clicking outside
+document.addEventListener('click', function(e) {
+  var hdr    = document.getElementById('finMonthHeader');
+  var picker = document.getElementById('finMonthPicker');
+  if (!picker || picker.hidden) return;
+  if (!hdr.contains(e.target) && !picker.contains(e.target)) {
+    closMonthPicker();
+  }
+});
 
 async function fetchOwnersData(force) {
   if (ownersData && !force) return;
@@ -304,16 +342,23 @@ function renderOwners() {
   if (!months.length) return;
 
   // ── Populate month picker (most-recent first) ───────────────
-  var sel = document.getElementById('finMonthSel');
-  if (sel.children.length !== months.length) {
-    sel.innerHTML = months.slice().reverse().map(function(m) {
-      return '<option value="' + m + '">' + fmtMk(m) + '</option>';
-    }).join('');
-  }
   if (!finMonth || months.indexOf(finMonth) === -1) {
     finMonth = months[months.length - 1];
   }
-  sel.value = finMonth;
+  // Update big header title
+  var titleEl = document.getElementById('finMonthTitle');
+  if (titleEl) titleEl.textContent = fmtMkFull(finMonth);
+  // Rebuild custom month list
+  var listEl = document.getElementById('finMonthList');
+  if (listEl) {
+    listEl.innerHTML = months.slice().reverse().map(function(m) {
+      var active = m === finMonth ? ' active' : '';
+      return '<div class="fin-month-item' + active + '" onclick="pickFinMonth(\'' + m + '\')">' + fmtMkFull(m) + '</div>';
+    }).join('');
+  }
+  // Keep hidden native select in sync (used nowhere else but kept for safety)
+  var sel = document.getElementById('finMonthSel');
+  if (sel) sel.value = finMonth;
 
   // ── Key series (wired to exact QBO account labels) ──────────
   var revenue     = acct('Total Income');
@@ -559,9 +604,7 @@ function renderOwners() {
         '<div class="mf-gp-revbar-outer">' +
           '<div class="mf-gp-revbar-tlabel">Target 50/50</div>' +
           '<div class="mf-gp-revbar">' +
-            '<div class="mf-gp-revbar-cogs" style="width:' + Math.min(cogsPct, 99).toFixed(1) + '%">' +
-              '<span class="mf-gp-revbar-txt">COGS ' + fmtPct(cogsPct) + '</span>' +
-            '</div>' +
+            '<div class="mf-gp-revbar-cogs" style="width:' + Math.min(cogsPct, 99).toFixed(1) + '%"></div>' +
             '<div class="mf-gp-revbar-gp">' +
               '<span class="mf-gp-revbar-txt">GP ' + fmtPct(gmPct) + '</span>' +
             '</div>' +
@@ -644,23 +687,77 @@ function renderOwners() {
       '</div>' +
 
       // ── = Operating Profit ────────────────────────────────────
-      '<div class="mf-step mf-step--noi">' +
-        '<div class="mf-step-label"><span class="mf-step-eq">=</span> Operating Profit ' + mfPill('op', noiPct) + '</div>' +
-        '<div class="mf-step-num">' + fmtDollar(curNOI) + '</div>' +
-        // Mirror bar: greyed COGS | greyed Overhead | active blue NOI
-        '<div class="mf-split-bar mf-noi-mirror-bar">' +
-          '<div style="width:' + Math.max(0, cogsPct).toFixed(1) + '%;background:#fecaca;flex-shrink:0"></div>' +
-          '<div style="width:' + Math.max(0, ovhdPct).toFixed(1) + '%;background:#fed7aa;flex-shrink:0"></div>' +
-          '<div style="flex:1;min-width:2px;background:#3b82f6"></div>' +
-        '</div>' +
-        '<div class="mf-split-leg">' +
-          '<span class="mf-sl-noi-cogs">COGS</span>' +
-          '<span class="mf-sl-noi-ovhd">Overhead</span>' +
-          '<span class="mf-sl-noi-profit">Operating Profit</span>' +
-        '</div>' +
-        '<div class="mf-score-pct-line" style="margin-top:10px">We kept ' + fmtPct(noiPct) + ' of every dollar — goal is 15%</div>' +
-        mfTargetBar(noiPct, 15, 25) +
-      '</div>' +
+      (function(){
+        // Gold target line lives at (100-15)% = 85% from left edge of bar
+        var targetX = (85).toFixed(1);
+        var isAbove  = noiPct >= 15;
+        var gap      = Math.abs(noiPct - 15);
+        var gapCls   = isAbove ? 'above' : (gap <= 3 ? 'near' : 'below');
+        var gapTxt   = isAbove
+          ? '\u25b2 ' + gap.toFixed(1) + ' pts above the 15% profit goal'
+          : gap.toFixed(1) + ' pts below the 15% profit goal';
+
+        var noiDetailHtml =
+          '<div id="mfNoiDetail" class="mf-zoom-detail mf-noi-detail" hidden>' +
+            '<div class="mf-noi-explain">' +
+              '<div class="mf-noi-explain-head">What is Operating Profit?</div>' +
+              '<div class="mf-noi-explain-body">' +
+                'After paying for every job (COGS) and every bill to run the business (overhead), ' +
+                'whatever\u2019s left is Operating Profit \u2014 the real reward for owning the company. ' +
+                'It\u2019s what funds savings, growth, and your own paycheck.' +
+              '</div>' +
+              '<div class="mf-noi-explain-row">' +
+                '<div class="mf-noi-explain-stat">' +
+                  '<div class="mf-noi-explain-stat-label">Our goal</div>' +
+                  '<div class="mf-noi-explain-stat-val">15% of revenue</div>' +
+                '</div>' +
+                '<div class="mf-noi-explain-stat">' +
+                  '<div class="mf-noi-explain-stat-label">This month</div>' +
+                  '<div class="mf-noi-explain-stat-val ' + (isAbove ? 'c-green' : 'c-red') + '">' + fmtPct(noiPct) + '</div>' +
+                '</div>' +
+              '</div>' +
+              '<div class="mf-noi-explain-tip">' +
+                '<span class="mf-noi-tip-head">How to keep more of it:</span>' +
+                ' Charge more per job, reduce parts costs, or trim overhead. ' +
+                'Every extra 1% on ' + fmtDollar(curRev) + ' revenue puts an extra ' +
+                fmtDollar(curRev * 0.01) + ' in the bank.' +
+              '</div>' +
+            '</div>' +
+          '</div>';
+
+        return (
+          '<div class="mf-step mf-step--noi">' +
+            '<div class="mf-step-label"><span class="mf-step-eq">=</span> Operating Profit ' + mfPill('op', noiPct) + '</div>' +
+            '<div class="mf-step-num">' + fmtDollar(curNOI) + '</div>' +
+            // Bar wrapper — position:relative so target line can sit on top
+            '<div class="mf-noi-bar-wrap">' +
+              // Gold target label above bar
+              '<div class="mf-noi-goal-lbl" style="left:' + targetX + '%">Profit Goal 15%</div>' +
+              // 3-segment mirror bar
+              '<div class="mf-split-bar mf-noi-mirror-bar">' +
+                '<div style="width:' + Math.max(0, cogsPct).toFixed(1) + '%;background:#fecaca;flex-shrink:0"></div>' +
+                '<div style="width:' + Math.max(0, ovhdPct).toFixed(1) + '%;background:#fed7aa;flex-shrink:0"></div>' +
+                // Blue NOI segment — clickable
+                '<div class="mf-noi-profit-seg mf-seg-click" onclick="mfToggle(\'mfNoiDetail\',this)" ' +
+                    'style="flex:1;min-width:2px;background:#3b82f6">' +
+                  '<span class="mf-op-chev">\u25be</span>' +
+                '</div>' +
+              '</div>' +
+              // Gold vertical target line
+              '<div class="mf-noi-target-line" style="left:' + targetX + '%"></div>' +
+            '</div>' +
+            // Legend
+            '<div class="mf-split-leg">' +
+              '<span class="mf-sl-noi-cogs">COGS</span>' +
+              '<span class="mf-sl-noi-ovhd">Overhead</span>' +
+              '<button class="mf-sl-noi-profit mf-sl-btn" onclick="mfToggle(\'mfNoiDetail\',null)">Operating Profit</button>' +
+            '</div>' +
+            noiDetailHtml +
+            // Gap line
+            '<div class="mf-score-gap ' + gapCls + '" style="margin-top:10px">' + gapTxt + '</div>' +
+          '</div>'
+        );
+      }()) +
 
     '</div>'; // .mf-card
 
