@@ -136,7 +136,6 @@ function renderMarketing() {
       '<td>' + esc(m.fullLabel) + '</td>' +
       '<td>' + displayJobs + deltaJobs + projTag + '</td>' +
       '<td>' + fmt(m.revenue) + '</td>' +
-      '<td>' + (m.jobs > 0 ? fmt(m.avgTicket) : '—') + '</td>' +
       '<td>' + spendCell + '</td>' +
       '<td>' + costCell + '</td>' +
       '</tr>';
@@ -154,9 +153,9 @@ function renderMarketing() {
   var tableHTML =
     '<div class="section-title">Monthly History</div>' +
     '<div class="mkt-table-card"><div class="mkt-table-scroll"><table class="mkt-table">' +
-      '<thead><tr><th>Month</th><th># Jobs</th><th>Revenue</th><th>Avg Ticket</th>' + qboHeaderCols + '</tr></thead>' +
+      '<thead><tr><th>Month</th><th># Jobs</th><th>Revenue</th>' + qboHeaderCols + '</tr></thead>' +
       '<tbody>' + tableRows + '</tbody>' +
-      '<tfoot><tr><td>12-Month Total</td><td>' + totalHistJobs + '</td><td>' + fmt(totalHistRev) + '</td><td>' + fmt(avgHistTicket) + '</td><td>' + footSpend + '</td><td>' + footCost + '</td></tr></tfoot>' +
+      '<tfoot><tr><td>12-Month Total</td><td>' + totalHistJobs + '</td><td>' + fmt(totalHistRev) + '</td><td>' + footSpend + '</td><td>' + footCost + '</td></tr></tfoot>' +
     '</table></div></div>';
 
   document.getElementById('marketingContent').innerHTML = qboBanner + projHTML + chartHTML + tableHTML;
