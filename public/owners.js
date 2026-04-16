@@ -671,7 +671,6 @@ function renderOwners() {
         '<div class="mf-step-num">' + fmtDollar(curRev) + '</div>' +
         '<div class="mf-step-desc">Total money collected from completed jobs</div>' +
         '<div class="mf-rev-bar"></div>' +
-        '<div class="mf-rev-bar-leg">This is the full 100% — everything below is carved out of this bar</div>' +
       '</div>' +
 
       // ── − Cost of Goods Sold ──────────────────────────────────
@@ -773,8 +772,8 @@ function renderOwners() {
 
         return (
           '<div class="mf-step mf-step--noi">' +
-            '<div class="mf-step-label"><span class="mf-step-eq">=</span> Operating Profit</div>' +
-            '<div class="mf-step-num">' + fmtDollar(curNOI) + '</div>' +
+            '<div class="mf-step-label">Operating Profit</div>' +
+            '<div class="mf-step-num"><span class="mf-step-eq">=&thinsp;</span>' + fmtDollar(curNOI) + '</div>' +
             // Bar wrapper — position:relative so target line can sit on top
             '<div class="mf-noi-bar-wrap">' +
               // Gold target label above bar
@@ -787,9 +786,9 @@ function renderOwners() {
                 '<div class="mf-seg-dim" style="width:' + Math.max(0, ovhdPct).toFixed(1) + '%;background:#fed7aa;flex-shrink:0;position:relative;">' +
                   '<span class="mf-bar-label">Overhead</span>' +
                 '</div>' +
-                // Blue NOI segment — clickable
+                // Green NOI segment — clickable
                 '<div class="mf-noi-profit-seg mf-seg-click" onclick="mfToggleNoi(this)" ' +
-                    'style="flex:1;min-width:2px;background:#3b82f6;position:relative;">' +
+                    'style="flex:1;min-width:2px;background:#22c55e;position:relative;">' +
                   '<span class="mf-bar-label">Operating Profit</span>' +
                   MF_CHEV +
                 '</div>' +

@@ -499,16 +499,16 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 
 /* ── Step rows: Revenue, = Gross Profit, = Operating Profit ── */
 .mf-step { padding:18px 20px; }
-.mf-step--gp  { background:#f0fdf7; border-top:2px solid #bbf7d0; }
-.mf-step--noi { background:#f9fafb; border-top:2px solid #e5e7eb; }
+.mf-step--gp  { background:#eff6ff; border-top:2px solid #bfdbfe; }
+.mf-step--noi { background:#f0fdf4; border-top:2px solid #bbf7d0; }
 
 .mf-step-label {
   font-size:13px; font-weight:700; letter-spacing:0.6px;
   text-transform:uppercase; color:#555;
   display:flex; align-items:center; gap:8px; margin-bottom:8px;
 }
-.mf-step--gp  .mf-step-label { color:#059669; }
-.mf-step--noi .mf-step-label { color:#2563eb; }
+.mf-step--gp  .mf-step-label { color:#2563eb; }
+.mf-step--noi .mf-step-label { color:#059669; }
 
 
 .mf-step-num {
@@ -516,8 +516,9 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   color:#1a2d3a; line-height:1.05; margin:0 0 4px;
   font-variant-numeric:tabular-nums;
 }
-.mf-step--gp  .mf-step-num { color:#22c55e; }
-.mf-step--noi .mf-step-num { color:#1d4ed8; }
+.mf-step--gp  .mf-step-num { color:#2563eb; }
+.mf-step--noi .mf-step-num { color:#16a34a; }
+.mf-step-eq { font-size:0.7em; font-weight:800; opacity:0.55; vertical-align:baseline; }
 
 .mf-step-desc { font-size:13px; color:#999; margin:2px 0 8px; line-height:1.4; }
 
@@ -559,8 +560,8 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   border-radius: 10px 0 0 10px;
   transition: width 0.9s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.mf-step--gp  .mf-score-fill { background: #22c55e; }
-.mf-step--noi .mf-score-fill { background: #3b82f6; }
+.mf-step--gp  .mf-score-fill { background: #3b82f6; }
+.mf-step--noi .mf-score-fill { background: #22c55e; }
 
 /* Bonus zone — from target to current when above goal. Deeper/richer. */
 .mf-score-bonus {
@@ -569,10 +570,10 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   transition: width 0.9s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .mf-step--gp  .mf-score-bonus {
-  background: linear-gradient(90deg, #16a34a 0%, #15803d 100%);
+  background: linear-gradient(90deg, #1d4ed8 0%, #1e40af 100%);
 }
 .mf-step--noi .mf-score-bonus {
-  background: linear-gradient(90deg, #1d4ed8 0%, #1e40af 100%);
+  background: linear-gradient(90deg, #16a34a 0%, #15803d 100%);
 }
 
 /* Magnetic zone — the unfilled gap between fill and target. Barely visible
@@ -581,8 +582,8 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   position: absolute;
   top: 0; height: 100%;
 }
-.mf-step--gp  .mf-score-magnet { background: rgba(34, 197, 94, 0.13); }
-.mf-step--noi .mf-score-magnet { background: rgba(59, 130, 246, 0.13); }
+.mf-step--gp  .mf-score-magnet { background: rgba(59, 130, 246, 0.13); }
+.mf-step--noi .mf-score-magnet { background: rgba(34, 197, 94, 0.13); }
 
 /* ── Target marker — the finish line ── */
 /* Lives on the outer wrapper (not inside the clip) so it can extend
@@ -692,8 +693,8 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .mf-zoom-detail { margin-top: 0; }
 /* GP detail: no extra top gap — it's the first thing inside the card now */
 .mf-step--gp .mf-zoom-detail { margin-top: 8px; }
-/* Legend divider on the green card */
-.mf-step--gp .mf-zoom-legend { border-top-color: #bbf7d0; }
+/* Legend divider on the blue card */
+.mf-step--gp .mf-zoom-legend { border-top-color: #bfdbfe; }
 /* GP detail is always open — skip the stagger animation, show rows immediately */
 .mf-gp-detail .mf-zoom-leg-row { opacity: 1; animation: none !important; }
 
@@ -752,7 +753,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 }
 .mf-gp-revbar-gp {
   flex: 1;
-  background: #22c55e;
+  background: #3b82f6;
   display: flex; align-items: center;
   justify-content: flex-end;
   padding-right: 8px;
@@ -903,9 +904,9 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 /* Segments — widths set inline via JS */
 .mf-sb-prior { background: #fecaca; flex-shrink: 0; position: relative; }  /* light red: COGS reference */
 .mf-sb-cogs  { background: #f87171; flex-shrink: 0; position: relative; }  /* red: cost of goods sold */
-.mf-sb-gp    { background: #bbf7d0; flex: 1; min-width: 2px; position: relative; }  /* pale green: gross profit */
+.mf-sb-gp    { background: #bfdbfe; flex: 1; min-width: 2px; position: relative; }  /* pale blue: gross profit */
 .mf-sb-ovhd  { background: #f97316; flex-shrink: 0; position: relative; }  /* orange: overhead */
-.mf-sb-pass  { flex: 1; min-width: 2px; position: relative; background: #bfdbfe; }  /* pale blue: operating profit */
+.mf-sb-pass  { flex: 1; min-width: 2px; position: relative; background: #bbf7d0; }  /* pale green: operating profit */
 
 /* Labels inside bar segments */
 .mf-bar-label {
@@ -933,8 +934,8 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .mf-sb-gp:hover .mf-bar-label { opacity: 1; }
 
 /* Dark labels for pale-background segments */
-.mf-sb-pass .mf-bar-label { color: #1e40af; }
-.mf-sb-gp   .mf-bar-label { color: #15803d; }
+.mf-sb-pass .mf-bar-label { color: #15803d; }
+.mf-sb-gp   .mf-bar-label { color: #1e40af; }
 
 /* GP mirror bar margin */
 .mf-gp-mirror-bar { margin: 10px 0 14px; }
@@ -955,18 +956,18 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .mf-noi-profit-seg { display: flex; align-items: center; justify-content: center; cursor: pointer; transition: filter 0.15s, box-shadow 0.15s; }
 .mf-noi-profit-seg:hover { filter: brightness(0.9); box-shadow: inset 0 0 0 2px rgba(255,255,255,0.35); }
 
-/* Blue vertical target line on the mirror bar */
+/* Green vertical target line on the mirror bar */
 .mf-noi-target-line {
   position: absolute;
   bottom: 0;
   height: 24px;          /* matches bar height */
   width: 2px;
-  background: #2563eb;
+  background: #16a34a;
   transform: translateX(-50%);
   pointer-events: none;
 }
 
-/* Blue "Profit Goal 15%" label above the bar */
+/* Green "Profit Goal 15%" label above the bar */
 .mf-noi-goal-lbl {
   position: absolute;
   top: -20px;
@@ -975,25 +976,25 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   font-weight: 700;
   letter-spacing: 0.8px;
   text-transform: uppercase;
-  color: #2563eb;
+  color: #16a34a;
   white-space: nowrap;
   pointer-events: none;
 }
 
 .mf-sl-noi-cogs::before   { background: #fecaca; }
 .mf-sl-noi-ovhd::before   { background: #fed7aa; }
-.mf-sl-noi-profit::before { background: #3b82f6; font-weight: 700; color: #1d4ed8; }
+.mf-sl-noi-profit::before { background: #22c55e; font-weight: 700; color: #15803d; }
 
 /* ── NOI expandable detail ───────────────────────────────────── */
 .mf-noi-detail { margin-top: 10px; }
 .mf-noi-explain {
   padding: 16px 18px;
-  background: #eff6ff;
+  background: #f0fdf4;
   border-radius: 10px;
-  border: 1px solid #bfdbfe;
+  border: 1px solid #bbf7d0;
 }
 .mf-noi-explain-head {
-  font-size: 13px; font-weight: 700; color: #1e3a5f;
+  font-size: 13px; font-weight: 700; color: #14532d;
   margin-bottom: 7px;
 }
 .mf-noi-explain-body {
@@ -1017,9 +1018,9 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 }
 .mf-noi-explain-tip {
   font-size: 12px; color: #666; line-height: 1.5;
-  border-top: 1px solid #bfdbfe; padding-top: 10px;
+  border-top: 1px solid #bbf7d0; padding-top: 10px;
 }
-.mf-noi-tip-head { font-weight: 700; color: #1e3a5f; }
+.mf-noi-tip-head { font-weight: 700; color: #14532d; }
 
 /* Clickable bar segment — red/orange/green portions the user taps to expand */
 .mf-seg-click {
@@ -1054,7 +1055,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .mf-noi-profit-seg:hover .mf-op-chev {
   color: rgba(255,255,255,1);
 }
-/* GP segment (pale green bg) — black arrow */
+/* GP segment (pale blue bg) — black arrow */
 .mf-sb-gp .mf-op-chev { color: rgba(0,0,0,0.45); }
 .mf-sb-gp:hover .mf-op-chev { color: rgba(0,0,0,0.85); }
 /* Operating Profit: label centered, chevron right-pinned */
@@ -1094,13 +1095,13 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 }
 .mf-sl-cogs.mf-sl-btn:hover    { color: #ef4444; }
 .mf-sl-ovhd.mf-sl-btn:hover    { color: #ea580c; }
-.mf-sl-gp-btn.mf-sl-btn:hover  { color: #16a34a; }
+.mf-sl-gp-btn.mf-sl-btn:hover  { color: #2563eb; }
 .mf-sl-prior::before    { background: #fecaca; }
 .mf-sl-cogs::before     { background: #f87171; }
 .mf-sl-ovhd::before     { background: #f97316; }
-.mf-sl-gp-btn::before   { background: #22c55e; }
-.mf-sl-pass-gp::before  { background: #22c55e; }
-.mf-sl-pass-noi::before { background: #bfdbfe; }
+.mf-sl-gp-btn::before   { background: #3b82f6; }
+.mf-sl-pass-gp::before  { background: #bfdbfe; }
+.mf-sl-pass-noi::before { background: #bbf7d0; }
 
 /* Compare delta + status pills */
 .mf-delta { font-size:13px; font-weight:600; margin-top:8px; }
