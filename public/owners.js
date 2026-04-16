@@ -617,7 +617,7 @@ function renderOwners() {
 
 
   var gpDetailHtml =
-    '<div id="mfGpDetail" class="mf-zoom-detail mf-gp-detail is-open">' +
+    '<div id="mfGpDetail" class="mf-zoom-detail mf-gp-detail" hidden>' +
       // "We kept X%" context line
       '<div class="mf-score-pct-line mf-gp-pct-line">We kept ' + fmtPct(gmPct) + ' of every dollar \u2014 goal is 50%</div>' +
       // Reversed competition bar: COGS eating from left, GP defending the right
@@ -666,7 +666,9 @@ function renderOwners() {
                   ' style="width:' + Math.max(0,Math.min(cogsPct,99)).toFixed(1) + '%">' +
                 '<span class="mf-op-chev">\u25be</span>' +
               '</div>' +
-              '<div style="flex:1;min-width:2px;background:#bbf7d0"></div>' +
+              '<div class="mf-sb-gp mf-seg-click" onclick="mfToggle(\'mfGpDetail\',this)" style="flex:1;min-width:2px;background:#bbf7d0;cursor:pointer;position:relative;">' +
+                '<span class="mf-op-chev" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);opacity:0.6;">\u25be</span>' +
+              '</div>' +
             '</div>' +
             '<div class="mf-cogs-target-line"></div>' +
           '</div>' +
