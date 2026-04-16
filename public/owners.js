@@ -1269,6 +1269,40 @@ function renderOwners() {
 
     if (cfBarChartInst) cfBarChartInst.destroy();
     var cfCtx = document.getElementById('cfBarChart').getContext('2d');
+
+    // Gradient fills — soft blue for history, deep blue for most-recent bar
+    function makeGrad(ctx, topHex, botHex) {
+      var g = ctx.createLinearGradient(0, 0, 0, 240);
+      g.addColorStop(0, topHex); g.addColorStop(1, botHex); return g;
+    }
+    var gradNorm = makeGrad(cfCtx, '#3b82f6', '#93c5fd');
+    var gradLast = makeGrad(cfCtx, '#1e40af', '#3b82f6');
+    var cfColors = cfBal.map(function(v, i) {
+      return (bsStart + i) === bsEnd ? gradLast : gradNorm;
+    });
+
+    // Inline plugin: draw the dollar value above each bar
+    var cfLabelPlugin = {
+      id: 'cfBarLabels',
+      afterDatasetsDraw: function(chart) {
+        var ctx2 = chart.ctx;
+        var ds   = chart.data.datasets[0];
+        var meta = chart.getDatasetMeta(0);
+        ctx2.save();
+        ctx2.textAlign = 'center';
+        ctx2.textBaseline = 'bottom';
+        meta.data.forEach(function(bar, i) {
+          var v = ds.data[i];
+          if (!v) return;
+          var isLast = (bsStart + i) === bsEnd;
+          ctx2.font = (isLast ? '700' : '600') + ' 11px "Inter",system-ui,sans-serif';
+          ctx2.fillStyle = isLast ? '#1e40af' : '#64748b';
+          ctx2.fillText(fmtDollar(v), bar.x, bar.y - 5);
+        });
+        ctx2.restore();
+      }
+    };
+
     cfBarChartInst = new Chart(cfCtx, {
       type: 'bar',
       data: {
@@ -1276,94 +1310,67 @@ function renderOwners() {
         datasets: [{
           data: cfBal,
           backgroundColor: cfColors,
-          borderRadius: 4,
-          borderSkipped: false
+          borderRadius: 8,
+          borderSkipped: false,
+          borderWidth: 0
         }]
       },
+      plugins: [cfLabelPlugin],
       options: {
         responsive: true, maintainAspectRatio: false,
+        animation: {
+          duration: 700,
+          easing: 'easeOutQuart',
+          delay: function(ctx) {
+            return ctx.type === 'data' ? ctx.dataIndex * 35 : 0;
+          }
+        },
+        layout: { padding: { top: 26, left: 6, right: 6, bottom: 0 } },
         plugins: {
           legend: { display: false },
           tooltip: {
+            backgroundColor: '#1a2d3a',
+            titleColor: '#94a3b8',
+            bodyColor: '#fff',
+            padding: 10,
+            cornerRadius: 8,
+            displayColors: false,
             callbacks: {
               title: function(items) { return items[0].label; },
-              label: function(ctx) {
-                return 'Bank balance: ' + fmtDollar(ctx.parsed.y);
-              }
+              label: function(ctx) { return 'Balance: ' + fmtDollar(ctx.parsed.y); }
             }
           }
         },
         scales: {
-          x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 45 } },
+          x: {
+            grid: { display: false },
+            border: { display: false },
+            ticks: {
+              font: { size: 11, weight: '600' },
+              color: '#94a3b8',
+              maxRotation: 0, minRotation: 0,
+              autoSkip: false
+            }
+          },
           y: {
-            ticks: { callback: function(v) { return fmtDollar(v); }, font: { size: 10 } },
-            grid: { color: '#f0f0f0' }
+            ticks: {
+              callback: function(v) { return fmtDollar(v); },
+              font: { size: 10 },
+              color: '#94a3b8',
+              maxTicksLimit: 5
+            },
+            grid: { color: '#f0f0f0', lineWidth: 1 },
+            border: { display: false }
           }
         }
       }
     });
-    document.getElementById('cfSubtitle').textContent = cfMonths.length + ' months';
 
-    // ── Drivers: trailing 12 vs prior 12 (P&L based) ────────────
-    var dr12End   = months.length - 1;
-    var dr12Start = Math.max(0, dr12End - 11);
-    var drPrEnd   = dr12Start - 1;
-    var drPrStart = Math.max(0, drPrEnd - 11);
-    var hasPrior  = drPrEnd >= 0 && drPrEnd >= drPrStart;
-
-    function sumSlice(arr, s, e) {
-      var t = 0;
-      for (var i = s; i <= e && i < arr.length; i++) t += arr[i] || 0;
-      return t;
-    }
-
-    var cfDriversEl = document.getElementById('cfDrivers');
-    if (hasPrior) {
-      var lastLabel  = fmtMkShort(months[dr12Start]) + '\u2013' + fmtMkShort(months[dr12End]);
-      var priorLabel = fmtMkShort(months[drPrStart]) + '\u2013' + fmtMkShort(months[drPrEnd]);
-
-      var drvRows = [
-        { label: 'Revenue',          arr: revenue,  inv: false },
-        { label: 'Cost of Goods Sold', arr: cogs,   inv: true  },
-        { label: 'Overhead',         arr: totalExp, inv: true  },
-        { label: 'Operating Profit', arr: noi,      inv: false, highlight: true }
-      ];
-
-      var drHeadHtml =
-        '<div class="cf-drivers-head">' +
-          '<span></span>' +
-          '<span>' + lastLabel + '</span>' +
-          '<span class="cf-hide-mobile">' + priorLabel + '</span>' +
-          '<span>Change</span>' +
-        '</div>';
-
-      var drRowsHtml = drvRows.map(function(dr) {
-        var last12  = sumSlice(dr.arr, dr12Start, dr12End);
-        var prior12 = sumSlice(dr.arr, drPrStart, drPrEnd);
-        var d       = last12 - prior12;
-        var pct     = prior12 !== 0 ? d / Math.abs(prior12) * 100 : 0;
-        var isGood  = dr.inv ? d <= 0 : d >= 0;
-        var cls     = isGood ? 'pos' : 'neg';
-        var arrow   = d >= 0 ? '\u25b2' : '\u25bc';
-        var sign    = d >= 0 ? '+' : '';
-        return '<div class="cf-driver-row' + (dr.highlight ? ' highlight' : '') + '">' +
-          '<span class="cf-drv-label">' + esc(dr.label) + '</span>' +
-          '<span class="cf-drv-val">' + fmtDollar(last12) + '</span>' +
-          '<span class="cf-drv-val muted cf-hide-mobile">' + fmtDollar(prior12) + '</span>' +
-          '<span class="cf-drv-chg ' + cls + '">' + arrow + ' ' + sign + fmtDollar(Math.abs(d)) +
-            (prior12 !== 0 ? ' (' + sign + pct.toFixed(0) + '%)' : '') + '</span>' +
-        '</div>';
-      }).join('');
-
-      cfDriversEl.innerHTML =
-        '<div class="cf-drivers-title">What\u2019s Moving Operating Profit \u2014 Trailing 12 vs. Prior 12 months</div>' +
-        drHeadHtml + drRowsHtml;
-    } else if (months.length > 1) {
-      cfDriversEl.innerHTML =
-        '<div style="font-size:13px;color:#aaa;padding:14px 0">Not enough P&amp;L history for a year-over-year comparison &mdash; need at least 24 months of data.</div>';
-    } else {
-      cfDriversEl.innerHTML = '';
-    }
+    // Subtitle: date range instead of just a count
+    document.getElementById('cfSubtitle').textContent =
+      cfMonths.length > 1
+        ? fmtMkShort(cfMonths[0]) + '\u2013' + fmtMkShort(cfMonths[cfMonths.length - 1])
+        : (cfMonths.length + ' months');
   } else if (cfCard) {
     cfCard.style.display = 'none';
   }

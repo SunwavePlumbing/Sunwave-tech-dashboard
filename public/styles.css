@@ -1473,48 +1473,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .cash-acct-name { flex: 1; }
 .cash-acct-val  { font-weight: 600; color: #444; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
-/* ── Cash flow over time ─────────────────────────────────────── */
-.cf-drivers { margin-top:22px; }
-.cf-drivers-title {
-  font-size:11px; font-weight:700; letter-spacing:0.8px;
-  text-transform:uppercase; color:#888; margin-bottom:10px;
-}
-.cf-drivers-head {
-  display:grid;
-  grid-template-columns: 1.4fr 1fr 1fr;
-  gap:8px;
-  padding:5px 0 8px;
-  border-bottom:1px solid #e8e8e8;
-  font-size:10px; font-weight:700; color:#aaa;
-  text-transform:uppercase; letter-spacing:0.5px;
-}
-.cf-driver-row {
-  display:grid;
-  grid-template-columns: 1.4fr 1fr 1fr;
-  gap:8px;
-  padding:10px 0;
-  border-bottom:1px solid #f5f5f5;
-  align-items:baseline;
-}
-.cf-driver-row:last-child { border-bottom:none; }
-.cf-driver-row.highlight {
-  background:#f8f9fb; border-radius:6px;
-  padding:10px 8px; margin:4px -8px 0;
-  border-bottom:none;
-}
-.cf-drv-label { font-size:13px; color:#333; }
-.cf-driver-row.highlight .cf-drv-label { font-weight:700; color:#1a2d3a; }
-.cf-drv-val { font-size:13px; color:#1a2d3a; font-variant-numeric:tabular-nums; white-space:nowrap; }
-.cf-drv-val.muted { color:#999; }
-.cf-drv-chg { font-size:13px; font-weight:600; font-variant-numeric:tabular-nums; white-space:nowrap; }
-.cf-drv-chg.pos { color:#12A071; }
-.cf-drv-chg.neg { color:#E5484D; }
-.cf-hide-mobile { display:none; }
-@media (min-width:580px) {
-  .cf-drivers-head  { grid-template-columns: 1.4fr 1fr 1fr 1fr; }
-  .cf-driver-row    { grid-template-columns: 1.4fr 1fr 1fr 1fr; }
-  .cf-hide-mobile   { display:block; }
-}
+/* (cf-drivers section removed) */
 
 .fin-alerts { margin-bottom:1.4rem; }
 .fin-alerts-title { font-size:13px;font-weight:700;color:#1a2d3a;margin-bottom:10px; }
