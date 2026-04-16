@@ -548,41 +548,6 @@ function renderOwners() {
     ? '\u25b2 ' + gpGap.toFixed(1) + ' pts above target \u2014 you\'re in the zone!'
     : gpGap.toFixed(1) + ' pts below the 50% target';
 
-  // Breakdown: how GP was further split into overhead + profit
-  var gpBreakPal   = ['#fb923c', curNOI >= 0 ? '#3b82f6' : '#ef4444'];
-  var gpBreakItems = curNOI >= 0
-    ? [{label: 'Overhead',          val: curOvhd},
-       {label: 'Operating Profit',  val: curNOI}]
-    : [{label: 'Overhead',          val: curOvhd},
-       {label: 'Operating Loss',    val: Math.abs(curNOI)}];
-  var gpBreakTot = gpBreakItems.reduce(function(s, r) { return s + r.val; }, 0);
-
-  var gpBreakSegs = gpBreakItems.map(function(r, i) {
-    var zid    = 'gpb-' + i;
-    var rawPct = gpBreakTot > 0 ? r.val / gpBreakTot * 100 : 0;
-    var pctLabel = rawPct >= 10 ? '<span class="mf-zoom-seg-pct">' + rawPct.toFixed(0) + '%</span>' : '';
-    return '<div class="mf-zoom-seg" data-zid="' + zid + '"' +
-      ' style="flex:' + r.val.toFixed(0) + ';background:' + gpBreakPal[i] + '"' +
-      ' onmouseenter="mfZoomHL(\'' + zid + '\',true)"' +
-      ' onmouseleave="mfZoomHL(\'' + zid + '\',false)"' +
-      ' onclick="mfZoomSel(\'' + zid + '\')">' +
-      pctLabel + '</div>';
-  }).join('');
-
-  var gpBreakLeg = gpBreakItems.map(function(r, i) {
-    var zid = 'gpb-' + i;
-    var c   = gpBreakPal[i];
-    var pct = gpBreakTot > 0 ? (r.val / gpBreakTot * 100).toFixed(1) : '0.0';
-    return '<div class="mf-zoom-leg-row" data-zid="' + zid + '"' +
-      ' style="--i:' + i + ';background:' + hexAlpha(c, 0.09) + ';border-left:3px solid ' + c + '"' +
-      ' onmouseenter="mfZoomHL(\'' + zid + '\',true)"' +
-      ' onmouseleave="mfZoomHL(\'' + zid + '\',false)"' +
-      ' onclick="mfZoomSel(\'' + zid + '\')">' +
-      '<span class="mf-zoom-leg-name">' + esc(r.label) + '</span>' +
-      '<span class="mf-zoom-leg-pct">' + pct + '%</span>' +
-      '<span class="mf-zoom-leg-val">' + fmtDollar(r.val) + '</span>' +
-    '</div>';
-  }).join('');
 
   var gpDetailHtml =
     '<div id="mfGpDetail" class="mf-zoom-detail mf-gp-detail is-open">' +
@@ -605,12 +570,6 @@ function renderOwners() {
         '</div>' +
         '<div class="mf-score-gap ' + gpGapCls + '">' + gpGapTxt + '</div>' +
       '</div>' +
-      // Then: where that GP went (overhead vs operating profit)
-      '<div class="mf-gp-breakdown-head">Then, of that ' + fmtDollar(curGP) + ' gross profit:</div>' +
-      '<div class="mf-zoom-bar-anim mf-zoom-expanded" style="--z-start:100%">' +
-        '<div class="mf-zoom-bar">' + gpBreakSegs + '</div>' +
-      '</div>' +
-      '<div class="mf-zoom-legend">' + gpBreakLeg + '</div>' +
     '</div>';
 
   var formulaHtml =
@@ -656,11 +615,6 @@ function renderOwners() {
       '<div class="mf-step mf-step--gp">' +
         '<div class="mf-step-label"><span class="mf-step-eq">=</span> Gross Profit ' + mfPill('gp', gmPct) + '</div>' +
         '<div class="mf-step-num">' + fmtDollar(curGP) + '</div>' +
-        // Mirrored bar: pale-red COGS on left (fixed width), green GP fills right
-        '<div class="mf-split-bar mf-gp-mirror-bar">' +
-          '<div style="flex-shrink:0;min-width:2px;width:' + Math.max(0,Math.min(cogsPct,99)).toFixed(1) + '%;background:#fecaca"></div>' +
-          '<div style="flex:1;min-width:2px;background:#22c55e"></div>' +
-        '</div>' +
         gpDetailHtml +
       '</div>' +
 
