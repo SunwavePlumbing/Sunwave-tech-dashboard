@@ -250,11 +250,11 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   .sidebar-more-panel { display: none; grid-template-columns: 1fr 1fr 1fr; gap: 5px; padding: 10px 14px 14px; background: #fafafa; border-top: 1px solid #f0f0f0; }
   .sidebar-more-panel.open { display: grid; }
   .sidebar-more-panel .date-btn { width: 100%; white-space: normal; text-align: center; font-size: 11px; padding: 6px 4px; border-radius: 8px; justify-content: center; line-height: 1.3; }
-  .content { padding: 0.85rem; }
-  .sort-section { gap: 6px; margin-bottom: 0.85rem; }
+  .content { padding: 1.2rem; }  /* was 0.85rem - much tighter */
+  .sort-section { gap: 8px; margin-bottom: 1.5rem; }
   .sort-label { display: none; }
-  .sort-btn { padding: 5px 12px; font-size: 12px; }
-  .stats { grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 1rem; }
+  .sort-btn { padding: 6px 14px; font-size: 13px; }
+  .stats { grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 1.8rem; }
   .stat-card { padding: 0.7rem 0.4rem; }
   .stat-label { font-size: 10px; }
   .stat-value { font-size: 18px; }
@@ -1605,11 +1605,14 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   /* ── SPACING & BREATHING ROOM ────────────────────────────────────── */
   .fin-cards {
     grid-template-columns: 1fr;  /* was 2 cols at 768px; now full-width */
-    gap: 14px;
-    margin-bottom: 2rem;
+    gap: 16px;
+    margin-bottom: 2.4rem;
   }
 
-  .fin-chart-card { margin-bottom: 2rem; }
+  .fin-chart-card {
+    margin-bottom: 2.4rem;  /* increased from 2rem */
+    padding: 20px;          /* increased from 18px */
+  }
 
   /* ── TREND CHART: Stack legend below toggles ──────────────────────── */
   .fin-trend-top-row {

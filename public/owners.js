@@ -1400,7 +1400,7 @@ function renderOwners() {
       }
     });
 
-    // Scroll-triggered stagger animation (same pattern as CF chart)
+    // Scroll-triggered stagger animation (skip on mobile to avoid color flashing)
     (function() {
       function runRevAnim() {
         if (!revBarChartInst) return;
@@ -1411,12 +1411,13 @@ function renderOwners() {
         revBarChartInst.update('active');
         revBarChartInst.options.animation = false;
       }
-      if (window.IntersectionObserver) {
+      // Only enable scroll animation on desktop (avoid mobile color flashing issues)
+      if (window.innerWidth > 768 && window.IntersectionObserver) {
         var revObs = new IntersectionObserver(function(entries) {
           if (entries[0].isIntersecting) { runRevAnim(); revObs.disconnect(); }
         }, { threshold: 0.25 });
         revObs.observe(revCard);
-      } else { runRevAnim(); }
+      }
     })();
 
     // Subtitle: date range
@@ -1534,7 +1535,7 @@ function renderOwners() {
       }
     });
 
-    // Scroll-triggered grow animation — fires once when the card enters the viewport
+    // Scroll-triggered grow animation — skip on mobile to avoid color flashing
     (function() {
       var card = document.getElementById('finCashFlowCard');
       function runAnim() {
@@ -1547,13 +1548,12 @@ function renderOwners() {
         cfBarChartInst.update('active');
         cfBarChartInst.options.animation = false; // don't re-animate on hover/tooltip
       }
-      if (window.IntersectionObserver) {
+      // Only enable scroll animation on desktop (avoid mobile color flashing issues)
+      if (window.innerWidth > 768 && window.IntersectionObserver) {
         var obs = new IntersectionObserver(function(entries) {
           if (entries[0].isIntersecting) { runAnim(); obs.disconnect(); }
         }, { threshold: 0.25 });
         obs.observe(card);
-      } else {
-        runAnim(); // fallback for old browsers
       }
     })();
 
