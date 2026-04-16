@@ -52,6 +52,13 @@ function mfToggleGp(btn) {
   if (section) section.hidden = !section.hidden;
 }
 
+// Special toggle for NOI section (also toggles the gap message)
+function mfToggleNoi(btn) {
+  mfToggle('mfNoiDetail', btn);
+  var gap = document.getElementById('mfNoiGap');
+  if (gap) gap.hidden = !gap.hidden;
+}
+
 // Highlight a zoom item across both segment bar and legend row (by data-zid)
 function mfZoomHL(zid, on) {
   var els = document.querySelectorAll('[data-zid="' + zid + '"]');
@@ -770,7 +777,7 @@ function renderOwners() {
                 '<div style="width:' + Math.max(0, cogsPct).toFixed(1) + '%;background:#fecaca;flex-shrink:0"></div>' +
                 '<div style="width:' + Math.max(0, ovhdPct).toFixed(1) + '%;background:#fed7aa;flex-shrink:0"></div>' +
                 // Blue NOI segment — clickable
-                '<div class="mf-noi-profit-seg mf-seg-click" onclick="mfToggle(\'mfNoiDetail\',this)" ' +
+                '<div class="mf-noi-profit-seg mf-seg-click" onclick="mfToggleNoi(this)" ' +
                     'style="flex:1;min-width:2px;background:#3b82f6">' +
                   '<span class="mf-op-chev">\u25be</span>' +
                 '</div>' +
@@ -782,11 +789,11 @@ function renderOwners() {
             '<div class="mf-split-leg">' +
               '<span class="mf-sl-noi-cogs">COGS</span>' +
               '<span class="mf-sl-noi-ovhd">Overhead</span>' +
-              '<button class="mf-sl-noi-profit mf-sl-btn" onclick="mfToggle(\'mfNoiDetail\',null)">Operating Profit</button>' +
+              '<button class="mf-sl-noi-profit mf-sl-btn" onclick="mfToggleNoi(null)">Operating Profit</button>' +
             '</div>' +
             noiDetailHtml +
-            // Gap line
-            '<div class="mf-score-gap ' + gapCls + '" style="margin-top:10px">' + gapTxt + '</div>' +
+            // Gap line (hidden by default, shown when detail expands)
+            '<div id="mfNoiGap" hidden style="margin-top:10px"><div class="mf-score-gap ' + gapCls + '">' + gapTxt + '</div></div>' +
           '</div>'
         );
       }()) +
