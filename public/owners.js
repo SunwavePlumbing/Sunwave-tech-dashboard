@@ -1051,15 +1051,28 @@ function renderOwners() {
   });
   var tDatasets = [];
   TREND_SERIES.forEach(function(s) {
+    // Shade between the data line and the goal:
+    //   dir:'above' (higher is better) → green above goal, red below
+    //   dir:'below' (lower is better)  → green below goal, red above
+    var fillCfg = false;
+    if (s.goal != null && s.dir) {
+      var goodColor = 'rgba(34,197,94,0.13)';
+      var badColor  = 'rgba(239,68,68,0.10)';
+      fillCfg = {
+        target: { value: s.goal },
+        above:  s.dir === 'above' ? goodColor : badColor,
+        below:  s.dir === 'above' ? badColor  : goodColor
+      };
+    }
     tDatasets.push({
       label: s.label, data: s.data, borderColor: s.color,
-      backgroundColor: s.color + '18',
+      backgroundColor: 'transparent',
       borderWidth: 2, pointRadius: 3, pointHoverRadius: 5,
       tension: 0.3, hidden: trendActive !== s.key,
-      fill: false
+      fill: fillCfg
     });
   });
-  // Goal-line datasets — solid slate, no dash, one per series
+  // Goal-line datasets — solid slate, one per series
   TREND_SERIES.forEach(function(s) {
     tDatasets.push({
       label: s.label + ' target',

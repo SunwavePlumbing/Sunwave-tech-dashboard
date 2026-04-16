@@ -1275,7 +1275,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .tcl-overlay { display:flex; flex-direction:column; gap:4px; flex-shrink:0; font-size:12px; }
 .tcl-item { display:flex; align-items:center; gap:6px; white-space:nowrap; }
 .tcl-swatch { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
-.tcl-swatch--target { background:transparent; border:2px dashed #aaa; border-radius:0; width:14px; height:0; border-bottom:2px dashed #aaa; margin-top:1px; }
+.tcl-swatch--target { background:#94a3b8; border:none; border-radius:1px; width:14px; height:2px; margin-top:1px; }
 .tcl-label { color:#555; font-weight:500; }
 .tcl-val { font-weight:700; margin-left:2px; }
 .tcl-dir { font-size:10px; font-weight:600; padding:1px 6px; border-radius:10px; margin-left:4px; }
