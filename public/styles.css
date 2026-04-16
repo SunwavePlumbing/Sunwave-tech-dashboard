@@ -685,7 +685,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   white-space:nowrap; transition:all 0.15s;
 }
 .mf-op-btn:hover { color:#555; border-color:#ccc; }
-.mf-op-chev { font-size:10px; }
+.mf-op-chev { font-size:16px; font-weight:600; }
 
 /* ── Zoom-in breakdown panel ───────────────────────────────── */
 
@@ -938,7 +938,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   transition: filter 0.15s;
 }
 .mf-noi-profit-seg:hover { filter: brightness(1.08); }
-.mf-noi-profit-seg .mf-op-chev { color: rgba(255,255,255,0.85); font-size: 12px; pointer-events: none; }
+.mf-noi-profit-seg .mf-op-chev { color: rgba(255,255,255,0.85); font-size: 18px; font-weight:600; pointer-events: none; }
 
 /* Blue vertical target line on the mirror bar */
 .mf-noi-target-line {
