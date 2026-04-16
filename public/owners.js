@@ -1029,11 +1029,11 @@ function renderOwners() {
 
   // ── Trend lines ──────────────────────────────────────────────
   var TREND_SERIES = [
-    { key: 'gm',    label: 'Gross Profit %',     color: '#12A071', data: gmArr,    goal: 50,   dir: 'above' },
+    { key: 'gm',    label: 'Gross Profit %',     color: '#3b82f6', data: gmArr,    goal: 50,   dir: 'above' },
     { key: 'tl',    label: 'Tech Labor %',        color: '#FF9500', data: tlArr,    goal: 25,   dir: 'below' },
     { key: 'parts', label: 'Parts %',             color: '#FF6B35', data: partsArr, goal: 25,   dir: 'below' },
     { key: 'admin', label: 'Admin & Office %',    color: '#8b5cf6', data: adminArr, goal: null, dir: null    },
-    { key: 'om',    label: 'Operating Profit %',  color: '#4A90D9', data: noiArr,   goal: 15,   dir: 'above' }
+    { key: 'om',    label: 'Profit %',            color: '#22c55e', data: noiArr,   goal: 15,   dir: 'above' }
   ];
   _trendSeries = TREND_SERIES; // cache for selectTrendLine
 
