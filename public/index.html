@@ -80,8 +80,12 @@
           <path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </div>
-      <!-- Hidden month picker dropdown -->
+      <!-- Hidden month/quarter picker dropdown -->
       <div class="fin-month-picker" id="finMonthPicker" hidden>
+        <div class="fin-period-tabs">
+          <button class="fin-period-tab" id="finTabMonth"   onclick="setFinGranularity('month')">Month</button>
+          <button class="fin-period-tab" id="finTabQuarter" onclick="setFinGranularity('quarter')">Quarter</button>
+        </div>
         <select id="finMonthSel" class="fin-month-sel-native" onchange="setFinMonth(this.value);closMonthPicker()" size="1"></select>
         <div class="fin-month-list" id="finMonthList"></div>
       </div>

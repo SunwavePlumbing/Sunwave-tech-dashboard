@@ -1,8 +1,10 @@
 // ── Location Owners / Financial Tab ────────────────────────────
 var ownersData = null;
-var finMode = 'dollar'; // 'dollar' | 'pct'
-var finMonth = null;    // YYYY-MM currently selected
-var finCompare = 'prior_year_month'; // prior_month | prior_year_month | prior_year_avg | none
+var finMode        = 'dollar';            // 'dollar' | 'pct'
+var finMonth       = null;               // YYYY-MM currently selected
+var finGranularity = 'month';            // 'month' | 'quarter'
+var finQuarter     = null;               // 'YYYY-Q#' e.g. '2026-Q1'
+var finCompare     = 'prior_year_month'; // prior_month | prior_year_month | prior_year_avg | none
 var ownersBalance = null;
 var donutChartInst = null;
 var trendChartInst = null;
@@ -343,6 +345,63 @@ function fmtMkShort(mk) {
   return (['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(p[1])-1] || '') + ' ' + p[0].slice(2);
 }
 
+// ── Quarter helpers ──────────────────────────────────────────────
+// '2026-03' → '2026-Q1'
+function quarterKey(mk) {
+  var m = parseInt(mk.split('-')[1]);
+  return mk.split('-')[0] + '-Q' + Math.ceil(m / 3);
+}
+// '2026-Q1' → ['2026-01','2026-02','2026-03']
+function quarterMonths(qk) {
+  var parts = qk.split('-Q');
+  var y = parts[0], q = parseInt(parts[1]);
+  var start = (q - 1) * 3 + 1;
+  return [start, start + 1, start + 2].map(function(m) {
+    return y + '-' + String(m).padStart(2, '0');
+  });
+}
+// '2026-Q1' → 'Q1 2026'
+function fmtQk(qk) {
+  if (!qk) return '';
+  var parts = qk.split('-Q');
+  return 'Q' + parts[1] + ' ' + parts[0];
+}
+// Returns sorted unique quarter keys that have at least one month in the months array
+function availableQuarters(months) {
+  var seen = {}, result = [];
+  months.forEach(function(mk) {
+    var qk = quarterKey(mk);
+    if (!seen[qk]) { seen[qk] = true; result.push(qk); }
+  });
+  return result; // already in chronological order (months is sorted oldest-first)
+}
+
+// Switch between monthly and quarterly granularity
+function setFinGranularity(g) {
+  finGranularity = g;
+  if (g === 'quarter') {
+    // Jump to the quarter containing the currently selected month
+    if (finMonth && !finQuarter) finQuarter = quarterKey(finMonth);
+    else if (finMonth) finQuarter = quarterKey(finMonth);
+  } else {
+    // Jump to the last available month of the currently selected quarter
+    if (finQuarter) {
+      var months = (ownersData && ownersData.months) || [];
+      var qms = quarterMonths(finQuarter);
+      var last = qms.filter(function(mk) { return months.indexOf(mk) >= 0; }).pop();
+      if (last) finMonth = last;
+    }
+  }
+  if (ownersData && ownersData.connected) renderOwners();
+}
+
+// Select a quarter from the custom list
+function pickFinQuarter(qk) {
+  finQuarter = qk;
+  closMonthPicker();
+  if (ownersData && ownersData.connected) renderOwners();
+}
+
 function renderOwners() {
   if (!ownersData || !ownersData.connected) {
     var reason = ownersData && ownersData.reason || 'unknown';
@@ -364,22 +423,42 @@ function renderOwners() {
   var months = ownersData.months || [];
   if (!months.length) return;
 
-  // ── Populate month picker (most-recent first) ───────────────
+  // ── Populate period picker ──────────────────────────────────
+  // Ensure valid defaults
   if (!finMonth || months.indexOf(finMonth) === -1) {
     finMonth = months[months.length - 1];
   }
-  // Update big header title
+  var quarters = availableQuarters(months);
+  if (!finQuarter || quarters.indexOf(finQuarter) === -1) {
+    finQuarter = quarters[quarters.length - 1];
+  }
+
+  // Sync tab active states
+  var tabM = document.getElementById('finTabMonth');
+  var tabQ = document.getElementById('finTabQuarter');
+  if (tabM) tabM.classList.toggle('active', finGranularity === 'month');
+  if (tabQ) tabQ.classList.toggle('active', finGranularity === 'quarter');
+
+  // Update picker header title
   var titleEl = document.getElementById('finMonthTitle');
-  if (titleEl) titleEl.textContent = fmtMkFull(finMonth);
-  // Rebuild custom month list
+  if (titleEl) titleEl.textContent = finGranularity === 'quarter' ? fmtQk(finQuarter) : fmtMkFull(finMonth);
+
+  // Rebuild list for current granularity
   var listEl = document.getElementById('finMonthList');
   if (listEl) {
-    listEl.innerHTML = months.slice().reverse().map(function(m) {
-      var active = m === finMonth ? ' active' : '';
-      return '<div class="fin-month-item' + active + '" onclick="pickFinMonth(\'' + m + '\')">' + fmtMkFull(m) + '</div>';
-    }).join('');
+    if (finGranularity === 'quarter') {
+      listEl.innerHTML = quarters.slice().reverse().map(function(qk) {
+        var active = qk === finQuarter ? ' active' : '';
+        return '<div class="fin-month-item' + active + '" onclick="pickFinQuarter(\'' + qk + '\')">' + fmtQk(qk) + '</div>';
+      }).join('');
+    } else {
+      listEl.innerHTML = months.slice().reverse().map(function(m) {
+        var active = m === finMonth ? ' active' : '';
+        return '<div class="fin-month-item' + active + '" onclick="pickFinMonth(\'' + m + '\')">' + fmtMkFull(m) + '</div>';
+      }).join('');
+    }
   }
-  // Keep hidden native select in sync (used nowhere else but kept for safety)
+  // Keep hidden native select in sync
   var sel = document.getElementById('finMonthSel');
   if (sel) sel.value = finMonth;
 
@@ -407,32 +486,64 @@ function renderOwners() {
   var noi         = revenue.map(function(r, i) { return r - (cogs[i] || 0) - (totalExp[i] || 0); });
   var netInc      = noi; // No below-the-line items in this P&L
 
-  // ── Selected-month index + comparison index ──────────────────
+  // ── Selected period index + comparison ──────────────────────
   var curIdx = months.indexOf(finMonth);
   if (curIdx < 0) curIdx = months.length - 1;
-  var cmpIdx = -1;
-  var cmpLabel = '';
-  var cmpValues = null; // function(seriesArr) -> number
-  if (finCompare === 'prior_month' && curIdx > 0) {
-    cmpIdx = curIdx - 1;
-    cmpLabel = 'vs. ' + fmtMkShort(months[cmpIdx]);
-    cmpValues = function(arr) { return arr[cmpIdx] || 0; };
-  } else if (finCompare === 'prior_year_month' && curIdx >= 12) {
-    cmpIdx = curIdx - 12;
-    cmpLabel = 'vs. ' + fmtMkShort(months[cmpIdx]);
-    cmpValues = function(arr) { return arr[cmpIdx] || 0; };
-  } else if (finCompare === 'prior_year_avg' && curIdx >= 12) {
-    var s = curIdx - 12, e = curIdx; // 12 months ending the month before selected
-    cmpLabel = 'vs. prior-yr avg';
-    cmpValues = function(arr) {
-      var sum = 0, n = 0;
-      for (var i = s; i < e; i++) { sum += arr[i] || 0; n++; }
-      return n > 0 ? sum / n : 0;
-    };
+
+  // Quarter mode: collect the 3 month indices for the selected quarter
+  var qIdxs = [];
+  if (finGranularity === 'quarter') {
+    quarterMonths(finQuarter).forEach(function(mk) {
+      var i = months.indexOf(mk);
+      if (i >= 0) qIdxs.push(i);
+    });
+    // Advance curIdx to the last month of the quarter (for trend chart highlight etc.)
+    if (qIdxs.length) curIdx = qIdxs[qIdxs.length - 1];
   }
 
-  // Current month scalars
-  function at(arr) { return arr[curIdx] || 0; }
+  // at() — sums across the quarter in quarter mode, otherwise returns single-month value
+  function at(arr) {
+    if (finGranularity === 'quarter' && qIdxs.length) {
+      return qIdxs.reduce(function(s, i) { return s + (arr[i] || 0); }, 0);
+    }
+    return arr[curIdx] || 0;
+  }
+
+  var cmpLabel  = '';
+  var cmpValues = null; // function(seriesArr) -> number
+
+  if (finGranularity === 'quarter') {
+    // Compare to same quarter prior year
+    var pyYear  = String(parseInt(finQuarter.split('-Q')[0]) - 1);
+    var pyQk    = pyYear + '-Q' + finQuarter.split('-Q')[1];
+    var pyIdxs  = [];
+    quarterMonths(pyQk).forEach(function(mk) {
+      var i = months.indexOf(mk); if (i >= 0) pyIdxs.push(i);
+    });
+    if (pyIdxs.length) {
+      cmpLabel  = 'vs. ' + fmtQk(pyQk);
+      cmpValues = function(arr) { return pyIdxs.reduce(function(s, i) { return s + (arr[i] || 0); }, 0); };
+    }
+  } else {
+    var cmpIdx = -1;
+    if (finCompare === 'prior_month' && curIdx > 0) {
+      cmpIdx = curIdx - 1;
+      cmpLabel = 'vs. ' + fmtMkShort(months[cmpIdx]);
+      cmpValues = function(arr) { return arr[cmpIdx] || 0; };
+    } else if (finCompare === 'prior_year_month' && curIdx >= 12) {
+      cmpIdx = curIdx - 12;
+      cmpLabel = 'vs. ' + fmtMkShort(months[cmpIdx]);
+      cmpValues = function(arr) { return arr[cmpIdx] || 0; };
+    } else if (finCompare === 'prior_year_avg' && curIdx >= 12) {
+      var s = curIdx - 12, e = curIdx;
+      cmpLabel = 'vs. prior-yr avg';
+      cmpValues = function(arr) {
+        var sum = 0, n = 0;
+        for (var i = s; i < e; i++) { sum += arr[i] || 0; n++; }
+        return n > 0 ? sum / n : 0;
+      };
+    }
+  }
   var curRev = at(revenue), curGP = at(gp), curTL = at(techLabor);
   var curParts = at(parts), curNOI = at(noi);
   var gmPct    = curRev > 0 ? curGP / curRev * 100 : 0;
@@ -795,17 +906,26 @@ function renderOwners() {
   document.getElementById('finTrendCard').style.display = multiMonth ? '' : 'none';
   var updEl = document.getElementById('finUpdated');
   if (updEl) {
-    var updTxt = fmtMk(finMonth) + '  \u00b7  ';
+    var updTxt = (finGranularity === 'quarter' ? fmtQk(finQuarter) : fmtMk(finMonth)) + '  \u00b7  ';
     if (ownersData.fetchedAt) updTxt += 'as of ' + new Date(ownersData.fetchedAt).toLocaleTimeString();
     updEl.textContent = updTxt;
   }
 
   // ── Monthly P&L grid ─────────────────────────────────────────
-  // On phone, show last 6 months; desktop, last 12.
+  // ── Monthly / Quarterly P&L grid ─────────────────────────────
   var isPhone = window.innerWidth < 700;
-  var gridEnd = curIdx;
-  var gridStart = Math.max(0, gridEnd - (isPhone ? 5 : 11));
-  var gridMonths = months.slice(gridStart, gridEnd + 1);
+  var gridMonths, gridIndices;
+  if (finGranularity === 'quarter') {
+    // Quarter mode: always show the 3 months of the selected quarter
+    gridMonths  = quarterMonths(finQuarter).filter(function(mk) { return months.indexOf(mk) >= 0; });
+    gridIndices = gridMonths.map(function(mk) { return months.indexOf(mk); });
+  } else {
+    // Month mode: last 12 months on desktop, last 6 on phone, ending at curIdx
+    var gridEnd   = curIdx;
+    var gridStart = Math.max(0, gridEnd - (isPhone ? 5 : 11));
+    gridMonths  = months.slice(gridStart, gridEnd + 1);
+    gridIndices = gridMonths.map(function(_, gi) { return gridStart + gi; });
+  }
 
   var otherOpex = totalExp.map(function(t, i) {
     return t - (adminPay[i]||0) - (mktTotal[i]||0) - (officeExp[i]||0) - (rentExp[i]||0)
@@ -835,19 +955,20 @@ function renderOwners() {
     { label: 'Net Operating Income', arr: noi, cls: 'total' }
   ];
   var revGridTotal = 0;
-  gridMonths.forEach(function(_, gi) { revGridTotal += revenue[gridStart+gi] || 0; });
+  gridIndices.forEach(function(idx) { revGridTotal += revenue[idx] || 0; });
   var pnlHead = '<tr><th>Line item</th>' +
     gridMonths.map(function(m) { return '<th>' + fmtMkShort(m) + '</th>'; }).join('') +
     '<th>Total</th><th>% Rev</th></tr>';
   var pnlBody = pnlRows.map(function(row) {
-    var cells = gridMonths.map(function(_, gi) {
-      var v = row.arr[gridStart+gi] || 0;
-      var isHi = (gridStart+gi) === curIdx ? ' highlight' : '';
-      var neg = v < 0 ? ' neg' : '';
-      return '<td class="' + isHi + neg + '">' + (finMode==='pct' && revenue[gridStart+gi]>0 ? (v/revenue[gridStart+gi]*100).toFixed(1)+'%' : fmtDollar(v)) + '</td>';
+    var cells = gridIndices.map(function(idx) {
+      var v = row.arr[idx] || 0;
+      // In quarter mode all columns are "selected"; in month mode only curIdx
+      var isHi = (finGranularity === 'quarter' || idx === curIdx) ? ' highlight' : '';
+      var neg  = v < 0 ? ' neg' : '';
+      return '<td class="' + isHi + neg + '">' + (finMode==='pct' && revenue[idx]>0 ? (v/revenue[idx]*100).toFixed(1)+'%' : fmtDollar(v)) + '</td>';
     }).join('');
     var rowTotal = 0;
-    gridMonths.forEach(function(_, gi) { rowTotal += row.arr[gridStart+gi] || 0; });
+    gridIndices.forEach(function(idx) { rowTotal += row.arr[idx] || 0; });
     var pctRev = revGridTotal > 0 ? (rowTotal / revGridTotal * 100).toFixed(1) + '%' : '—';
     return '<tr class="' + row.cls + '"><td>' + esc(row.label) + '</td>' + cells +
       '<td>' + fmtDollar(rowTotal) + '</td>' +
@@ -855,7 +976,10 @@ function renderOwners() {
   }).join('');
   document.getElementById('finPnlGrid').innerHTML =
     '<table class="pnl-grid"><thead>' + pnlHead + '</thead><tbody>' + pnlBody + '</tbody></table>';
-  document.getElementById('finPnlSubtitle').textContent = gridMonths.length + ' months ending ' + fmtMkShort(finMonth);
+  document.getElementById('finPnlSubtitle').textContent =
+    finGranularity === 'quarter'
+      ? fmtQk(finQuarter)
+      : (gridMonths.length + ' months ending ' + fmtMkShort(finMonth));
 
   // ── Cost breakdown donut (selected month) ────────────────────
   var dTechLabor = at(techLabor);
@@ -873,7 +997,8 @@ function renderOwners() {
   var dAccounted = dTechLabor + dParts + dSubs + dAdmin + dMkt + dRent + dVehicle + dOffice + dMerch + dInsure + dBenefits + dUtil;
   var dAllCosts  = at(cogs) + at(totalExp);
   var dOther     = Math.max(dAllCosts - dAccounted, 0);
-  document.getElementById('donutSubtitle').textContent = fmtDollar(dAllCosts) + ' \u00b7 ' + fmtMkShort(finMonth);
+  document.getElementById('donutSubtitle').textContent = fmtDollar(dAllCosts) + ' \u00b7 ' +
+    (finGranularity === 'quarter' ? fmtQk(finQuarter) : fmtMkShort(finMonth));
 
   if (donutChartInst) donutChartInst.destroy();
   var dCtx = document.getElementById('donutChart').getContext('2d');

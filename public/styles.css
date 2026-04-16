@@ -462,6 +462,11 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 }
 .fin-month-header:hover .fin-month-chev { opacity: 0.7; }
 
+/* ── Month / Quarter period tabs inside picker ───────────────── */
+.fin-period-tabs { display:flex; border-bottom:1px solid #eee; }
+.fin-period-tab  { flex:1; padding:12px 0; font-size:13px; font-weight:600; color:#aaa; background:none; border:none; border-bottom:2px solid transparent; margin-bottom:-1px; cursor:pointer; transition:color 0.15s, border-color 0.15s; }
+.fin-period-tab.active { color:#1a2d3a; border-bottom-color:#FF9500; }
+
 /* ── Month picker dropdown ───────────────────────────────────── */
 .fin-month-picker {
   background: white;
