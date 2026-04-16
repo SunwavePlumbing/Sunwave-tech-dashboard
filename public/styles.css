@@ -500,7 +500,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 /* ── Step rows: Revenue, = Gross Profit, = Operating Profit ── */
 .mf-step { padding:18px 20px; }
 .mf-step--gp  { background:#eff6ff; border-top:2px solid #bfdbfe; }
-.mf-step--noi { background:#f0fdf4; border-top:2px solid #bbf7d0; }
+.mf-step--noi { background:#fafafa; border-top:2px solid #bbf7d0; }
 
 .mf-step-label {
   font-size:13px; font-weight:700; letter-spacing:0.6px;
@@ -678,6 +678,16 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 }
 .mf-op-total--orange { color:#f97316; }  /* overhead deduction */
 .mf-op-total-sub { font-size:13px; font-weight:500; color:#bbb; margin-left:6px; }
+/* Inline % of revenue badge — sits after the big dollar, inherits section color */
+.mf-op-pct {
+  font-size: 16px;
+  font-weight: 600;
+  opacity: 0.58;
+  margin-left: 10px;
+  letter-spacing: 0;
+  vertical-align: middle;
+  font-variant-numeric: tabular-nums;
+}
 .mf-op-btn {
   font-size:11px; color:#aaa; background:none;
   border:1px solid #e5e7eb; border-radius:20px;
@@ -886,7 +896,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 
 /* ── Revenue full bar ──────────────────────────────────────── */
 .mf-rev-bar {
-  height: 20px; background: #3b82f6; border-radius: 5px;
+  height: 20px; background: #6366f1; border-radius: 5px;
   margin: 10px 0 6px;
 }
 .mf-rev-bar-leg {
@@ -936,6 +946,10 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 /* Dark labels for pale-background segments */
 .mf-sb-pass .mf-bar-label { color: #15803d; }
 .mf-sb-gp   .mf-bar-label { color: #1e40af; }
+
+/* Narrow-segment: hide label + chevron when there's not enough room */
+.mf-label-too-narrow .mf-bar-label { display: none !important; }
+.mf-label-too-narrow .mf-op-chev   { right: 4px; }
 
 /* GP mirror bar margin */
 .mf-gp-mirror-bar { margin: 10px 0 14px; }
@@ -989,7 +1003,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .mf-noi-detail { margin-top: 10px; }
 .mf-noi-explain {
   padding: 16px 18px;
-  background: #f0fdf4;
+  background: #dcfce7;
   border-radius: 10px;
   border: 1px solid #bbf7d0;
 }

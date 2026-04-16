@@ -676,7 +676,7 @@ function renderOwners() {
       // ── − Cost of Goods Sold ──────────────────────────────────
       '<div class="mf-op">' +
         '<div class="mf-op-label">Cost of Goods Sold</div>' +
-        '<div class="mf-op-total">\u2212' + fmtDollar(curCOGS) + '</div>' +
+        '<div class="mf-op-total">\u2212' + fmtDollar(curCOGS) + '<span class="mf-op-pct">' + fmtPct(cogsPct) + '</span></div>' +
         // 2-part split bar: red = COGS (clickable), pale-green = GP remainder (passive)
         '<div class="mf-split-wrap mf-split-wrap--cogs">' +
           '<div class="mf-cogs-bar-wrap">' +
@@ -709,7 +709,7 @@ function renderOwners() {
       // ── − Overhead ────────────────────────────────────────────
       '<div class="mf-op">' +
         '<div class="mf-op-label">Overhead</div>' +
-        '<div class="mf-op-total mf-op-total--orange">\u2212' + fmtDollar(curOvhd) + '</div>' +
+        '<div class="mf-op-total mf-op-total--orange">\u2212' + fmtDollar(curOvhd) + '<span class="mf-op-pct">' + fmtPct(ovhdPct) + '</span></div>' +
         // 3-part split bar: click the orange Overhead segment to expand the breakdown
         '<div class="mf-split-wrap mf-split-wrap--ovhd">' +
           '<div class="mf-split-bar">' +
@@ -773,7 +773,7 @@ function renderOwners() {
         return (
           '<div class="mf-step mf-step--noi">' +
             '<div class="mf-step-label">Operating Profit</div>' +
-            '<div class="mf-step-num"><span class="mf-step-eq">=&thinsp;</span>' + fmtDollar(curNOI) + '</div>' +
+            '<div class="mf-step-num"><span class="mf-step-eq">=&thinsp;</span>' + fmtDollar(curNOI) + '<span class="mf-op-pct">' + fmtPct(noiPct) + '</span></div>' +
             // Bar wrapper — position:relative so target line can sit on top
             '<div class="mf-noi-bar-wrap">' +
               // Gold target label above bar
@@ -806,6 +806,7 @@ function renderOwners() {
     '</div>'; // .mf-card
 
   document.getElementById('finCards').innerHTML = formulaHtml;
+  requestAnimationFrame(mfFixNarrowLabels);
 
   // ── Show structural elements ─────────────────────────────────
   var multiMonth = months.length > 1;
@@ -1994,17 +1995,22 @@ async function fetchDepreciationSchedule() {
 }
 
 function renderDepreciation() {
-  if (!depreciationSchedule || !depreciationSchedule.connected) {
-    var section = document.getElementById('depreciationSection');
-    if (section) section.style.display = 'none';
-    return;
-  }
-
   var section = document.getElementById('depreciationSection');
   var content = document.getElementById('depreciationContent');
   if (!section || !content) return;
 
+  // Always show the section — if QB isn't connected yet, show a placeholder.
   section.style.display = '';
+
+  if (!depreciationSchedule || !depreciationSchedule.connected) {
+    content.innerHTML =
+      '<div style="padding:24px;text-align:center;color:#aaa;font-size:13px">' +
+        '<div style="font-size:22px;margin-bottom:8px">🔒</div>' +
+        '<div style="font-weight:600;color:#555;margin-bottom:4px">QuickBooks not connected</div>' +
+        '<div>Connect QuickBooks to see live asset values, purchase dates, and depreciation schedules for all vehicles and equipment.</div>' +
+      '</div>';
+    return;
+  }
 
   var summary = depreciationSchedule.summary;
   var assets = depreciationSchedule.assets || [];
@@ -2068,3 +2074,15 @@ function renderDepreciation() {
 
   content.innerHTML = summaryHtml + categoryHtml;
 }
+
+// ── Narrow-bar label guard ────────────────────────────────────
+// Called after every money-flow render and on window resize.
+// Any clickable bar segment narrower than MIN_PX gets its text label hidden
+// so it never shows a truncated / overlapping partial string.
+function mfFixNarrowLabels() {
+  var MIN_PX = 90;
+  document.querySelectorAll('.mf-seg-click, .mf-noi-profit-seg').forEach(function(seg) {
+    seg.classList.toggle('mf-label-too-narrow', seg.offsetWidth < MIN_PX);
+  });
+}
+window.addEventListener('resize', mfFixNarrowLabels);
