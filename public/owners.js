@@ -602,14 +602,12 @@ function renderOwners() {
       '<div class="mf-gp-revbar-wrap">' +
         '<div class="mf-gp-revbar-head">Of ' + fmtDollar(curRev) + ' revenue, COGS consumed:</div>' +
         '<div class="mf-gp-revbar-outer">' +
-          '<div class="mf-gp-revbar-tlabel">Target 50/50</div>' +
           '<div class="mf-gp-revbar">' +
             '<div class="mf-gp-revbar-cogs" style="width:' + Math.min(cogsPct, 99).toFixed(1) + '%"></div>' +
             '<div class="mf-gp-revbar-gp">' +
               '<span class="mf-gp-revbar-txt">GP ' + fmtPct(gmPct) + '</span>' +
             '</div>' +
           '</div>' +
-          '<div class="mf-gp-target-mark"></div>' +
         '</div>' +
         '<div class="mf-score-gap ' + gpGapCls + '">' + gpGapTxt + '</div>' +
       '</div>' +
@@ -639,12 +637,16 @@ function renderOwners() {
         '<div class="mf-op-total">\u2212' + fmtDollar(curCOGS) + '</div>' +
         // 2-part split bar: red = COGS (clickable), pale-green = GP remainder (passive)
         '<div class="mf-split-wrap mf-split-wrap--cogs">' +
-          '<div class="mf-split-bar">' +
-            '<div class="mf-sb-cogs mf-seg-click" onclick="mfToggle(\'mfCogsDetail\',this)"' +
-                ' style="width:' + Math.max(0,Math.min(cogsPct,99)).toFixed(1) + '%">' +
-              '<span class="mf-op-chev">\u25be</span>' +
+          '<div class="mf-cogs-bar-wrap">' +
+            '<div class="mf-cogs-goal-lbl">Target 50%</div>' +
+            '<div class="mf-split-bar">' +
+              '<div class="mf-sb-cogs mf-seg-click" onclick="mfToggle(\'mfCogsDetail\',this)"' +
+                  ' style="width:' + Math.max(0,Math.min(cogsPct,99)).toFixed(1) + '%">' +
+                '<span class="mf-op-chev">\u25be</span>' +
+              '</div>' +
+              '<div style="flex:1;min-width:2px;background:#bbf7d0"></div>' +
             '</div>' +
-            '<div style="flex:1;min-width:2px;background:#bbf7d0"></div>' +
+            '<div class="mf-cogs-target-line"></div>' +
           '</div>' +
           '<div class="mf-split-leg">' +
             '<button class="mf-sl-cogs mf-sl-btn" onclick="mfToggle(\'mfCogsDetail\',null)">COGS</button>' +
@@ -1099,12 +1101,12 @@ function renderOwners() {
       fill: false
     });
   });
-  // Goal-line datasets — solid gold, no dash, one per series
+  // Goal-line datasets — solid slate, no dash, one per series
   TREND_SERIES.forEach(function(s) {
     tDatasets.push({
       label: s.label + ' target',
       data: s.goal == null ? [] : months.map(function() { return s.goal; }),
-      borderColor: '#D4A017',
+      borderColor: '#94a3b8',
       borderWidth: 2, pointRadius: 0, pointHoverRadius: 0,
       tension: 0, fill: false,
       hidden: trendActive !== s.key || s.goal == null
@@ -1281,8 +1283,8 @@ function buildTrendLegend(series, curIdx) {
   if (active.goal != null) {
     html +=
       '<div class="tcl-item">' +
-        '<span class="tcl-swatch tcl-swatch--gold"></span>' +
-        '<span class="tcl-label" style="color:#D4A017">Target ' + active.goal + '%</span>' +
+        '<span class="tcl-swatch tcl-swatch--target"></span>' +
+        '<span class="tcl-label" style="color:#94a3b8">Target ' + active.goal + '%</span>' +
       '</div>';
   }
   el.innerHTML = html;

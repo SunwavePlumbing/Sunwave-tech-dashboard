@@ -700,27 +700,43 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 /* GP "We kept X%" line inside the panel */
 .mf-gp-pct-line { margin-bottom: 14px !important; }
 
+/* ── COGS bar target marker (red, at 50%) ────────────────────── */
+.mf-cogs-bar-wrap {
+  position: relative;
+  margin: 10px 0 4px;
+  padding-top: 20px;   /* room for the label above */
+}
+.mf-cogs-goal-lbl {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.8px; text-transform: uppercase;
+  color: #ef4444;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.mf-cogs-target-line {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  height: 20px;   /* matches bar height */
+  width: 2px;
+  background: #ef4444;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
 /* ── GP reversed competition bar ───────────────────────────── */
 .mf-gp-revbar-wrap { margin: 0 0 12px; }
 .mf-gp-revbar-head {
   font-size: 11px; font-weight: 600; color: #888;
   text-transform: uppercase; letter-spacing: 0.8px;
-  margin-bottom: 20px;   /* room for the "Target 50/50" label above the bar */
+  margin-bottom: 8px;
 }
-/* Outer: position:relative so target line can be absolutely placed */
+/* Outer: position:relative kept for layout */
 .mf-gp-revbar-outer { position: relative; margin-bottom: 6px; }
-
-/* Target label — floats above the bar at the 50% mark */
-.mf-gp-revbar-tlabel {
-  position: absolute;
-  left: 50%;
-  top: -18px;
-  transform: translateX(-50%);
-  font-size: 10px; font-weight: 700;
-  color: #D4A017;
-  white-space: nowrap;
-  letter-spacing: 0.3px;
-}
 
 /* The bar itself */
 .mf-gp-revbar {
@@ -747,16 +763,6 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   color: rgba(255,255,255,0.92);
   white-space: nowrap;
   pointer-events: none;
-}
-/* Vertical target marker at exactly 50% */
-.mf-gp-target-mark {
-  position: absolute;
-  left: 50%;
-  top: -3px;
-  height: calc(100% + 6px);
-  width: 2px;
-  background: #D4A017;
-  transform: translateX(-50%);
 }
 
 /* "Where that GP went:" section header */
@@ -1103,22 +1109,25 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .fin-trend-btn { padding:4px 12px;font-size:11px;font-weight:600;border:1px solid #e0e0e0;border-radius:20px;background:white;color:#888;cursor:pointer;transition:all 0.15s; }
 .fin-trend-btn.on { border-color:currentColor;background:currentColor;color:white!important; }
 
-/* ── Trend chart overlay legend (inside the chart canvas area) ── */
+/* ── Trend chart top row: toggles left, legend right ─────────── */
+.fin-trend-top-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.fin-trend-top-row .fin-trend-toggles {
+  margin-bottom: 0;
+}
+
+/* ── Legend — sits inline, right side of toggle row ─────────── */
 .tcl-overlay {
-  position: absolute;
-  top: 10px;
-  left: 10px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  background: rgba(255,255,255,0.88);
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
-  padding: 8px 12px;
-  border-radius: 8px;
-  box-shadow: 0 1px 6px rgba(0,0,0,0.08);
-  pointer-events: none;
-  z-index: 2;
+  gap: 4px;
+  flex-shrink: 0;
 }
 .tcl-item {
   display: flex;
@@ -1132,7 +1141,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   border-radius: 2px;
   flex-shrink: 0;
 }
-.tcl-swatch--gold { background: #D4A017; }
+.tcl-swatch--target { background: #94a3b8; }
 .tcl-label {
   font-size: 11px;
   font-weight: 600;
