@@ -1285,7 +1285,29 @@ function renderOwners() {
       window._trendAnimId = null;
     }
   }
-  window._trendAnimId = requestAnimationFrame(_tAnimLoop);
+
+  // Scroll-triggered animation: restart reveal when card enters viewport
+  (function() {
+    var trendCard = document.getElementById('finTrendCard');
+    function restartTrendAnim() {
+      if (!trendChartInst) return;
+      // Reset and restart the reveal animation
+      if (window._trendAnimId) cancelAnimationFrame(window._trendAnimId);
+      _tRev.v = 0;
+      _tStart = null;
+      window._trendAnimId = requestAnimationFrame(_tAnimLoop);
+    }
+    // Desktop (>768px): Scroll animation enabled for smooth reveal
+    if (window.innerWidth > 768 && window.IntersectionObserver) {
+      var trendObs = new IntersectionObserver(function(entries) {
+        if (entries[0].isIntersecting) { restartTrendAnim(); trendObs.disconnect(); }
+      }, { threshold: 0.25 });
+      trendObs.observe(trendCard);
+    } else {
+      // Mobile or old browsers: trigger immediately
+      restartTrendAnim();
+    }
+  })();
 
   // Build the 2-item overlay legend (active series + target if it exists)
   buildTrendLegend(TREND_SERIES, curIdx);
