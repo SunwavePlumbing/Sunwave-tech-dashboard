@@ -581,25 +581,25 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .pnl-cmp-chip:hover { border-color: #94a3b8; color: #1a2d3a; }
 .pnl-cmp-chip.act   { background: #1a2d3a; color: white; border-color: #1a2d3a; }
 
-.pnl-grid--2col { width: 100%; border-collapse: collapse; }
+.pnl-grid--2col { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .pnl-grid--2col th {
-  padding: 8px 14px; font-size: 11px; font-weight: 700;
+  padding: 10px 18px; font-size: 11px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8;
   text-align: right; border-bottom: 2px solid #f0f0f0; white-space: nowrap;
 }
 .pnl-grid--2col td {
-  padding: 6px 14px; border-bottom: 1px solid #f5f5f5;
+  padding: 9px 18px; border-bottom: 1px solid #f5f5f5;
   text-align: right; vertical-align: middle;
 }
-.pnl-grid--2col tr.indent td { padding-top: 4px; padding-bottom: 4px; }
-.pnl2-th-lbl, .pnl2-td-lbl { text-align: left !important; }
+.pnl-grid--2col tr.indent td { padding-top: 6px; padding-bottom: 6px; }
+.pnl2-th-lbl, .pnl2-td-lbl { text-align: left !important; width: 26%; }
 .pnl2-th-lbl { position: sticky; left: 0; background: #fff; z-index: 2; }
 .pnl2-td-lbl {
   position: sticky; left: 0; background: #fff; z-index: 2;
-  font-size: 13px; font-weight: 600; color: #1a2d3a;
+  font-size: 14px; font-weight: 600; color: #1a2d3a;
 }
 .pnl-grid--2col tr.indent .pnl2-td-lbl {
-  padding-left: 24px; color: #9ca3af; font-weight: 400; font-size: 12px;
+  padding-left: 26px; color: #9ca3af; font-weight: 400; font-size: 13px;
 }
 .pnl-grid--2col tr.subtotal td     { background: #fafafa; }
 .pnl-grid--2col tr.subtotal .pnl2-td-lbl { background: #fafafa; font-weight: 700; }
@@ -618,12 +618,12 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 }
 .pnl2-th-delta { color: #64748b !important; }
 
-/* Stacked $ + % inside each data cell */
-.pnl2-cell { min-width: 90px; }
-.pnl2-dollar { font-size: 13px; font-weight: 600; color: #1a2d3a; }
-.pnl2-pct-sub { font-size: 11px; color: #94a3b8; margin-top: 1px; }
-.pnl-grid--2col tr.indent .pnl2-dollar  { font-size: 12px; font-weight: 500; }
-.pnl-grid--2col tr.indent .pnl2-pct-sub { font-size: 10px; }
+/* Inline $ + % side-by-side inside each data cell */
+.pnl2-cell { min-width: 120px; white-space: nowrap; }
+.pnl2-dollar { display: inline; font-size: 15px; font-weight: 600; color: #1a2d3a; }
+.pnl2-pct-sub { display: inline; font-size: 12px; color: #94a3b8; margin-left: 7px; }
+.pnl-grid--2col tr.indent .pnl2-dollar  { font-size: 14px; font-weight: 500; }
+.pnl-grid--2col tr.indent .pnl2-pct-sub { font-size: 11px; }
 .pnl2-neg .pnl2-dollar { color: #E5484D; }
 .pnl2-empty { color: #bbb; }
 
@@ -636,10 +636,10 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .pnl-grid--2col tr.subtotal .pnl2-dollar { color: #1a2d3a; font-weight: 700; }
 
 /* Delta column — soft pill badges */
-.pnl2-delta { min-width: 80px; text-align: right; }
+.pnl2-delta { min-width: 100px; text-align: right; }
 .pnl2-pill  {
-  display: inline-block; padding: 3px 9px; border-radius: 5px;
-  font-size: 12px; font-weight: 600; background: #f1f5f9; color: #94a3b8;
+  display: inline-block; padding: 4px 11px; border-radius: 5px;
+  font-size: 13px; font-weight: 600; background: #f1f5f9; color: #94a3b8;
 }
 .pnl2-good .pnl2-pill { background: #f0fdf4; color: #16a34a; }
 .pnl2-bad  .pnl2-pill { background: #fff1f2; color: #e11d48; }
@@ -901,7 +901,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .mf-cogs-bar-wrap {
   position: relative;
   margin: 10px 0 4px;
-  padding-top: 20px;   /* room for the label above */
+  padding-top: 34px;   /* room for the label above */
 }
 .mf-cogs-goal-lbl {
   position: absolute;

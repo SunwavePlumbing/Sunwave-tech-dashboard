@@ -1218,16 +1218,19 @@ function renderOwners() {
   });
 
   // ── Clip-reveal plugin ────────────────────────────────────────
-  // Masks the dataset area to a left-expanding rect so the line AND
-  // its fill sweep in together from left → right with no timing mismatch.
+  // Expands from the horizontal center outward in both directions so
+  // the line and its fill always grow in perfect sync (no Chart.js mismatch).
   var _tRev = { v: 0 };
   var tRevealPlugin = {
     id: 'trendReveal',
     beforeDatasetsDraw: function(chart) {
-      var ca = chart.chartArea;
+      var ca   = chart.chartArea;
+      var cw   = ca.right - ca.left;
+      var cx   = ca.left + cw / 2;          // horizontal centre of plot area
+      var half = cw / 2 * _tRev.v;          // how far left/right we've revealed
       chart.ctx.save();
       chart.ctx.beginPath();
-      chart.ctx.rect(ca.left, ca.top - 4, (ca.right - ca.left) * _tRev.v, ca.bottom - ca.top + 8);
+      chart.ctx.rect(cx - half, ca.top - 4, half * 2, ca.bottom - ca.top + 8);
       chart.ctx.clip();
     },
     afterDatasetsDraw: function(chart) { chart.ctx.restore(); }
@@ -1239,7 +1242,7 @@ function renderOwners() {
     plugins: [tRevealPlugin],
     options: {
       responsive: true, maintainAspectRatio: false,
-      animation: false,   // driven by RAF below instead
+      animation: false,   // driven by RAF below
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: false },
@@ -1257,14 +1260,15 @@ function renderOwners() {
     }
   });
 
-  // RAF-driven left→right reveal — line and fill always in sync
+  // RAF-driven center-out expand — both directions at once, line and fill in sync
   if (window._trendAnimId) cancelAnimationFrame(window._trendAnimId);
   _tRev.v = 0;
-  var _tStart = null, _TDUR = 1100;
+  var _tStart = null, _TDUR = 950;
   function _tAnimLoop(ts) {
     if (!_tStart) _tStart = ts;
     var t = Math.min((ts - _tStart) / _TDUR, 1);
-    _tRev.v = t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2; // easeInOutCubic
+    // easeOutCubic — fast burst from center, settles smoothly at edges
+    _tRev.v = 1 - Math.pow(1 - t, 3);
     if (trendChartInst) trendChartInst.draw();
     if (t < 1) {
       window._trendAnimId = requestAnimationFrame(_tAnimLoop);
