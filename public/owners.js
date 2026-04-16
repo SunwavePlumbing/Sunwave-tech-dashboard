@@ -45,6 +45,13 @@ function mfToggle(panelId, btn) {
   }
 }
 
+// Special toggle for GP section (also toggles the header section)
+function mfToggleGp(btn) {
+  mfToggle('mfGpDetail', btn);
+  var section = document.getElementById('mfGpSection');
+  if (section) section.hidden = !section.hidden;
+}
+
 // Highlight a zoom item across both segment bar and legend row (by data-zid)
 function mfZoomHL(zid, on) {
   var els = document.querySelectorAll('[data-zid="' + zid + '"]');
@@ -667,7 +674,7 @@ function renderOwners() {
                 '<span class="mf-bar-label">COGS</span>' +
                 '<span class="mf-op-chev">\u25be</span>' +
               '</div>' +
-              '<div class="mf-sb-gp mf-seg-click" onclick="mfToggle(\'mfGpDetail\',this)" style="flex:1;min-width:2px;background:#bbf7d0;cursor:pointer;position:relative;">' +
+              '<div class="mf-sb-gp mf-seg-click" onclick="mfToggleGp(this)" style="flex:1;min-width:2px;background:#bbf7d0;cursor:pointer;position:relative;">' +
                 '<span class="mf-bar-label">Gross Profit</span>' +
                 '<span class="mf-op-chev" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);opacity:0.6;">\u25be</span>' +
               '</div>' +
@@ -680,7 +687,7 @@ function renderOwners() {
       '</div>' +
 
       // ── = Gross Profit ────────────────────────────────────────
-      '<div class="mf-step mf-step--gp">' +
+      '<div class="mf-step mf-step--gp" id="mfGpSection" hidden>' +
         '<div class="mf-step-label"><span class="mf-step-eq">=</span> Gross Profit ' + mfPill('gp', gmPct) + '</div>' +
         '<div class="mf-step-num">' + fmtDollar(curGP) + '</div>' +
         gpDetailHtml +
