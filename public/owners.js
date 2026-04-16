@@ -22,6 +22,9 @@ var growthInteractiveData = {
   selectedScenarios: { doNothing: true, hireTech: false, buyVan: false, buyTool: false }
 };
 
+// SVG chevron — used in all clickable bar segments. CSS rotates it when open.
+var MF_CHEV = '<svg class="mf-op-chev" viewBox="0 0 12 8" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 1.5l5 5 5-5"/></svg>';
+
 // Toggle expandable detail panel; triggers zoom-bar + stagger animations on open
 function mfToggle(panelId, btn) {
   var panel = document.getElementById(panelId);
@@ -29,7 +32,7 @@ function mfToggle(panelId, btn) {
   var nowOpen = panel.hidden; // true = was hidden, about to open
   panel.hidden = !nowOpen;
   var chev = btn && btn.querySelector('.mf-op-chev');
-  if (chev) chev.textContent = nowOpen ? '\u25b4' : '\u25be';
+  if (chev) chev.classList.toggle('mf-op-chev--open', nowOpen);
   var anim = panel.querySelector('.mf-zoom-bar-anim');
   if (nowOpen) {
     // Opening — reset then animate bar + trigger stagger
@@ -683,11 +686,11 @@ function renderOwners() {
               '<div class="mf-sb-cogs mf-seg-click" onclick="mfToggle(\'mfCogsDetail\',this)"' +
                   ' style="width:' + Math.max(0,Math.min(cogsPct,99)).toFixed(1) + '%">' +
                 '<span class="mf-bar-label">Cost of Goods Sold</span>' +
-                '<span class="mf-op-chev">\u25be</span>' +
+                MF_CHEV +
               '</div>' +
               '<div class="mf-sb-gp mf-seg-click" onclick="mfToggleGp(this)">' +
                 '<span class="mf-bar-label">Gross Profit</span>' +
-                '<span class="mf-op-chev">\u25be</span>' +
+                MF_CHEV +
               '</div>' +
             '</div>' +
             '<div class="mf-cogs-target-line"></div>' +
@@ -717,7 +720,7 @@ function renderOwners() {
             '<div class="mf-sb-ovhd mf-seg-click" onclick="mfToggle(\'mfOvhdDetail\',this)"' +
                 ' style="width:' + Math.max(0,Math.min(ovhdPct,100-cogsPct)).toFixed(1) + '%">' +
               '<span class="mf-bar-label">Overhead</span>' +
-              '<span class="mf-op-chev">\u25be</span>' +
+              MF_CHEV +
             '</div>' +
             '<div class="mf-sb-pass">' +
               '<span class="mf-bar-label" style="left:50%;transform:translate(-50%,-50%)">Operating Profit</span>' +
@@ -770,8 +773,8 @@ function renderOwners() {
 
         return (
           '<div class="mf-step mf-step--noi">' +
-            '<div class="mf-step-label">Operating Profit</div>' +
-            '<div class="mf-step-num mf-step-num--eq">=</div>' +
+            '<div class="mf-step-label"><span class="mf-step-eq">=</span> Operating Profit</div>' +
+            '<div class="mf-step-num">' + fmtDollar(curNOI) + '</div>' +
             // Bar wrapper — position:relative so target line can sit on top
             '<div class="mf-noi-bar-wrap">' +
               // Gold target label above bar
@@ -788,7 +791,7 @@ function renderOwners() {
                 '<div class="mf-noi-profit-seg mf-seg-click" onclick="mfToggleNoi(this)" ' +
                     'style="flex:1;min-width:2px;background:#3b82f6;position:relative;">' +
                   '<span class="mf-bar-label">Operating Profit</span>' +
-                  '<span class="mf-op-chev">\u25be</span>' +
+                  MF_CHEV +
                 '</div>' +
               '</div>' +
               // Gold vertical target line
@@ -2041,13 +2044,21 @@ function renderDepreciation() {
       '<div class="depr-asset-list">';
 
     categoryAssets.forEach(function(asset) {
-      var depreciationPct = asset.cost > 0 ? (asset.accumulatedDepreciation / asset.cost * 100) : 0;
+      var dateLabel = asset.purchaseDate
+        ? new Date(asset.purchaseDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+        : '—';
+      var srcBadge = asset.dateSource === 'quickbooks'
+        ? '<span class="depr-src-badge">QB</span>'
+        : asset.dateSource === 'register' ? '<span class="depr-src-badge depr-src-manual">Manual</span>' : '<span class="depr-src-badge depr-src-unknown">No date</span>';
+      var yearsOwned = asset.monthsOwned ? (asset.monthsOwned / 12).toFixed(1) + ' yrs' : '—';
       categoryHtml += '<div class="depr-asset-row">' +
-        '<div class="depr-asset-name">' + asset.name + '</div>' +
+        '<div class="depr-asset-name">' + asset.name +
+          '<div class="depr-asset-meta">' + srcBadge + ' Purchased ' + dateLabel + ' &bull; ' + yearsOwned + ' owned</div>' +
+        '</div>' +
         '<div class="depr-asset-values">' +
-          '<span class="depr-cost">' + fmtDollar(asset.cost) + '</span>' +
-          '<span class="depr-book">' + fmtDollar(asset.bookValue) + '</span>' +
-          '<span class="depr-pct">' + depreciationPct.toFixed(0) + '%</span>' +
+          '<span class="depr-cost" title="Original cost">' + fmtDollar(asset.cost) + '</span>' +
+          '<span class="depr-book" title="Current book value (straight-line)">' + fmtDollar(asset.bookValue) + '</span>' +
+          '<span class="depr-pct" title="% of useful life elapsed">' + asset.pctUsed + '%</span>' +
         '</div>' +
       '</div>';
     });

@@ -1143,6 +1143,23 @@ app.get('/api/depreciation-schedule', async (req, res) => {
     }
   };
 
+  // Straight-line depreciation calculator (ignores QB tax depreciation entirely)
+  function calcStraightLine(cost, salvage, usefulLifeMonths, purchaseDate, asOfDate) {
+    if (!purchaseDate || cost <= 0) return { accumDepr: 0, bookValue: cost, monthsOwned: 0, pctUsed: 0 };
+    const purchase = new Date(purchaseDate + 'T00:00:00');
+    const asOf    = new Date(asOfDate);
+    const monthsOwned = Math.max(0,
+      (asOf.getFullYear() - purchase.getFullYear()) * 12 +
+      (asOf.getMonth() - purchase.getMonth())
+    );
+    const depreciableAmt = Math.max(0, cost - salvage);
+    const monthlyDepr    = depreciableAmt / usefulLifeMonths;
+    const accumDepr      = Math.min(monthsOwned * monthlyDepr, depreciableAmt);
+    const bookValue      = Math.max(salvage, cost - accumDepr);
+    const pctUsed        = depreciableAmt > 0 ? (accumDepr / depreciableAmt) * 100 : 0;
+    return { accumDepr, bookValue, monthsOwned, pctUsed };
+  }
+
   try {
     // Load asset register
     const registerPath = path.join(__dirname, 'assets-register.json');
@@ -1154,19 +1171,41 @@ app.get('/api/depreciation-schedule', async (req, res) => {
     const assetRegister = JSON.parse(registerData);
     console.log('[depreciation] Loaded asset register with', assetRegister.assets.length, 'assets');
 
-    // Parse asOfDate: use query param or today
     const asOfDateStr = req.query.asOfDate || payload.asOfDate;
-    const asOfDate = new Date(asOfDateStr);
 
-    // For now, use balance sheet data since we need QB transaction dates
-    // In production, would join QB balance data with acquisition dates from transactions
-    // Using the balance sheet CSV values from the /api/qbo-balance endpoint
     if (qboReady()) {
       const token = await getQBOAccessToken();
-      if (token) {
+      if (!token) {
+        console.log('[depreciation] QB access token retrieval failed');
+      } else {
         try {
-          // Fetch balance sheet to get asset values
-          console.log('[depreciation] Fetching balance sheet for realmId:', qboTokens.realmId);
+          // ── Step 1: Query QB FixedAsset entity for purchase dates & costs ──
+          // QB stores FixedAssets separately from chart-of-accounts entries.
+          // This is the authoritative source for PurchaseDate and PurchaseCost.
+          console.log('[depreciation] Querying QB FixedAsset entity...');
+          const faRes = await axios.get(
+            QBO_BASE + '/v3/company/' + qboTokens.realmId + '/query',
+            {
+              headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
+              params: { query: 'SELECT * FROM FixedAsset MAXRESULTS 100', minorversion: 75 }
+            }
+          );
+          const qbFixedAssets = (faRes.data.QueryResponse && faRes.data.QueryResponse.FixedAsset) || [];
+          console.log('[depreciation] QB returned', qbFixedAssets.length, 'FixedAsset records');
+
+          // Build lookup: QB asset name (lowercase) → { purchaseDate, purchaseCost }
+          const qbAssetMap = {};
+          qbFixedAssets.forEach(fa => {
+            const key = (fa.Name || '').trim().toLowerCase();
+            qbAssetMap[key] = {
+              purchaseDate: fa.PurchaseDate || null,   // "YYYY-MM-DD"
+              purchaseCost: parseFloat(fa.PurchaseCost) || 0,
+              qbName:       (fa.Name || '').trim()
+            };
+            console.log(`[depreciation] QB FixedAsset: "${fa.Name}" purchased ${fa.PurchaseDate} cost $${fa.PurchaseCost}`);
+          });
+
+          // ── Step 2: Balance sheet for actual account balances (cost) ──
           const bsRes = await axios.get(
             QBO_BASE + '/v3/company/' + qboTokens.realmId + '/reports/BalanceSheet',
             {
@@ -1174,166 +1213,121 @@ app.get('/api/depreciation-schedule', async (req, res) => {
               params: { minorversion: 75 }
             }
           );
-          const hasRows = !!(bsRes.data.Rows && bsRes.data.Rows.Row);
-          console.log('[depreciation] Balance sheet fetch successful, has Rows:', hasRows);
-          if (!hasRows) {
-            console.warn('[depreciation] No rows in balance sheet response - this is unexpected');
-          }
-
-          // Parse balance sheet for asset accounts and accumulated depreciation
-          // Extract the last money column (current balance) from ColData
           const rawCols = (bsRes.data.Columns && bsRes.data.Columns.Column) || [];
           const moneyIndices = [];
-          rawCols.forEach((c, i) => {
-            if (c.ColType === 'Money') moneyIndices.push(i);
-          });
-          const lastMoneyIdx = moneyIndices[moneyIndices.length - 1] || 1; // fallback to index 1
+          rawCols.forEach((c, i) => { if (c.ColType === 'Money') moneyIndices.push(i); });
+          const lastMoneyIdx = moneyIndices[moneyIndices.length - 1] || 1;
 
           const assetAccounts = {};
-          const depreciationAccounts = {};
-
-          function walkBalanceSheet(rows) {
+          function walkBS(rows) {
             if (!Array.isArray(rows)) return;
             rows.forEach(row => {
-              // Individual account line (e.g., "Streamliner 1", "Tools, machinery, and equipment")
               if (row.ColData && row.ColData[0]) {
-                const acctName = (row.ColData[0].value || '').trim();
-                const amount = parseFloat((row.ColData[lastMoneyIdx]?.value || '0').replace(/,/g, '')) || 0;
-
-                if (acctName && !acctName.toLowerCase().includes('total')) {
-                  const acctNameLower = acctName.toLowerCase();
-                  if (acctNameLower.startsWith('acc. depr') || acctNameLower.startsWith('acc. amort') ||
-                      acctNameLower.includes('accumulated depreciation') || acctNameLower.includes('accumulated amortization')) {
-                    depreciationAccounts[acctName] = amount;
-                  } else {
-                    assetAccounts[acctName] = amount;
-                  }
+                const n = (row.ColData[0].value || '').trim();
+                const v = parseFloat((row.ColData[lastMoneyIdx]?.value || '0').replace(/,/g, '')) || 0;
+                if (n && !n.toLowerCase().includes('total') &&
+                    !n.toLowerCase().includes('acc. depr') &&
+                    !n.toLowerCase().includes('acc. amort') &&
+                    !n.toLowerCase().includes('accumulated')) {
+                  assetAccounts[n] = v;
                 }
               }
-
-              // Summary row (totals within a section)
-              if (row.Summary && row.Summary.ColData) {
-                const acctName = (row.Summary.ColData[0]?.value || '').trim();
-                const amount = parseFloat((row.Summary.ColData[lastMoneyIdx]?.value || '0').replace(/,/g, '')) || 0;
-
-                if (acctName && !acctName.toLowerCase().includes('total')) {
-                  const acctNameLower = acctName.toLowerCase();
-                  if (acctNameLower.startsWith('acc. depr') || acctNameLower.startsWith('acc. amort') ||
-                      acctNameLower.includes('accumulated depreciation') || acctNameLower.includes('accumulated amortization')) {
-                    depreciationAccounts[acctName] = amount;
-                  } else {
-                    assetAccounts[acctName] = amount;
-                  }
-                }
-              }
-
-              if (row.Rows && row.Rows.Row) walkBalanceSheet(row.Rows.Row);
+              if (row.Rows && row.Rows.Row) walkBS(row.Rows.Row);
             });
           }
-
-          walkBalanceSheet((bsRes.data.Rows && bsRes.data.Rows.Row) || []);
-
-          // Debug logging
-          console.log('[depreciation] Found', Object.keys(assetAccounts).length, 'asset accounts:', Object.keys(assetAccounts));
-          console.log('[depreciation] Found', Object.keys(depreciationAccounts).length, 'depreciation accounts:', Object.keys(depreciationAccounts));
+          walkBS((bsRes.data.Rows && bsRes.data.Rows.Row) || []);
+          console.log('[depreciation] Balance sheet asset accounts found:', Object.keys(assetAccounts));
 
           payload.connected = true;
 
-          // Process each asset from the register
+          // ── Step 3: Build each asset using straight-line depreciation ──
           assetRegister.assets.forEach(asset => {
-            const cost = assetAccounts[asset.qbAccountName] || 0;
+            // Cost: prefer balance sheet account balance, fall back to QB FixedAsset PurchaseCost
+            const bsCost = assetAccounts[asset.qbAccountName] || 0;
 
-            // Try multiple patterns for accumulated depreciation account names
-            let accumDepr = 0;
-            const deprPatterns = [
-              `Acc. Depr. ${asset.qbAccountName}`,
-              `Accumulated Depreciation - ${asset.qbAccountName}`,
-              `Acc. Depreciation - ${asset.qbAccountName}`,
-              `Acc. Amort. ${asset.qbAccountName}`,
-              `Accumulated Amortization - ${asset.qbAccountName}`
-            ];
-
-            for (const pattern of deprPatterns) {
-              if (depreciationAccounts[pattern]) {
-                accumDepr = depreciationAccounts[pattern];
-                console.log(`[depreciation] Matched "${asset.qbAccountName}" depr account: "${pattern}" = ${accumDepr}`);
-                break;
-              }
-            }
-
-            // Fallback: look for any depreciation account that mentions this asset name
-            if (!accumDepr && asset.qbAccountName) {
-              const assetNameLower = asset.qbAccountName.toLowerCase();
-              for (const [deprAcct, value] of Object.entries(depreciationAccounts)) {
-                if (deprAcct.toLowerCase().includes(assetNameLower)) {
-                  accumDepr = value;
-                  console.log(`[depreciation] Matched "${asset.qbAccountName}" depr account (fuzzy): "${deprAcct}" = ${accumDepr}`);
+            // Find matching QB FixedAsset record (try exact name, then fuzzy)
+            const assetLower = asset.qbAccountName.toLowerCase();
+            let qbMatch = qbAssetMap[assetLower];
+            if (!qbMatch) {
+              // Fuzzy: find a QB asset whose name contains our asset name or vice versa
+              for (const [key, val] of Object.entries(qbAssetMap)) {
+                if (key.includes(assetLower) || assetLower.includes(key)) {
+                  qbMatch = val;
+                  console.log(`[depreciation] Fuzzy matched "${asset.qbAccountName}" → QB "${val.qbName}"`);
                   break;
                 }
               }
             }
 
-            if (cost > 0 && !accumDepr) {
-              console.log(`[depreciation] WARNING: Asset "${asset.qbAccountName}" has cost ${cost} but no depreciation account found`);
+            // Cost source: QB FixedAsset PurchaseCost is most reliable; balance sheet is a fallback
+            const cost = (qbMatch && qbMatch.purchaseCost > 0) ? qbMatch.purchaseCost : bsCost;
+
+            // Purchase date: prefer QB FixedAsset, fall back to asset register field
+            const purchaseDate = (qbMatch && qbMatch.purchaseDate)
+              ? qbMatch.purchaseDate
+              : (asset.purchaseDate || null);
+
+            if (!purchaseDate) {
+              console.warn(`[depreciation] No purchase date for "${asset.qbAccountName}" — cannot calculate depreciation`);
             }
 
+            const { accumDepr, bookValue, monthsOwned, pctUsed } =
+              calcStraightLine(cost, asset.salvageValue, asset.usefulLifeMonths, purchaseDate, asOfDateStr);
+
             const assetInfo = {
-              id: asset.id,
-              name: asset.qbAccountName,
-              category: asset.category,
-              cost: Math.max(0, cost),
-              accumulatedDepreciation: Math.abs(accumDepr),
-              bookValue: Math.max(0, cost + accumDepr), // accumDepr is negative
-              usefulLifeMonths: asset.usefulLifeMonths,
-              salvageValue: asset.salvageValue,
-              status: cost > 0 ? 'Active' : 'Inactive',
-              notes: asset.notes
+              id:                    asset.id,
+              name:                  asset.qbAccountName,
+              category:              asset.category,
+              cost:                  Math.round(cost),
+              accumulatedDepreciation: Math.round(accumDepr),
+              bookValue:             Math.round(bookValue),
+              usefulLifeMonths:      asset.usefulLifeMonths,
+              salvageValue:          asset.salvageValue,
+              purchaseDate:          purchaseDate,
+              monthsOwned:           monthsOwned,
+              pctUsed:               Math.round(pctUsed),
+              dateSource:            (qbMatch && qbMatch.purchaseDate) ? 'quickbooks' : (asset.purchaseDate ? 'register' : 'unknown'),
+              status:                cost > 0 ? (pctUsed >= 100 ? 'Fully Depreciated (Tax)' : 'Active') : 'Inactive',
+              notes:                 asset.notes
             };
 
             payload.assets.push(assetInfo);
 
-            // Aggregate by category
             if (!payload.summary.byCategory[asset.category]) {
               payload.summary.byCategory[asset.category] = {
-                totalOriginalCost: 0,
-                totalAccumulatedDepreciation: 0,
-                totalBookValue: 0,
-                assetCount: 0
+                totalOriginalCost: 0, totalAccumulatedDepreciation: 0,
+                totalBookValue: 0, assetCount: 0
               };
             }
             const cat = payload.summary.byCategory[asset.category];
-            cat.totalOriginalCost += assetInfo.cost;
+            cat.totalOriginalCost            += assetInfo.cost;
             cat.totalAccumulatedDepreciation += assetInfo.accumulatedDepreciation;
-            cat.totalBookValue += assetInfo.bookValue;
-            cat.assetCount += 1;
+            cat.totalBookValue               += assetInfo.bookValue;
+            cat.assetCount                   += 1;
 
-            payload.summary.totalOriginalCost += assetInfo.cost;
+            payload.summary.totalOriginalCost            += assetInfo.cost;
             payload.summary.totalAccumulatedDepreciation += assetInfo.accumulatedDepreciation;
-            payload.summary.totalBookValue += assetInfo.bookValue;
+            payload.summary.totalBookValue               += assetInfo.bookValue;
           });
 
-          // Round totals
+          // Round category totals
           Object.keys(payload.summary.byCategory).forEach(cat => {
-            payload.summary.byCategory[cat].totalOriginalCost = Math.round(payload.summary.byCategory[cat].totalOriginalCost);
-            payload.summary.byCategory[cat].totalAccumulatedDepreciation = Math.round(payload.summary.byCategory[cat].totalAccumulatedDepreciation);
-            payload.summary.byCategory[cat].totalBookValue = Math.round(payload.summary.byCategory[cat].totalBookValue);
+            const c = payload.summary.byCategory[cat];
+            c.totalOriginalCost            = Math.round(c.totalOriginalCost);
+            c.totalAccumulatedDepreciation = Math.round(c.totalAccumulatedDepreciation);
+            c.totalBookValue               = Math.round(c.totalBookValue);
           });
-
-          payload.summary.totalOriginalCost = Math.round(payload.summary.totalOriginalCost);
+          payload.summary.totalOriginalCost            = Math.round(payload.summary.totalOriginalCost);
           payload.summary.totalAccumulatedDepreciation = Math.round(payload.summary.totalAccumulatedDepreciation);
-          payload.summary.totalBookValue = Math.round(payload.summary.totalBookValue);
+          payload.summary.totalBookValue               = Math.round(payload.summary.totalBookValue);
 
         } catch (e) {
-          console.error('[depreciation] QBO balance sheet fetch failed:', e.message);
-          if (e.response) {
-            console.error('[depreciation] Response status:', e.response.status, 'Data:', e.response.data?.error || e.response.statusText);
-          }
+          console.error('[depreciation] QB fetch failed:', e.message);
+          if (e.response) console.error('[depreciation] Status:', e.response.status, e.response.data?.error || e.response.statusText);
         }
-      } else {
-        console.log('[depreciation] QB access token retrieval failed');
       }
     } else {
-      console.log('[depreciation] QB is not ready (missing client id, secret, realm, or refresh token)');
+      console.log('[depreciation] QB not ready (missing credentials/realm/token)');
     }
 
     cacheSet('depreciation-schedule', payload);

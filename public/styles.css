@@ -510,11 +510,6 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .mf-step--gp  .mf-step-label { color:#059669; }
 .mf-step--noi .mf-step-label { color:#2563eb; }
 
-/* Big "=" in the Operating Profit slot instead of dollar amount */
-.mf-step-num--eq {
-  font-size:56px; font-weight:900; color:#2563eb;
-  line-height:1; margin:0 0 4px; letter-spacing:0;
-}
 
 .mf-step-num {
   font-size:42px; font-weight:800; letter-spacing:-1.5px;
@@ -1040,28 +1035,28 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   filter: brightness(0.9);
   box-shadow: inset 0 0 0 2px rgba(255,255,255,0.35);
 }
-/* Chevron — pinned to right edge so it never overlaps the label */
-.mf-seg-click .mf-op-chev,
-.mf-noi-profit-seg .mf-op-chev {
+/* SVG Chevron — pinned to right edge, perfectly centered via SVG geometry */
+.mf-op-chev {
   position: absolute;
   right: 10px;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 20px;
-  font-weight: 700;
+  display: block;
   color: rgba(255,255,255,0.75);
   pointer-events: none;
-  line-height: 0;        /* collapse line box so glyph centres exactly */
   transition: transform 0.2s, color 0.15s;
+  flex-shrink: 0;
+}
+.mf-op-chev--open {
+  transform: translateY(-50%) rotate(180deg);
 }
 .mf-seg-click:hover .mf-op-chev,
 .mf-noi-profit-seg:hover .mf-op-chev {
   color: rgba(255,255,255,1);
-  transform: translateY(-50%) scale(1.15);
 }
-/* GP segment: darker arrow (pale green bg makes white invisible) */
-.mf-sb-gp .mf-op-chev { color: rgba(21,128,61,0.55); }
-.mf-sb-gp:hover .mf-op-chev { color: rgba(21,128,61,1); }
+/* GP segment (pale green bg) — black arrow */
+.mf-sb-gp .mf-op-chev { color: rgba(0,0,0,0.45); }
+.mf-sb-gp:hover .mf-op-chev { color: rgba(0,0,0,0.85); }
 /* Operating Profit: label centered, chevron right-pinned */
 .mf-noi-profit-seg .mf-bar-label {
   position: absolute;
@@ -1803,6 +1798,10 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .depr-asset-list { display:flex; flex-direction:column; gap:8px; }
 .depr-asset-row { display:flex; justify-content:space-between; align-items:center; padding:8px; border-radius:4px; background:white; font-size:12px; }
 .depr-asset-name { font-weight:500; color:#1f2937; flex:1; }
+.depr-asset-meta { font-size:11px; color:#9ca3af; margin-top:2px; font-weight:400; }
+.depr-src-badge { display:inline-block; font-size:9px; font-weight:700; padding:1px 5px; border-radius:3px; background:#dbeafe; color:#1d4ed8; letter-spacing:0.3px; margin-right:3px; }
+.depr-src-manual  { background:#dcfce7; color:#15803d; }
+.depr-src-unknown { background:#fee2e2; color:#b91c1c; }
 .depr-asset-values { display:flex; gap:12px; text-align:right; }
 .depr-cost { color:#888; min-width:70px; }
 .depr-book { color:#1f2937; font-weight:600; min-width:70px; }
