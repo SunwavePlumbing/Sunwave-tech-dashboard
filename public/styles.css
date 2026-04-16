@@ -899,8 +899,41 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 
 /* Segments — widths set inline via JS */
 .mf-sb-prior { background: #fecaca; flex-shrink: 0; }  /* light red: COGS already consumed */
-.mf-sb-cogs  { background: #f87171; flex-shrink: 0; }  /* light red: cost of goods sold */
-.mf-sb-ovhd  { background: #f97316; flex-shrink: 0; }  /* orange: overhead */
+.mf-sb-cogs  { background: #f87171; flex-shrink: 0; position: relative; }  /* light red: cost of goods sold */
+.mf-sb-ovhd  { background: #f97316; flex-shrink: 0; position: relative; }  /* orange: overhead */
+.mf-sb-prior { position: relative; }
+.mf-sb-pass  { position: relative; }
+
+/* Labels inside bar segments */
+.mf-bar-label {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  transform: translateY(-50%);
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.mf-sb-cogs:hover .mf-bar-label,
+.mf-sb-ovhd:hover .mf-bar-label,
+.mf-sb-prior:hover .mf-bar-label,
+.mf-sb-pass:hover .mf-bar-label {
+  opacity: 1;
+}
+
+/* Show labels that are wide enough */
+.mf-sb-cogs { min-width: 80px; }
+.mf-sb-cogs.wide .mf-bar-label,
+.mf-sb-ovhd.wide .mf-bar-label,
+.mf-sb-prior.wide .mf-bar-label,
+.mf-sb-pass.wide .mf-bar-label {
+  opacity: 1;
+}
 .mf-sb-pass  { flex: 1; min-width: 2px; }              /* remainder fills rest */
 /* Color the pass-through: NOI = green (profit is profit) */
 .mf-split-wrap--ovhd  .mf-sb-pass { background: #bfdbfe; }  /* light blue: becomes NOI */

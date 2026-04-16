@@ -664,16 +664,15 @@ function renderOwners() {
             '<div class="mf-split-bar">' +
               '<div class="mf-sb-cogs mf-seg-click" onclick="mfToggle(\'mfCogsDetail\',this)"' +
                   ' style="width:' + Math.max(0,Math.min(cogsPct,99)).toFixed(1) + '%">' +
+                '<span class="mf-bar-label">COGS</span>' +
                 '<span class="mf-op-chev">\u25be</span>' +
               '</div>' +
               '<div class="mf-sb-gp mf-seg-click" onclick="mfToggle(\'mfGpDetail\',this)" style="flex:1;min-width:2px;background:#bbf7d0;cursor:pointer;position:relative;">' +
+                '<span class="mf-bar-label">Gross Profit</span>' +
                 '<span class="mf-op-chev" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);opacity:0.6;">\u25be</span>' +
               '</div>' +
             '</div>' +
             '<div class="mf-cogs-target-line"></div>' +
-          '</div>' +
-          '<div class="mf-split-leg">' +
-            '<button class="mf-sl-cogs mf-sl-btn" onclick="mfToggle(\'mfCogsDetail\',null)">COGS</button>' +
           '</div>' +
         '</div>' +
         mfZoomDetail('mfCogsDetail', cogsItems, 0, cogsPct,
@@ -694,17 +693,17 @@ function renderOwners() {
         // 3-part split bar: click the orange Overhead segment to expand the breakdown
         '<div class="mf-split-wrap mf-split-wrap--ovhd">' +
           '<div class="mf-split-bar">' +
-            '<div class="mf-sb-prior" style="width:' + Math.max(0,Math.min(cogsPct,99)).toFixed(1) + '%"></div>' +
+            '<div class="mf-sb-prior" style="width:' + Math.max(0,Math.min(cogsPct,99)).toFixed(1) + '%">' +
+              '<span class="mf-bar-label">COGS</span>' +
+            '</div>' +
             '<div class="mf-sb-ovhd mf-seg-click" onclick="mfToggle(\'mfOvhdDetail\',this)"' +
                 ' style="width:' + Math.max(0,Math.min(ovhdPct,100-cogsPct)).toFixed(1) + '%">' +
+              '<span class="mf-bar-label">Overhead</span>' +
               '<span class="mf-op-chev">\u25be</span>' +
             '</div>' +
-            '<div class="mf-sb-pass"></div>' +
-          '</div>' +
-          '<div class="mf-split-leg">' +
-            '<span class="mf-sl-prior">COGS</span>' +
-            '<button class="mf-sl-ovhd mf-sl-btn" onclick="mfToggle(\'mfOvhdDetail\',null)">Overhead</button>' +
-            '<span class="mf-sl-pass-noi">Operating Profit</span>' +
+            '<div class="mf-sb-pass">' +
+              '<span class="mf-bar-label">Operating Profit</span>' +
+            '</div>' +
           '</div>' +
         '</div>' +
         mfZoomDetail('mfOvhdDetail', ovhdItems, cogsPct, cogsPct + ovhdPct,
