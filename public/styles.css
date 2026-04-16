@@ -722,10 +722,11 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   bottom: 0;
   left: 50%;
   height: 20px;   /* matches bar height */
-  width: 2px;
-  background: #ef4444;
+  width: 10px;
+  background: linear-gradient(90deg, #dc2626 0%, #22c55e 100%);
   transform: translateX(-50%);
   pointer-events: none;
+  border-radius: 2px;
 }
 
 /* ── GP reversed competition bar ───────────────────────────── */
