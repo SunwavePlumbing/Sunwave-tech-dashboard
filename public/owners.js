@@ -9,6 +9,7 @@ var pnlCompareMonth = null;              // month key shown in the comparison co
 var ownersBalance = null;
 var donutChartInst = null;
 var trendChartInst = null;
+var revBarChartInst = null;
 var cfBarChartInst = null;
 var trendActive = 'om'; // single-select key-ratio trend line
 
@@ -1282,6 +1283,135 @@ function renderOwners() {
 
   // Build the 2-item overlay legend (active series + target if it exists)
   buildTrendLegend(TREND_SERIES, curIdx);
+
+  // ── Revenue Over Time ─────────────────────────────────────────
+  var revCard = document.getElementById('finRevCard');
+  if (revCard) {
+    revCard.style.display = '';
+
+    // Last 15 months; skip trailing zeros (months with no data yet)
+    var revEnd = months.length - 1;
+    while (revEnd > 0 && !revenue[revEnd]) revEnd--;
+    var revStart   = Math.max(0, revEnd - 14);
+    var revMonths  = months.slice(revStart, revEnd + 1);
+    var revData    = revenue.slice(revStart, revEnd + 1);
+    var revLabels  = revMonths.map(function(mk) { return fmtMkShort(mk); });
+
+    // Prior-year value for each bar: same month 12 positions back in the full array
+    var revPriorData = revMonths.map(function(mk, i) {
+      var priorIdx = (revStart + i) - 12;
+      return priorIdx >= 0 ? (revenue[priorIdx] || null) : null;
+    });
+
+    // Orange palette: muted for history, vivid brand orange for current month
+    var revColors = revData.map(function(v, i) {
+      return (revStart + i) === revEnd ? '#f97316' : '#fed7aa';
+    });
+
+    if (revBarChartInst) revBarChartInst.destroy();
+    var revCtx = document.getElementById('revBarChart').getContext('2d');
+
+    // Inline plugin: dollar label above each bar
+    var revLabelPlugin = {
+      id: 'revBarLabels',
+      afterDatasetsDraw: function(chart) {
+        var ctx2 = chart.ctx, ds = chart.data.datasets[0];
+        var meta = chart.getDatasetMeta(0);
+        ctx2.save();
+        ctx2.textAlign = 'center';
+        ctx2.textBaseline = 'bottom';
+        meta.data.forEach(function(bar, i) {
+          var v = ds.data[i];
+          if (!v) return;
+          var isLast = (revStart + i) === revEnd;
+          ctx2.font = (isLast ? '700' : '600') + ' 11px "Inter",system-ui,sans-serif';
+          ctx2.fillStyle = isLast ? '#9a3412' : '#64748b';
+          ctx2.fillText(fmtDollar(v), bar.x, bar.y - 5);
+        });
+        ctx2.restore();
+      }
+    };
+
+    revBarChartInst = new Chart(revCtx, {
+      type: 'bar',
+      data: {
+        labels: revLabels,
+        datasets: [{ data: revData, backgroundColor: revColors, borderRadius: 8, borderSkipped: false, borderWidth: 0 }]
+      },
+      plugins: [revLabelPlugin],
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        animation: false,
+        layout: { padding: { top: 26, left: 6, right: 6, bottom: 0 } },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1a2d3a',
+            titleColor: '#94a3b8',
+            bodyColor: '#fff',
+            footerColor: function(items) {
+              if (!items.length) return '#94a3b8';
+              var prior = revPriorData[items[0].dataIndex];
+              if (!prior) return '#94a3b8';
+              return revData[items[0].dataIndex] >= prior ? '#4ade80' : '#f87171';
+            },
+            padding: 12, cornerRadius: 8, displayColors: false, footerMarginTop: 8,
+            callbacks: {
+              title:  function(items) { return items[0].label; },
+              label:  function(ctx)   { return 'Revenue:  ' + fmtDollar(ctx.parsed.y); },
+              footer: function(items) {
+                var i     = items[0].dataIndex;
+                var prior = revPriorData[i];
+                if (!prior) return null;
+                var cur  = revData[i];
+                var pct  = Math.round((cur - prior) / prior * 100);
+                var sign = pct >= 0 ? '+' : '';
+                var arr  = pct >= 0 ? '▲' : '▼';
+                var mk   = revMonths[i];
+                var pyMk = String(parseInt(mk.split('-')[0]) - 1) + '-' + mk.split('-')[1];
+                return arr + ' ' + sign + pct + '% vs ' + fmtMkShort(pyMk) + ' (' + fmtDollar(prior) + ')';
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { display: false }, border: { display: false },
+            ticks: { font: { size: 11, weight: '600' }, color: '#94a3b8', maxRotation: 0, minRotation: 0, autoSkip: false }
+          },
+          y: {
+            ticks: { callback: function(v) { return fmtDollar(v); }, font: { size: 10 }, color: '#94a3b8', maxTicksLimit: 5 },
+            grid: { color: '#f0f0f0', lineWidth: 1 }, border: { display: false }
+          }
+        }
+      }
+    });
+
+    // Scroll-triggered stagger animation (same pattern as CF chart)
+    (function() {
+      function runRevAnim() {
+        if (!revBarChartInst) return;
+        revBarChartInst.options.animation = {
+          duration: 900, easing: 'easeOutBack',
+          delay: function(ctx) { return ctx.type === 'data' ? ctx.dataIndex * 40 : 0; }
+        };
+        revBarChartInst.update('active');
+        revBarChartInst.options.animation = false;
+      }
+      if (window.IntersectionObserver) {
+        var revObs = new IntersectionObserver(function(entries) {
+          if (entries[0].isIntersecting) { runRevAnim(); revObs.disconnect(); }
+        }, { threshold: 0.25 });
+        revObs.observe(revCard);
+      } else { runRevAnim(); }
+    })();
+
+    // Subtitle: date range
+    document.getElementById('revSubtitle').textContent =
+      revMonths.length > 1
+        ? fmtMkShort(revMonths[0]) + '\u2013' + fmtMkShort(revMonths[revMonths.length - 1])
+        : '';
+  }
 
   // ── Cash in the Bank Over Time ───────────────────────────────
   // Uses balance sheet bank history (from /api/qbo-balance) rather than
