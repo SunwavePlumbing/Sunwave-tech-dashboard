@@ -1177,11 +1177,42 @@ async function mfDrillDown(label, acctKey) {
       showExpModalTxns(label, fmtMk(month), data.transactions, color);
       return;
     }
+
+    // If exact key missed but the server returned available keys, try aggregating
+    // every child section key that contains any word from our key
+    if (data.availableKeys && data.availableKeys.length) {
+      console.log('[mfDrillDown] Key miss for', acctKey, '— available:', data.availableKeys);
+      // Collect all transactions across child keys whose names are sub-accounts of acctKey.
+      // Strategy: grab any key whose base name (strip "Total ") appears as a child account.
+      var childNames = (ownersData.children && ownersData.children[acctKey]) || [];
+      var childBases = childNames.map(function(n) { return n.toLowerCase(); });
+      var matchedKeys = data.availableKeys.filter(function(k) {
+        var kBase = k.replace(/^Total\s+/i, '').toLowerCase();
+        return childBases.some(function(b) { return b.includes(kBase) || kBase.includes(b); });
+      });
+      if (matchedKeys.length) {
+        // Fetch all matched child keys and combine
+        var allTxns = [];
+        for (var i = 0; i < matchedKeys.length; i++) {
+          try {
+            var r2 = await fetch('/api/account-detail?acct=' + encodeURIComponent(matchedKeys[i]) + '&month=' + encodeURIComponent(month));
+            var d2 = await r2.json();
+            if (d2.transactions) allTxns = allTxns.concat(d2.transactions);
+          } catch (e) { /* skip */ }
+        }
+        if (allTxns.length) {
+          // sort newest-first
+          allTxns.sort(function(a, b) { return new Date(b.date) - new Date(a.date); });
+          showExpModalTxns(label, fmtMk(month), allTxns, color);
+          return;
+        }
+      }
+    }
   } catch (err) {
     console.error('[mfDrillDown] fetch failed:', err);
   }
 
-  // Fallback: show sub-account totals from the P&L (better than nothing)
+  // Final fallback: show sub-account totals from the P&L summary (better than nothing)
   var childNames = (ownersData.children && ownersData.children[acctKey]) || [];
   var items = childNames.map(function(name) {
     var val = (ownersData.accounts[name] && ownersData.accounts[name][month]) || 0;

@@ -906,11 +906,41 @@ app.get('/api/account-detail', async (req, res) => {
       console.log('[account-detail] Cached', Object.keys(txnMap).length, 'sections for', month);
     }
 
-    const transactions = (txnMap[acct] || []).slice();
+    let transactions = (txnMap[acct] || []).slice();
+
+    // Case-insensitive fallback
+    if (!transactions.length) {
+      const lower = acct.toLowerCase();
+      const match = Object.keys(txnMap).find(k => k.toLowerCase() === lower);
+      if (match) transactions = txnMap[match].slice();
+    }
+
+    // If still empty, check whether the P&L summary children map has sub-accounts
+    // and aggregate all their "Total X" detail rows (covers parent-section lookups
+    // where QBO only stores transactions under child section keys).
+    if (!transactions.length) {
+      // Strip leading "Total " to get the parent section name, then look for children
+      // whose "Total <child>" keys exist in txnMap
+      const base = acct.replace(/^Total\s+/i, '').toLowerCase();
+      const childKeys = Object.keys(txnMap).filter(k => {
+        const kb = k.replace(/^Total\s+/i, '').toLowerCase();
+        return kb !== base; // skip self
+      });
+      // Broad aggregation: take every key that exists under this parent in ownersData
+      // We can't access ownersData here, so instead aggregate any child key whose
+      // parent section name appears in the acct string (heuristic for sub-sections)
+      // Better: just expose all txnMap keys so the client can pick the right one.
+      // For now, log what we have so we can fix the acctKey.
+      console.log('[account-detail] Miss for', JSON.stringify(acct),
+        '— available keys:', Object.keys(txnMap).join(' | '));
+    }
+
     // Sort newest-first
     transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-    res.json({ connected: true, acct, month, transactions });
+    res.json({ connected: true, acct, month, transactions,
+      // Include available keys on a miss so the client can detect the right name
+      availableKeys: transactions.length ? undefined : Object.keys(txnMap) });
   } catch (err) {
     console.error('[/api/account-detail]', err.response?.status || '', err.message);
     if (err.response?.status === 401) {
