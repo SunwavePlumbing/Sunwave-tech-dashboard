@@ -1398,6 +1398,7 @@ function showExpModalLoading(title, monthLabel, color) {
   footEl.innerHTML    = '';
 
   backdrop.style.display = 'flex';
+  document.body.style.overflow = 'hidden'; // prevent background page scroll while sheet is open
   requestAnimationFrame(function() { backdrop.classList.add('exp-open'); });
 }
 
@@ -1418,8 +1419,6 @@ function showExpModalTxns(title, monthLabel, txns, color) {
     var desc = t.name || t.memo || t.type || '\u2014';
     var memo = t.memo && t.name ? t.memo : '';
     var barPct = total > 0 ? (Math.abs(t.amount) / total * 100) : 0;
-    // Show percentage label on the bar when wide enough to read (≥ 6%)
-    var barLabel = barPct >= 6 ? barPct.toFixed(0) + '% of total' : '';
     return '<div class="exp-row">' +
       '<div class="exp-row-top">' +
         '<span class="exp-row-name">' +
@@ -1430,9 +1429,7 @@ function showExpModalTxns(title, monthLabel, txns, color) {
         '<span class="exp-row-val">' + fmtDollar(Math.abs(t.amount)) + '</span>' +
       '</div>' +
       '<div class="exp-bar-track">' +
-        '<div class="exp-bar-fill" style="width:' + barPct.toFixed(1) + '%;background:' + (color || '#f97316') + '">' +
-          (barLabel ? '<span class="exp-bar-label">' + barLabel + '</span>' : '') +
-        '</div>' +
+        '<div class="exp-bar-fill" style="width:' + barPct.toFixed(1) + '%;background:' + (color || '#f97316') + '"></div>' +
       '</div>' +
     '</div>';
   }).join('');
@@ -1484,6 +1481,7 @@ function closeExpModal() {
   var backdrop = document.getElementById('expBackdrop');
   if (!backdrop) return;
   backdrop.classList.remove('exp-open');
+  document.body.style.overflow = ''; // restore page scroll
   // Remove from layout after the slide-down transition finishes
   setTimeout(function() { backdrop.style.display = 'none'; }, 280);
 }

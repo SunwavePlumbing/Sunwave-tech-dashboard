@@ -183,7 +183,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 }
 .exp-sheet-close:hover { color: #555; }
 
-.exp-sheet-body { overflow-y: auto; flex: 1; padding: 8px 0; }
+.exp-sheet-body { overflow-y: auto; flex: 1; padding: 8px 0; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 
 .exp-row { padding: 10px 18px; }
 .exp-row-top {
