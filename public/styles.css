@@ -916,7 +916,11 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   white-space: nowrap;
   pointer-events: none;
   opacity: 1;
+  transition: opacity 0.15s;
 }
+/* Faint (pastel) segments — hide label until hover/touch */
+.mf-seg-dim .mf-bar-label { opacity: 0; }
+.mf-seg-dim:hover .mf-bar-label { opacity: 1; }
 .mf-sb-pass  { flex: 1; min-width: 2px; }              /* remainder fills rest */
 /* Color the pass-through: NOI = green (profit is profit) */
 .mf-split-wrap--ovhd  .mf-sb-pass { background: #bfdbfe; }  /* light blue: becomes NOI */

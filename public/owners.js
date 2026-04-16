@@ -778,10 +778,10 @@ function renderOwners() {
               '<div class="mf-noi-goal-lbl" style="left:' + targetX + '%">Profit Goal 15%</div>' +
               // 3-segment mirror bar
               '<div class="mf-split-bar mf-noi-mirror-bar">' +
-                '<div style="width:' + Math.max(0, cogsPct).toFixed(1) + '%;background:#fecaca;flex-shrink:0;position:relative;">' +
+                '<div class="mf-seg-dim" style="width:' + Math.max(0, cogsPct).toFixed(1) + '%;background:#fecaca;flex-shrink:0;position:relative;">' +
                   '<span class="mf-bar-label">COGS</span>' +
                 '</div>' +
-                '<div style="width:' + Math.max(0, ovhdPct).toFixed(1) + '%;background:#fed7aa;flex-shrink:0;position:relative;">' +
+                '<div class="mf-seg-dim" style="width:' + Math.max(0, ovhdPct).toFixed(1) + '%;background:#fed7aa;flex-shrink:0;position:relative;">' +
                   '<span class="mf-bar-label">Overhead</span>' +
                 '</div>' +
                 // Blue NOI segment — clickable
