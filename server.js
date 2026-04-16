@@ -980,28 +980,65 @@ app.get('/api/growth-metrics', async (req, res) => {
   const payload = {
     connected: false,
     technicians: [],
+    activeTechCount: 0,
     monthlyRevenue: [],
     months: [],
     revenuePerTech: null,
     availableGrowthCash: null,
     vans: 0,
-    growthCapacityScore: 0
+    growthCapacityScore: 0,
+    jobsCompleted30Days: 0,
+    jobsCompletedAvgValue: 0,
+    leadsOpen: 0
   };
 
   try {
-    // Fetch HCP data — technician count + utilization
+    // Fetch HCP data — technician list + recent jobs
     if (API_KEY) {
       try {
-        const techRes = await axios.get(BASE_URL + '/v1/team_members', {
+        // Get all employees (active technicians)
+        const empRes = await axios.get(BASE_URL + '/employees', {
           headers: hcpHeaders(),
-          params: { active: true }
+          params: { page: 1, page_size: 100 }
         });
-        const techs = techRes.data?.data || [];
-        const activeTechs = techs.filter(t => t.status === 'active' || !t.status);
+        const employees = empRes.data?.employees || [];
+        // Filter for active technicians (exclude admins/office staff)
+        const activeTechs = employees.filter(e => e.role !== 'admin' && e.role !== 'manager');
         payload.technicians = activeTechs;
+        payload.activeTechCount = activeTechs.length;
         payload.connected = true;
+
+        // Get recent jobs (last 30 days) to calculate actual revenue per tech and completion rate
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const jobsRes = await axios.get(BASE_URL + '/jobs', {
+          headers: hcpHeaders(),
+          params: {
+            page: 1,
+            page_size: 100,
+            work_status: ['completed'],
+            sort_by: 'completed_at',
+            sort_direction: 'desc'
+          }
+        });
+        const recentJobs = (jobsRes.data?.jobs || []).filter(j => {
+          const completedAt = new Date(j.work_timestamps?.completed_at || j.updated_at);
+          return completedAt > thirtyDaysAgo;
+        });
+        payload.jobsCompleted30Days = recentJobs.length;
+        if (recentJobs.length > 0) {
+          const totalRevenue = recentJobs.reduce((sum, j) => sum + (j.total_amount || 0), 0);
+          payload.jobsCompletedAvgValue = Math.round(totalRevenue / recentJobs.length);
+        }
+
+        // Get open leads count (potential pipeline)
+        const leadsRes = await axios.get(BASE_URL + '/leads', {
+          headers: hcpHeaders(),
+          params: { page: 1, page_size: 1, status: 'open' }
+        });
+        payload.leadsOpen = leadsRes.data?.total_items || 0;
       } catch (e) {
-        console.log('[growth] HCP tech fetch failed:', e.message);
+        console.log('[growth] HCP fetch failed:', e.message);
       }
     }
 
@@ -1046,24 +1083,33 @@ app.get('/api/growth-metrics', async (req, res) => {
     }
 
     // Compute derived metrics
-    if (payload.monthlyRevenue.length > 0 && payload.technicians.length > 0) {
+    if (payload.monthlyRevenue.length > 0 && payload.activeTechCount > 0) {
       const avgMonthlyRev = payload.monthlyRevenue.reduce((a, b) => a + b, 0) / payload.monthlyRevenue.length;
-      payload.revenuePerTech = Math.round(avgMonthlyRev / payload.technicians.length);
+      payload.revenuePerTech = Math.round(avgMonthlyRev / payload.activeTechCount);
 
-      // Estimate available growth cash as 20% of monthly revenue (simplified)
+      // Available growth cash: 20% of monthly revenue (conservative reserve)
       payload.availableGrowthCash = Math.round(avgMonthlyRev * 0.2);
 
-      // Estimate vans (1 van per 2-3 techs)
-      payload.vans = Math.ceil(payload.technicians.length / 2.5);
+      // Van estimate: 1 van per 2.5 technicians
+      payload.vans = Math.ceil(payload.activeTechCount / 2.5);
 
-      // Growth Capacity Score (0-100) based on revenue per tech and team size
-      const minRevenuePerTech = 25000;
-      const maxRevenuePerTech = 50000;
+      // Growth Capacity Score (0-100) based on multiple factors:
+      // - Revenue per tech (productivity)
+      // - Team size (scale)
+      // - Recent job completion (consistency)
+      // - Open leads (pipeline quality)
+      const minRevenuePerTech = 20000;
+      const maxRevenuePerTech = 60000;
       const scoreFromRev = Math.min(100, Math.max(0,
         (payload.revenuePerTech - minRevenuePerTech) / (maxRevenuePerTech - minRevenuePerTech) * 100
       ));
-      const teamSizeBonus = Math.min(20, payload.technicians.length * 2);
-      payload.growthCapacityScore = Math.round(scoreFromRev * 0.7 + teamSizeBonus * 0.3);
+      const teamSizeBonus = Math.min(20, Math.max(0, (payload.activeTechCount - 1) * 3));
+      const jobCompletionBonus = Math.min(15, Math.max(0, payload.jobsCompleted30Days / 2));
+      const pipelineBonus = Math.min(15, Math.max(0, payload.leadsOpen / 5));
+
+      payload.growthCapacityScore = Math.round(
+        scoreFromRev * 0.5 + teamSizeBonus * 0.2 + jobCompletionBonus * 0.15 + pipelineBonus * 0.15
+      );
     }
 
     cacheSet('growth-metrics', payload);

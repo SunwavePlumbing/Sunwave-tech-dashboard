@@ -1644,9 +1644,23 @@ function renderGrowthReadiness() {
 
   var agc = growthMetrics.availableGrowthCash || 0;
   var score = growthMetrics.growthCapacityScore || 0;
+  var rpt = growthMetrics.revenuePerTech || 0;
+  var techCount = growthMetrics.activeTechCount || 0;
+  var jobsCompleted = growthMetrics.jobsCompleted30Days || 0;
+  var openLeads = growthMetrics.leadsOpen || 0;
 
   var readyCls = score >= 70 ? 'growth-ready-excellent' : score >= 50 ? 'growth-ready-good' : 'growth-ready-building';
   var readyMsg = score >= 70 ? '🚀 Ready to scale' : score >= 50 ? '📈 Good momentum' : '🌱 Building foundation';
+
+  // Insight message based on score breakdown
+  var insight = '';
+  if (score >= 70) {
+    insight = 'Strong team productivity, consistent job pipeline, and healthy cash position. Ready for aggressive growth.';
+  } else if (score >= 50) {
+    insight = 'You\'re generating solid revenue per tech with decent pipeline. Focus on filling the team to next capacity level.';
+  } else {
+    insight = 'Build your foundation: increase jobs per tech, strengthen your pipeline, and grow your team steadily.';
+  }
 
   el.innerHTML =
     '<div class="growth-readiness-header">' +
@@ -1675,12 +1689,23 @@ function renderGrowthReadiness() {
         '</div>' +
         '<div class="growth-readiness-fact">' +
           '<span class="growth-readiness-fact-label">Active technicians:</span>' +
-          '<span class="growth-readiness-fact-value">' + (growthMetrics.technicians.length || 0) + '</span>' +
+          '<span class="growth-readiness-fact-value">' + techCount + '</span>' +
         '</div>' +
         '<div class="growth-readiness-fact">' +
           '<span class="growth-readiness-fact-label">Revenue per tech:</span>' +
-          '<span class="growth-readiness-fact-value">' + fmtDollar(growthMetrics.revenuePerTech || 0) + '/mo</span>' +
+          '<span class="growth-readiness-fact-value">' + fmtDollar(rpt) + '/mo</span>' +
         '</div>' +
+        '<div class="growth-readiness-fact">' +
+          '<span class="growth-readiness-fact-label">Jobs completed (30d):</span>' +
+          '<span class="growth-readiness-fact-value">' + jobsCompleted + '</span>' +
+        '</div>' +
+        '<div class="growth-readiness-fact">' +
+          '<span class="growth-readiness-fact-label">Open leads in pipeline:</span>' +
+          '<span class="growth-readiness-fact-value">' + openLeads + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="growth-readiness-insight" style="font-size:12px;color:#666;background:#f9fafb;padding:10px;border-radius:4px;border-left:3px solid ' + (score >= 70 ? '#10b981' : score >= 50 ? '#0891b2' : '#f59e0b') + '">' +
+        insight +
       '</div>' +
     '</div>';
 }
