@@ -915,7 +915,7 @@ function renderOwners() {
   // Build trend toggle buttons (single-select)
   var togHtml = TREND_SERIES.map(function(s) {
     var on = trendActive === s.key ? ' on' : '';
-    return '<button class="fin-trend-btn' + on + '" data-key="' + s.key + '" style="color:' + s.color + '" onclick="selectTrendLine(this)">' + esc(s.label) + '</button>';
+    return '<button class="fin-trend-btn' + on + '" data-key="' + s.key + '" style="color:' + s.color + ';--c:' + s.color + '" onclick="selectTrendLine(this)">' + esc(s.label) + '</button>';
   }).join('');
   document.getElementById('trendToggles').innerHTML = togHtml;
 
