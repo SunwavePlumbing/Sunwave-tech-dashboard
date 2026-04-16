@@ -1189,8 +1189,8 @@ function renderOwners() {
     //   dir:'below' (lower is better)  → green below goal, red above
     var fillCfg = false;
     if (s.goal != null && s.dir) {
-      var goodColor = 'rgba(34,197,94,0.13)';
-      var badColor  = 'rgba(239,68,68,0.10)';
+      var goodColor = 'rgba(34,197,94,0.07)';   // lighter green
+      var badColor  = 'rgba(239,68,68,0.06)';   // lighter red
       fillCfg = {
         target: { value: s.goal },
         above:  s.dir === 'above' ? goodColor : badColor,
@@ -1216,11 +1216,30 @@ function renderOwners() {
       hidden: trendActive !== s.key || s.goal == null
     });
   });
+
+  // ── Clip-reveal plugin ────────────────────────────────────────
+  // Masks the dataset area to a left-expanding rect so the line AND
+  // its fill sweep in together from left → right with no timing mismatch.
+  var _tRev = { v: 0 };
+  var tRevealPlugin = {
+    id: 'trendReveal',
+    beforeDatasetsDraw: function(chart) {
+      var ca = chart.chartArea;
+      chart.ctx.save();
+      chart.ctx.beginPath();
+      chart.ctx.rect(ca.left, ca.top - 4, (ca.right - ca.left) * _tRev.v, ca.bottom - ca.top + 8);
+      chart.ctx.clip();
+    },
+    afterDatasetsDraw: function(chart) { chart.ctx.restore(); }
+  };
+
   trendChartInst = new Chart(tCtx, {
     type: 'line',
     data: { labels: mLabels, datasets: tDatasets },
+    plugins: [tRevealPlugin],
     options: {
       responsive: true, maintainAspectRatio: false,
+      animation: false,   // driven by RAF below instead
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: false },
@@ -1237,6 +1256,25 @@ function renderOwners() {
       }
     }
   });
+
+  // RAF-driven left→right reveal — line and fill always in sync
+  if (window._trendAnimId) cancelAnimationFrame(window._trendAnimId);
+  _tRev.v = 0;
+  var _tStart = null, _TDUR = 1100;
+  function _tAnimLoop(ts) {
+    if (!_tStart) _tStart = ts;
+    var t = Math.min((ts - _tStart) / _TDUR, 1);
+    _tRev.v = t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2; // easeInOutCubic
+    if (trendChartInst) trendChartInst.draw();
+    if (t < 1) {
+      window._trendAnimId = requestAnimationFrame(_tAnimLoop);
+    } else {
+      _tRev.v = 1;
+      if (trendChartInst) trendChartInst.draw();
+      window._trendAnimId = null;
+    }
+  }
+  window._trendAnimId = requestAnimationFrame(_tAnimLoop);
 
   // Build the 2-item overlay legend (active series + target if it exists)
   buildTrendLegend(TREND_SERIES, curIdx);
