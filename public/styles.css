@@ -915,23 +915,6 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   color: white;
   white-space: nowrap;
   pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-
-.mf-sb-cogs:hover .mf-bar-label,
-.mf-sb-ovhd:hover .mf-bar-label,
-.mf-sb-prior:hover .mf-bar-label,
-.mf-sb-pass:hover .mf-bar-label {
-  opacity: 1;
-}
-
-/* Show labels that are wide enough */
-.mf-sb-cogs { min-width: 80px; }
-.mf-sb-cogs.wide .mf-bar-label,
-.mf-sb-ovhd.wide .mf-bar-label,
-.mf-sb-prior.wide .mf-bar-label,
-.mf-sb-pass.wide .mf-bar-label {
   opacity: 1;
 }
 .mf-sb-pass  { flex: 1; min-width: 2px; }              /* remainder fills rest */

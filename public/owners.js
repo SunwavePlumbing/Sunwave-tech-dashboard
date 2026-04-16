@@ -778,22 +778,21 @@ function renderOwners() {
               '<div class="mf-noi-goal-lbl" style="left:' + targetX + '%">Profit Goal 15%</div>' +
               // 3-segment mirror bar
               '<div class="mf-split-bar mf-noi-mirror-bar">' +
-                '<div style="width:' + Math.max(0, cogsPct).toFixed(1) + '%;background:#fecaca;flex-shrink:0"></div>' +
-                '<div style="width:' + Math.max(0, ovhdPct).toFixed(1) + '%;background:#fed7aa;flex-shrink:0"></div>' +
+                '<div style="width:' + Math.max(0, cogsPct).toFixed(1) + '%;background:#fecaca;flex-shrink:0;position:relative;">' +
+                  '<span class="mf-bar-label">COGS</span>' +
+                '</div>' +
+                '<div style="width:' + Math.max(0, ovhdPct).toFixed(1) + '%;background:#fed7aa;flex-shrink:0;position:relative;">' +
+                  '<span class="mf-bar-label">Overhead</span>' +
+                '</div>' +
                 // Blue NOI segment — clickable
                 '<div class="mf-noi-profit-seg mf-seg-click" onclick="mfToggleNoi(this)" ' +
-                    'style="flex:1;min-width:2px;background:#3b82f6">' +
+                    'style="flex:1;min-width:2px;background:#3b82f6;position:relative;">' +
+                  '<span class="mf-bar-label">Operating Profit</span>' +
                   '<span class="mf-op-chev">\u25be</span>' +
                 '</div>' +
               '</div>' +
               // Gold vertical target line
               '<div class="mf-noi-target-line" style="left:' + targetX + '%"></div>' +
-            '</div>' +
-            // Legend
-            '<div class="mf-split-leg">' +
-              '<span class="mf-sl-noi-cogs">COGS</span>' +
-              '<span class="mf-sl-noi-ovhd">Overhead</span>' +
-              '<button class="mf-sl-noi-profit mf-sl-btn" onclick="mfToggleNoi(null)">Operating Profit</button>' +
             '</div>' +
             noiDetailHtml +
             // Gap line (hidden by default, shown when detail expands)
