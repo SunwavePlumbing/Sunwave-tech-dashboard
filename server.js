@@ -1191,8 +1191,10 @@ app.get('/api/depreciation-schedule', async (req, res) => {
                 const acctName = (row.ColData[0].value || '').trim();
                 const amount = parseFloat((row.ColData[lastMoneyIdx]?.value || '0').replace(/,/g, '')) || 0;
 
-                if (acctName && !acctName.includes('Total')) {
-                  if (acctName.startsWith('Acc. Depr.') || acctName.startsWith('Acc. Amort.')) {
+                if (acctName && !acctName.toLowerCase().includes('total')) {
+                  const acctNameLower = acctName.toLowerCase();
+                  if (acctNameLower.startsWith('acc. depr') || acctNameLower.startsWith('acc. amort') ||
+                      acctNameLower.includes('accumulated depreciation') || acctNameLower.includes('accumulated amortization')) {
                     depreciationAccounts[acctName] = amount;
                   } else {
                     assetAccounts[acctName] = amount;
@@ -1205,8 +1207,10 @@ app.get('/api/depreciation-schedule', async (req, res) => {
                 const acctName = (row.Summary.ColData[0]?.value || '').trim();
                 const amount = parseFloat((row.Summary.ColData[lastMoneyIdx]?.value || '0').replace(/,/g, '')) || 0;
 
-                if (acctName && !acctName.includes('Total')) {
-                  if (acctName.startsWith('Acc. Depr.') || acctName.startsWith('Acc. Amort.')) {
+                if (acctName && !acctName.toLowerCase().includes('total')) {
+                  const acctNameLower = acctName.toLowerCase();
+                  if (acctNameLower.startsWith('acc. depr') || acctNameLower.startsWith('acc. amort') ||
+                      acctNameLower.includes('accumulated depreciation') || acctNameLower.includes('accumulated amortization')) {
                     depreciationAccounts[acctName] = amount;
                   } else {
                     assetAccounts[acctName] = amount;
