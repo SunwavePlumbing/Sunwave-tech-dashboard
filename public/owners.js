@@ -9,6 +9,9 @@ var trendChartInst = null;
 var cfBarChartInst = null;
 var trendActive = 'gm'; // single-select key-ratio trend line
 
+// ── Depreciation Schedule ────────────────────────────────────────
+var depreciationSchedule = null;
+
 // ── Growth Decision Cards ────────────────────────────────────────
 var growthMetrics = null;
 var growthForecastChartInst = null;
@@ -259,6 +262,7 @@ async function fetchOwnersData(force) {
   }
   renderOwners();
   fetchGrowthMetrics();
+  fetchDepreciationSchedule();
 }
 
 function acct(name) {
@@ -1965,4 +1969,93 @@ function toggleGrowthScenario(key) {
     growthInteractiveData.selectedScenarios.doNothing = true;
   }
   renderGrowthCards();
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// ── DEPRECIATION SCHEDULE
+// ════════════════════════════════════════════════════════════════════════════
+
+async function fetchDepreciationSchedule() {
+  try {
+    var response = await fetch('/api/depreciation-schedule');
+    var data = await response.json();
+    if (!response.ok) {
+      console.error('Depreciation schedule error:', data);
+      return false;
+    }
+    depreciationSchedule = data;
+    renderDepreciation();
+    return true;
+  } catch (err) {
+    console.error('Failed to fetch depreciation schedule:', err);
+    return false;
+  }
+}
+
+function renderDepreciation() {
+  if (!depreciationSchedule || !depreciationSchedule.connected) {
+    var section = document.getElementById('depreciationSection');
+    if (section) section.style.display = 'none';
+    return;
+  }
+
+  var section = document.getElementById('depreciationSection');
+  var content = document.getElementById('depreciationContent');
+  if (!section || !content) return;
+
+  section.style.display = '';
+
+  var summary = depreciationSchedule.summary;
+  var assets = depreciationSchedule.assets || [];
+
+  // Summary cards
+  var summaryHtml = '<div class="depr-summary-cards">' +
+    '<div class="depr-summary-card">' +
+      '<div class="depr-summary-label">Total Original Cost</div>' +
+      '<div class="depr-summary-value">' + fmtDollar(summary.totalOriginalCost) + '</div>' +
+    '</div>' +
+    '<div class="depr-summary-card">' +
+      '<div class="depr-summary-label">Accumulated Depreciation</div>' +
+      '<div class="depr-summary-value neg">' + fmtDollar(summary.totalAccumulatedDepreciation) + '</div>' +
+    '</div>' +
+    '<div class="depr-summary-card">' +
+      '<div class="depr-summary-label">Current Book Value</div>' +
+      '<div class="depr-summary-value">' + fmtDollar(summary.totalBookValue) + '</div>' +
+    '</div>' +
+    '</div>';
+
+  // Assets by category
+  var categoryHtml = '<div class="depr-categories">';
+  Object.keys(summary.byCategory).sort().forEach(function(category) {
+    var cat = summary.byCategory[category];
+    var categoryAssets = assets.filter(function(a) { return a.category === category; });
+
+    categoryHtml += '<div class="depr-category">' +
+      '<div class="depr-category-header">' +
+        '<div class="depr-category-name">' + category + '</div>' +
+        '<div class="depr-category-count">(' + cat.assetCount + ' asset' + (cat.assetCount !== 1 ? 's' : '') + ')</div>' +
+      '</div>' +
+      '<div class="depr-category-summary">' +
+        '<span>Cost: ' + fmtDollar(cat.totalOriginalCost) + '</span>' +
+        '<span>Book Value: ' + fmtDollar(cat.totalBookValue) + '</span>' +
+      '</div>' +
+      '<div class="depr-asset-list">';
+
+    categoryAssets.forEach(function(asset) {
+      var depreciationPct = asset.cost > 0 ? (asset.accumulatedDepreciation / asset.cost * 100) : 0;
+      categoryHtml += '<div class="depr-asset-row">' +
+        '<div class="depr-asset-name">' + asset.name + '</div>' +
+        '<div class="depr-asset-values">' +
+          '<span class="depr-cost">' + fmtDollar(asset.cost) + '</span>' +
+          '<span class="depr-book">' + fmtDollar(asset.bookValue) + '</span>' +
+          '<span class="depr-pct">' + depreciationPct.toFixed(0) + '%</span>' +
+        '</div>' +
+      '</div>';
+    });
+
+    categoryHtml += '</div></div>';
+  });
+  categoryHtml += '</div>';
+
+  content.innerHTML = summaryHtml + categoryHtml;
 }

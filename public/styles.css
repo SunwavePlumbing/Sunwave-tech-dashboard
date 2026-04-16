@@ -1764,8 +1764,30 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   .growth-card-tool-cost { font-size:13px; }
 }
 
+/* ── Depreciation Schedule ─────────────────────────────────────── */
+.depr-summary-cards { display:grid; grid-template-columns:1fr; gap:12px; margin-bottom:20px; }
+.depr-summary-card { background:#f9fafb; padding:14px; border-radius:6px; border-left:4px solid #3b82f6; }
+.depr-summary-label { font-size:11px; color:#888; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
+.depr-summary-value { font-size:18px; font-weight:700; color:#1f2937; }
+.depr-summary-value.neg { color:#dc2626; }
+
+.depr-categories { display:flex; flex-direction:column; gap:16px; }
+.depr-category { border:1px solid #e5e7eb; border-radius:6px; padding:12px; background:#fafafa; }
+.depr-category-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid #e5e7eb; }
+.depr-category-name { font-weight:700; color:#1f2937; font-size:14px; }
+.depr-category-count { font-size:12px; color:#888; }
+.depr-category-summary { display:flex; justify-content:space-between; font-size:12px; color:#666; margin-bottom:12px; padding:8px 0; }
+.depr-asset-list { display:flex; flex-direction:column; gap:8px; }
+.depr-asset-row { display:flex; justify-content:space-between; align-items:center; padding:8px; border-radius:4px; background:white; font-size:12px; }
+.depr-asset-name { font-weight:500; color:#1f2937; flex:1; }
+.depr-asset-values { display:flex; gap:12px; text-align:right; }
+.depr-cost { color:#888; min-width:70px; }
+.depr-book { color:#1f2937; font-weight:600; min-width:70px; }
+.depr-pct { color:#666; min-width:50px; }
+
 /* Tablet/Desktop breakpoint — 3-column growth card layout */
 @media (min-width: 768px) {
   .growth-3col { grid-template-columns:1fr 1fr 1fr; }
   .growth-kpi-items { grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); }
+  .depr-summary-cards { grid-template-columns:1fr 1fr 1fr; }
 }

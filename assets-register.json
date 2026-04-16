@@ -1,0 +1,104 @@
+{
+  "assets": [
+    {
+      "id": "streamliner-1",
+      "qbAccountName": "Streamliner 1",
+      "category": "Vehicles",
+      "usefulLifeMonths": 120,
+      "salvageValue": 5000,
+      "disposalDate": null,
+      "disposalProceeds": null,
+      "notes": "Van"
+    },
+    {
+      "id": "streamliner-2",
+      "qbAccountName": "Streamliner 2",
+      "category": "Vehicles",
+      "usefulLifeMonths": 120,
+      "salvageValue": 5000,
+      "disposalDate": null,
+      "disposalProceeds": null,
+      "notes": "Van"
+    },
+    {
+      "id": "streamliner-3",
+      "qbAccountName": "Streamliner 3",
+      "category": "Vehicles",
+      "usefulLifeMonths": 120,
+      "salvageValue": 5000,
+      "disposalDate": null,
+      "disposalProceeds": null,
+      "notes": "Van"
+    },
+    {
+      "id": "streamliner-4",
+      "qbAccountName": "Streamliner 4",
+      "category": "Vehicles",
+      "usefulLifeMonths": 120,
+      "salvageValue": 5000,
+      "disposalDate": null,
+      "disposalProceeds": null,
+      "notes": "Van"
+    },
+    {
+      "id": "streamliner-5",
+      "qbAccountName": "Streamliner 5",
+      "category": "Vehicles",
+      "usefulLifeMonths": 120,
+      "salvageValue": 5000,
+      "disposalDate": null,
+      "disposalProceeds": null,
+      "notes": "Van"
+    },
+    {
+      "id": "streamliner-6",
+      "qbAccountName": "Streamliner 6",
+      "category": "Vehicles",
+      "usefulLifeMonths": 120,
+      "salvageValue": 5000,
+      "disposalDate": null,
+      "disposalProceeds": null,
+      "notes": "Van"
+    },
+    {
+      "id": "streamliner-7",
+      "qbAccountName": "Streamliner 7",
+      "category": "Vehicles",
+      "usefulLifeMonths": 120,
+      "salvageValue": 5000,
+      "disposalDate": null,
+      "disposalProceeds": null,
+      "notes": "Van"
+    },
+    {
+      "id": "tools-equipment",
+      "qbAccountName": "Tools, machinery, and equipment",
+      "category": "Tools & Equipment",
+      "usefulLifeMonths": 60,
+      "salvageValue": 1000,
+      "disposalDate": null,
+      "disposalProceeds": null,
+      "notes": "Aggregated tools account"
+    },
+    {
+      "id": "capitalized-software",
+      "qbAccountName": "Capitalized Software",
+      "category": "Software",
+      "usefulLifeMonths": 60,
+      "salvageValue": 0,
+      "disposalDate": null,
+      "disposalProceeds": null,
+      "notes": "Software licenses"
+    },
+    {
+      "id": "improvements",
+      "qbAccountName": "Improvements",
+      "category": "Improvements",
+      "usefulLifeMonths": 120,
+      "salvageValue": 0,
+      "disposalDate": null,
+      "disposalProceeds": null,
+      "notes": "Building improvements"
+    }
+  ]
+}

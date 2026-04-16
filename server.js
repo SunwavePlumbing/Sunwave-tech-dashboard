@@ -1,5 +1,7 @@
 const express = require('express');
 const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
 const app = express();
 
 const API_KEY = process.env.HOUSECALL_PRO_API_KEY;
@@ -1117,6 +1119,144 @@ app.get('/api/growth-metrics', async (req, res) => {
   } catch (err) {
     console.error('[/api/growth-metrics]', err.message);
     res.json(payload); // Return partial payload rather than error
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// DEPRECIATION SCHEDULE — Fixed asset depreciation calculations
+// ────────────────────────────────────────────────────────────────────────────
+app.get('/api/depreciation-schedule', async (req, res) => {
+  const DEPR_TTL = 6 * 60 * 60 * 1000; // 6 hours
+  const cached = cacheGet('depreciation-schedule', DEPR_TTL);
+  if (cached) return res.json(cached);
+
+  const payload = {
+    connected: false,
+    asOfDate: new Date().toISOString().split('T')[0],
+    assets: [],
+    summary: {
+      byCategory: {},
+      totalOriginalCost: 0,
+      totalAccumulatedDepreciation: 0,
+      totalBookValue: 0,
+      unclassifiedTransactions: []
+    }
+  };
+
+  try {
+    // Load asset register
+    const registerPath = path.join(__dirname, 'assets-register.json');
+    const registerData = fs.readFileSync(registerPath, 'utf8');
+    const assetRegister = JSON.parse(registerData);
+
+    // Parse asOfDate: use query param or today
+    const asOfDateStr = req.query.asOfDate || payload.asOfDate;
+    const asOfDate = new Date(asOfDateStr);
+
+    // For now, use balance sheet data since we need QB transaction dates
+    // In production, would join QB balance data with acquisition dates from transactions
+    // Using the balance sheet CSV values from the /api/qbo-balance endpoint
+    if (qboReady()) {
+      const token = await getQBOAccessToken();
+      if (token) {
+        try {
+          // Fetch balance sheet to get asset values
+          const bsRes = await axios.get(
+            QBO_BASE + '/v3/company/' + qboTokens.realmId + '/reports/BalanceSheet',
+            {
+              headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
+              params: { minorversion: 75 }
+            }
+          );
+
+          // Parse balance sheet for asset accounts and accumulated depreciation
+          const assetAccounts = {};
+          const depreciationAccounts = {};
+
+          function walkBalanceSheet(rows) {
+            if (!Array.isArray(rows)) return;
+            rows.forEach(row => {
+              if (row.Summary && row.Summary.ColData) {
+                const acctName = (row.Summary.ColData[0]?.value || '').trim();
+                const amount = parseFloat((row.Summary.ColData[1]?.value || '0').replace(/,/g, '')) || 0;
+
+                if (acctName.startsWith('Acc. Depr.') || acctName.startsWith('Acc. Amort.')) {
+                  depreciationAccounts[acctName] = amount;
+                } else if (acctName && !acctName.includes('Total')) {
+                  assetAccounts[acctName] = amount;
+                }
+              }
+              if (row.Rows && row.Rows.Row) walkBalanceSheet(row.Rows.Row);
+            });
+          }
+
+          walkBalanceSheet((bsRes.data.Rows && bsRes.data.Rows.Row) || []);
+
+          payload.connected = true;
+
+          // Process each asset from the register
+          assetRegister.assets.forEach(asset => {
+            const cost = assetAccounts[asset.qbAccountName] || 0;
+            const accumDepr = depreciationAccounts[`Acc. Depr. ${asset.qbAccountName}`] ||
+                              depreciationAccounts[`Acc. Amort. ${asset.qbAccountName}`] || 0;
+
+            const assetInfo = {
+              id: asset.id,
+              name: asset.qbAccountName,
+              category: asset.category,
+              cost: Math.max(0, cost),
+              accumulatedDepreciation: Math.abs(accumDepr),
+              bookValue: Math.max(0, cost + accumDepr), // accumDepr is negative
+              usefulLifeMonths: asset.usefulLifeMonths,
+              salvageValue: asset.salvageValue,
+              status: cost > 0 ? 'Active' : 'Inactive',
+              notes: asset.notes
+            };
+
+            payload.assets.push(assetInfo);
+
+            // Aggregate by category
+            if (!payload.summary.byCategory[asset.category]) {
+              payload.summary.byCategory[asset.category] = {
+                totalOriginalCost: 0,
+                totalAccumulatedDepreciation: 0,
+                totalBookValue: 0,
+                assetCount: 0
+              };
+            }
+            const cat = payload.summary.byCategory[asset.category];
+            cat.totalOriginalCost += assetInfo.cost;
+            cat.totalAccumulatedDepreciation += assetInfo.accumulatedDepreciation;
+            cat.totalBookValue += assetInfo.bookValue;
+            cat.assetCount += 1;
+
+            payload.summary.totalOriginalCost += assetInfo.cost;
+            payload.summary.totalAccumulatedDepreciation += assetInfo.accumulatedDepreciation;
+            payload.summary.totalBookValue += assetInfo.bookValue;
+          });
+
+          // Round totals
+          Object.keys(payload.summary.byCategory).forEach(cat => {
+            payload.summary.byCategory[cat].totalOriginalCost = Math.round(payload.summary.byCategory[cat].totalOriginalCost);
+            payload.summary.byCategory[cat].totalAccumulatedDepreciation = Math.round(payload.summary.byCategory[cat].totalAccumulatedDepreciation);
+            payload.summary.byCategory[cat].totalBookValue = Math.round(payload.summary.byCategory[cat].totalBookValue);
+          });
+
+          payload.summary.totalOriginalCost = Math.round(payload.summary.totalOriginalCost);
+          payload.summary.totalAccumulatedDepreciation = Math.round(payload.summary.totalAccumulatedDepreciation);
+          payload.summary.totalBookValue = Math.round(payload.summary.totalBookValue);
+
+        } catch (e) {
+          console.log('[depreciation] QBO balance sheet fetch failed:', e.message);
+        }
+      }
+    }
+
+    cacheSet('depreciation-schedule', payload);
+    res.json(payload);
+  } catch (err) {
+    console.error('[/api/depreciation-schedule]', err.message);
+    res.json(payload);
   }
 });
 
