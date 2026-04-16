@@ -1119,9 +1119,9 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .mf-noi-detail { margin-top: 10px; }
 .mf-noi-explain {
   padding: 16px 18px;
-  background: #dcfce7;
+  background: #f0fdf4;
   border-radius: 10px;
-  border: 1px solid #bbf7d0;
+  border: 1px solid #d1fae5;
 }
 .mf-noi-explain-head {
   font-size: 13px; font-weight: 700; color: #14532d;
@@ -1129,13 +1129,52 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 }
 .mf-noi-explain-body {
   font-size: 13px; color: #444; line-height: 1.55;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
+/* ── Profit gauge bar ─────────────────────────────────────── */
+.mf-noi-gauge { margin-bottom: 14px; }
+.mf-noi-gauge-track {
+  height: 10px; background: #e2e8f0; border-radius: 5px;
+  position: relative; overflow: visible; margin-bottom: 6px;
+}
+.mf-noi-gauge-fill {
+  height: 100%; border-radius: 5px; position: absolute; left: 0; top: 0;
+  transition: width 0.7s cubic-bezier(0.4,0,0.2,1);
+}
+.mf-noi-gauge-pin {
+  position: absolute; top: -3px; bottom: -3px; width: 2px;
+  background: #f59e0b; transform: translateX(-50%);
+  border-radius: 1px; z-index: 2;
+}
+.mf-noi-gauge-needle {
+  position: absolute; top: -4px; width: 10px; height: 10px;
+  background: white; border: 2px solid #64748b;
+  border-radius: 50%; transform: translateX(-50%);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.18); z-index: 3;
+  top: 0; margin-top: -0px;
+  transform: translate(-50%, 0);
+}
+.mf-noi-gauge-scale {
+  position: relative; display: flex;
+  justify-content: space-between;
+  font-size: 10px; color: #94a3b8; height: 16px;
+}
+.mf-noi-gauge-now {
+  position: absolute; transform: translateX(-50%);
+  font-size: 11px; font-weight: 700; color: #1a2d3a;
+  white-space: nowrap;
+}
+.mf-noi-gauge-goal-tag {
+  position: absolute; transform: translateX(-50%);
+  font-size: 10px; font-weight: 600; color: #b45309;
+  white-space: nowrap; top: 0;
+}
+/* ── Three stat cards ─────────────────────────────────────── */
 .mf-noi-explain-row {
-  display: flex; gap: 12px; margin-bottom: 12px;
+  display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;
 }
 .mf-noi-explain-stat {
-  flex: 1; background: white; border-radius: 8px;
+  flex: 1; min-width: 90px; background: white; border-radius: 8px;
   padding: 10px 12px;
   box-shadow: 0 1px 4px rgba(0,0,0,0.06);
 }
@@ -1144,11 +1183,16 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   letter-spacing: 0.8px; color: #94a3b8; margin-bottom: 4px;
 }
 .mf-noi-explain-stat-val {
-  font-size: 22px; font-weight: 700; color: #1a2d3a;
+  font-size: 20px; font-weight: 700; color: #1a2d3a;
+}
+/* ── Delta badge next to the % value ─────────────────────── */
+.mf-noi-delta {
+  display: inline-block; font-size: 11px; font-weight: 700;
+  margin-left: 5px; vertical-align: middle; opacity: 0.85;
 }
 .mf-noi-explain-tip {
   font-size: 12px; color: #666; line-height: 1.5;
-  border-top: 1px solid #bbf7d0; padding-top: 10px;
+  border-top: 1px solid #d1fae5; padding-top: 10px;
 }
 .mf-noi-tip-head { font-weight: 700; color: #14532d; }
 

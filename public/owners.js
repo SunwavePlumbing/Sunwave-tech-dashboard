@@ -818,7 +818,7 @@ function renderOwners() {
               MF_CHEV +
             '</div>' +
             '<div class="mf-sb-pass">' +
-              '<span class="mf-bar-label" style="left:50%;transform:translate(-50%,-50%)">Operating Profit</span>' +
+              '<span class="mf-bar-label" style="left:50%;transform:translate(-50%,-50%)">Profit</span>' +
             '</div>' +
           '</div>' +
         '</div>' +
@@ -837,38 +837,89 @@ function renderOwners() {
         var gapTxt   = isAbove
           ? '\u25b2 ' + gap.toFixed(1) + '% above the 15% profit goal'
           : gap.toFixed(1) + '% below the 15% profit goal';
+        var periodWord = finGranularity === 'quarter' ? 'quarter' : 'month';
+
+        // ── Delta vs prior period ──────────────────────────────
+        var prevNOIPct = null;
+        if (finGranularity === 'quarter' && finQuarter) {
+          var pyQ = parseInt(finQuarter.split('-Q')[1]) - 1;
+          if (pyQ >= 1) {
+            var priorQk = finQuarter.split('-Q')[0] + '-Q' + pyQ;
+            var priorIdxs = [];
+            quarterMonths(priorQk).forEach(function(mk) { var i = months.indexOf(mk); if (i >= 0) priorIdxs.push(i); });
+            var pRev = priorIdxs.reduce(function(s,i){return s+(revenue[i]||0);},0);
+            var pNOI = priorIdxs.reduce(function(s,i){return s+(noi[i]||0);},0);
+            if (pRev > 0) prevNOIPct = pNOI / pRev * 100;
+          }
+        } else if (curIdx > 0 && revenue[curIdx-1] > 0) {
+          prevNOIPct = noi[curIdx-1] / revenue[curIdx-1] * 100;
+        }
+        var noiDelta = prevNOIPct !== null ? noiPct - prevNOIPct : null;
+        var deltaSign = noiDelta !== null ? (noiDelta >= 0 ? '+' : '') : '';
+        var deltaCls  = noiDelta !== null ? (noiDelta >= 0 ? 'c-green' : 'c-red') : '';
+
+        // ── Gauge bar (0-25% range, gold pin at 15%) ──────────
+        var gaugeMax     = 25;
+        var gaugeFill    = (Math.min(Math.max(noiPct, 0), gaugeMax) / gaugeMax * 100).toFixed(1);
+        var gaugeGoal    = (15 / gaugeMax * 100).toFixed(1); // 60%
+        var gaugeColor   = noiPct >= 15 ? '#22c55e' : noiPct >= 10 ? '#f59e0b' : '#ef4444';
+        // Position the "current" needle label — clamp so it doesn't overflow edges
+        var needleLeft   = Math.min(Math.max(parseFloat(gaugeFill), 5), 92).toFixed(1);
+
+        var gaugeHtml =
+          '<div class="mf-noi-gauge">' +
+            '<div class="mf-noi-gauge-track">' +
+              '<div class="mf-noi-gauge-fill" style="width:' + gaugeFill + '%;background:' + gaugeColor + '"></div>' +
+              '<div class="mf-noi-gauge-pin" style="left:' + gaugeGoal + '%"></div>' +
+              '<div class="mf-noi-gauge-needle" style="left:' + gaugeFill + '%"></div>' +
+            '</div>' +
+            '<div class="mf-noi-gauge-scale">' +
+              '<span>0%</span>' +
+              '<span class="mf-noi-gauge-now" style="left:' + needleLeft + '%">' + fmtPct(noiPct) + '</span>' +
+              '<span class="mf-noi-gauge-goal-tag" style="left:' + gaugeGoal + '%">15% goal</span>' +
+              '<span>25%</span>' +
+            '</div>' +
+          '</div>';
 
         var noiDetailHtml =
           '<div id="mfNoiDetail" class="mf-zoom-detail mf-noi-detail" hidden>' +
             '<div class="mf-noi-explain">' +
-              '<div class="mf-noi-explain-head">What is Operating Profit?</div>' +
+              '<div class="mf-noi-explain-head">What is Profit?</div>' +
               '<div class="mf-noi-explain-body">' +
                 'After paying for every job (COGS) and every bill to run the business (overhead), ' +
-                'whatever\u2019s left is Operating Profit \u2014 the real reward for owning the company. ' +
+                'whatever\u2019s left is Profit \u2014 the real reward for owning the company. ' +
                 'It\u2019s what funds savings, growth, and your own paycheck.' +
               '</div>' +
+              gaugeHtml +
               '<div class="mf-noi-explain-row">' +
                 '<div class="mf-noi-explain-stat">' +
                   '<div class="mf-noi-explain-stat-label">Our goal</div>' +
                   '<div class="mf-noi-explain-stat-val">15% of revenue</div>' +
                 '</div>' +
                 '<div class="mf-noi-explain-stat">' +
-                  '<div class="mf-noi-explain-stat-label">This month</div>' +
-                  '<div class="mf-noi-explain-stat-val ' + (isAbove ? 'c-green' : 'c-red') + '">' + fmtPct(noiPct) + '</div>' +
+                  '<div class="mf-noi-explain-stat-label">This ' + periodWord + '</div>' +
+                  '<div class="mf-noi-explain-stat-val ' + (isAbove ? 'c-green' : 'c-red') + '">' + fmtPct(noiPct) +
+                    (noiDelta !== null ? '<span class="mf-noi-delta ' + deltaCls + '">' + deltaSign + noiDelta.toFixed(1) + '%</span>' : '') +
+                  '</div>' +
+                '</div>' +
+                '<div class="mf-noi-explain-stat">' +
+                  '<div class="mf-noi-explain-stat-label">Dollars earned</div>' +
+                  '<div class="mf-noi-explain-stat-val">' + fmtDollar(curNOI) + '</div>' +
                 '</div>' +
               '</div>' +
               '<div class="mf-noi-explain-tip">' +
                 '<span class="mf-noi-tip-head">How to keep more of it:</span>' +
-                ' Charge more per job, reduce parts costs, or trim overhead. ' +
-                'Every extra 1% on ' + fmtDollar(curRev) + ' revenue puts an extra ' +
-                fmtDollar(curRev * 0.01) + ' in the bank.' +
+                ' Charge more per job, reduce parts costs, or trim overhead.' +
+                ' Every extra 1% on ' + fmtDollar(curRev) + ' revenue = ' +
+                '<strong>' + fmtDollar(curRev * 0.01) + ' more this ' + periodWord + '</strong>' +
+                ' \u2014 or about ' + fmtDollar(curRev * 0.01 * 12) + ' over a full year.' +
               '</div>' +
             '</div>' +
           '</div>';
 
         return (
           '<div class="mf-step mf-step--noi">' +
-            '<div class="mf-step-label">Operating Profit</div>' +
+            '<div class="mf-step-label">Profit</div>' +
             '<div class="mf-step-num"><span class="mf-step-eq">=&thinsp;</span>' + fmtDollar(curNOI) + '<span class="mf-op-pct">' + fmtPct(noiPct) + '</span></div>' +
             // Bar wrapper — position:relative so target line can sit on top
             '<div class="mf-noi-bar-wrap">' +
@@ -885,7 +936,7 @@ function renderOwners() {
                 // Green NOI segment — clickable
                 '<div class="mf-noi-profit-seg mf-seg-click" onclick="mfToggleNoi(this)" ' +
                     'style="flex:1;min-width:2px;background:#22c55e;position:relative;">' +
-                  '<span class="mf-bar-label">Operating Profit</span>' +
+                  '<span class="mf-bar-label">Profit</span>' +
                   MF_CHEV +
                 '</div>' +
               '</div>' +
