@@ -1149,8 +1149,11 @@ app.get('/api/growth-metrics', async (req, res) => {
 // ────────────────────────────────────────────────────────────────────────────
 app.get('/api/depreciation-schedule', async (req, res) => {
   const DEPR_TTL = 6 * 60 * 60 * 1000; // 6 hours
-  const cached = cacheGet('depreciation-schedule', DEPR_TTL);
-  if (cached) return res.json(cached);
+  // ?refresh=1 bypasses cache (useful after fixing QB connection issues)
+  if (!req.query.refresh) {
+    const cached = cacheGet('depreciation-schedule', DEPR_TTL);
+    if (cached) return res.json(cached);
+  }
 
   const payload = {
     connected: false,
@@ -1200,10 +1203,15 @@ app.get('/api/depreciation-schedule', async (req, res) => {
       if (!token) {
         console.log('[depreciation] QB access token retrieval failed');
       } else {
+        // QB is reachable — mark connected BEFORE any API calls so that
+        // individual query failures don't falsely report "not connected"
+        payload.connected = true;
+
+        // ── Step 1: Query QB FixedAsset entity (non-fatal) ──
+        // Only available on QB Plus/Advanced plans. Wrap separately so a
+        // plan-tier error or unsupported-entity 400 doesn't abort the whole endpoint.
+        const qbAssetMap = {};
         try {
-          // ── Step 1: Query QB FixedAsset entity for purchase dates & costs ──
-          // QB stores FixedAssets separately from chart-of-accounts entries.
-          // This is the authoritative source for PurchaseDate and PurchaseCost.
           console.log('[depreciation] Querying QB FixedAsset entity...');
           const faRes = await axios.get(
             QBO_BASE + '/v3/company/' + qboTokens.realmId + '/query',
@@ -1214,25 +1222,31 @@ app.get('/api/depreciation-schedule', async (req, res) => {
           );
           const qbFixedAssets = (faRes.data.QueryResponse && faRes.data.QueryResponse.FixedAsset) || [];
           console.log('[depreciation] QB returned', qbFixedAssets.length, 'FixedAsset records');
-
-          // Build lookup: QB asset name (lowercase) → { purchaseDate, purchaseCost }
-          const qbAssetMap = {};
           qbFixedAssets.forEach(fa => {
             const key = (fa.Name || '').trim().toLowerCase();
             qbAssetMap[key] = {
-              purchaseDate: fa.PurchaseDate || null,   // "YYYY-MM-DD"
+              purchaseDate: fa.PurchaseDate || null,
               purchaseCost: parseFloat(fa.PurchaseCost) || 0,
               qbName:       (fa.Name || '').trim()
             };
             console.log(`[depreciation] QB FixedAsset: "${fa.Name}" purchased ${fa.PurchaseDate} cost $${fa.PurchaseCost}`);
           });
+        } catch (faErr) {
+          // FixedAsset entity unavailable (lower-tier QB plan, or QB API error).
+          // Not fatal — we'll fall back to asset register purchase dates.
+          console.warn('[depreciation] FixedAsset query failed — will use register dates only:', faErr.message);
+          if (faErr.response) console.warn('[depreciation] QB status:', faErr.response.status,
+            JSON.stringify(faErr.response.data?.Fault || faErr.response.data?.error || ''));
+        }
 
+        try {
           // ── Step 2: Balance sheet for actual account balances (cost) ──
+          const today = new Date().toISOString().split('T')[0];
           const bsRes = await axios.get(
             QBO_BASE + '/v3/company/' + qboTokens.realmId + '/reports/BalanceSheet',
             {
               headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
-              params: { minorversion: 75 }
+              params: { end_date: today, minorversion: 75 }
             }
           );
           const rawCols = (bsRes.data.Columns && bsRes.data.Columns.Column) || [];
@@ -1259,8 +1273,6 @@ app.get('/api/depreciation-schedule', async (req, res) => {
           }
           walkBS((bsRes.data.Rows && bsRes.data.Rows.Row) || []);
           console.log('[depreciation] Balance sheet asset accounts found:', Object.keys(assetAccounts));
-
-          payload.connected = true;
 
           // ── Step 3: Build each asset using straight-line depreciation ──
           assetRegister.assets.forEach(asset => {
@@ -1343,16 +1355,22 @@ app.get('/api/depreciation-schedule', async (req, res) => {
           payload.summary.totalAccumulatedDepreciation = Math.round(payload.summary.totalAccumulatedDepreciation);
           payload.summary.totalBookValue               = Math.round(payload.summary.totalBookValue);
 
-        } catch (e) {
-          console.error('[depreciation] QB fetch failed:', e.message);
-          if (e.response) console.error('[depreciation] Status:', e.response.status, e.response.data?.error || e.response.statusText);
+        } catch (bsErr) {
+          console.error('[depreciation] Balance sheet fetch or asset calculation failed:', bsErr.message);
+          if (bsErr.response) console.error('[depreciation] BS status:', bsErr.response.status,
+            JSON.stringify(bsErr.response.data?.Fault || bsErr.response.data?.error || ''));
+          // connected remains true — QB works, this specific call had an issue
         }
       }
     } else {
       console.log('[depreciation] QB not ready (missing credentials/realm/token)');
     }
 
-    cacheSet('depreciation-schedule', payload);
+    // Only cache successful connected responses — never cache "not connected"
+    // so a transient failure doesn't block data for 6 hours
+    if (payload.connected) {
+      cacheSet('depreciation-schedule', payload);
+    }
     res.json(payload);
   } catch (err) {
     console.error('[/api/depreciation-schedule]', err.message);

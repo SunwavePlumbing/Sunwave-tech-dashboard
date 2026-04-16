@@ -116,12 +116,6 @@
           <div id="finDebtContent"></div>
         </div>
 
-        <!-- Balance card — full-width below donut -->
-        <div class="fin-chart-card" style="margin-bottom:1.4rem">
-          <div class="fin-chart-title">What We Have and What We Owe <span id="cashSubtitle"></span></div>
-          <div style="font-size:11px;color:#888;margin-top:-8px;margin-bottom:10px">Snapshot of the bank accounts, bills, and debts from the balance sheet.</div>
-          <div id="finCash"></div>
-        </div>
       </div>
 
       <!-- Row 3: Year-over-year comparison -->
@@ -250,7 +244,7 @@
 </div>
 
 <!-- Expense drill-down sheet (overhead / COGS sub-account detail) -->
-<div class="exp-backdrop" id="expBackdrop" hidden onclick="closeExpModal()">
+<div class="exp-backdrop" id="expBackdrop" onclick="closeExpModal()">
   <div class="exp-sheet" onclick="event.stopPropagation()">
     <div class="exp-sheet-header">
       <div>

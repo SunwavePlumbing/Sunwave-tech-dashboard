@@ -145,10 +145,11 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 /* ── Expense drill-down sheet ─────────────────────────────────
    Slides up from bottom on phone; centered sheet on desktop.     */
 .exp-backdrop {
+  display: none;   /* JS sets display:flex on open — never shown at page load */
   position: fixed; inset: 0; z-index: 200;
+  align-items: flex-end; justify-content: center;
   background: rgba(0,0,0,0);
   transition: background 0.25s;
-  display: flex; align-items: flex-end; justify-content: center;
 }
 @media (min-width: 600px) {
   .exp-backdrop { align-items: center; }

@@ -2141,8 +2141,7 @@ function showExpModal(title, monthLabel, items, total, color) {
   footEl.innerHTML = '<span class="exp-foot-label">Total</span>' +
                      '<span class="exp-foot-val">' + fmtDollar(total) + '</span>';
 
-  backdrop.hidden = false;
-  // Small delay so CSS transition fires
+  backdrop.style.display = 'flex';  // make it flex before animating
   requestAnimationFrame(function() { backdrop.classList.add('exp-open'); });
 }
 
@@ -2150,8 +2149,8 @@ function closeExpModal() {
   var backdrop = document.getElementById('expBackdrop');
   if (!backdrop) return;
   backdrop.classList.remove('exp-open');
-  // Hide after transition completes
-  setTimeout(function() { backdrop.hidden = true; }, 280);
+  // Remove from layout after the slide-down transition finishes
+  setTimeout(function() { backdrop.style.display = 'none'; }, 280);
 }
 
 // ── Narrow-bar label guard ────────────────────────────────────
