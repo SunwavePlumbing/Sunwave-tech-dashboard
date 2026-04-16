@@ -893,7 +893,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .mf-split-wrap { margin: 10px 0 4px; }
 
 .mf-split-bar {
-  display: flex; height: 20px; border-radius: 5px;
+  display: flex; height: 30px; border-radius: 5px;
   overflow: hidden; gap: 0;
 }
 
@@ -918,9 +918,16 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   opacity: 1;
   transition: opacity 0.15s;
 }
-/* Faint (pastel) segments — hide label until hover/touch */
-.mf-seg-dim .mf-bar-label { opacity: 0; }
-.mf-seg-dim:hover .mf-bar-label { opacity: 1; }
+/* Faint/secondary segments — hide label until hover/touch */
+.mf-seg-dim .mf-bar-label,
+.mf-sb-cogs .mf-bar-label,
+.mf-sb-prior .mf-bar-label,
+.mf-sb-ovhd .mf-bar-label { opacity: 0; }
+
+.mf-seg-dim:hover .mf-bar-label,
+.mf-sb-cogs:hover .mf-bar-label,
+.mf-sb-prior:hover .mf-bar-label,
+.mf-sb-ovhd:hover .mf-bar-label { opacity: 1; }
 .mf-sb-pass  { flex: 1; min-width: 2px; }              /* remainder fills rest */
 /* Color the pass-through: NOI = green (profit is profit) */
 .mf-split-wrap--ovhd  .mf-sb-pass { background: #bfdbfe; }  /* light blue: becomes NOI */
@@ -941,14 +948,14 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   cursor: pointer;
   transition: filter 0.15s;
 }
-.mf-noi-profit-seg:hover { filter: brightness(1.08); }
-.mf-noi-profit-seg .mf-op-chev { color: rgba(255,255,255,0.85); font-size: 18px; font-weight:600; pointer-events: none; }
+.mf-noi-profit-seg { display: flex; align-items: center; justify-content: center; cursor: pointer; transition: filter 0.15s, box-shadow 0.15s; }
+.mf-noi-profit-seg:hover { filter: brightness(0.9); box-shadow: inset 0 0 0 2px rgba(255,255,255,0.35); }
 
 /* Blue vertical target line on the mirror bar */
 .mf-noi-target-line {
   position: absolute;
   bottom: 0;
-  height: 20px;          /* matches bar height */
+  height: 30px;          /* matches bar height */
   width: 2px;
   background: #2563eb;
   transform: translateX(-50%);
@@ -1016,22 +1023,39 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   display: flex !important;
   align-items: center;
   justify-content: center;
-  transition: filter 0.15s;
+  transition: filter 0.15s, box-shadow 0.15s;
   position: relative;
   overflow: hidden;
 }
-.mf-seg-click:hover { filter: brightness(0.88); }
-.mf-seg-click .mf-op-chev {
-  color: rgba(255,255,255,0.9);
-  font-size: 11px;
-  font-weight: 900;
+.mf-seg-click:hover {
+  filter: brightness(0.9);
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,0.35);
+}
+/* Chevron — pinned to right edge so it never overlaps the label */
+.mf-seg-click .mf-op-chev,
+.mf-noi-profit-seg .mf-op-chev {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 20px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.75);
   pointer-events: none;
   line-height: 1;
+  transition: transform 0.2s, color 0.15s;
 }
-/* Green GP segment: chevron right-aligned since it fills flex remainder */
-.mf-seg-click--gp .mf-op-chev {
-  margin-left: auto;
-  padding-right: 8px;
+.mf-seg-click:hover .mf-op-chev,
+.mf-noi-profit-seg:hover .mf-op-chev {
+  color: rgba(255,255,255,1);
+  transform: translateY(-50%) scale(1.15);
+}
+/* Operating Profit: label centered, chevron right-pinned */
+.mf-noi-profit-seg .mf-bar-label {
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  top: 50%;
 }
 
 .mf-split-leg {
