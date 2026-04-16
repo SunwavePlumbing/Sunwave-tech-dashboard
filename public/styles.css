@@ -721,7 +721,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   position: absolute;
   bottom: 0;
   left: 50%;
-  height: 20px;   /* matches bar height */
+  height: 24px;   /* matches bar height */
   width: 2px;
   background: #ef4444;
   transform: translateX(-50%);
@@ -741,7 +741,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 /* The bar itself */
 .mf-gp-revbar {
   display: flex;
-  height: 20px;
+  height: 24px;
   border-radius: 5px;
   overflow: hidden;
 }
@@ -832,6 +832,9 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   pointer-events: none;
   user-select: none;
   letter-spacing: 0.2px;
+  /* Ensures the label either fits fully or disappears — no partial characters */
+  min-width: max-content;
+  overflow: hidden;
 }
 
 /* Staggered legend row fade-up */
@@ -893,16 +896,16 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .mf-split-wrap { margin: 10px 0 4px; }
 
 .mf-split-bar {
-  display: flex; height: 30px; border-radius: 5px;
+  display: flex; height: 24px; border-radius: 5px;
   overflow: hidden; gap: 0;
 }
 
 /* Segments — widths set inline via JS */
-.mf-sb-prior { background: #fecaca; flex-shrink: 0; }  /* light red: COGS already consumed */
-.mf-sb-cogs  { background: #f87171; flex-shrink: 0; position: relative; }  /* light red: cost of goods sold */
+.mf-sb-prior { background: #fecaca; flex-shrink: 0; position: relative; }  /* light red: COGS reference */
+.mf-sb-cogs  { background: #f87171; flex-shrink: 0; position: relative; }  /* red: cost of goods sold */
+.mf-sb-gp    { background: #bbf7d0; flex: 1; min-width: 2px; position: relative; }  /* pale green: gross profit */
 .mf-sb-ovhd  { background: #f97316; flex-shrink: 0; position: relative; }  /* orange: overhead */
-.mf-sb-prior { position: relative; }
-.mf-sb-pass  { position: relative; }
+.mf-sb-pass  { flex: 1; min-width: 2px; position: relative; background: #bfdbfe; }  /* pale blue: operating profit */
 
 /* Labels inside bar segments */
 .mf-bar-label {
@@ -918,19 +921,18 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   opacity: 1;
   transition: opacity 0.15s;
 }
-/* Faint/secondary segments — hide label until hover/touch */
+/* Hidden-until-hover: faint/passive segments */
 .mf-seg-dim .mf-bar-label,
-.mf-sb-cogs .mf-bar-label,
 .mf-sb-prior .mf-bar-label,
-.mf-sb-ovhd .mf-bar-label { opacity: 0; }
+.mf-sb-pass .mf-bar-label { opacity: 0; }
 
 .mf-seg-dim:hover .mf-bar-label,
-.mf-sb-cogs:hover .mf-bar-label,
 .mf-sb-prior:hover .mf-bar-label,
-.mf-sb-ovhd:hover .mf-bar-label { opacity: 1; }
-.mf-sb-pass  { flex: 1; min-width: 2px; }              /* remainder fills rest */
-/* Color the pass-through: NOI = green (profit is profit) */
-.mf-split-wrap--ovhd  .mf-sb-pass { background: #bfdbfe; }  /* light blue: becomes NOI */
+.mf-sb-pass:hover .mf-bar-label { opacity: 1; }
+
+/* Dark labels for pale-background segments */
+.mf-sb-pass .mf-bar-label { color: #1e40af; }
+.mf-sb-gp   .mf-bar-label { color: #15803d; }
 
 /* GP mirror bar margin */
 .mf-gp-mirror-bar { margin: 10px 0 14px; }
@@ -955,7 +957,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .mf-noi-target-line {
   position: absolute;
   bottom: 0;
-  height: 30px;          /* matches bar height */
+  height: 24px;          /* matches bar height */
   width: 2px;
   background: #2563eb;
   transform: translateX(-50%);

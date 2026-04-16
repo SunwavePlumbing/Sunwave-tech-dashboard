@@ -117,7 +117,7 @@ function mfZoomDetail(id, items, segStart, segEnd, palette, segColor, segLabel) 
   var segs = visible.map(function(r, i) {
     var zid    = id + '-' + i;
     var rawPct = r.val / total * 100;
-    // Render % label for all but tiny slivers — overflow:hidden clips it naturally if too narrow
+    // Render % label for all but tiny slivers — overflow:hidden + min-width hides it when too narrow
     var pctLabel = rawPct >= 3 ? '<span class="mf-zoom-seg-pct">' + rawPct.toFixed(0) + '%</span>' : '';
     return '<div class="mf-zoom-seg" data-zid="' + zid + '"' +
            ' style="flex:' + r.val.toFixed(0) + ';background:' + pal[i % pal.length] + '"' +
@@ -682,12 +682,12 @@ function renderOwners() {
             '<div class="mf-split-bar">' +
               '<div class="mf-sb-cogs mf-seg-click" onclick="mfToggle(\'mfCogsDetail\',this)"' +
                   ' style="width:' + Math.max(0,Math.min(cogsPct,99)).toFixed(1) + '%">' +
-                '<span class="mf-bar-label">COGS</span>' +
+                '<span class="mf-bar-label">Cost of Goods Sold</span>' +
                 '<span class="mf-op-chev">\u25be</span>' +
               '</div>' +
-              '<div class="mf-sb-gp mf-seg-click" onclick="mfToggleGp(this)" style="flex:1;min-width:2px;background:#bbf7d0;cursor:pointer;position:relative;">' +
+              '<div class="mf-sb-gp mf-seg-click" onclick="mfToggleGp(this)">' +
                 '<span class="mf-bar-label">Gross Profit</span>' +
-                '<span class="mf-op-chev" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);opacity:0.6;">\u25be</span>' +
+                '<span class="mf-op-chev">\u25be</span>' +
               '</div>' +
             '</div>' +
             '<div class="mf-cogs-target-line"></div>' +
@@ -720,7 +720,7 @@ function renderOwners() {
               '<span class="mf-op-chev">\u25be</span>' +
             '</div>' +
             '<div class="mf-sb-pass">' +
-              '<span class="mf-bar-label">Operating Profit</span>' +
+              '<span class="mf-bar-label" style="left:50%;transform:translate(-50%,-50%)">Operating Profit</span>' +
             '</div>' +
           '</div>' +
         '</div>' +
