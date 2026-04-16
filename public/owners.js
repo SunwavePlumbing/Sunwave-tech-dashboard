@@ -153,12 +153,12 @@ function mfZoomDetail(id, items, segStart, segEnd, palette, segColor, segLabel) 
         '<svg class="mf-zoom-trap" viewBox="0 0 100 64" preserveAspectRatio="none" width="100%" height="64">' +
           '<defs>' +
             '<linearGradient id="' + gradId + '" x1="0" y1="0" x2="0" y2="1">' +
-              '<stop offset="0%" stop-color="' + color + '" stop-opacity="0.22"/>' +
-              '<stop offset="100%" stop-color="' + color + '" stop-opacity="0"/>' +
+              '<stop offset="0%" stop-color="' + color + '" stop-opacity="0.45"/>' +
+              '<stop offset="100%" stop-color="' + color + '" stop-opacity="0.12"/>' +
             '</linearGradient>' +
           '</defs>' +
           // Solid marker bar = the source segment position
-          '<rect x="' + s + '" y="0" width="' + sw + '" height="5" fill="' + topCol + '" rx="1"/>' +
+          '<rect x="' + s + '" y="0" width="' + sw + '" height="5" fill="' + topCol + '"/>' +
           // Gradient fill trapezoid — no border lines
           '<polygon points="' + s + ',5 ' + e + ',5 100,64 0,64" fill="url(#' + gradId + ')"/>' +
         '</svg>' +

@@ -796,14 +796,14 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   width: var(--z-start, 60%);
   transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
   overflow: hidden;
-  border-radius: 5px;
+  border-radius: 0;
 }
 .mf-zoom-bar-anim.mf-zoom-expanded { width: 100%; }
 
 .mf-zoom-bar {
   display: flex;
   height: 24px;
-  border-radius: 5px;
+  border-radius: 0;
   overflow: hidden;
   gap: 0;           /* no white lines between segments */
 }
