@@ -201,6 +201,20 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   transition: width 0.5s cubic-bezier(0.4,0,0.2,1);
 }
 .exp-empty { padding: 24px 18px; font-size: 13px; color: #aaa; text-align: center; }
+.exp-loading { padding: 32px 18px; text-align: center; }
+
+/* Transaction row sub-elements */
+.exp-txn-date {
+  display: inline-block; font-size: 11px; font-weight: 600; color: #fff;
+  background: #94a3b8; border-radius: 3px; padding: 1px 6px;
+  margin-right: 7px; vertical-align: middle; letter-spacing: 0.02em;
+  white-space: nowrap; line-height: 1.5;
+}
+.exp-txn-desc { vertical-align: middle; }
+.exp-txn-memo {
+  display: block; font-size: 11px; color: #999; margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 
 .exp-sheet-footer {
   padding: 12px 18px; border-top: 1px solid #f0f0f0;
@@ -214,10 +228,9 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 
 /* ── Drill indicator on overhead legend rows ── */
 .mf-drill-ind {
-  font-size: 15px; font-weight: 700; color: #bbb;
-  margin-left: 5px; vertical-align: middle;
+  font-size: 17px; font-weight: 700; color: #bbb;
+  margin-left: 4px; flex-shrink: 0;
   transition: color 0.12s, transform 0.12s;
-  display: inline-block;
 }
 .mf-zoom-drillable { cursor: pointer !important; }
 .mf-zoom-drillable:hover .mf-drill-ind { color: #f97316; transform: translateX(2px); }
@@ -1242,138 +1255,6 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .fin-chart-title span { font-size:11px;font-weight:400;color:#aaa;margin-left:6px; }
 .fin-chart-wrap { position:relative; }
 
-/* Variance card header — title+subtitle left, compare picker right */
-.fin-var-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
-.fin-var-head-left { flex:1; min-width:0; }
-.fin-var-sub { font-size:11px; color:#888; margin-top:4px; }
-.fin-var-compare { display:flex; flex-direction:column; gap:4px; flex-shrink:0; }
-.fin-var-compare .fin-filter-label { font-size:10px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; color:#aaa; }
-.fin-var-compare .fin-select { min-height:36px; font-size:12px; padding:0 10px; border-radius:8px; border:1px solid #e5e5e5; background:#f7f7f7; color:#333; cursor:pointer; min-width:170px; }
-
-.fin-trend-toggles { display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px; }
-.fin-trend-btn { padding:4px 12px;font-size:11px;font-weight:600;border:1px solid #e0e0e0;border-radius:20px;background:white;color:#888;cursor:pointer;transition:all 0.15s; }
-.fin-trend-btn.on { border-color:currentColor;background:currentColor;color:white!important; }
-
-/* ── Trend chart top row: toggles left, legend right ─────────── */
-.fin-trend-top-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
-  flex-wrap: wrap;
-}
-.fin-trend-top-row .fin-trend-toggles {
-  margin-bottom: 0;
-}
-
-/* ── Legend — sits inline, right side of toggle row ─────────── */
-.tcl-overlay {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex-shrink: 0;
-}
-.tcl-item {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-.tcl-swatch {
-  display: inline-block;
-  width: 20px;
-  height: 2.5px;
-  border-radius: 2px;
-  flex-shrink: 0;
-}
-.tcl-swatch--target { background: #94a3b8; }
-.tcl-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: #555;
-  white-space: nowrap;
-}
-.tcl-val {
-  font-size: 11px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  margin-left: 2px;
-}
-/* Direction badge — shown next to the target line in the legend */
-.tcl-dir {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.3px;
-  padding: 2px 7px;
-  border-radius: 20px;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-.tcl-dir--above { background: #dcfce7; color: #15803d; }
-.tcl-dir--below { background: #fff7ed; color: #c2410c; }
-
-
-/* Monthly P&L grid */
-.pnl-grid { width:100%;border-collapse:collapse;font-size:12px; }
-.pnl-grid th { text-align:right;padding:6px 8px;font-weight:600;color:#888;font-size:10px;text-transform:uppercase;letter-spacing:0.3px;border-bottom:1px solid #eee;white-space:nowrap; }
-.pnl-grid th:first-child { text-align:left; }
-.pnl-grid td { padding:10px 10px;text-align:right;color:#333;border-bottom:1px solid #f5f5f5;white-space:nowrap; font-variant-numeric:tabular-nums; }
-@media (min-width:700px) { .pnl-grid td { padding:7px 8px; } }
-.pnl-grid td:first-child { text-align:left;font-weight:500; }
-.pnl-grid tr.subtotal td { font-weight:700;background:#fafafa;color:#1a2d3a;border-top:1px solid #ddd; }
-.pnl-grid tr.total td { font-weight:700;background:#1a2d3a;color:#fff;border-top:2px solid #1a2d3a; }
-.pnl-grid tr.indent td:first-child { padding-left:22px;color:#666;font-weight:400; }
-.pnl-grid td.spark-cell { text-align:center;padding:4px 6px; }
-.pnl-grid td.neg { color:#E5484D; }
-.pnl-grid td.highlight { background:#fff8ec; }
-
-/* Card compare line */
-.fin-compare-line { font-size:11px;color:#aaa;margin-top:4px; }
-
-/* Breakeven widget */
-.be-bar { height:24px;border-radius:12px;background:#f0f0f0;overflow:hidden;position:relative;margin:14px 0 10px; }
-.be-bar-fill { height:100%;background:linear-gradient(90deg,#12A071,#0a8a5e);transition:width 0.3s; }
-.be-bar-target { position:absolute;top:-4px;bottom:-4px;width:2px;background:#1a2d3a; }
-.be-bar-target:after { content:attr(data-lbl);position:absolute;top:-16px;left:-20px;font-size:10px;color:#888;white-space:nowrap; }
-.be-stats { display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:11px;margin-top:14px; }
-.be-stat-label { color:#999;text-transform:uppercase;font-size:10px;font-weight:600;letter-spacing:0.3px; }
-.be-stat-value { font-weight:700;font-size:14px;color:#1a2d3a;margin-top:2px; }
-.be-headline { font-size:18px;font-weight:700;margin-bottom:4px; }
-.be-headline.ok { color:#12A071; }
-.be-headline.bad { color:#E5484D; }
-
-/* Variance table */
-.var-table { width:100%;border-collapse:collapse;font-size:12px; }
-.var-table th { text-align:right;padding:6px 8px;font-weight:600;color:#888;font-size:10px;text-transform:uppercase;letter-spacing:0.3px;border-bottom:1px solid #eee; }
-.var-table th:first-child { text-align:left; }
-.var-table td { padding:7px 8px;text-align:right;color:#333;border-bottom:1px solid #f5f5f5;font-variant-numeric:tabular-nums; }
-.var-table td:first-child { text-align:left;font-weight:500; }
-.var-table tr.subtotal td { font-weight:700;background:#fafafa;color:#1a2d3a; }
-.var-table td.pos { color:#12A071;font-weight:600; }
-.var-table td.neg { color:#E5484D;font-weight:600; }
-.var-table tr.noi td { font-size:15px;font-weight:800;background:#f5faff;color:#1a2d3a;border-top:2px solid #1a2d3a;padding:12px 8px; }
-.var-table tr.noi td.pos { color:#12A071; }
-.var-table tr.noi td.neg { color:#E5484D; }
-
-/* Mobile variance flow */
-.var-flow { display:flex;flex-direction:column;gap:0; }
-.var-flow-row { display:flex;justify-content:space-between;align-items:baseline;padding:8px 4px;border-bottom:1px solid #f5f5f5;font-size:13px; }
-.var-flow-row.indent { padding-left:22px;color:#666; }
-.var-flow-row.sub { font-weight:700;color:#1a2d3a;background:#fafafa; }
-.var-flow-row.noi { display:block;background:#f5faff;border-top:2px solid #1a2d3a;border-bottom:2px solid #1a2d3a;padding:14px 12px;margin-top:6px; }
-.var-flow-row.noi .var-noi-lbl { font-size:11px;color:#888;text-transform:uppercase;font-weight:700;letter-spacing:0.8px;margin-bottom:4px; }
-.var-flow-row.noi .var-noi-val { font-size:26px;font-weight:800;color:#1a2d3a;line-height:1.1;font-variant-numeric:tabular-nums; }
-.var-flow-row.noi .var-noi-vs { font-size:12px;color:#888;margin-top:2px; }
-.var-flow-row.noi .var-noi-change { font-size:15px;font-weight:700;margin-top:6px; }
-.var-flow-row.noi .var-noi-change.pos { color:#12A071; }
-.var-flow-row.noi .var-noi-change.neg { color:#E5484D; }
-.var-chg { font-weight:600;margin-left:10px; }
-.var-chg.pos { color:#12A071; }
-.var-chg.neg { color:#E5484D; }
-@media (max-width:768px) { .var-table-wrap { display:none; } }
-@media (min-width:769px) { .var-flow { display:none; } }
-
 /* Cash cards */
 .cash-row { display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px; }
 .cash-cell { background:#fafafa;border-radius:8px;padding:12px 14px; }
@@ -1482,56 +1363,6 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .fin-alert-range { font-size:11px;color:#aaa;margin-top:2px; }
 .fin-no-alerts { background:white;border-radius:10px;padding:16px 18px;font-size:13px;color:#aaa;box-shadow:0 1px 3px rgba(0,0,0,0.07); }
 
-/* ── Growth Decision Cards ─────────────────────────────────────── */
-.growth-kpi-row      { margin-bottom:1.4rem; }
-.growth-kpi-items    { display:grid; grid-template-columns:1fr; gap:12px; }
-.growth-kpi-item     { display:flex; gap:12px; background:#f9fafb; padding:12px; border-radius:6px; align-items:center; }
-.growth-kpi-icon     { font-size:24px; flex-shrink:0; }
-.growth-kpi-content  { flex:1; min-width:0; }
-.growth-kpi-label    { font-size:11px; color:#888; text-transform:uppercase; letter-spacing:0.5px; }
-.growth-kpi-value    { font-size:16px; font-weight:600; color:#1f2937; margin-top:2px; }
-
-.growth-readiness-header { margin-bottom:16px; }
-.growth-readiness-body   { display:flex; flex-direction:column; gap:16px; }
-.growth-readiness-bar    { background:#e5e7eb; border-radius:8px; overflow:hidden; height:24px; position:relative; }
-.growth-readiness-fill   { background:linear-gradient(90deg, #fbbf24 0%, #10b981 100%); height:100%; transition:width 0.3s ease; }
-.growth-readiness-labels { display:flex; justify-content:space-between; font-size:10px; color:#888; margin-top:6px; padding:0 2px; }
-.growth-readiness-score  { text-align:center; padding:16px; background:#eff6ff; border-radius:8px; }
-.growth-readiness-big    { font-size:32px; font-weight:700; color:#1e40af; }
-.growth-readiness-msg    { font-size:13px; color:#666; margin-top:4px; }
-.growth-readiness-facts  { display:flex; flex-direction:column; gap:10px; }
-.growth-readiness-fact   { display:flex; justify-content:space-between; align-items:center; padding:8px; border-left:3px solid #e5e7eb; }
-.growth-readiness-fact-label  { font-size:12px; color:#666; }
-.growth-readiness-fact-value  { font-size:13px; font-weight:600; color:#1f2937; }
-.growth-ready-excellent { color:#059669; }
-.growth-ready-good      { color:#0891b2; }
-.growth-ready-building  { color:#f59e0b; }
-
-.growth-3col { display:grid; grid-template-columns:1fr; gap:1.4rem; }
-.growth-card-title  { font-size:15px; font-weight:700; color:#1f2937; margin-bottom:4px; }
-.growth-card-sub    { font-size:11px; color:#888; margin-bottom:12px; }
-.growth-card-form   { margin-bottom:12px; }
-.growth-card-form label { display:flex; align-items:center; gap:8px; font-size:12px; }
-.growth-card-form input { width:60px; padding:6px; border:1px solid #d1d5db; border-radius:4px; font-size:12px; }
-.growth-card-metrics { display:flex; flex-direction:column; gap:8px; margin-bottom:12px; }
-.growth-card-metric  { display:flex; justify-content:space-between; align-items:center; font-size:12px; padding:8px 0; border-bottom:1px solid #f3f4f6; }
-.growth-card-metric-label { color:#666; }
-.growth-card-metric-value { font-weight:600; color:#1f2937; }
-.growth-card-metric-warn .growth-card-metric-value { color:#dc2626; }
-.growth-card-insight { font-size:12px; color:#666; background:#f9fafb; padding:10px; border-radius:4px; border-left:3px solid #10b981; }
-
-.growth-card-tools { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
-.growth-card-tool-btn { flex:1; min-width:80px; padding:10px 8px; background:#f9fafb; border:1px solid #d1d5db; border-radius:6px; cursor:pointer; transition:0.2s; font-size:11px; text-align:center; }
-.growth-card-tool-btn:hover { background:#f3f4f6; }
-.growth-card-tool-btn.active { background:#1e40af; color:#fff; border-color:#1e40af; }
-.growth-card-tool-name { font-weight:600; }
-.growth-card-tool-cost { font-size:12px; margin-top:4px; }
-.growth-card-tool-desc { font-size:10px; color:#666; margin-top:2px; }
-
-.growth-forecast-toggle-group { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
-.growth-forecast-toggle { padding:8px 12px; background:#fff; border:2px solid; border-radius:6px; cursor:pointer; font-size:12px; transition:0.2s; min-height:36px; display:flex; align-items:center; justify-content:center; }
-.growth-forecast-toggle.active { color:#fff; background:currentColor; }
-
 /* ── Location Owners — mobile font/spacing bump ─────────────────
    Base sizes above are desktop-first. This block bumps everything
    up to comfortable reading size on phones (≥14px body, ≥12px labels). */
@@ -1604,44 +1435,5 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   .fin-alert-msg       { font-size:15px; }
   .fin-alert-range     { font-size:13px; }
   .fin-no-alerts       { font-size:15px; }
-
-  /* Growth cards — mobile size bump */
-  .growth-kpi-value    { font-size:18px; }
-  .growth-card-title   { font-size:16px; }
-  .growth-card-metric  { font-size:13px; }
-  .growth-card-form label { font-size:13px; }
-  .growth-card-form input { font-size:13px; }
-  .growth-card-tool-cost { font-size:13px; }
 }
 
-/* ── Depreciation Schedule ─────────────────────────────────────── */
-.depr-summary-cards { display:grid; grid-template-columns:1fr; gap:12px; margin-bottom:20px; }
-.depr-summary-card { background:#f9fafb; padding:14px; border-radius:6px; border-left:4px solid #3b82f6; }
-.depr-summary-label { font-size:11px; color:#888; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
-.depr-summary-value { font-size:18px; font-weight:700; color:#1f2937; }
-.depr-summary-value.neg { color:#dc2626; }
-
-.depr-categories { display:flex; flex-direction:column; gap:16px; }
-.depr-category { border:1px solid #e5e7eb; border-radius:6px; padding:12px; background:#fafafa; }
-.depr-category-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid #e5e7eb; }
-.depr-category-name { font-weight:700; color:#1f2937; font-size:14px; }
-.depr-category-count { font-size:12px; color:#888; }
-.depr-category-summary { display:flex; justify-content:space-between; font-size:12px; color:#666; margin-bottom:12px; padding:8px 0; }
-.depr-asset-list { display:flex; flex-direction:column; gap:8px; }
-.depr-asset-row { display:flex; justify-content:space-between; align-items:center; padding:8px; border-radius:4px; background:white; font-size:12px; }
-.depr-asset-name { font-weight:500; color:#1f2937; flex:1; }
-.depr-asset-meta { font-size:11px; color:#9ca3af; margin-top:2px; font-weight:400; }
-.depr-src-badge { display:inline-block; font-size:9px; font-weight:700; padding:1px 5px; border-radius:3px; background:#dbeafe; color:#1d4ed8; letter-spacing:0.3px; margin-right:3px; }
-.depr-src-manual  { background:#dcfce7; color:#15803d; }
-.depr-src-unknown { background:#fee2e2; color:#b91c1c; }
-.depr-asset-values { display:flex; gap:12px; text-align:right; }
-.depr-cost { color:#888; min-width:70px; }
-.depr-book { color:#1f2937; font-weight:600; min-width:70px; }
-.depr-pct { color:#666; min-width:50px; }
-
-/* Tablet/Desktop breakpoint — 3-column growth card layout */
-@media (min-width: 768px) {
-  .growth-3col { grid-template-columns:1fr 1fr 1fr; }
-  .growth-kpi-items { grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); }
-  .depr-summary-cards { grid-template-columns:1fr 1fr 1fr; }
-}

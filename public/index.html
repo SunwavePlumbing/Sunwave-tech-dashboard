@@ -114,28 +114,6 @@
 
       </div>
 
-      <!-- Row 3: Year-over-year comparison -->
-      <div class="fin-row2" id="finRow3" style="display:none">
-        <div class="fin-chart-card" style="grid-column:1/-1">
-          <div class="fin-var-head">
-            <div class="fin-var-head-left">
-              <div class="fin-chart-title" style="margin-bottom:0">This Year vs. <span id="varSubtitle">Prior Period</span></div>
-              <div class="fin-var-sub">Are we bigger and more profitable? Green = better, red = worse.</div>
-            </div>
-            <label class="fin-var-compare">
-              <span class="fin-filter-label">Compare to</span>
-              <select id="finCompareSel" class="fin-select" onchange="setFinCompare(this.value)">
-                <option value="prior_year_month" selected>Same month last year</option>
-                <option value="prior_month">Prior month</option>
-                <option value="prior_year_avg">Prior year avg</option>
-                <option value="none">No comparison</option>
-              </select>
-            </label>
-          </div>
-          <div id="finVariance"></div>
-        </div>
-      </div>
-
       <!-- Cash flow over time -->
       <div class="fin-chart-card" id="finCashFlowCard" style="display:none;margin-bottom:1.4rem">
         <div class="fin-chart-title">Cash in the Bank Over Time <span id="cfSubtitle"></span></div>
@@ -157,51 +135,6 @@
         <div id="finPnlGrid" class="fin-pnl-scroll"></div>
       </div>
 
-      <!-- Depreciation Schedule Section -->
-      <div id="depreciationSection" style="display:none;margin-bottom:2rem">
-        <div class="fin-chart-card">
-          <div class="fin-chart-title">Fixed Assets & Depreciation Schedule</div>
-          <div style="font-size:11px;color:#888;margin-top:-8px;margin-bottom:14px">Current book values and accumulated depreciation across all asset categories.</div>
-          <div id="depreciationContent"></div>
-        </div>
-      </div>
-
-      <!-- Growth Decision Cards Section -->
-      <div id="growthSection" style="display:none;margin-top:2rem">
-        <!-- KPI Row — top metrics -->
-        <div id="growthKpiRow" class="growth-kpi-row" style="margin-bottom:1.4rem"></div>
-
-        <!-- Growth Readiness Meter — prominent card -->
-        <div class="fin-chart-card" id="growthReadinessCard" style="margin-bottom:1.4rem">
-          <div id="growthReadinessContent">Loading...</div>
-        </div>
-
-        <!-- Three decision cards in a row -->
-        <div class="growth-3col" style="margin-bottom:1.4rem">
-          <!-- Technician Hiring Card -->
-          <div class="fin-chart-card">
-            <div id="growthHiringContent">Loading...</div>
-          </div>
-
-          <!-- Van Readiness Card -->
-          <div class="fin-chart-card">
-            <div id="growthVanContent">Loading...</div>
-          </div>
-
-          <!-- Tool Purchase Card -->
-          <div class="fin-chart-card">
-            <div id="growthToolContent">Loading...</div>
-          </div>
-        </div>
-
-        <!-- 6-Month Cash Forecast Chart -->
-        <div class="fin-chart-card" id="growthForecastCard" style="margin-bottom:1.4rem">
-          <div class="fin-chart-title">6-Month Cash Forecast — Scenario Modeling</div>
-          <div style="font-size:11px;color:#888;margin-top:-8px;margin-bottom:10px">What happens if you hire a tech, buy a van, buy a tool, or make multiple moves?</div>
-          <div class="growth-forecast-controls" id="growthForecastControls"></div>
-          <div class="fin-chart-wrap" style="height:250px"><canvas id="growthForecastChart"></canvas></div>
-        </div>
-      </div>
     </div>
   </div>
 </div>

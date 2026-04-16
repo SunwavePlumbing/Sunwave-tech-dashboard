@@ -169,6 +169,72 @@ function parseFinancialReport(report) {
   return { months, accounts, children };
 }
 
+// Parse QBO ProfitAndLossDetail report — extracts individual transactions
+// grouped by their "Total X" parent section.
+// Returns { 'Total X': [{ date, type, num, name, memo, amount }, ...] }
+function parsePnLDetail(report) {
+  const cols = (report.Columns && report.Columns.Column) || [];
+
+  // Identify column indices from column metadata
+  const ci = {};
+  cols.forEach((col, i) => {
+    const t = (col.ColTitle || '').toLowerCase().trim();
+    const ct = (col.ColType || '').toLowerCase();
+    if (t === 'date' || t.includes('date')) ci.date = ci.date == null ? i : ci.date;
+    else if (t === 'transaction type' || t === 'type') ci.type = i;
+    else if (t === 'num' || t === 'no.' || t === 'doc. no.') ci.num = i;
+    else if (t === 'name') ci.name = i;
+    else if (t === 'memo' || t.includes('memo') || t.includes('description')) ci.memo = i;
+    // Amount = last Money column (skip intermediate sub-total columns)
+    if (ct === 'money') ci.amount = i;
+  });
+
+  const txnMap = {}; // "Total X" → [transactions]
+
+  function val(cd, idx) {
+    return (idx != null && cd && cd[idx]) ? (cd[idx].value || '') : '';
+  }
+
+  function walkSection(rows) {
+    const txns = [];
+    if (!Array.isArray(rows)) return txns;
+    for (const row of rows) {
+      if (row.Header && row.Rows && row.Rows.Row) {
+        // Sub-section — recurse
+        const childTxns = walkSection(row.Rows.Row);
+        // Store under the "Total X" name from Summary
+        if (row.Summary && row.Summary.ColData) {
+          const sumName = ((row.Summary.ColData[0] || {}).value || '').trim();
+          if (sumName.startsWith('Total ') && childTxns.length) {
+            txnMap[sumName] = (txnMap[sumName] || []).concat(childTxns);
+          }
+        }
+        txns.push(...childTxns);
+      } else if (row.ColData && row.ColData.length > 2) {
+        // Transaction row
+        const cd = row.ColData;
+        const dateStr = val(cd, ci.date);
+        const amtStr  = val(cd, ci.amount).replace(/,/g, '');
+        const amount  = parseFloat(amtStr) || 0;
+        // Skip rows without a date (subtotals / blanks)
+        if (!dateStr || !amount) continue;
+        txns.push({
+          date: dateStr,
+          type: val(cd, ci.type),
+          num:  val(cd, ci.num),
+          name: val(cd, ci.name),
+          memo: val(cd, ci.memo),
+          amount
+        });
+      }
+    }
+    return txns;
+  }
+
+  walkSection((report.Rows && report.Rows.Row) || []);
+  return txnMap;
+}
+
 // Pull monthly marketing spend from a parsed report — sums every account whose
 // name contains "advertising" or "marketing" (case-insensitive). Returns { 'YYYY-MM': $ }
 function marketingSpendByMonth(parsed) {
@@ -801,6 +867,59 @@ app.get('/api/owners-financial', async (req, res) => {
     res.status(500).json({ connected: false, reason: 'error', error: err.message });
   }
 });
+// ── /api/account-detail — individual transactions for a P&L section ─────────
+// Fetches QBO ProfitAndLossDetail for the given month (cached 4 h),
+// then returns every individual transaction under the requested "Total X" key.
+app.get('/api/account-detail', async (req, res) => {
+  const { acct, month } = req.query;
+  if (!acct || !month) return res.status(400).json({ error: 'acct and month are required' });
+  if (!qboReady()) return res.json({ connected: false, transactions: [] });
+
+  try {
+    const token = await getQBOAccessToken();
+    if (!token) return res.json({ connected: false, transactions: [] });
+
+    const ck = 'pnl-detail:' + month;
+    let txnMap = cacheGet(ck, 4 * 60 * 60 * 1000);
+
+    if (!txnMap) {
+      const [y, m] = month.split('-').map(Number);
+      const startDate = `${y}-${String(m).padStart(2, '0')}-01`;
+      const endDate = new Date(y, m, 0).toISOString().slice(0, 10);
+
+      console.log('[account-detail] Fetching PnLDetail', startDate, '→', endDate);
+      const resp = await axios.get(
+        QBO_BASE + '/v3/company/' + qboTokens.realmId + '/reports/ProfitAndLossDetail',
+        {
+          headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
+          params: {
+            start_date: startDate,
+            end_date: endDate,
+            accounting_method: 'Cash',
+            minorversion: 75
+          }
+        }
+      );
+
+      txnMap = parsePnLDetail(resp.data);
+      cacheSet(ck, txnMap);
+      console.log('[account-detail] Cached', Object.keys(txnMap).length, 'sections for', month);
+    }
+
+    const transactions = (txnMap[acct] || []).slice();
+    // Sort newest-first
+    transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    res.json({ connected: true, acct, month, transactions });
+  } catch (err) {
+    console.error('[/api/account-detail]', err.response?.status || '', err.message);
+    if (err.response?.status === 401) {
+      qboTokens.accessToken = null;
+    }
+    res.json({ connected: false, transactions: [], error: err.message });
+  }
+});
+
 // Returns the list of QBO account/section labels found in the most recent P&L.
 // Use /api/qbo-accounts to verify mapping when a card shows $0.
 app.get('/api/qbo-accounts', async (req, res) => {
@@ -990,469 +1109,6 @@ app.get('/api/qbo-balance', async (req, res) => {
       return res.json({ connected: false, reason: 'token_expired' });
     }
     res.status(500).json({ connected: false, error: err.message });
-  }
-});
-
-// ────────────────────────────────────────────────────────────────────────────
-// GROWTH METRICS — Hiring, vans, tools, cash forecasting
-// ────────────────────────────────────────────────────────────────────────────
-app.get('/api/growth-metrics', async (req, res) => {
-  const GROWTH_TTL = 60 * 60 * 1000; // 1 hour
-  const cached = cacheGet('growth-metrics', GROWTH_TTL);
-  if (cached) return res.json(cached);
-
-  const payload = {
-    connected: false,
-    technicians: [],
-    activeTechCount: 0,
-    monthlyRevenue: [],
-    months: [],
-    revenuePerTech: null,
-    availableGrowthCash: null,
-    vans: 0,
-    growthCapacityScore: 0,
-    jobsCompleted30Days: 0,
-    jobsCompletedAvgValue: 0,
-    leadsOpen: 0
-  };
-
-  try {
-    // Fetch HCP data — technician list + recent jobs
-    if (API_KEY) {
-      try {
-        // Get all employees (active technicians)
-        const empRes = await axios.get(BASE_URL + '/employees', {
-          headers: hcpHeaders(),
-          params: { page: 1, page_size: 100 }
-        });
-        const employees = empRes.data?.employees || [];
-        // Filter for active technicians (exclude admins/office staff)
-        const activeTechs = employees.filter(e => e.role !== 'admin' && e.role !== 'manager');
-        payload.technicians = activeTechs;
-        payload.activeTechCount = activeTechs.length;
-        payload.connected = true;
-
-        // Get recent jobs (last 30 days) to calculate actual revenue per tech and completion rate
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        const jobsRes = await axios.get(BASE_URL + '/jobs', {
-          headers: hcpHeaders(),
-          params: {
-            page: 1,
-            page_size: 100,
-            work_status: ['completed'],
-            sort_by: 'completed_at',
-            sort_direction: 'desc'
-          }
-        });
-        const recentJobs = (jobsRes.data?.jobs || []).filter(j => {
-          const completedAt = new Date(j.work_timestamps?.completed_at || j.updated_at);
-          return completedAt > thirtyDaysAgo;
-        });
-        payload.jobsCompleted30Days = recentJobs.length;
-        if (recentJobs.length > 0) {
-          const totalRevenue = recentJobs.reduce((sum, j) => sum + (j.total_amount || 0), 0);
-          payload.jobsCompletedAvgValue = Math.round(totalRevenue / recentJobs.length);
-        }
-
-        // Get open leads count (potential pipeline)
-        const leadsRes = await axios.get(BASE_URL + '/leads', {
-          headers: hcpHeaders(),
-          params: { page: 1, page_size: 1, status: 'open' }
-        });
-        payload.leadsOpen = leadsRes.data?.total_items || 0;
-      } catch (e) {
-        console.log('[growth] HCP fetch failed:', e.message);
-      }
-    }
-
-    // Fetch QBO financial data for revenue trends
-    if (qboReady()) {
-      const token = await getQBOAccessToken();
-      if (token) {
-        try {
-          const now = new Date();
-          const reliableEnd = getReliableEndDate(now);
-          const start = new Date(reliableEnd.getFullYear(), reliableEnd.getMonth() - 5, 1);
-          const startDate = start.toISOString().slice(0, 10);
-          const endDate = reliableEnd.toISOString().slice(0, 10);
-
-          const pnlRes = await axios.get(
-            QBO_BASE + '/v3/company/' + qboTokens.realmId + '/reports/ProfitAndLoss',
-            {
-              headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
-              params: {
-                start_date: startDate,
-                end_date: endDate,
-                accounting_method: 'Cash',
-                summarize_column_by: 'Month',
-                minorversion: 75
-              }
-            }
-          );
-          const parsed = parseFinancialReport(pnlRes.data);
-          payload.months = parsed.months || [];
-
-          // Extract revenue per month using 'Total Income'
-          const revAccount = parsed.accounts['Total Income'] || {};
-          payload.monthlyRevenue = (payload.months || []).map(function(m) {
-            return revAccount[m] || 0;
-          });
-
-          payload.connected = true;
-        } catch (e) {
-          console.log('[growth] QBO fetch failed:', e.message);
-        }
-      }
-    }
-
-    // Compute derived metrics
-    if (payload.monthlyRevenue.length > 0 && payload.activeTechCount > 0) {
-      const avgMonthlyRev = payload.monthlyRevenue.reduce((a, b) => a + b, 0) / payload.monthlyRevenue.length;
-      payload.revenuePerTech = Math.round(avgMonthlyRev / payload.activeTechCount);
-
-      // Available growth cash: 20% of monthly revenue (conservative reserve)
-      payload.availableGrowthCash = Math.round(avgMonthlyRev * 0.2);
-
-      // Van estimate: 1 van per 2.5 technicians
-      payload.vans = Math.ceil(payload.activeTechCount / 2.5);
-
-      // Growth Capacity Score (0-100) based on multiple factors:
-      // - Revenue per tech (productivity)
-      // - Team size (scale)
-      // - Recent job completion (consistency)
-      // - Open leads (pipeline quality)
-      const minRevenuePerTech = 20000;
-      const maxRevenuePerTech = 60000;
-      const scoreFromRev = Math.min(100, Math.max(0,
-        (payload.revenuePerTech - minRevenuePerTech) / (maxRevenuePerTech - minRevenuePerTech) * 100
-      ));
-      const teamSizeBonus = Math.min(20, Math.max(0, (payload.activeTechCount - 1) * 3));
-      const jobCompletionBonus = Math.min(15, Math.max(0, payload.jobsCompleted30Days / 2));
-      const pipelineBonus = Math.min(15, Math.max(0, payload.leadsOpen / 5));
-
-      payload.growthCapacityScore = Math.round(
-        scoreFromRev * 0.5 + teamSizeBonus * 0.2 + jobCompletionBonus * 0.15 + pipelineBonus * 0.15
-      );
-    }
-
-    cacheSet('growth-metrics', payload);
-    res.json(payload);
-  } catch (err) {
-    console.error('[/api/growth-metrics]', err.message);
-    res.json(payload); // Return partial payload rather than error
-  }
-});
-
-// ────────────────────────────────────────────────────────────────────────────
-// DEPRECIATION SCHEDULE — Fixed asset depreciation calculations
-// ────────────────────────────────────────────────────────────────────────────
-app.get('/api/depreciation-schedule', async (req, res) => {
-  const DEPR_TTL = 6 * 60 * 60 * 1000; // 6 hours
-  // ?refresh=1 bypasses cache (useful after fixing QB connection issues)
-  if (!req.query.refresh) {
-    const cached = cacheGet('depreciation-schedule', DEPR_TTL);
-    if (cached) return res.json(cached);
-  }
-
-  const payload = {
-    connected: false,
-    asOfDate: new Date().toISOString().split('T')[0],
-    assets: [],
-    summary: {
-      byCategory: {},
-      totalOriginalCost: 0,
-      totalAccumulatedDepreciation: 0,
-      totalBookValue: 0,
-      unclassifiedTransactions: []
-    }
-  };
-
-  // Straight-line depreciation calculator (ignores QB tax depreciation entirely)
-  function calcStraightLine(cost, salvage, usefulLifeMonths, purchaseDate, asOfDate) {
-    if (!purchaseDate || cost <= 0) return { accumDepr: 0, bookValue: cost, monthsOwned: 0, pctUsed: 0 };
-    const purchase = new Date(purchaseDate + 'T00:00:00');
-    const asOf    = new Date(asOfDate);
-    const monthsOwned = Math.max(0,
-      (asOf.getFullYear() - purchase.getFullYear()) * 12 +
-      (asOf.getMonth() - purchase.getMonth())
-    );
-    const depreciableAmt = Math.max(0, cost - salvage);
-    const monthlyDepr    = depreciableAmt / usefulLifeMonths;
-    const accumDepr      = Math.min(monthsOwned * monthlyDepr, depreciableAmt);
-    const bookValue      = Math.max(salvage, cost - accumDepr);
-    const pctUsed        = depreciableAmt > 0 ? (accumDepr / depreciableAmt) * 100 : 0;
-    return { accumDepr, bookValue, monthsOwned, pctUsed };
-  }
-
-  try {
-    // Load asset register
-    const registerPath = path.join(__dirname, 'assets-register.json');
-    if (!fs.existsSync(registerPath)) {
-      console.error('[depreciation] Asset register file not found at:', registerPath);
-      return res.json(payload);
-    }
-    const registerData = fs.readFileSync(registerPath, 'utf8');
-    const assetRegister = JSON.parse(registerData);
-    console.log('[depreciation] Loaded asset register with', assetRegister.assets.length, 'assets');
-
-    const asOfDateStr = req.query.asOfDate || payload.asOfDate;
-
-    if (qboReady()) {
-      const token = await getQBOAccessToken();
-      if (!token) {
-        console.log('[depreciation] QB access token retrieval failed');
-      } else {
-        // QB is reachable — mark connected BEFORE any API calls so that
-        // individual query failures don't falsely report "not connected"
-        payload.connected = true;
-
-        // ── Step 1: Query QB FixedAsset entity (non-fatal) ──
-        // Only available on QB Plus/Advanced plans. Wrap separately so a
-        // plan-tier error or unsupported-entity 400 doesn't abort the whole endpoint.
-        const qbAssetMap = {};
-        try {
-          console.log('[depreciation] Querying QB FixedAsset entity...');
-          const faRes = await axios.get(
-            QBO_BASE + '/v3/company/' + qboTokens.realmId + '/query',
-            {
-              headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
-              params: { query: 'SELECT * FROM FixedAsset MAXRESULTS 100', minorversion: 75 }
-            }
-          );
-          const qbFixedAssets = (faRes.data.QueryResponse && faRes.data.QueryResponse.FixedAsset) || [];
-          console.log('[depreciation] QB returned', qbFixedAssets.length, 'FixedAsset records');
-          qbFixedAssets.forEach(fa => {
-            const key = (fa.Name || '').trim().toLowerCase();
-            qbAssetMap[key] = {
-              purchaseDate: fa.PurchaseDate || null,
-              purchaseCost: parseFloat(fa.PurchaseCost) || 0,
-              qbName:       (fa.Name || '').trim()
-            };
-            console.log(`[depreciation] QB FixedAsset: "${fa.Name}" purchased ${fa.PurchaseDate} cost $${fa.PurchaseCost}`);
-          });
-        } catch (faErr) {
-          // FixedAsset entity unavailable (lower-tier QB plan, or QB API error).
-          // Not fatal — we'll fall back to asset register purchase dates.
-          console.warn('[depreciation] FixedAsset query failed — will use register dates only:', faErr.message);
-          if (faErr.response) console.warn('[depreciation] QB status:', faErr.response.status,
-            JSON.stringify(faErr.response.data?.Fault || faErr.response.data?.error || ''));
-        }
-
-        try {
-          // ── Step 2: Balance sheet for actual account balances (cost) ──
-          const today = new Date().toISOString().split('T')[0];
-          const bsRes = await axios.get(
-            QBO_BASE + '/v3/company/' + qboTokens.realmId + '/reports/BalanceSheet',
-            {
-              headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
-              params: { end_date: today, minorversion: 75 }
-            }
-          );
-          const rawCols = (bsRes.data.Columns && bsRes.data.Columns.Column) || [];
-          const moneyIndices = [];
-          rawCols.forEach((c, i) => { if (c.ColType === 'Money') moneyIndices.push(i); });
-          const lastMoneyIdx = moneyIndices[moneyIndices.length - 1] || 1;
-
-          const assetAccounts = {};
-          function walkBS(rows) {
-            if (!Array.isArray(rows)) return;
-            rows.forEach(row => {
-              if (row.ColData && row.ColData[0]) {
-                const n = (row.ColData[0].value || '').trim();
-                const v = parseFloat((row.ColData[lastMoneyIdx]?.value || '0').replace(/,/g, '')) || 0;
-                if (n && !n.toLowerCase().includes('total') &&
-                    !n.toLowerCase().includes('acc. depr') &&
-                    !n.toLowerCase().includes('acc. amort') &&
-                    !n.toLowerCase().includes('accumulated')) {
-                  assetAccounts[n] = v;
-                }
-              }
-              if (row.Rows && row.Rows.Row) walkBS(row.Rows.Row);
-            });
-          }
-          walkBS((bsRes.data.Rows && bsRes.data.Rows.Row) || []);
-          console.log('[depreciation] Balance sheet asset accounts found:', Object.keys(assetAccounts));
-
-          // ── Step 3: Build each asset using straight-line depreciation ──
-          assetRegister.assets.forEach(asset => {
-            // Cost: prefer balance sheet account balance, fall back to QB FixedAsset PurchaseCost
-            const bsCost = assetAccounts[asset.qbAccountName] || 0;
-
-            // Find matching QB FixedAsset record (try exact name, then fuzzy)
-            const assetLower = asset.qbAccountName.toLowerCase();
-            let qbMatch = qbAssetMap[assetLower];
-            if (!qbMatch) {
-              // Fuzzy: find a QB asset whose name contains our asset name or vice versa
-              for (const [key, val] of Object.entries(qbAssetMap)) {
-                if (key.includes(assetLower) || assetLower.includes(key)) {
-                  qbMatch = val;
-                  console.log(`[depreciation] Fuzzy matched "${asset.qbAccountName}" → QB "${val.qbName}"`);
-                  break;
-                }
-              }
-            }
-
-            // Cost source: QB FixedAsset PurchaseCost is most reliable; balance sheet is a fallback
-            const cost = (qbMatch && qbMatch.purchaseCost > 0) ? qbMatch.purchaseCost : bsCost;
-
-            // Purchase date: prefer QB FixedAsset, fall back to asset register field
-            const purchaseDate = (qbMatch && qbMatch.purchaseDate)
-              ? qbMatch.purchaseDate
-              : (asset.purchaseDate || null);
-
-            if (!purchaseDate) {
-              console.warn(`[depreciation] No purchase date for "${asset.qbAccountName}" — cannot calculate depreciation`);
-            }
-
-            const { accumDepr, bookValue, monthsOwned, pctUsed } =
-              calcStraightLine(cost, asset.salvageValue, asset.usefulLifeMonths, purchaseDate, asOfDateStr);
-
-            const assetInfo = {
-              id:                    asset.id,
-              name:                  asset.qbAccountName,
-              category:              asset.category,
-              cost:                  Math.round(cost),
-              accumulatedDepreciation: Math.round(accumDepr),
-              bookValue:             Math.round(bookValue),
-              usefulLifeMonths:      asset.usefulLifeMonths,
-              salvageValue:          asset.salvageValue,
-              purchaseDate:          purchaseDate,
-              monthsOwned:           monthsOwned,
-              pctUsed:               Math.round(pctUsed),
-              dateSource:            (qbMatch && qbMatch.purchaseDate) ? 'quickbooks' : (asset.purchaseDate ? 'register' : 'unknown'),
-              status:                cost > 0 ? (pctUsed >= 100 ? 'Fully Depreciated (Tax)' : 'Active') : 'Inactive',
-              notes:                 asset.notes
-            };
-
-            payload.assets.push(assetInfo);
-
-            if (!payload.summary.byCategory[asset.category]) {
-              payload.summary.byCategory[asset.category] = {
-                totalOriginalCost: 0, totalAccumulatedDepreciation: 0,
-                totalBookValue: 0, assetCount: 0
-              };
-            }
-            const cat = payload.summary.byCategory[asset.category];
-            cat.totalOriginalCost            += assetInfo.cost;
-            cat.totalAccumulatedDepreciation += assetInfo.accumulatedDepreciation;
-            cat.totalBookValue               += assetInfo.bookValue;
-            cat.assetCount                   += 1;
-
-            payload.summary.totalOriginalCost            += assetInfo.cost;
-            payload.summary.totalAccumulatedDepreciation += assetInfo.accumulatedDepreciation;
-            payload.summary.totalBookValue               += assetInfo.bookValue;
-          });
-
-          // Round category totals
-          Object.keys(payload.summary.byCategory).forEach(cat => {
-            const c = payload.summary.byCategory[cat];
-            c.totalOriginalCost            = Math.round(c.totalOriginalCost);
-            c.totalAccumulatedDepreciation = Math.round(c.totalAccumulatedDepreciation);
-            c.totalBookValue               = Math.round(c.totalBookValue);
-          });
-          payload.summary.totalOriginalCost            = Math.round(payload.summary.totalOriginalCost);
-          payload.summary.totalAccumulatedDepreciation = Math.round(payload.summary.totalAccumulatedDepreciation);
-          payload.summary.totalBookValue               = Math.round(payload.summary.totalBookValue);
-
-        } catch (bsErr) {
-          console.error('[depreciation] Balance sheet fetch or asset calculation failed:', bsErr.message);
-          if (bsErr.response) console.error('[depreciation] BS status:', bsErr.response.status,
-            JSON.stringify(bsErr.response.data?.Fault || bsErr.response.data?.error || ''));
-          // connected remains true — QB works, this specific call had an issue
-        }
-      }
-    } else {
-      console.log('[depreciation] QB not ready (missing credentials/realm/token)');
-    }
-
-    // Only cache successful connected responses — never cache "not connected"
-    // so a transient failure doesn't block data for 6 hours
-    if (payload.connected) {
-      cacheSet('depreciation-schedule', payload);
-    }
-    res.json(payload);
-  } catch (err) {
-    console.error('[/api/depreciation-schedule]', err.message);
-    res.json(payload);
-  }
-});
-
-// ────────────────────────────────────────────────────────────────────────────
-// DEBUG: Return raw QB accounts for troubleshooting asset matching
-app.get('/api/debug/qbo-accounts', async (req, res) => {
-  if (!qboReady()) return res.json({ connected: false });
-  try {
-    const token = await getQBOAccessToken();
-    if (!token) return res.json({ connected: false });
-
-    const endDate   = new Date();
-    const startDate = new Date(endDate);
-    startDate.setMonth(startDate.getMonth() - 12);
-
-    const bsRes = await axios.get(
-      QBO_BASE + '/v3/company/' + qboTokens.realmId + '/reports/BalanceSheet',
-      {
-        headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
-        params: {
-          start_date:           startDate.toISOString().slice(0, 10),
-          end_date:             endDate.toISOString().slice(0, 10),
-          summarize_column_by:  'Month',
-          accounting_method:    'Cash',
-          minorversion:         75
-        }
-      }
-    );
-
-    const rawCols = (bsRes.data.Columns && bsRes.data.Columns.Column) || [];
-    const moneyIndices = [];
-    rawCols.forEach((c, i) => {
-      if (c.ColType === 'Money') moneyIndices.push(i);
-    });
-    const lastMoneyIdx = moneyIndices[moneyIndices.length - 1] || 1;
-
-    const allAccounts = {};
-    const assetLike = {};
-    const deprLike = {};
-
-    function walkAllAccounts(rows) {
-      if (!Array.isArray(rows)) return;
-      rows.forEach(row => {
-        if (row.ColData && row.ColData[0]) {
-          const name = (row.ColData[0].value || '').trim();
-          const value = parseFloat((row.ColData[lastMoneyIdx]?.value || '0').replace(/,/g, '')) || 0;
-          if (name && !name.includes('Total')) {
-            allAccounts[name] = value;
-            if (name.toLowerCase().includes('acc') || name.toLowerCase().includes('depr') || name.toLowerCase().includes('amort')) {
-              deprLike[name] = value;
-            } else if (value > 0 && !name.toLowerCase().includes('liability') && !name.toLowerCase().includes('equity')) {
-              assetLike[name] = value;
-            }
-          }
-        }
-        if (row.Summary && row.Summary.ColData) {
-          const name = (row.Summary.ColData[0]?.value || '').trim();
-          const value = parseFloat((row.Summary.ColData[lastMoneyIdx]?.value || '0').replace(/,/g, '')) || 0;
-          if (name && !name.includes('Total')) {
-            allAccounts[name] = value;
-          }
-        }
-        if (row.Rows && row.Rows.Row) walkAllAccounts(row.Rows.Row);
-      });
-    }
-
-    walkAllAccounts((bsRes.data.Rows && bsRes.data.Rows.Row) || []);
-
-    res.json({
-      connected: true,
-      asOf: endDate.toISOString().slice(0, 10),
-      allAccounts,
-      assetLike,
-      deprLike
-    });
-  } catch (err) {
-    console.error('[/api/debug/qbo-accounts]', err.message);
-    res.status(500).json({ error: err.message });
   }
 });
 

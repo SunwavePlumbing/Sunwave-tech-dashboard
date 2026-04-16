@@ -9,18 +9,6 @@ var trendChartInst = null;
 var cfBarChartInst = null;
 var trendActive = 'gm'; // single-select key-ratio trend line
 
-// ── Depreciation Schedule ────────────────────────────────────────
-var depreciationSchedule = null;
-
-// ── Growth Decision Cards ────────────────────────────────────────
-var growthMetrics = null;
-var growthForecastChartInst = null;
-var growthInteractiveData = {
-  newTechCount: 1,
-  newVanCount: 1,
-  toolInvestment: 8000, // Sewer Camera is the first tool in the list
-  selectedScenarios: { doNothing: true, hireTech: false, buyVan: false, buyTool: false }
-};
 
 // SVG chevron — used in all clickable bar segments. CSS rotates it when open.
 var MF_CHEV = '<svg class="mf-op-chev" viewBox="0 0 12 8" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 1.5l5 5 5-5"/></svg>';
@@ -140,7 +128,6 @@ function mfZoomDetail(id, items, segStart, segEnd, palette, segColor, segLabel) 
     var pct      = (r.val / total * 100).toFixed(1);
     // If the item has a QB account key AND children data exists, make the row drillable
     var hasDrill = !!(r.acctKey && ownersData && ownersData.children && ownersData.children[r.acctKey]);
-    var drillInd = hasDrill ? '<span class="mf-drill-ind" title="See line items">›</span>' : '';
     var clickFn  = hasDrill
       ? 'mfDrillDown(\'' + esc(r.label) + '\',\'' + r.acctKey + '\')'
       : 'mfZoomSel(\'' + zid + '\')';
@@ -149,9 +136,10 @@ function mfZoomDetail(id, items, segStart, segEnd, palette, segColor, segLabel) 
       ' onmouseenter="mfZoomHL(\'' + zid + '\',true)"' +
       ' onmouseleave="mfZoomHL(\'' + zid + '\',false)"' +
       ' onclick="' + clickFn + '">' +
-      '<span class="mf-zoom-leg-name">' + esc(r.label) + drillInd + '</span>' +
+      '<span class="mf-zoom-leg-name">' + esc(r.label) + '</span>' +
       '<span class="mf-zoom-leg-pct">' + pct + '%</span>' +
       '<span class="mf-zoom-leg-val">' + fmtDollar(r.val) + '</span>' +
+      (hasDrill ? '<span class="mf-drill-ind" title="See line items">›</span>' : '') +
     '</div>';
   }).join('');
 
@@ -246,7 +234,6 @@ async function fetchOwnersData(force) {
     '<div style="text-align:center;padding:3rem;color:#aaa;font-size:14px;grid-column:1/-1">Loading financial data\u2026</div>';
   document.getElementById('finPnlCard').style.display = 'none';
   document.getElementById('finRow2').style.display = 'none';
-  document.getElementById('finRow3').style.display = 'none';
   document.getElementById('finTrendCard').style.display = 'none';
   document.getElementById('finCashFlowCard').style.display = 'none';
   try {
@@ -260,8 +247,6 @@ async function fetchOwnersData(force) {
     ownersData = { connected: false, reason: 'error' };
   }
   renderOwners();
-  fetchGrowthMetrics();
-  fetchDepreciationSchedule();
 }
 
 function acct(name) {
@@ -371,7 +356,6 @@ function renderOwners() {
     document.getElementById('finCards').innerHTML = banner;
     document.getElementById('finPnlCard').style.display = 'none';
     document.getElementById('finRow2').style.display = 'none';
-    document.getElementById('finRow3').style.display = 'none';
     document.getElementById('finTrendCard').style.display = 'none';
     document.getElementById('finCashFlowCard').style.display = 'none';
     return;
@@ -534,9 +518,9 @@ function renderOwners() {
   }
 
   var cogsItems = [
-    { label: 'Tech Labor',  val: at(techLabor) },
-    { label: 'Parts',       val: at(parts) },
-    { label: 'Subcontractors', val: at(subs) }
+    { label: 'Tech Labor',     val: at(techLabor), acctKey: 'Total Cost of Goods Sold - Labor' },
+    { label: 'Parts',          val: at(parts),     acctKey: 'Cost of Goods Sold - Job Supplies' },
+    { label: 'Subcontractors', val: at(subs),      acctKey: 'Subcontractors' }
   ];
   var ovhdItems = [
     { label: 'Admin Payroll',     val: at(adminPay),    acctKey: 'Total Salaried & Admin Payroll Expense' },
@@ -808,7 +792,6 @@ function renderOwners() {
   var multiMonth = months.length > 1;
   document.getElementById('finPnlCard').style.display = multiMonth ? '' : 'none';
   document.getElementById('finRow2').style.display = '';
-  document.getElementById('finRow3').style.display = '';
   document.getElementById('finTrendCard').style.display = multiMonth ? '' : 'none';
   var updEl = document.getElementById('finUpdated');
   if (updEl) {
@@ -918,91 +901,6 @@ function renderOwners() {
       }
     }
   });
-
-  // ── Variance card (comparison mode driven by finCompare dropdown) ─
-  // Sync the compare select in the card to the current state
-  var varSelEl = document.getElementById('finCompareSel');
-  if (varSelEl) varSelEl.value = finCompare;
-
-  if (finCompare === 'none' || !cmpValues) {
-    document.getElementById('finVariance').innerHTML =
-      '<div style="padding:2rem;text-align:center;color:#aaa;font-size:15px">Select a comparison above to see how this month stacks up.</div>';
-    document.getElementById('varSubtitle').textContent = fmtMkShort(finMonth);
-  } else {
-    // Resolve comparison values for each P&L line
-    var cmpRev  = cmpValues(revenue);
-    var cmpCogs = cmpValues(cogs);
-    var cmpGP   = cmpValues(gp);
-    var cmpExp  = cmpValues(totalExp);
-    var cmpNOI  = cmpValues(noi);
-
-    // Column header label: "Same month last year" → "Last year (Mar 25)"
-    var cmpColHeader = finCompare === 'prior_year_month' && cmpIdx >= 0
-      ? 'Last year (' + fmtMkShort(months[cmpIdx]) + ')'
-      : finCompare === 'prior_month' && cmpIdx >= 0
-      ? 'Prior month (' + fmtMkShort(months[cmpIdx]) + ')'
-      : 'Prior period';
-
-    // Mobile NOI vs. label
-    var cmpVsLabel = finCompare === 'prior_year_month' && cmpIdx >= 0
-      ? 'vs. ' + fmtMkShort(months[cmpIdx])
-      : finCompare === 'prior_month' && cmpIdx >= 0
-      ? 'vs. ' + fmtMkShort(months[cmpIdx])
-      : 'vs. prior avg';
-
-    var varLines = [
-      { label: 'Revenue',            cur: curRev,        cmp: cmpRev,  good: 'up',   kind: 'top',    op: '' },
-      { label: 'Cost of Goods Sold', cur: curCOGS,       cmp: cmpCogs, good: 'down', kind: 'indent', op: '\u2212' },
-      { label: 'Gross Profit',       cur: curGP,         cmp: cmpGP,   good: 'up',   kind: 'sub',    op: '=' },
-      { label: 'Operating Expenses', cur: curOvhd,       cmp: cmpExp,  good: 'down', kind: 'indent', op: '\u2212' },
-      { label: 'Operating Profit',   cur: curNOI,        cmp: cmpNOI,  good: 'up',   kind: 'noi',    op: '=' }
-    ];
-    function deltaParts(l) {
-      var d = (l.cur||0) - (l.cmp||0);
-      var pct = l.cmp ? (d / Math.abs(l.cmp) * 100) : 0;
-      var isGood = l.good === 'up' ? d >= 0 : d <= 0;
-      var cls = isGood ? 'pos' : 'neg';
-      var signStr = d >= 0 ? '+' : '';
-      return { d: d, pct: pct, cls: cls, signStr: signStr };
-    }
-    // Desktop table — NOI row emphasized
-    var varBody = varLines.map(function(l) {
-      var p = deltaParts(l);
-      var rowCls = l.kind === 'sub' ? 'subtotal' : (l.kind === 'noi' ? 'noi' : '');
-      return '<tr class="' + rowCls + '">' +
-        '<td>' + esc(l.label) + '</td>' +
-        '<td>' + fmtDollar(l.cur || 0) + '</td>' +
-        '<td>' + fmtDollar(l.cmp || 0) + '</td>' +
-        '<td class="' + p.cls + '">' + p.signStr + fmtDollar(p.d) + '</td>' +
-        '<td class="' + p.cls + '">' + (l.cmp ? p.signStr + p.pct.toFixed(1) + '%' : '—') + '</td>' +
-        '</tr>';
-    }).join('');
-    // Mobile flow — P&L order with big NOI payload
-    var varFlow = varLines.map(function(l) {
-      var p = deltaParts(l);
-      if (l.kind === 'noi') {
-        return '<div class="var-flow-row noi">' +
-          '<div class="var-noi-lbl">' + (l.op ? l.op + ' ' : '') + 'Operating Profit</div>' +
-          '<div class="var-noi-val">' + fmtDollar(l.cur || 0) + '</div>' +
-          '<div class="var-noi-vs">' + cmpVsLabel + ': ' + fmtDollar(l.cmp || 0) + '</div>' +
-          '<div class="var-noi-change ' + p.cls + '">' + (p.d >= 0 ? '▲' : '▼') + ' ' + p.signStr + fmtDollar(p.d) +
-            (l.cmp ? ' (' + p.signStr + p.pct.toFixed(0) + '%)' : '') + '</div>' +
-          '</div>';
-      }
-      var rowCls = l.kind === 'indent' ? 'indent' : (l.kind === 'sub' ? 'sub' : '');
-      return '<div class="var-flow-row ' + rowCls + '">' +
-        '<span>' + (l.op ? l.op + ' ' : '') + esc(l.label) + ' <span class="var-row-amt">' + fmtDollar(l.cur||0) + '</span></span>' +
-        '<span class="var-chg ' + p.cls + '">' + (l.cmp ? p.signStr + p.pct.toFixed(0) + '%' : '—') + '</span>' +
-        '</div>';
-    }).join('');
-    document.getElementById('finVariance').innerHTML =
-      '<div class="var-flow">' + varFlow + '</div>' +
-      '<div class="var-table-wrap">' +
-      '<table class="var-table"><thead><tr>' +
-      '<th>Line item</th><th>This year (' + fmtMkShort(finMonth) + ')</th><th>' + cmpColHeader + '</th>' +
-      '<th>Change ($)</th><th>Change (%)</th></tr></thead><tbody>' + varBody + '</tbody></table></div>';
-    document.getElementById('varSubtitle').textContent = fmtMkShort(finMonth) + ' vs. ' + (cmpIdx >= 0 ? fmtMkShort(months[cmpIdx]) : 'prior avg');
-  }
 
   // ── Trend lines ──────────────────────────────────────────────
   var TREND_SERIES = [
@@ -1261,533 +1159,96 @@ function selectTrendLine(btn) {
     buildTrendLegend(_trendSeries, ci);
   }
 }
-
-// ════════════════════════════════════════════════════════════════════════════
-// ── GROWTH DECISION CARDS
-// ════════════════════════════════════════════════════════════════════════════
-
-// Fetch growth metrics from API
-async function fetchGrowthMetrics() {
-  try {
-    var response = await fetch('/api/growth-metrics');
-    var data = await response.json();
-    if (!response.ok) {
-      console.error('Growth metrics error:', data);
-      return false;
-    }
-    growthMetrics = data;
-    renderGrowthCards();
-    return true;
-  } catch (err) {
-    console.error('Failed to fetch growth metrics:', err);
-    return false;
-  }
-}
-
-// Main rendering function for all growth cards
-function renderGrowthCards() {
-  if (!growthMetrics) return;
-
-  var section = document.getElementById('growthSection');
-  if (!section) return;
-
-  // Only show if we have some data connected
-  if (!growthMetrics.connected || !growthMetrics.monthlyRevenue.length) {
-    section.style.display = 'none';
-    return;
-  }
-
-  section.style.display = '';
-
-  // Render each section
-  renderGrowthKpiRow();
-  renderGrowthReadiness();
-  renderGrowthHiring();
-  renderGrowthVan();
-  renderGrowthTool();
-  renderGrowthForecast();
-}
-
-// KPI Row — top metrics
-function renderGrowthKpiRow() {
-  var el = document.getElementById('growthKpiRow');
-  if (!el || !growthMetrics) return;
-
-  var cash = (ownersBalance && ownersBalance.cash) || 0;
-  var agc = growthMetrics.availableGrowthCash || 0;
-  var emergencyReserve = Math.round((ownersBalance && ownersBalance.currentAssets) * 0.25 || 0);
-  var monthlyOverhead = 0;
-
-  // Extract monthly overhead from ownersData
-  if (ownersData && ownersData.accounts && ownersData.accounts['Operating Expenses']) {
-    var expenseData = ownersData.accounts['Operating Expenses'];
-    var lastMonth = (ownersData.months || [])[ownersData.months.length - 1];
-    if (lastMonth && expenseData[lastMonth]) {
-      monthlyOverhead = Math.round(expenseData[lastMonth]);
-    }
-  }
-
-  var monthsPayroll = monthlyOverhead > 0 ? Math.round(cash / monthlyOverhead * 10) / 10 : 0;
-  var gcs = growthMetrics.growthCapacityScore || 0;
-
-  var kpis = [
-    { label: 'Cash on Hand', value: fmtDollar(cash), icon: '💰' },
-    { label: 'Available to Invest', value: fmtDollar(agc), icon: '📈' },
-    { label: 'Emergency Reserve', value: fmtDollar(emergencyReserve), icon: '🛡️' },
-    { label: 'Months Payroll', value: monthsPayroll + 'mo', icon: '⏱️' },
-    { label: 'Growth Capacity Score', value: gcs + '/100', icon: '⭐' }
-  ];
-
-  el.innerHTML = '<div class="growth-kpi-items">' +
-    kpis.map(function(k) {
-      return '<div class="growth-kpi-item">' +
-        '<span class="growth-kpi-icon">' + k.icon + '</span>' +
-        '<div class="growth-kpi-content">' +
-          '<div class="growth-kpi-label">' + k.label + '</div>' +
-          '<div class="growth-kpi-value">' + k.value + '</div>' +
-        '</div>' +
-      '</div>';
-    }).join('') +
-    '</div>';
-}
-
-// Growth Readiness Meter
-function renderGrowthReadiness() {
-  var el = document.getElementById('growthReadinessContent');
-  if (!el || !growthMetrics) return;
-
-  var agc = growthMetrics.availableGrowthCash || 0;
-  var score = growthMetrics.growthCapacityScore || 0;
-  var rpt = growthMetrics.revenuePerTech || 0;
-  var techCount = growthMetrics.activeTechCount || 0;
-  var jobsCompleted = growthMetrics.jobsCompleted30Days || 0;
-  var openLeads = growthMetrics.leadsOpen || 0;
-
-  var readyCls = score >= 70 ? 'growth-ready-excellent' : score >= 50 ? 'growth-ready-good' : 'growth-ready-building';
-  var readyMsg = score >= 70 ? '🚀 Ready to scale' : score >= 50 ? '📈 Good momentum' : '🌱 Building foundation';
-
-  // Insight message based on score breakdown
-  var insight = '';
-  if (score >= 70) {
-    insight = 'Strong team productivity, consistent job pipeline, and healthy cash position. Ready for aggressive growth.';
-  } else if (score >= 50) {
-    insight = 'You\'re generating solid revenue per tech with decent pipeline. Focus on filling the team to next capacity level.';
-  } else {
-    insight = 'Build your foundation: increase jobs per tech, strengthen your pipeline, and grow your team steadily.';
-  }
-
-  el.innerHTML =
-    '<div class="growth-readiness-header">' +
-      '<div class="fin-chart-title">Growth Readiness Meter</div>' +
-      '<div style="font-size:11px;color:#888">Your capacity to add capacity — hiring, equipment, vans.</div>' +
-    '</div>' +
-    '<div class="growth-readiness-body">' +
-      '<div class="growth-readiness-meter">' +
-        '<div class="growth-readiness-bar">' +
-          '<div class="growth-readiness-fill" style="width:' + score + '%"></div>' +
-          '<div class="growth-readiness-labels">' +
-            '<span>Building</span>' +
-            '<span>Scaling</span>' +
-            '<span>Firing</span>' +
-          '</div>' +
-        '</div>' +
-      '</div>' +
-      '<div class="growth-readiness-score ' + readyCls + '">' +
-        '<div class="growth-readiness-big">' + score + '/100</div>' +
-        '<div class="growth-readiness-msg">' + readyMsg + '</div>' +
-      '</div>' +
-      '<div class="growth-readiness-facts">' +
-        '<div class="growth-readiness-fact">' +
-          '<span class="growth-readiness-fact-label">Available to invest:</span>' +
-          '<span class="growth-readiness-fact-value">' + fmtDollar(agc) + '/month</span>' +
-        '</div>' +
-        '<div class="growth-readiness-fact">' +
-          '<span class="growth-readiness-fact-label">Active technicians:</span>' +
-          '<span class="growth-readiness-fact-value">' + techCount + '</span>' +
-        '</div>' +
-        '<div class="growth-readiness-fact">' +
-          '<span class="growth-readiness-fact-label">Revenue per tech:</span>' +
-          '<span class="growth-readiness-fact-value">' + fmtDollar(rpt) + '/mo</span>' +
-        '</div>' +
-        '<div class="growth-readiness-fact">' +
-          '<span class="growth-readiness-fact-label">Jobs completed (30d):</span>' +
-          '<span class="growth-readiness-fact-value">' + jobsCompleted + '</span>' +
-        '</div>' +
-        '<div class="growth-readiness-fact">' +
-          '<span class="growth-readiness-fact-label">Open leads in pipeline:</span>' +
-          '<span class="growth-readiness-fact-value">' + openLeads + '</span>' +
-        '</div>' +
-      '</div>' +
-      '<div class="growth-readiness-insight" style="font-size:12px;color:#666;background:#f9fafb;padding:10px;border-radius:4px;border-left:3px solid ' + (score >= 70 ? '#10b981' : score >= 50 ? '#0891b2' : '#f59e0b') + '">' +
-        insight +
-      '</div>' +
-    '</div>';
-}
-
-// Technician Hiring Card
-function renderGrowthHiring() {
-  var el = document.getElementById('growthHiringContent');
-  if (!el || !growthMetrics) return;
-
-  var revPerTech = growthMetrics.revenuePerTech || 35000;
-  var techSalaryRate = 0.30; // 30% of revenue
-  var avgTechSalary = revPerTech * techSalaryRate;
-  var rampMonths = 8;
-  var avgMonthlyCost = avgTechSalary / 12;
-
-  var newTechCount = growthInteractiveData.newTechCount || 1;
-  var totalNewCost = avgMonthlyCost * newTechCount;
-  var paybackMonths = revPerTech > 0 ? (totalNewCost * rampMonths / revPerTech) : 0;
-
-  el.innerHTML =
-    '<div class="growth-card-title">Technician Hiring</div>' +
-    '<div class="growth-card-sub">How many new techs can you afford?</div>' +
-    '<div class="growth-card-form">' +
-      '<label>New technicians to hire:' +
-        '<input type="number" min="1" max="5" value="' + newTechCount + '" ' +
-          'onchange="growthInteractiveData.newTechCount = parseInt(this.value); renderGrowthCards()">' +
-      '</label>' +
-    '</div>' +
-    '<div class="growth-card-metrics">' +
-      '<div class="growth-card-metric">' +
-        '<span class="growth-card-metric-label">Avg tech salary (ramp):</span>' +
-        '<span class="growth-card-metric-value">' + fmtDollar(avgMonthlyCost) + '/mo</span>' +
-      '</div>' +
-      '<div class="growth-card-metric">' +
-        '<span class="growth-card-metric-label">Cost for ' + newTechCount + ' new tech' + (newTechCount !== 1 ? 's' : '') + ':</span>' +
-        '<span class="growth-card-metric-value">' + fmtDollar(totalNewCost) + '/mo</span>' +
-      '</div>' +
-      '<div class="growth-card-metric">' +
-        '<span class="growth-card-metric-label">Payback period:</span>' +
-        '<span class="growth-card-metric-value">' + paybackMonths.toFixed(1) + ' months</span>' +
-      '</div>' +
-      '<div class="growth-card-metric">' +
-        '<span class="growth-card-metric-label">Revenue potential:</span>' +
-        '<span class="growth-card-metric-value">' + fmtDollar(revPerTech * newTechCount) + '/mo</span>' +
-      '</div>' +
-    '</div>' +
-    '<div class="growth-card-insight">' +
-      'New techs take ~8 months to ramp to full productivity. ' +
-      'You\'ll break even in ' + paybackMonths.toFixed(0) + ' months if they hit targets.' +
-    '</div>';
-}
-
-// Van Readiness Card
-function renderGrowthVan() {
-  var el = document.getElementById('growthVanContent');
-  if (!el || !growthMetrics) return;
-
-  var curTechs = growthMetrics.technicians.length || 1;
-  var curVans = growthMetrics.vans || 1;
-  var newVanCount = growthInteractiveData.newVanCount || 1;
-  var techsPerVan = 2.5;
-  var vanCost = 35000; // Rough estimate
-  var monthlyVanExpense = vanCost / 60; // 5-year depreciation + insurance + maintenance
-
-  var techsAfterHire = curTechs + (growthInteractiveData.newTechCount || 0);
-  var optimalVans = Math.ceil(techsAfterHire / techsPerVan);
-  var vanGap = Math.max(0, optimalVans - curVans);
-
-  el.innerHTML =
-    '<div class="growth-card-title">Van Readiness</div>' +
-    '<div class="growth-card-sub">Do you need another van?</div>' +
-    '<div class="growth-card-metrics">' +
-      '<div class="growth-card-metric">' +
-        '<span class="growth-card-metric-label">Current techs:</span>' +
-        '<span class="growth-card-metric-value">' + curTechs + '</span>' +
-      '</div>' +
-      '<div class="growth-card-metric">' +
-        '<span class="growth-card-metric-label">Current vans:</span>' +
-        '<span class="growth-card-metric-value">' +  curVans + '</span>' +
-      '</div>' +
-      '<div class="growth-card-metric">' +
-        '<span class="growth-card-metric-label">Techs per van:</span>' +
-        '<span class="growth-card-metric-value">' + techsPerVan.toFixed(1) + '</span>' +
-      '</div>' +
-      '<div class="growth-card-metric ' + (vanGap > 0 ? 'growth-card-metric-warn' : '') + '">' +
-        '<span class="growth-card-metric-label">Capacity gap:</span>' +
-        '<span class="growth-card-metric-value">' + vanGap + ' van' + (vanGap !== 1 ? 's' : '') + ' needed</span>' +
-      '</div>' +
-    '</div>' +
-    '<div class="growth-card-insight">' +
-      'At ' + techsAfterHire + ' techs, you need ~' + optimalVans + ' vans. ' +
-      (vanGap > 0 ? 'Consider adding ' + vanGap + ' van' + (vanGap !== 1 ? 's' : '') + ' as you scale.' : 'You\'re well-equipped for current team.') +
-    '</div>';
-}
-
-// Tool Purchase Card
-function renderGrowthTool() {
-  var el = document.getElementById('growthToolContent');
-  if (!el || !growthMetrics) return;
-
-  var tools = [
-    { name: 'Sewer Camera', cost: 8000, monthlyROI: 1200, desc: 'Early problem detection' },
-    { name: 'Jetter Machine', cost: 15000, monthlyROI: 2000, desc: 'Upsell drain cleaning' },
-    { name: 'Water Heater Tools', cost: 5000, monthlyROI: 800, desc: 'Faster installs' }
-  ];
-
-  var selectedTool = tools[0];
-  var payback = selectedTool.cost / selectedTool.monthlyROI;
-
-  el.innerHTML =
-    '<div class="growth-card-title">Tool Investment</div>' +
-    '<div class="growth-card-sub">Which tool boosts your revenue fastest?</div>' +
-    '<div class="growth-card-tools">' +
-      tools.map(function(t, idx) {
-        return '<button class="growth-card-tool-btn' + (idx === 0 ? ' active' : '') + '" onclick="selectGrowthTool(this)" data-tool="' + esc(t.name) + '" data-cost="' + t.cost + '">' +
-          '<div class="growth-card-tool-name">' + t.name + '</div>' +
-          '<div class="growth-card-tool-cost">' + fmtDollar(t.cost) + '</div>' +
-          '<div class="growth-card-tool-desc">' + t.desc + '</div>' +
-        '</button>';
-      }).join('') +
-    '</div>' +
-    '<div class="growth-card-metrics">' +
-      '<div class="growth-card-metric">' +
-        '<span class="growth-card-metric-label">Investment:</span>' +
-        '<span class="growth-card-metric-value">' + fmtDollar(selectedTool.cost) + '</span>' +
-      '</div>' +
-      '<div class="growth-card-metric">' +
-        '<span class="growth-card-metric-label">Est. monthly revenue:</span>' +
-        '<span class="growth-card-metric-value">' + fmtDollar(selectedTool.monthlyROI) + '</span>' +
-      '</div>' +
-      '<div class="growth-card-metric">' +
-        '<span class="growth-card-metric-label">Payback period:</span>' +
-        '<span class="growth-card-metric-value">' + payback.toFixed(1) + ' months</span>' +
-      '</div>' +
-    '</div>' +
-    '<div class="growth-card-insight">' +
-      'Payoff in ' + payback.toFixed(0) + ' months if you hit estimated revenue targets.' +
-    '</div>';
-}
-
-// Toggle tool selection
-function selectGrowthTool(btn) {
-  var btns = btn.parentElement.querySelectorAll('.growth-card-tool-btn');
-  btns.forEach(function(b) { b.classList.remove('active'); });
-  btn.classList.add('active');
-  growthInteractiveData.toolInvestment = parseInt(btn.dataset.cost) || 5000;
-  renderGrowthCards();
-}
-
-// 6-Month Cash Forecast
-function renderGrowthForecast() {
-  var el = document.getElementById('growthForecastControls');
-  var chartEl = document.getElementById('growthForecastChart');
-  if (!el || !chartEl || !growthMetrics) return;
-
-  // Build scenario toggles
-  var scenarios = [
-    { key: 'doNothing', label: 'Do Nothing', color: '#94a3b8' },
-    { key: 'hireTech', label: 'Hire 1 Tech', color: '#10b981' },
-    { key: 'buyVan', label: 'Buy 1 Van', color: '#3b82f6' },
-    { key: 'buyTool', label: 'Buy a Tool', color: '#f59e0b' }
-  ];
-
-  el.innerHTML = '<div class="growth-forecast-toggle-group">' +
-    scenarios.map(function(s) {
-      var isActive = growthInteractiveData.selectedScenarios[s.key];
-      return '<button class="growth-forecast-toggle ' + (isActive ? 'active' : '') + '" ' +
-        'onclick="toggleGrowthScenario(\'' + s.key + '\')" ' +
-        'style="border-color:' + s.color + ';' + (isActive ? 'background:' + s.color + ';color:#fff' : 'color:' + s.color) + '">' +
-        s.label +
-      '</button>';
-    }).join('') +
-    '</div>';
-
-  // Build forecast data for each active scenario
-  var months = ['M1', 'M2', 'M3', 'M4', 'M5', 'M6'];
-  var baseMonthly = (growthMetrics.monthlyRevenue && growthMetrics.monthlyRevenue.slice(-1)[0]) || 100000;
-
-  function buildScenarioData(scenario) {
-    var data = [];
-    for (var i = 0; i < 6; i++) {
-      var revenue = baseMonthly;
-      if (scenario === 'doNothing') {
-        revenue = baseMonthly * (1 + i * 0.02); // 2%/month organic
-      } else if (scenario === 'hireTech') {
-        // New tech takes 8 months to ramp; partial contribution
-        var ramped = Math.min(1, (i + 1) / 8);
-        revenue = baseMonthly * (1 + (i + 1) * 0.02 + ramped * 0.15); // 15% potential from new tech
-      } else if (scenario === 'buyVan') {
-        revenue = baseMonthly * (1 + (i + 1) * 0.03); // Van enables dispatching = 3% boost
-      } else if (scenario === 'buyTool') {
-        revenue = baseMonthly * (1 + (i + 1) * 0.08); // Tool upsells = 8% boost
-      }
-      data.push(Math.round(revenue));
-    }
-    return data;
-  }
-
-  var datasets = scenarios.filter(function(s) {
-    return growthInteractiveData.selectedScenarios[s.key];
-  }).map(function(s) {
-    return {
-      label: s.label,
-      data: buildScenarioData(s.key),
-      borderColor: s.color,
-      backgroundColor: 'transparent',
-      borderWidth: 3,
-      pointRadius: 3,
-      pointBackgroundColor: s.color,
-      tension: 0.3
-    };
-  });
-
-  if (growthForecastChartInst) growthForecastChartInst.destroy();
-  growthForecastChartInst = new Chart(chartEl, {
-    type: 'line',
-    data: { labels: months, datasets: datasets },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { position: 'top', labels: { usePointStyle: true, padding: 15 } },
-        tooltip: {
-          callbacks: {
-            label: function(ctx) { return ctx.dataset.label + ': ' + fmtDollar(ctx.parsed.y); }
-          }
-        }
-      },
-      scales: {
-        x: { grid: { display: false } },
-        y: { ticks: { callback: function(v) { return fmtDollar(v); } } }
-      }
-    }
-  });
-}
-
-// Toggle scenario in forecast
-function toggleGrowthScenario(key) {
-  growthInteractiveData.selectedScenarios[key] = !growthInteractiveData.selectedScenarios[key];
-  // Ensure at least one is selected
-  if (!Object.values(growthInteractiveData.selectedScenarios).some(v => v)) {
-    growthInteractiveData.selectedScenarios.doNothing = true;
-  }
-  renderGrowthCards();
-}
-
-// ════════════════════════════════════════════════════════════════════════════
-// ── DEPRECIATION SCHEDULE
-// ════════════════════════════════════════════════════════════════════════════
-
-async function fetchDepreciationSchedule() {
-  try {
-    var response = await fetch('/api/depreciation-schedule');
-    var data = await response.json();
-    if (!response.ok) {
-      console.error('Depreciation schedule error:', data);
-      return false;
-    }
-    depreciationSchedule = data;
-    renderDepreciation();
-    return true;
-  } catch (err) {
-    console.error('Failed to fetch depreciation schedule:', err);
-    return false;
-  }
-}
-
-function renderDepreciation() {
-  var section = document.getElementById('depreciationSection');
-  var content = document.getElementById('depreciationContent');
-  if (!section || !content) return;
-
-  // Always show the section — if QB isn't connected yet, show a placeholder.
-  section.style.display = '';
-
-  if (!depreciationSchedule || !depreciationSchedule.connected) {
-    content.innerHTML =
-      '<div style="padding:24px;text-align:center;color:#aaa;font-size:13px">' +
-        '<div style="font-size:22px;margin-bottom:8px">🔒</div>' +
-        '<div style="font-weight:600;color:#555;margin-bottom:4px">QuickBooks not connected</div>' +
-        '<div>Connect QuickBooks to see live asset values, purchase dates, and depreciation schedules for all vehicles and equipment.</div>' +
-      '</div>';
-    return;
-  }
-
-  var summary = depreciationSchedule.summary;
-  var assets = depreciationSchedule.assets || [];
-
-  // Summary cards
-  var summaryHtml = '<div class="depr-summary-cards">' +
-    '<div class="depr-summary-card">' +
-      '<div class="depr-summary-label">Total Original Cost</div>' +
-      '<div class="depr-summary-value">' + fmtDollar(summary.totalOriginalCost) + '</div>' +
-    '</div>' +
-    '<div class="depr-summary-card">' +
-      '<div class="depr-summary-label">Accumulated Depreciation</div>' +
-      '<div class="depr-summary-value neg">' + fmtDollar(summary.totalAccumulatedDepreciation) + '</div>' +
-    '</div>' +
-    '<div class="depr-summary-card">' +
-      '<div class="depr-summary-label">Current Book Value</div>' +
-      '<div class="depr-summary-value">' + fmtDollar(summary.totalBookValue) + '</div>' +
-    '</div>' +
-    '</div>';
-
-  // Assets by category
-  var categoryHtml = '<div class="depr-categories">';
-  Object.keys(summary.byCategory).sort().forEach(function(category) {
-    var cat = summary.byCategory[category];
-    var categoryAssets = assets.filter(function(a) { return a.category === category; });
-
-    categoryHtml += '<div class="depr-category">' +
-      '<div class="depr-category-header">' +
-        '<div class="depr-category-name">' + category + '</div>' +
-        '<div class="depr-category-count">(' + cat.assetCount + ' asset' + (cat.assetCount !== 1 ? 's' : '') + ')</div>' +
-      '</div>' +
-      '<div class="depr-category-summary">' +
-        '<span>Cost: ' + fmtDollar(cat.totalOriginalCost) + '</span>' +
-        '<span>Book Value: ' + fmtDollar(cat.totalBookValue) + '</span>' +
-      '</div>' +
-      '<div class="depr-asset-list">';
-
-    categoryAssets.forEach(function(asset) {
-      var dateLabel = asset.purchaseDate
-        ? new Date(asset.purchaseDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-        : '—';
-      var srcBadge = asset.dateSource === 'quickbooks'
-        ? '<span class="depr-src-badge">QB</span>'
-        : asset.dateSource === 'register' ? '<span class="depr-src-badge depr-src-manual">Manual</span>' : '<span class="depr-src-badge depr-src-unknown">No date</span>';
-      var yearsOwned = asset.monthsOwned ? (asset.monthsOwned / 12).toFixed(1) + ' yrs' : '—';
-      categoryHtml += '<div class="depr-asset-row">' +
-        '<div class="depr-asset-name">' + asset.name +
-          '<div class="depr-asset-meta">' + srcBadge + ' Purchased ' + dateLabel + ' &bull; ' + yearsOwned + ' owned</div>' +
-        '</div>' +
-        '<div class="depr-asset-values">' +
-          '<span class="depr-cost" title="Original cost">' + fmtDollar(asset.cost) + '</span>' +
-          '<span class="depr-book" title="Current book value (straight-line)">' + fmtDollar(asset.bookValue) + '</span>' +
-          '<span class="depr-pct" title="% of useful life elapsed">' + asset.pctUsed + '%</span>' +
-        '</div>' +
-      '</div>';
-    });
-
-    categoryHtml += '</div></div>';
-  });
-  categoryHtml += '</div>';
-
-  content.innerHTML = summaryHtml + categoryHtml;
-}
-
 // ── Overhead drill-down modal ─────────────────────────────────
 // Opens the expense detail sheet for a given overhead category.
-function mfDrillDown(label, acctKey) {
+async function mfDrillDown(label, acctKey) {
   if (!ownersData) return;
-  var childNames = (ownersData.children && ownersData.children[acctKey]) || [];
-  var month      = finMonth || (ownersData.months || [])[( ownersData.months || []).length - 1];
-  var color      = '#f97316'; // orange — overhead theme
+  var month = finMonth || (ownersData.months || [])[(ownersData.months || []).length - 1];
+  var color = '#f97316'; // orange — overhead theme
 
-  // Build sorted list of sub-accounts with non-zero values
+  // Show modal immediately with a loading spinner
+  showExpModalLoading(label, fmtMk(month), color);
+
+  try {
+    var resp = await fetch('/api/account-detail?acct=' + encodeURIComponent(acctKey) + '&month=' + encodeURIComponent(month));
+    var data = await resp.json();
+
+    if (data.transactions && data.transactions.length) {
+      showExpModalTxns(label, fmtMk(month), data.transactions, color);
+      return;
+    }
+  } catch (err) {
+    console.error('[mfDrillDown] fetch failed:', err);
+  }
+
+  // Fallback: show sub-account totals from the P&L (better than nothing)
+  var childNames = (ownersData.children && ownersData.children[acctKey]) || [];
   var items = childNames.map(function(name) {
     var val = (ownersData.accounts[name] && ownersData.accounts[name][month]) || 0;
     return { name: name, val: val };
   }).filter(function(i) { return i.val > 0; })
     .sort(function(a, b) { return b.val - a.val; });
-
   var total = (ownersData.accounts[acctKey] && ownersData.accounts[acctKey][month]) || 0;
-
   showExpModal(label, fmtMk(month), items, total, color);
 }
 
+// Show the expense sheet in "loading" state while the transaction fetch runs
+function showExpModalLoading(title, monthLabel, color) {
+  var backdrop = document.getElementById('expBackdrop');
+  var titleEl  = document.getElementById('expSheetTitle');
+  var subEl    = document.getElementById('expSheetSub');
+  var bodyEl   = document.getElementById('expSheetBody');
+  var footEl   = document.getElementById('expSheetFooter');
+  if (!backdrop) return;
+
+  titleEl.textContent = title;
+  subEl.textContent   = monthLabel;
+  titleEl.style.color = color || '#333';
+  bodyEl.innerHTML    = '<div class="exp-loading"><div class="spinner" style="margin:0 auto"></div><div style="margin-top:10px;color:#aaa;font-size:13px">Loading line items\u2026</div></div>';
+  footEl.innerHTML    = '';
+
+  backdrop.style.display = 'flex';
+  requestAnimationFrame(function() { backdrop.classList.add('exp-open'); });
+}
+
+// Show individual transactions in the already-open expense sheet
+function showExpModalTxns(title, monthLabel, txns, color) {
+  var bodyEl = document.getElementById('expSheetBody');
+  var footEl = document.getElementById('expSheetFooter');
+  if (!bodyEl) return;
+
+  var total = txns.reduce(function(s, t) { return s + Math.abs(t.amount); }, 0);
+
+  var rowsHtml = txns.map(function(t) {
+    var dateStr = '';
+    if (t.date) {
+      var d = new Date(t.date + 'T12:00:00');
+      dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+    var desc = t.name || t.memo || t.type || '\u2014';
+    var memo = t.memo && t.name ? t.memo : '';
+    var barPct = total > 0 ? (Math.abs(t.amount) / total * 100) : 0;
+    return '<div class="exp-row">' +
+      '<div class="exp-row-top">' +
+        '<span class="exp-row-name">' +
+          (dateStr ? '<span class="exp-txn-date">' + esc(dateStr) + '</span>' : '') +
+          '<span class="exp-txn-desc">' + esc(desc) + '</span>' +
+          (memo ? '<span class="exp-txn-memo">' + esc(memo) + '</span>' : '') +
+        '</span>' +
+        '<span class="exp-row-val">' + fmtDollar(Math.abs(t.amount)) + '</span>' +
+      '</div>' +
+      '<div class="exp-bar-track">' +
+        '<div class="exp-bar-fill" style="width:' + barPct.toFixed(1) + '%;background:' + (color || '#f97316') + '"></div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  bodyEl.innerHTML = rowsHtml || '<div class="exp-empty">No transactions found for this month.</div>';
+  footEl.innerHTML = '<span class="exp-foot-label">' + txns.length + ' transaction' + (txns.length !== 1 ? 's' : '') + '</span>' +
+                     '<span class="exp-foot-val">' + fmtDollar(total) + '</span>';
+}
+
+// Fallback: show sub-account totals (when transaction detail isn't available)
 function showExpModal(title, monthLabel, items, total, color) {
   var backdrop = document.getElementById('expBackdrop');
   var titleEl  = document.getElementById('expSheetTitle');
