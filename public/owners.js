@@ -5,6 +5,7 @@ var finMonth       = null;               // YYYY-MM currently selected
 var finGranularity = 'month';            // 'month' | 'quarter'
 var finQuarter     = null;               // 'YYYY-Q#' e.g. '2026-Q1'
 var finCompare     = 'prior_year_month'; // prior_month | prior_year_month | prior_year_avg | none
+var pnlCompareMonth = null;              // month key shown in the comparison column of the Full Picture grid
 var ownersBalance = null;
 var donutChartInst = null;
 var trendChartInst = null;
@@ -404,6 +405,12 @@ function setFinGranularity(g) {
 function pickFinQuarter(qk) {
   finQuarter = qk;
   closMonthPicker();
+  if (ownersData && ownersData.connected) renderOwners();
+}
+
+// Sets the comparison month in the Full Picture grid and re-renders
+function setPnlCompare(mk) {
+  pnlCompareMonth = mk;
   if (ownersData && ownersData.connected) renderOwners();
 }
 
@@ -988,54 +995,124 @@ function renderOwners() {
       - (vehicleExp[i]||0) - (utilExp[i]||0) - (travelExp[i]||0) - (mealsExp[i]||0)
       - (genExp[i]||0) - (taxesExp[i]||0) - (merchExp[i]||0) - (benefitsExp[i]||0);
   });
+  // good:'up' = more of this is better (revenue/profit); 'down' = less is better (expenses)
   var pnlRows = [
-    { label: 'Revenue', arr: revenue, cls: 'subtotal' },
-    { label: 'Cost of Goods Sold', arr: cogs, cls: '' },
-    { label: 'Tech Labor', arr: techLabor, cls: 'indent' },
-    { label: 'Parts', arr: parts, cls: 'indent' },
-    { label: 'Subcontractors', arr: subs, cls: 'indent' },
-    { label: 'Gross Profit', arr: gp, cls: 'subtotal' },
-    { label: 'Operating Expenses', arr: totalExp, cls: '' },
-    { label: 'Admin Payroll', arr: adminPay, cls: 'indent' },
-    { label: 'Marketing', arr: mktTotal, cls: 'indent' },
-    { label: 'Rent', arr: rentExp, cls: 'indent' },
-    { label: 'Vehicle', arr: vehicleExp, cls: 'indent' },
-    { label: 'Office', arr: officeExp, cls: 'indent' },
-    { label: 'Utilities', arr: utilExp, cls: 'indent' },
-    { label: 'Merchant Fees', arr: merchExp, cls: 'indent' },
-    { label: 'Employee Benefits', arr: benefitsExp, cls: 'indent' },
-    { label: 'Taxes', arr: taxesExp, cls: 'indent' },
-    { label: 'Travel', arr: travelExp, cls: 'indent' },
-    { label: 'Meals', arr: mealsExp, cls: 'indent' },
-    { label: 'Other', arr: otherOpex, cls: 'indent' },
-    { label: 'Net Operating Income', arr: noi, cls: 'total' }
+    { label: 'Revenue',              arr: revenue,    cls: 'subtotal', good: 'up'   },
+    { label: 'Cost of Goods Sold',   arr: cogs,       cls: '',         good: 'down' },
+    { label: 'Tech Labor',           arr: techLabor,  cls: 'indent',   good: 'down' },
+    { label: 'Parts',                arr: parts,      cls: 'indent',   good: 'down' },
+    { label: 'Subcontractors',       arr: subs,       cls: 'indent',   good: 'down' },
+    { label: 'Gross Profit',         arr: gp,         cls: 'subtotal', good: 'up'   },
+    { label: 'Operating Expenses',   arr: totalExp,   cls: '',         good: 'down' },
+    { label: 'Admin Payroll',        arr: adminPay,   cls: 'indent',   good: 'down' },
+    { label: 'Marketing',            arr: mktTotal,   cls: 'indent',   good: 'down' },
+    { label: 'Rent',                 arr: rentExp,    cls: 'indent',   good: 'down' },
+    { label: 'Vehicle',              arr: vehicleExp, cls: 'indent',   good: 'down' },
+    { label: 'Office',               arr: officeExp,  cls: 'indent',   good: 'down' },
+    { label: 'Utilities',            arr: utilExp,    cls: 'indent',   good: 'down' },
+    { label: 'Merchant Fees',        arr: merchExp,   cls: 'indent',   good: 'down' },
+    { label: 'Employee Benefits',    arr: benefitsExp,cls: 'indent',   good: 'down' },
+    { label: 'Taxes',                arr: taxesExp,   cls: 'indent',   good: 'down' },
+    { label: 'Travel',               arr: travelExp,  cls: 'indent',   good: 'down' },
+    { label: 'Meals',                arr: mealsExp,   cls: 'indent',   good: 'down' },
+    { label: 'Other',                arr: otherOpex,  cls: 'indent',   good: 'down' },
+    { label: 'Net Operating Income', arr: noi,        cls: 'total',    good: 'up'   }
   ];
-  var revGridTotal = 0;
-  gridIndices.forEach(function(idx) { revGridTotal += revenue[idx] || 0; });
-  var pnlHead = '<tr><th>Line item</th>' +
-    gridMonths.map(function(m) { return '<th>' + fmtMkShort(m) + '</th>'; }).join('') +
-    '<th>Total</th><th>% Rev</th></tr>';
-  var pnlBody = pnlRows.map(function(row) {
-    var cells = gridIndices.map(function(idx) {
-      var v = row.arr[idx] || 0;
-      // In quarter mode all columns are "selected"; in month mode only curIdx
-      var isHi = (finGranularity === 'quarter' || idx === curIdx) ? ' highlight' : '';
-      var neg  = v < 0 ? ' neg' : '';
-      return '<td class="' + isHi + neg + '">' + (finMode==='pct' && revenue[idx]>0 ? (v/revenue[idx]*100).toFixed(1)+'%' : fmtDollar(v)) + '</td>';
+
+  // Show/hide the $/% toggle — only relevant in quarter mode
+  var toggleEl = document.querySelector('.fin-pnl-head .fin-toggle');
+  if (toggleEl) toggleEl.style.display = finGranularity === 'quarter' ? '' : 'none';
+
+  if (finGranularity === 'quarter') {
+    // ── Quarter mode: multi-column grid (one col per month + Total + % Rev) ──
+    var revGridTotal = 0;
+    gridIndices.forEach(function(idx) { revGridTotal += revenue[idx] || 0; });
+    var pnlHead = '<tr><th>Line item</th>' +
+      gridMonths.map(function(m) { return '<th>' + fmtMkShort(m) + '</th>'; }).join('') +
+      '<th>Total</th><th>% Rev</th></tr>';
+    var pnlBody = pnlRows.map(function(row) {
+      var cells = gridIndices.map(function(idx) {
+        var v = row.arr[idx] || 0;
+        var neg = v < 0 ? ' neg' : '';
+        return '<td class="highlight' + neg + '">' + (finMode==='pct' && revenue[idx]>0 ? (v/revenue[idx]*100).toFixed(1)+'%' : fmtDollar(v)) + '</td>';
+      }).join('');
+      var rowTotal = 0;
+      gridIndices.forEach(function(idx) { rowTotal += row.arr[idx] || 0; });
+      var pctRev = revGridTotal > 0 ? (rowTotal / revGridTotal * 100).toFixed(1) + '%' : '—';
+      return '<tr class="' + row.cls + '"><td>' + esc(row.label) + '</td>' + cells +
+        '<td>' + fmtDollar(rowTotal) + '</td>' +
+        '<td>' + pctRev + '</td></tr>';
     }).join('');
-    var rowTotal = 0;
-    gridIndices.forEach(function(idx) { rowTotal += row.arr[idx] || 0; });
-    var pctRev = revGridTotal > 0 ? (rowTotal / revGridTotal * 100).toFixed(1) + '%' : '—';
-    return '<tr class="' + row.cls + '"><td>' + esc(row.label) + '</td>' + cells +
-      '<td>' + fmtDollar(rowTotal) + '</td>' +
-      '<td>' + pctRev + '</td></tr>';
-  }).join('');
-  document.getElementById('finPnlGrid').innerHTML =
-    '<table class="pnl-grid"><thead>' + pnlHead + '</thead><tbody>' + pnlBody + '</tbody></table>';
-  document.getElementById('finPnlSubtitle').textContent =
-    finGranularity === 'quarter'
-      ? fmtQk(finQuarter)
-      : (gridMonths.length + ' months ending ' + fmtMkShort(finMonth));
+    document.getElementById('finPnlGrid').innerHTML =
+      '<table class="pnl-grid"><thead>' + pnlHead + '</thead><tbody>' + pnlBody + '</tbody></table>';
+    document.getElementById('finPnlSubtitle').textContent = fmtQk(finQuarter);
+
+  } else {
+    // ── Month mode: focused 2-column comparison layout ───────────
+    var priIdx2 = curIdx;
+    var priRev  = revenue[priIdx2] || 0;
+
+    // Default compare to prior month when not set / same as selected / not in data
+    if (!pnlCompareMonth || pnlCompareMonth === finMonth || months.indexOf(pnlCompareMonth) < 0) {
+      var defPi = priIdx2 - 1;
+      pnlCompareMonth = defPi >= 0 ? months[defPi] : null;
+    }
+    var cmpIdx2 = pnlCompareMonth ? months.indexOf(pnlCompareMonth) : -1;
+    var cmpRev  = cmpIdx2 >= 0 ? (revenue[cmpIdx2] || 0) : 0;
+
+    // Data cell: stacked $ amount + % of revenue
+    function pCell2(arr, idx, rev) {
+      if (idx < 0) return '<td class="pnl2-cell pnl2-empty">—</td>';
+      var v   = arr[idx] || 0;
+      var pct = rev > 0 ? (v / rev * 100).toFixed(1) + '%' : '—';
+      var cls = v < 0 ? ' pnl2-neg' : '';
+      return '<td class="pnl2-cell' + cls + '"><div class="pnl2-dollar">' + fmtDollar(v) + '</div>' +
+             '<div class="pnl2-pct-sub">' + pct + '</div></td>';
+    }
+
+    // Delta cell: change from compare → primary, direction-aware green/red
+    function dCell2(arr, pi, ci, good) {
+      if (ci < 0) return '<td class="pnl2-delta">—</td>';
+      var pv   = arr[pi] || 0;
+      var cv   = arr[ci] || 0;
+      var diff = pv - cv;
+      if (diff === 0) return '<td class="pnl2-delta">—</td>';
+      var sign   = diff > 0 ? '+' : '';
+      var isGood = good === 'up' ? diff > 0 : diff < 0;
+      var cls    = isGood ? ' pnl2-good' : ' pnl2-bad';
+      return '<td class="pnl2-delta' + cls + '">' + sign + fmtDollar(diff) + '</td>';
+    }
+
+    // Comparison chip picker — all months except current, most-recent first
+    var chipHtml = months.slice().reverse().filter(function(m) { return m !== finMonth; }).map(function(m) {
+      var act = m === pnlCompareMonth ? ' act' : '';
+      return '<button class="pnl-cmp-chip' + act + '" onclick="setPnlCompare(\'' + m + '\')">' + fmtMkShort(m) + '</button>';
+    }).join('');
+    var pickerHtml = '<div class="pnl-cmp-row"><span class="pnl-cmp-lbl">Compare to</span>' +
+      '<div class="pnl-cmp-chips">' + chipHtml + '</div></div>';
+
+    var priHead = fmtMkShort(finMonth);
+    var cmpHead = pnlCompareMonth ? fmtMkShort(pnlCompareMonth) : '—';
+    var pnlHead = '<tr>' +
+      '<th class="pnl2-th-lbl">Line Item</th>' +
+      '<th class="pnl2-th-pri">' + priHead + '</th>' +
+      '<th class="pnl2-th-cmp">' + cmpHead + '<span class="pnl2-cmp-tag">compare</span></th>' +
+      '<th class="pnl2-th-delta">&Delta; Change</th>' +
+      '</tr>';
+    var pnlBody = pnlRows.map(function(row) {
+      return '<tr class="' + row.cls + '">' +
+        '<td class="pnl2-td-lbl">' + esc(row.label) + '</td>' +
+        pCell2(row.arr, priIdx2, priRev) +
+        pCell2(row.arr, cmpIdx2, cmpRev) +
+        dCell2(row.arr, priIdx2, cmpIdx2, row.good) +
+        '</tr>';
+    }).join('');
+
+    document.getElementById('finPnlGrid').innerHTML =
+      pickerHtml +
+      '<table class="pnl-grid pnl-grid--2col"><thead>' + pnlHead + '</thead><tbody>' + pnlBody + '</tbody></table>';
+    document.getElementById('finPnlSubtitle').textContent = priHead;
+  }
 
   // ── Cost breakdown donut (selected month) ────────────────────
   var dTechLabor = at(techLabor);

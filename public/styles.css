@@ -558,6 +558,85 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .pnl-grid tr.subtotal td:first-child { background:#fafafa; }
 .pnl-grid tr.total td:first-child { background:#1a2d3a;color:#fff; }
 
+/* ── Full Picture 2-column comparison layout (month mode) ────── */
+.pnl-cmp-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 2px 14px; flex-wrap: nowrap;
+}
+.pnl-cmp-lbl {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.7px; color: #94a3b8; white-space: nowrap; flex-shrink: 0;
+}
+.pnl-cmp-chips {
+  display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px;
+  scrollbar-width: none; -webkit-overflow-scrolling: touch;
+}
+.pnl-cmp-chips::-webkit-scrollbar { display: none; }
+.pnl-cmp-chip {
+  flex-shrink: 0; padding: 5px 12px; border-radius: 20px;
+  border: 1.5px solid #e2e8f0; background: white;
+  font-size: 12px; font-weight: 600; color: #64748b;
+  cursor: pointer; transition: all 0.14s; white-space: nowrap;
+}
+.pnl-cmp-chip:hover { border-color: #94a3b8; color: #1a2d3a; }
+.pnl-cmp-chip.act   { background: #1a2d3a; color: white; border-color: #1a2d3a; }
+
+.pnl-grid--2col { width: 100%; border-collapse: collapse; }
+.pnl-grid--2col th {
+  padding: 8px 14px; font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8;
+  text-align: right; border-bottom: 2px solid #f0f0f0; white-space: nowrap;
+}
+.pnl-grid--2col td {
+  padding: 9px 14px; border-bottom: 1px solid #f5f5f5;
+  text-align: right; vertical-align: top;
+}
+.pnl2-th-lbl, .pnl2-td-lbl { text-align: left !important; }
+.pnl2-th-lbl { position: sticky; left: 0; background: #fff; z-index: 2; }
+.pnl2-td-lbl {
+  position: sticky; left: 0; background: #fff; z-index: 2;
+  font-size: 13px; font-weight: 600; color: #1a2d3a;
+}
+.pnl-grid--2col tr.indent .pnl2-td-lbl {
+  padding-left: 24px; color: #888; font-weight: 400;
+}
+.pnl-grid--2col tr.subtotal td     { background: #fafafa; }
+.pnl-grid--2col tr.subtotal .pnl2-td-lbl { background: #fafafa; font-weight: 700; }
+.pnl-grid--2col tr.total    td     { background: #1a2d3a; color: white; font-weight: 700; }
+.pnl-grid--2col tr.total    .pnl2-td-lbl { background: #1a2d3a; color: white; }
+.pnl-grid--2col tr:hover:not(.total) td { background: #fafafa; }
+.pnl-grid--2col tr:hover:not(.total) .pnl2-td-lbl { background: #fafafa; }
+.pnl-grid--2col tr.subtotal:hover .pnl2-td-lbl { background: #f0f0f0; }
+
+.pnl2-th-pri { color: #1a2d3a !important; }
+.pnl2-th-cmp { color: #3b82f6 !important; }
+.pnl2-cmp-tag {
+  display: inline-block; margin-left: 5px; font-size: 9px; padding: 1px 5px;
+  background: #eff6ff; color: #3b82f6; border-radius: 3px;
+  vertical-align: middle; text-transform: uppercase; letter-spacing: 0.4px;
+}
+.pnl2-th-delta { color: #64748b !important; }
+
+/* Stacked $ + % inside each data cell */
+.pnl2-cell { min-width: 100px; }
+.pnl2-dollar { font-size: 14px; font-weight: 600; color: #1a2d3a; }
+.pnl2-pct-sub { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+.pnl2-neg .pnl2-dollar { color: #E5484D; }
+.pnl2-empty { color: #bbb; }
+
+/* Total row overrides */
+.pnl-grid--2col tr.total .pnl2-dollar  { color: white; }
+.pnl-grid--2col tr.total .pnl2-pct-sub { color: rgba(255,255,255,0.55); }
+.pnl-grid--2col tr.total .pnl2-delta   { color: white; }
+
+/* Subtotal row overrides */
+.pnl-grid--2col tr.subtotal .pnl2-dollar { color: #1a2d3a; font-weight: 700; }
+
+/* Delta column */
+.pnl2-delta { font-size: 13px; font-weight: 700; min-width: 80px; color: #94a3b8; }
+.pnl2-good  { color: #12A071; }
+.pnl2-bad   { color: #E5484D; }
+
 .fin-cards { display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:1.4rem; }
 @media(max-width:900px) { .fin-cards { grid-template-columns:repeat(2,1fr); } }
 @media(max-width:500px) { .fin-cards { grid-template-columns:1fr; } }
