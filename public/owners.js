@@ -10,7 +10,7 @@ var ownersBalance = null;
 var donutChartInst = null;
 var trendChartInst = null;
 var cfBarChartInst = null;
-var trendActive = 'gm'; // single-select key-ratio trend line
+var trendActive = 'om'; // single-select key-ratio trend line
 
 
 // SVG chevron — used in all clickable bar segments. CSS rotates it when open.
@@ -1262,24 +1262,13 @@ function renderOwners() {
     var cfBal     = bsHistory.slice(bsStart, bsEnd + 1);
     var cfLabels  = cfMonths.map(function(mk) { return fmtMkShort(mk); });
 
-    // Colour each bar: highlighted blue for the most recent month, teal for history
+    // Clean flat colours: light blue for history, vivid blue for current month
     var cfColors = cfBal.map(function(v, i) {
-      return (bsStart + i) === bsEnd ? '#1d4ed8' : '#3b82f6';
+      return (bsStart + i) === bsEnd ? '#2563eb' : '#93c5fd';
     });
 
     if (cfBarChartInst) cfBarChartInst.destroy();
     var cfCtx = document.getElementById('cfBarChart').getContext('2d');
-
-    // Gradient fills — soft blue for history, deep blue for most-recent bar
-    function makeGrad(ctx, topHex, botHex) {
-      var g = ctx.createLinearGradient(0, 0, 0, 240);
-      g.addColorStop(0, topHex); g.addColorStop(1, botHex); return g;
-    }
-    var gradNorm = makeGrad(cfCtx, '#3b82f6', '#93c5fd');
-    var gradLast = makeGrad(cfCtx, '#1e40af', '#3b82f6');
-    var cfColors = cfBal.map(function(v, i) {
-      return (bsStart + i) === bsEnd ? gradLast : gradNorm;
-    });
 
     // Inline plugin: draw the dollar value above each bar
     var cfLabelPlugin = {
@@ -1296,7 +1285,7 @@ function renderOwners() {
           if (!v) return;
           var isLast = (bsStart + i) === bsEnd;
           ctx2.font = (isLast ? '700' : '600') + ' 11px "Inter",system-ui,sans-serif';
-          ctx2.fillStyle = isLast ? '#1e40af' : '#64748b';
+          ctx2.fillStyle = isLast ? '#1e3a8a' : '#64748b';
           ctx2.fillText(fmtDollar(v), bar.x, bar.y - 5);
         });
         ctx2.restore();
@@ -1318,13 +1307,7 @@ function renderOwners() {
       plugins: [cfLabelPlugin],
       options: {
         responsive: true, maintainAspectRatio: false,
-        animation: {
-          duration: 700,
-          easing: 'easeOutQuart',
-          delay: function(ctx) {
-            return ctx.type === 'data' ? ctx.dataIndex * 35 : 0;
-          }
-        },
+        animation: false, // animated by IntersectionObserver below
         layout: { padding: { top: 26, left: 6, right: 6, bottom: 0 } },
         plugins: {
           legend: { display: false },
@@ -1365,6 +1348,29 @@ function renderOwners() {
         }
       }
     });
+
+    // Scroll-triggered grow animation — fires once when the card enters the viewport
+    (function() {
+      var card = document.getElementById('finCashFlowCard');
+      function runAnim() {
+        if (!cfBarChartInst) return;
+        cfBarChartInst.options.animation = {
+          duration: 900,
+          easing: 'easeOutBack',
+          delay: function(ctx) { return ctx.type === 'data' ? ctx.dataIndex * 55 : 0; }
+        };
+        cfBarChartInst.update('active');
+        cfBarChartInst.options.animation = false; // don't re-animate on hover/tooltip
+      }
+      if (window.IntersectionObserver) {
+        var obs = new IntersectionObserver(function(entries) {
+          if (entries[0].isIntersecting) { runAnim(); obs.disconnect(); }
+        }, { threshold: 0.25 });
+        obs.observe(card);
+      } else {
+        runAnim(); // fallback for old browsers
+      }
+    })();
 
     // Subtitle: date range instead of just a count
     document.getElementById('cfSubtitle').textContent =

@@ -1061,12 +1061,14 @@ app.get('/api/qbo-balance', async (req, res) => {
       if (c.ColType === 'Money') { moneyIdx.push(i); colTitles.push(c.ColTitle || ''); }
     });
 
-    // Convert "Jan 2026" → "2026-01"
+    // Convert "Jan 2026" or "Apr 1, 2026" → "2026-01"
     const MON = { Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',
                   Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12' };
     function toMonthKey(title) {
-      const p = (title || '').split(' ');
-      return (p.length === 2 && MON[p[0]]) ? p[1] + '-' + MON[p[0]] : title;
+      const p = (title || '').trim().split(/\s+/);
+      if (p.length === 2 && MON[p[0]]) return p[1] + '-' + MON[p[0]];           // "Jan 2026"
+      if (p.length >= 3 && MON[p[0]]) return p[p.length-1] + '-' + MON[p[0]];  // "Apr 1, 2026"
+      return title;
     }
 
     function parseVals(colData) {
