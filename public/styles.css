@@ -957,39 +957,38 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .mf-noi-detail { margin-top: 10px; }
 .mf-noi-explain {
   padding: 16px 18px;
-  background: #2563eb;
+  background: #eff6ff;
   border-radius: 10px;
+  border: 1px solid #bfdbfe;
 }
 .mf-noi-explain-head {
-  font-size: 13px; font-weight: 700; color: #fff;
+  font-size: 13px; font-weight: 700; color: #1e3a5f;
   margin-bottom: 7px;
 }
 .mf-noi-explain-body {
-  font-size: 13px; color: rgba(255,255,255,0.88); line-height: 1.55;
+  font-size: 13px; color: #444; line-height: 1.55;
   margin-bottom: 12px;
 }
 .mf-noi-explain-row {
   display: flex; gap: 12px; margin-bottom: 12px;
 }
 .mf-noi-explain-stat {
-  flex: 1; background: rgba(255,255,255,0.15); border-radius: 8px;
+  flex: 1; background: white; border-radius: 8px;
   padding: 10px 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
 }
 .mf-noi-explain-stat-label {
   font-size: 10px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.8px; color: rgba(255,255,255,0.65); margin-bottom: 4px;
+  letter-spacing: 0.8px; color: #94a3b8; margin-bottom: 4px;
 }
 .mf-noi-explain-stat-val {
-  font-size: 22px; font-weight: 700; color: #fff;
+  font-size: 22px; font-weight: 700; color: #1a2d3a;
 }
 .mf-noi-explain-tip {
-  font-size: 12px; color: rgba(255,255,255,0.78); line-height: 1.5;
-  border-top: 1px solid rgba(255,255,255,0.2); padding-top: 10px;
+  font-size: 12px; color: #666; line-height: 1.5;
+  border-top: 1px solid #bfdbfe; padding-top: 10px;
 }
-.mf-noi-tip-head { font-weight: 700; color: #fff; }
-/* color-status overrides inside the blue panel */
-.mf-noi-explain .c-green { color: #6ee7b7; }
-.mf-noi-explain .c-red   { color: #fca5a5; }
+.mf-noi-tip-head { font-weight: 700; color: #1e3a5f; }
 
 /* Clickable bar segment — red/orange/green portions the user taps to expand */
 .mf-seg-click {

@@ -696,8 +696,8 @@ function renderOwners() {
         var gap      = Math.abs(noiPct - 15);
         var gapCls   = isAbove ? 'above' : (gap <= 3 ? 'near' : 'below');
         var gapTxt   = isAbove
-          ? '\u25b2 ' + gap.toFixed(1) + ' pts above the 15% profit goal'
-          : gap.toFixed(1) + ' pts below the 15% profit goal';
+          ? '\u25b2 ' + gap.toFixed(1) + '% above the 15% profit goal'
+          : gap.toFixed(1) + '% below the 15% profit goal';
 
         var noiDetailHtml =
           '<div id="mfNoiDetail" class="mf-zoom-detail mf-noi-detail" hidden>' +
