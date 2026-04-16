@@ -1155,6 +1155,282 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   margin-left: 2px;
 }
 
+/* ── Debt-to-Asset card ──────────────────────────────────────── */
+.dta-header {
+  display: flex; align-items: flex-start;
+  justify-content: space-between; gap: 16px;
+  margin-bottom: 18px;
+}
+.dta-big {
+  font-size: 36px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1; flex-shrink: 0;
+}
+
+/* Gauge bar */
+.dta-gauge-wrap { margin-bottom: 8px; }
+.dta-gauge-track {
+  position: relative;
+  height: 10px; border-radius: 5px;
+  background: #f0f0f0;
+  overflow: visible;
+  margin-bottom: 4px;
+}
+.dta-gauge-fill {
+  position: absolute; left: 0; top: 0;
+  height: 100%; border-radius: 5px;
+  transition: width 0.6s ease;
+}
+.dta-gauge-mark {
+  position: absolute; top: -4px;
+  width: 2px; height: 18px;
+  background: rgba(0,0,0,0.18);
+  transform: translateX(-50%);
+}
+.dta-gauge-mark-lbl {
+  position: absolute; top: 20px; left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px; color: #aaa; white-space: nowrap;
+}
+.dta-gauge-zones {
+  display: flex; justify-content: space-between;
+  font-size: 10px; margin-top: 18px;
+  padding: 0 2px;
+}
+
+/* Status pill */
+.dta-status {
+  display: inline-block;
+  font-size: 12px; font-weight: 700;
+  padding: 4px 10px; border-radius: 20px;
+  margin-bottom: 16px;
+}
+.dta-green  { background: #dcfce7; color: #15803d; }
+.dta-yellow { background: #fef9c3; color: #854d0e; }
+.dta-red    { background: #fee2e2; color: #b91c1c; }
+
+/* Breakdown rows */
+.dta-row-group { border-top: 1px solid #f0f0f0; }
+.dta-row {
+  display: flex; align-items: center;
+  justify-content: space-between; gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #f9f9f9;
+}
+.dta-row--equity { border-bottom: none; }
+.dta-row-label {
+  display: flex; flex-direction: column; gap: 2px;
+  font-size: 13px; font-weight: 600; color: #1a2d3a;
+}
+.dta-row-sub {
+  font-size: 11px; font-weight: 400; color: #aaa;
+}
+.dta-row-op {
+  font-size: 15px; font-weight: 700; color: #bbb;
+  margin-right: 4px;
+}
+.dta-row-val {
+  font-size: 15px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap; color: #1a2d3a;
+}
+
+/* ── Balance Sheet cards (new design) ───────────────────────── */
+.bs-card {
+  padding: 20px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+.bs-card:last-child { border-bottom: none; padding-bottom: 0; }
+.bs-card--worth { background: #f9fafb; margin: 0 -18px; padding: 20px 18px; border-radius: 0 0 10px 10px; border-bottom: none; }
+
+.bs-card-hd {
+  display: flex; align-items: flex-start;
+  justify-content: space-between; gap: 16px;
+  margin-bottom: 16px;
+}
+.bs-card-title {
+  font-size: 14px; font-weight: 700; color: #1a2d3a; margin-bottom: 3px;
+}
+.bs-card-sub { font-size: 12px; color: #888; line-height: 1.45; max-width: 480px; }
+
+/* Hero number */
+.bs-hero {
+  font-size: 28px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1; flex-shrink: 0; text-align: right;
+}
+.bs-hero-unit { font-size: 16px; font-weight: 600; margin-left: 2px; }
+.bs-green { color: #12A071; }
+.bs-yellow { color: #C9820A; }
+.bs-red    { color: #E5484D; }
+
+/* Runway bar */
+.bs-bar-wrap { margin-bottom: 10px; }
+.bs-bar-track {
+  position: relative; height: 10px;
+  border-radius: 5px; background: #f0f0f0;
+  margin-bottom: 4px; overflow: visible;
+}
+.bs-bar-fill {
+  position: absolute; left: 0; top: 0;
+  height: 100%; border-radius: 5px;
+  transition: width 0.6s ease;
+}
+.bs-bar-fill.bs-green  { background: #12A071; }
+.bs-bar-fill.bs-yellow { background: #C9820A; }
+.bs-bar-fill.bs-red    { background: #E5484D; }
+.bs-bar-mark {
+  position: absolute; top: -3px;
+  width: 2px; height: 16px; background: rgba(0,0,0,0.15);
+  transform: translateX(-50%);
+}
+.bs-bar-mark-lbl {
+  position: absolute; top: 18px; left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px; color: #aaa; white-space: nowrap;
+}
+.bs-bar-scale {
+  display: flex; justify-content: space-between;
+  font-size: 10px; color: #bbb; padding-top: 14px;
+}
+
+/* Insight line */
+.bs-insight {
+  font-size: 12px; font-weight: 500; line-height: 1.4;
+  padding: 8px 12px; border-radius: 8px;
+  margin: 10px 0;
+}
+.bs-insight.bs-green  { background: #dcfce7; color: #15803d; }
+.bs-insight.bs-yellow { background: #fef9c3; color: #854d0e; }
+.bs-insight.bs-red    { background: #fee2e2; color: #b91c1c; }
+.bs-insight.bs-warn   { background: #f3f4f6; color: #6b7280; }
+
+/* Expand button */
+.bs-expand-btn {
+  display: flex; align-items: center; gap: 6px;
+  background: none; border: none; padding: 6px 0;
+  font-size: 12px; font-weight: 600; color: #6b7280;
+  cursor: pointer; width: 100%;
+}
+.bs-expand-btn:hover { color: #374151; }
+.bs-chev { font-size: 12px; transition: transform 0.2s; }
+
+/* Expandable body */
+.bs-expand-body { padding: 4px 0 8px; }
+
+/* Account rows */
+.bs-acct-list { padding: 2px 0 6px 12px; }
+.bs-acct-row {
+  display: flex; justify-content: space-between;
+  padding: 5px 0;
+  font-size: 12px; color: #555;
+  border-bottom: 1px solid #f5f5f5;
+}
+.bs-acct-row:last-child { border-bottom: none; }
+.bs-acct-name { color: #666; }
+.bs-acct-val { font-weight: 600; color: #1a2d3a; }
+
+/* Tile row */
+.bs-tiles {
+  display: flex; gap: 10px; flex-wrap: wrap;
+  margin-top: 12px;
+}
+.bs-tile {
+  flex: 1; min-width: 100px;
+  background: #f9fafb; border-radius: 8px;
+  padding: 10px 12px; border: 1px solid #f0f0f0;
+}
+.bs-tile--cash { background: #eff6ff; border-color: #bfdbfe; }
+.bs-tile-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.7px; color: #aaa; margin-bottom: 4px;
+}
+.bs-tile-val { font-size: 17px; font-weight: 700; color: #1a2d3a; }
+.bs-tile-sub { font-size: 10px; color: #bbb; margin-top: 2px; }
+
+/* Debt bars */
+.bs-debt-bars { display: flex; flex-direction: column; gap: 10px; margin-bottom: 4px; }
+.bs-debt-row {
+  display: grid;
+  grid-template-columns: 160px 1fr auto;
+  align-items: center; gap: 10px;
+}
+.bs-debt-label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 500; color: #374151;
+}
+.bs-debt-tag {
+  font-size: 9px; font-weight: 700; padding: 2px 6px;
+  border-radius: 10px; text-transform: uppercase; letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+.bs-debt-tag--urgent    { background: #fee2e2; color: #b91c1c; }
+.bs-debt-tag--structured { background: #dbeafe; color: #1d4ed8; }
+.bs-debt-tag--payroll   { background: #fef9c3; color: #854d0e; }
+.bs-debt-bar-wrap {
+  height: 10px; background: #f0f0f0; border-radius: 5px; overflow: hidden;
+}
+.bs-debt-bar { height: 100%; border-radius: 5px; }
+.bs-debt-bar--urgent     { background: #f87171; }
+.bs-debt-bar--structured { background: #60a5fa; }
+.bs-debt-bar--payroll    { background: #fbbf24; }
+.bs-debt-amt { font-size: 13px; font-weight: 700; color: #1a2d3a; text-align: right; white-space: nowrap; }
+
+/* Net Worth stacked bar */
+.bs-worth-bar-wrap { margin-bottom: 12px; }
+.bs-worth-track {
+  display: flex; height: 16px; border-radius: 8px;
+  overflow: hidden; background: #f0f0f0; margin-bottom: 8px;
+}
+.bs-worth-equity { background: #12A071; transition: width 0.6s ease; }
+.bs-worth-debt   { background: #f87171; transition: width 0.6s ease; }
+.bs-worth-key {
+  display: flex; align-items: center; gap: 14px;
+  font-size: 11px; font-weight: 600; flex-wrap: wrap;
+}
+.bs-worth-dot {
+  display: inline-block; width: 10px; height: 10px;
+  border-radius: 50%; margin-right: 4px; vertical-align: middle;
+}
+.bs-worth-dot--equity { background: #12A071; }
+.bs-worth-dot--debt   { background: #f87171; }
+
+/* Formula row (Assets − Debt = Equity) */
+.bs-formula {
+  display: flex; align-items: center;
+  gap: 8px; flex-wrap: wrap;
+  padding-top: 14px; margin-top: 4px;
+  border-top: 1px solid #e5e7eb;
+}
+.bs-formula-item {
+  flex: 1; min-width: 90px;
+  background: white; border-radius: 8px;
+  padding: 10px 12px; border: 1px solid #e5e7eb;
+  text-align: center;
+}
+.bs-formula-item--result {
+  background: #f0fdf4; border-color: #bbf7d0;
+}
+.bs-formula-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.6px; color: #aaa; margin-bottom: 4px;
+}
+.bs-formula-val {
+  font-size: 18px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.bs-formula-op {
+  font-size: 22px; font-weight: 300; color: #ccc; flex-shrink: 0;
+}
+
+@media (max-width: 500px) {
+  .bs-debt-row { grid-template-columns: 1fr auto; }
+  .bs-debt-bar-wrap { display: none; }
+  .bs-hero { font-size: 22px; }
+  .bs-formula { gap: 4px; }
+  .bs-formula-val { font-size: 15px; }
+}
+
 /* Monthly P&L grid */
 .pnl-grid { width:100%;border-collapse:collapse;font-size:12px; }
 .pnl-grid th { text-align:right;padding:6px 8px;font-weight:600;color:#888;font-size:10px;text-transform:uppercase;letter-spacing:0.3px;border-bottom:1px solid #eee;white-space:nowrap; }

@@ -148,6 +148,17 @@ function mfZoomDetail(id, items, segStart, segEnd, palette, segColor, segLabel) 
   );
 }
 
+// Toggle expandable balance-sheet sub-lists
+function bsToggle(id) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.hidden = !el.hidden;
+  // rotate chevron if present (chev id = id + first letter caps trick → just scan parent)
+  var btn = el.previousElementSibling;
+  var chev = btn && btn.querySelector('.bs-chev');
+  if (chev) chev.style.transform = el.hidden ? '' : 'rotate(180deg)';
+}
+
 // Full month name helper (used by header title)
 function fmtMkFull(mk) {
   if (!mk) return '';
@@ -965,103 +976,309 @@ function renderOwners() {
     document.getElementById('varSubtitle').textContent = fmtMkShort(finMonth) + ' vs. ' + (cmpIdx >= 0 ? fmtMkShort(months[cmpIdx]) : 'prior avg');
   }
 
+  // ── Debt-to-Asset Ratio card ─────────────────────────────────
+  var debtCard = document.getElementById('finDebtCard');
+  var debtContent = document.getElementById('finDebtContent');
+  if (debtCard && debtContent && ownersBalance && ownersBalance.connected) {
+    var db = ownersBalance;
+    var dtaTotalLiab = (db.totalLiabilities != null) ? db.totalLiabilities : ((db.currentLiabilities || 0) + (db.longTermLiabilities || 0));
+    var dtaTotalAssets = db.totalAssets || ((db.currentAssets || 0) + (db.longTermAssets || 0));
+    var dtaRatio = (dtaTotalAssets > 0) ? dtaTotalLiab / dtaTotalAssets : null;
+    var dtaPct   = dtaRatio != null ? (dtaRatio * 100) : null;
+
+    if (dtaPct != null && dtaTotalAssets > 0) {
+      debtCard.style.display = '';
+      var dtaCls   = dtaPct < 40 ? 'dta-green' : dtaPct < 70 ? 'dta-yellow' : 'dta-red';
+      var dtaLabel = dtaPct < 40 ? 'Low leverage — strong position' : dtaPct < 70 ? 'Moderate leverage — watch it' : 'High leverage — reduce debt';
+      var dtaColor = dtaPct < 40 ? '#12A071' : dtaPct < 70 ? '#C9820A' : '#E5484D';
+      var dtaBarW  = Math.min(dtaPct, 100).toFixed(1);
+
+      debtContent.innerHTML =
+        '<div class="dta-header">' +
+          '<div>' +
+            '<div class="fin-chart-title" style="margin-bottom:2px">Debt-to-Asset Ratio</div>' +
+            '<div style="font-size:11px;color:#888">How much of everything we own is financed by debt. Lower = more financially secure.</div>' +
+          '</div>' +
+          '<div class="dta-big" style="color:' + dtaColor + '">' + dtaPct.toFixed(1) + '%</div>' +
+        '</div>' +
+
+        // Gauge bar
+        '<div class="dta-gauge-wrap">' +
+          '<div class="dta-gauge-track">' +
+            '<div class="dta-gauge-fill" style="width:' + dtaBarW + '%;background:' + dtaColor + '"></div>' +
+            // Zone markers
+            '<div class="dta-gauge-mark" style="left:40%"><span class="dta-gauge-mark-lbl">40%</span></div>' +
+            '<div class="dta-gauge-mark" style="left:70%"><span class="dta-gauge-mark-lbl">70%</span></div>' +
+          '</div>' +
+          '<div class="dta-gauge-zones">' +
+            '<span style="color:#12A071;font-weight:600">Healthy</span>' +
+            '<span style="color:#C9820A;font-weight:600">Moderate</span>' +
+            '<span style="color:#E5484D;font-weight:600">High Risk</span>' +
+          '</div>' +
+        '</div>' +
+
+        // Status + breakdown
+        '<div class="dta-status ' + dtaCls + '">' + dtaLabel + '</div>' +
+        '<div class="dta-row-group">' +
+          '<div class="dta-row">' +
+            '<div class="dta-row-label">Total Assets<span class="dta-row-sub">Everything the business owns</span></div>' +
+            '<div class="dta-row-val">' + fmtDollar(dtaTotalAssets) + '</div>' +
+          '</div>' +
+          '<div class="dta-row dta-row--debt">' +
+            '<div class="dta-row-label"><span class="dta-row-op">&minus;</span>Total Liabilities<span class="dta-row-sub">All debt — short + long-term</span></div>' +
+            '<div class="dta-row-val" style="color:#E5484D">\u2212' + fmtDollar(dtaTotalLiab) + '</div>' +
+          '</div>' +
+          '<div class="dta-row dta-row--equity">' +
+            '<div class="dta-row-label"><span class="dta-row-op">=</span>Owner\'s Equity<span class="dta-row-sub">What you actually own outright</span></div>' +
+            '<div class="dta-row-val" style="color:' + (dtaTotalAssets - dtaTotalLiab >= 0 ? '#12A071' : '#E5484D') + '">' + fmtDollar(dtaTotalAssets - dtaTotalLiab) + '</div>' +
+          '</div>' +
+        '</div>';
+    } else {
+      debtCard.style.display = 'none';
+    }
+  } else if (debtCard) {
+    debtCard.style.display = 'none';
+  }
+
   // ── Cash / Working Capital ───────────────────────────────────
   if (ownersBalance && ownersBalance.connected) {
     var b = ownersBalance;
-    var cr = b.currentRatio;
-    var crCls = cr == null ? '' : (cr >= 1.5 ? 'ok' : cr >= 1.0 ? 'warn' : 'bad');
-    var crText = cr == null ? '—' : cr.toFixed(2) + '\u00d7';
-    var cash = b.cash || 0;
-    var curAssets = b.currentAssets || 0;
-    var curLiab = b.currentLiabilities || 0;
-    var ltDebt = b.longTermLiabilities || 0;
-    var totalLiab = (b.totalLiabilities != null) ? b.totalLiabilities : (curLiab + ltDebt);
-    var creditCards = b.creditCards || 0;
+    var cash       = b.cash || 0;
+    var curAssets  = b.currentAssets || 0;
+    var curLiab    = b.currentLiabilities || 0;
+    var ltDebt     = b.longTermLiabilities || 0;
+    var totalLiab  = (b.totalLiabilities != null) ? b.totalLiabilities : (curLiab + ltDebt);
+    var totalAssets = b.totalAssets || (curAssets + (b.longTermAssets || 0));
+    var equity     = totalAssets - totalLiab;
+    var creditCards  = b.creditCards || 0;
     var payrollLiabs = b.payrollLiabilities || 0;
     var otherCurLiab = Math.max(curLiab - creditCards - payrollLiabs, 0);
-    var otherCurAssets = Math.max(curAssets - cash, 0);
+    var bankAccts    = b.bankAccounts || [];
+    var cardAccts    = b.creditCardAccts || [];
+    var notesAccts   = b.notesPayable || [];
 
-    // Helper: one balance-sheet row
-    function row(label, sub, value, opts) {
-      opts = opts || {};
-      var cls = opts.cls ? ' ' + opts.cls : '';
-      var op = opts.op ? '<span class="op">' + opts.op + '</span>' : '';
-      return '<div class="cash-flow-row' + cls + '">' +
-        '<div class="lbl">' + op + '<span>' + label + '</span>' +
-        (sub ? '<span class="lbl-sub">' + sub + '</span>' : '') + '</div>' +
-        '<div class="val">' + fmtDollar(value) + '</div>' +
-        '</div>';
-    }
+    // Cash runway: cash ÷ monthly overhead
+    var monthlyBurn = curOvhd > 0 ? curOvhd : null;
+    var runway      = monthlyBurn ? cash / monthlyBurn : null;
+    var runwayCls   = runway == null ? 'bs-warn' : runway >= 3 ? 'bs-green' : runway >= 1.5 ? 'bs-yellow' : 'bs-red';
+    var runwayMsg   = runway == null ? 'Connect overhead data for runway estimate' :
+      runway >= 3   ? 'You can weather a slow quarter with ease' :
+      runway >= 1.5 ? 'Moderate cushion \u2014 aim to build toward 3 months' :
+                      'Thin cushion \u2014 prioritize growing cash reserves';
 
-    // Account sub-rows (indented, smaller text)
-    function acctRows(accounts) {
+    // Debt urgency: credit cards first (high interest), then structured loans
+    var debtUrgent     = creditCards;
+    var debtStructured = ltDebt;
+    var debtOther      = Math.max(totalLiab - creditCards - ltDebt, 0);
+
+    // Leverage ratio
+    var leverage = totalAssets > 0 ? totalLiab / totalAssets * 100 : null;
+    var levCls   = leverage == null ? 'bs-warn' :
+      leverage < 40 ? 'bs-green' : leverage < 70 ? 'bs-yellow' : 'bs-red';
+    var levMsg   = leverage == null ? '' :
+      leverage < 40 ? 'Low leverage \u2014 you own more than you owe' :
+      leverage < 70 ? 'Moderate leverage \u2014 healthy but keep an eye on it' :
+                      'High leverage \u2014 reducing debt should be a priority';
+
+    // Helper: account list (expandable)
+    function acctList(accounts) {
       if (!accounts || !accounts.length) return '';
-      return accounts.map(function(a) {
-        return '<div class="cash-acct-row">' +
-          '<span class="cash-acct-name">' + esc(a.name) + '</span>' +
-          '<span class="cash-acct-val">' + fmtDollar(a.balance) + '</span>' +
-        '</div>';
-      }).join('');
+      return '<div class="bs-acct-list">' +
+        accounts.map(function(a) {
+          return '<div class="bs-acct-row">' +
+            '<span class="bs-acct-name">' + esc(a.name) + '</span>' +
+            '<span class="bs-acct-val">' + fmtDollar(a.balance) + '</span>' +
+          '</div>';
+        }).join('') +
+      '</div>';
     }
 
-    // "Cash in the bank" with expandable account breakdown
-    var bankAccts = b.bankAccounts || [];
-    var bankDetail = bankAccts.length > 1
-      ? '<div class="cash-acct-list">' + acctRows(bankAccts) + '</div>'
-      : '';
+    // Helper: a mini stat tile
+    function bsTile(label, val, cls, sub) {
+      return '<div class="bs-tile' + (cls ? ' ' + cls : '') + '">' +
+        '<div class="bs-tile-label">' + label + '</div>' +
+        '<div class="bs-tile-val">' + val + '</div>' +
+        (sub ? '<div class="bs-tile-sub">' + sub + '</div>' : '') +
+      '</div>';
+    }
 
-    var haveHtml = '<div class="cash-flow-section">' +
-      '<div class="cash-flow-head">What we have</div>' +
-      '<div class="cash-flow-row">' +
-        '<div class="lbl"><span>Cash in the bank</span>' +
-          '<span class="lbl-sub">Across all business checking &amp; savings accounts</span></div>' +
-        '<div class="val">' + fmtDollar(cash) + '</div>' +
-      '</div>' +
-      bankDetail +
-      (otherCurAssets > 0 ? row('Other short-term assets', 'Other receivables and current assets', otherCurAssets, { op: '+' }) : '') +
-      row('Short-term assets', 'Total we could pull from in a pinch', curAssets, { op: '=', cls: 'subtotal' }) +
-    '</div>';
-
-    // "What we owe" — credit cards first since that's the real current liability here
-    var cardAccts = b.creditCardAccts || [];
-    var cardDetail = cardAccts.length > 0
-      ? '<div class="cash-acct-list">' + acctRows(cardAccts) + '</div>'
-      : '';
-    var notesAccts = b.notesPayable || [];
-    var notesDetail = notesAccts.length > 0
-      ? '<div class="cash-acct-list">' + acctRows(notesAccts) + '</div>'
-      : '';
-
-    var oweHtml = '<div class="cash-flow-section">' +
-      '<div class="cash-flow-head">What we owe</div>' +
-      (creditCards > 0
-        ? '<div class="cash-flow-row">' +
-            '<div class="lbl"><span>Credit cards</span>' +
-              '<span class="lbl-sub">Business credit card balances</span></div>' +
-            '<div class="val">' + fmtDollar(creditCards) + '</div>' +
-          '</div>' + cardDetail
+    // ── CARD 1: Cash Runway ─────────────────────────────────────
+    var runwayW  = runway != null ? Math.min(runway / 6 * 100, 100).toFixed(1) : '0';
+    var bankRows = bankAccts.map(function(a) {
+      return '<div class="bs-acct-row">' +
+        '<span class="bs-acct-name">' + esc(a.name) + '</span>' +
+        '<span class="bs-acct-val">' + fmtDollar(a.balance) + '</span>' +
+      '</div>';
+    }).join('');
+    var runwayCard =
+      '<div class="bs-card">' +
+        '<div class="bs-card-hd">' +
+          '<div>' +
+            '<div class="bs-card-title">How Long Can We Run Without Revenue?</div>' +
+            '<div class="bs-card-sub">Cash on hand \u00f7 monthly overhead \u2014 how many months you could pay the bills if jobs dried up tomorrow</div>' +
+          '</div>' +
+          '<div class="bs-hero ' + runwayCls + '">' +
+            (runway != null ? runway.toFixed(1) + '<span class="bs-hero-unit">mo</span>' : '\u2014') +
+          '</div>' +
+        '</div>' +
+        // Runway bar (6 months = full)
+        '<div class="bs-bar-wrap">' +
+          '<div class="bs-bar-track">' +
+            '<div class="bs-bar-fill ' + runwayCls + '" style="width:' + runwayW + '%"></div>' +
+            '<div class="bs-bar-mark" style="left:50%" title="3 months"><span class="bs-bar-mark-lbl">3 mo</span></div>' +
+          '</div>' +
+          '<div class="bs-bar-scale"><span>0</span><span>3 months</span><span>6 months</span></div>' +
+        '</div>' +
+        '<div class="bs-insight ' + runwayCls + '">' + runwayMsg + '</div>' +
+        // Expandable account breakdown
+        (bankAccts.length > 0 ?
+          '<button class="bs-expand-btn" onclick="bsToggle(\'bsBankDetail\')">' +
+            '<span>See all ' + bankAccts.length + ' bank accounts</span>' +
+            '<span class="bs-chev" id="bsBankChev">\u25be</span>' +
+          '</button>' +
+          '<div id="bsBankDetail" class="bs-expand-body" hidden>' + bankRows + '</div>'
         : '') +
-      (payrollLiabs > 0 ? row('Payroll liabilities', 'Taxes &amp; benefits withheld, not yet remitted', payrollLiabs, { op: '+' }) : '') +
-      (otherCurLiab > 0 ? row('Other current liabilities', '', otherCurLiab, { op: '+' }) : '') +
-      row('Due within a year', 'Everything that has to be paid in 12 months', curLiab, { op: '=', cls: 'subtotal' }) +
-      (ltDebt > 0
-        ? '<div class="cash-flow-row">' +
-            '<div class="lbl"><span class="op">+</span><span>Vehicle &amp; equipment loans</span>' +
-              '<span class="lbl-sub">Ford Credit, M&amp;T Bank, and other notes payable</span></div>' +
-            '<div class="val">' + fmtDollar(ltDebt) + '</div>' +
-          '</div>' + notesDetail
+        // Key stat tiles
+        '<div class="bs-tiles">' +
+          bsTile('Cash in the bank', fmtDollar(cash), 'bs-tile--cash', 'Business accounts') +
+          bsTile('Monthly overhead', monthlyBurn ? fmtDollar(monthlyBurn) : '\u2014', '', 'Fixed running costs') +
+          bsTile('Short-term assets', fmtDollar(curAssets), '', 'All current assets') +
+        '</div>' +
+      '</div>';
+
+    // ── CARD 2: Debt Load ───────────────────────────────────────
+    var debtTotalW = totalAssets > 0 ? Math.min(totalLiab / totalAssets * 100, 100).toFixed(1) : '0';
+    var cardRows   = cardAccts.map(function(a) {
+      return '<div class="bs-acct-row">' +
+        '<span class="bs-acct-name">' + esc(a.name) + '</span>' +
+        '<span class="bs-acct-val">' + fmtDollar(a.balance) + '</span>' +
+      '</div>';
+    }).join('');
+    var noteRows = notesAccts.map(function(a) {
+      return '<div class="bs-acct-row">' +
+        '<span class="bs-acct-name">' + esc(a.name) + '</span>' +
+        '<span class="bs-acct-val">' + fmtDollar(a.balance) + '</span>' +
+      '</div>';
+    }).join('');
+
+    var debtCard =
+      '<div class="bs-card">' +
+        '<div class="bs-card-hd">' +
+          '<div>' +
+            '<div class="bs-card-title">What Are We Paying Interest On?</div>' +
+            '<div class="bs-card-sub">Not all debt is equal \u2014 credit cards cost ~20%+ per year, vehicle loans are structured and predictable</div>' +
+          '</div>' +
+          '<div class="bs-hero bs-red">' + fmtDollar(totalLiab) + '</div>' +
+        '</div>' +
+        // Stacked debt bars
+        '<div class="bs-debt-bars">' +
+          (debtUrgent > 0 ?
+            '<div class="bs-debt-row">' +
+              '<div class="bs-debt-label">' +
+                '<span class="bs-debt-tag bs-debt-tag--urgent">Pay first</span>' +
+                'Credit cards' +
+              '</div>' +
+              '<div class="bs-debt-bar-wrap">' +
+                '<div class="bs-debt-bar bs-debt-bar--urgent" style="width:' + Math.min(debtUrgent/totalLiab*100,100).toFixed(1) + '%"></div>' +
+              '</div>' +
+              '<span class="bs-debt-amt">' + fmtDollar(debtUrgent) + '</span>' +
+            '</div>' +
+            (cardAccts.length > 0 ?
+              '<button class="bs-expand-btn" style="margin-top:-4px" onclick="bsToggle(\'bsCardDetail\')">' +
+                '<span>See card breakdown</span><span class="bs-chev" id="bsCardChev">\u25be</span></button>' +
+              '<div id="bsCardDetail" class="bs-expand-body" hidden>' + cardRows + '</div>'
+            : '')
+          : '') +
+          (payrollLiabs > 0 ?
+            '<div class="bs-debt-row">' +
+              '<div class="bs-debt-label">' +
+                '<span class="bs-debt-tag bs-debt-tag--payroll">Payroll</span>' +
+                'Payroll liabilities' +
+              '</div>' +
+              '<div class="bs-debt-bar-wrap">' +
+                '<div class="bs-debt-bar bs-debt-bar--payroll" style="width:' + Math.min(payrollLiabs/totalLiab*100,100).toFixed(1) + '%"></div>' +
+              '</div>' +
+              '<span class="bs-debt-amt">' + fmtDollar(payrollLiabs) + '</span>' +
+            '</div>'
+          : '') +
+          (debtStructured > 0 ?
+            '<div class="bs-debt-row">' +
+              '<div class="bs-debt-label">' +
+                '<span class="bs-debt-tag bs-debt-tag--structured">Structured</span>' +
+                'Vehicle &amp; equipment loans' +
+              '</div>' +
+              '<div class="bs-debt-bar-wrap">' +
+                '<div class="bs-debt-bar bs-debt-bar--structured" style="width:' + Math.min(debtStructured/totalLiab*100,100).toFixed(1) + '%"></div>' +
+              '</div>' +
+              '<span class="bs-debt-amt">' + fmtDollar(debtStructured) + '</span>' +
+            '</div>' +
+            (noteRows ?
+              '<button class="bs-expand-btn" style="margin-top:-4px" onclick="bsToggle(\'bsNoteDetail\')">' +
+                '<span>See loan breakdown</span><span class="bs-chev" id="bsNoteChev">\u25be</span></button>' +
+              '<div id="bsNoteDetail" class="bs-expand-body" hidden>' + noteRows + '</div>'
+            : '')
+          : '') +
+        '</div>' +
+        // Decision insight
+        (debtUrgent > 0 ?
+          '<div class="bs-insight bs-red">Credit cards cost ~20% per year in interest. ' +
+          'Paying off ' + fmtDollar(debtUrgent) + ' would save roughly ' +
+          fmtDollar(Math.round(debtUrgent * 0.20)) + ' per year.</div>'
+        : '<div class="bs-insight bs-green">No high-interest credit card debt \u2014 great position.</div>') +
+      '</div>';
+
+    // ── CARD 3: Business Net Worth ──────────────────────────────
+    var assetBarW = 100;
+    var debtBarW  = totalAssets > 0 ? Math.min(totalLiab / totalAssets * 100, 100).toFixed(1) : 0;
+    var equityBarW = totalAssets > 0 ? Math.max((equity / totalAssets * 100), 0).toFixed(1) : 0;
+
+    var worthCard =
+      '<div class="bs-card bs-card--worth">' +
+        '<div class="bs-card-hd">' +
+          '<div>' +
+            '<div class="bs-card-title">What the Business Is Actually Worth</div>' +
+            '<div class="bs-card-sub">If you sold everything and paid off all debt today, this is what you\u2019d walk away with</div>' +
+          '</div>' +
+          '<div class="bs-hero ' + (equity >= 0 ? 'bs-green' : 'bs-red') + '">' + fmtDollar(equity) + '</div>' +
+        '</div>' +
+        // Stacked asset bar: equity + debt = total assets
+        '<div class="bs-worth-bar-wrap">' +
+          '<div class="bs-worth-track">' +
+            '<div class="bs-worth-equity" style="width:' + equityBarW + '%"></div>' +
+            '<div class="bs-worth-debt" style="width:' + debtBarW + '%"></div>' +
+          '</div>' +
+          '<div class="bs-worth-key">' +
+            '<span><span class="bs-worth-dot bs-worth-dot--equity"></span>Owner\u2019s equity ' + fmtDollar(equity) + '</span>' +
+            '<span><span class="bs-worth-dot bs-worth-dot--debt"></span>Debt ' + fmtDollar(totalLiab) + '</span>' +
+            '<span style="color:#aaa;font-size:11px">= Total assets ' + fmtDollar(totalAssets) + '</span>' +
+          '</div>' +
+        '</div>' +
+        // Leverage insight
+        (leverage != null ?
+          '<div class="bs-insight ' + levCls + '">' +
+            '<strong>' + leverage.toFixed(0) + '% of assets are financed by debt.</strong> ' + levMsg +
+          '</div>'
         : '') +
-      row('Everything we owe', 'All debt combined, short + long-term', totalLiab, { op: '=', cls: 'total' }) +
-    '</div>';
+        // Formula row
+        '<div class="bs-formula">' +
+          '<div class="bs-formula-item">' +
+            '<div class="bs-formula-label">Total Assets</div>' +
+            '<div class="bs-formula-val">' + fmtDollar(totalAssets) + '</div>' +
+          '</div>' +
+          '<div class="bs-formula-op">\u2212</div>' +
+          '<div class="bs-formula-item">' +
+            '<div class="bs-formula-label">Total Debt</div>' +
+            '<div class="bs-formula-val" style="color:#E5484D">' + fmtDollar(totalLiab) + '</div>' +
+          '</div>' +
+          '<div class="bs-formula-op">=</div>' +
+          '<div class="bs-formula-item bs-formula-item--result">' +
+            '<div class="bs-formula-label">Owner\u2019s Equity</div>' +
+            '<div class="bs-formula-val ' + (equity >= 0 ? 'bs-green' : 'bs-red') + '">' + fmtDollar(equity) + '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
 
-    var cushionHtml = '<div class="cash-cushion">' +
-      '<div class="lbl"><span class="lbl-top">Short-term cushion</span>' +
-      '<span class="lbl-sub">Short-term assets \u00f7 Due within a year. Above 1.5\u00d7 = comfortable. Under 1\u00d7 = tight.</span></div>' +
-      '<div class="val ' + crCls + '">' + crText + '</div>' +
-    '</div>';
-
-    document.getElementById('finCash').innerHTML =
-      '<div class="cash-flow">' + haveHtml + oweHtml + '</div>' + cushionHtml;
+    document.getElementById('finCash').innerHTML = runwayCard + debtCard + worthCard;
     document.getElementById('cashSubtitle').textContent = 'as of ' + b.asOf;
   } else {
     document.getElementById('finCash').innerHTML =
