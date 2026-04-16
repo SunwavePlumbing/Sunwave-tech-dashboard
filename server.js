@@ -1315,9 +1315,16 @@ app.get('/api/depreciation-schedule', async (req, res) => {
           payload.summary.totalBookValue = Math.round(payload.summary.totalBookValue);
 
         } catch (e) {
-          console.log('[depreciation] QBO balance sheet fetch failed:', e.message);
+          console.error('[depreciation] QBO balance sheet fetch failed:', e.message);
+          if (e.response) {
+            console.error('[depreciation] Response status:', e.response.status, 'Data:', e.response.data?.error || e.response.statusText);
+          }
         }
+      } else {
+        console.log('[depreciation] QB access token retrieval failed');
       }
+    } else {
+      console.log('[depreciation] QB is not ready (missing client id, secret, realm, or refresh token)');
     }
 
     cacheSet('depreciation-schedule', payload);
