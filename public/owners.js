@@ -1072,15 +1072,15 @@ function renderOwners() {
 
     // Delta cell: change from compare → primary, direction-aware green/red
     function dCell2(arr, pi, ci, good) {
-      if (ci < 0) return '<td class="pnl2-delta">—</td>';
+      if (ci < 0) return '<td class="pnl2-delta"><span class="pnl2-pill">—</span></td>';
       var pv   = arr[pi] || 0;
       var cv   = arr[ci] || 0;
       var diff = pv - cv;
-      if (diff === 0) return '<td class="pnl2-delta">—</td>';
+      if (diff === 0) return '<td class="pnl2-delta"><span class="pnl2-pill">—</span></td>';
       var sign   = diff > 0 ? '+' : '';
       var isGood = good === 'up' ? diff > 0 : diff < 0;
       var cls    = isGood ? ' pnl2-good' : ' pnl2-bad';
-      return '<td class="pnl2-delta' + cls + '">' + sign + fmtDollar(diff) + '</td>';
+      return '<td class="pnl2-delta' + cls + '"><span class="pnl2-pill">' + sign + fmtDollar(diff) + '</span></td>';
     }
 
     // Comparison chip picker — all months except current, most-recent first
