@@ -1161,6 +1161,7 @@ app.get('/api/depreciation-schedule', async (req, res) => {
       if (token) {
         try {
           // Fetch balance sheet to get asset values
+          console.log('[depreciation] Fetching balance sheet for realmId:', qboTokens.realmId);
           const bsRes = await axios.get(
             QBO_BASE + '/v3/company/' + qboTokens.realmId + '/reports/BalanceSheet',
             {
@@ -1168,37 +1169,100 @@ app.get('/api/depreciation-schedule', async (req, res) => {
               params: { minorversion: 75 }
             }
           );
+          console.log('[depreciation] Balance sheet fetch successful, rows:', bsRes.data.Rows ? 'yes' : 'no');
 
           // Parse balance sheet for asset accounts and accumulated depreciation
+          // Extract the last money column (current balance) from ColData
+          const rawCols = (bsRes.data.Columns && bsRes.data.Columns.Column) || [];
+          const moneyIndices = [];
+          rawCols.forEach((c, i) => {
+            if (c.ColType === 'Money') moneyIndices.push(i);
+          });
+          const lastMoneyIdx = moneyIndices[moneyIndices.length - 1] || 1; // fallback to index 1
+
           const assetAccounts = {};
           const depreciationAccounts = {};
 
           function walkBalanceSheet(rows) {
             if (!Array.isArray(rows)) return;
             rows.forEach(row => {
-              if (row.Summary && row.Summary.ColData) {
-                const acctName = (row.Summary.ColData[0]?.value || '').trim();
-                const amount = parseFloat((row.Summary.ColData[1]?.value || '0').replace(/,/g, '')) || 0;
+              // Individual account line (e.g., "Streamliner 1", "Tools, machinery, and equipment")
+              if (row.ColData && row.ColData[0]) {
+                const acctName = (row.ColData[0].value || '').trim();
+                const amount = parseFloat((row.ColData[lastMoneyIdx]?.value || '0').replace(/,/g, '')) || 0;
 
-                if (acctName.startsWith('Acc. Depr.') || acctName.startsWith('Acc. Amort.')) {
-                  depreciationAccounts[acctName] = amount;
-                } else if (acctName && !acctName.includes('Total')) {
-                  assetAccounts[acctName] = amount;
+                if (acctName && !acctName.includes('Total')) {
+                  if (acctName.startsWith('Acc. Depr.') || acctName.startsWith('Acc. Amort.')) {
+                    depreciationAccounts[acctName] = amount;
+                  } else {
+                    assetAccounts[acctName] = amount;
+                  }
                 }
               }
+
+              // Summary row (totals within a section)
+              if (row.Summary && row.Summary.ColData) {
+                const acctName = (row.Summary.ColData[0]?.value || '').trim();
+                const amount = parseFloat((row.Summary.ColData[lastMoneyIdx]?.value || '0').replace(/,/g, '')) || 0;
+
+                if (acctName && !acctName.includes('Total')) {
+                  if (acctName.startsWith('Acc. Depr.') || acctName.startsWith('Acc. Amort.')) {
+                    depreciationAccounts[acctName] = amount;
+                  } else {
+                    assetAccounts[acctName] = amount;
+                  }
+                }
+              }
+
               if (row.Rows && row.Rows.Row) walkBalanceSheet(row.Rows.Row);
             });
           }
 
           walkBalanceSheet((bsRes.data.Rows && bsRes.data.Rows.Row) || []);
 
+          // Debug logging
+          console.log('[depreciation] Found asset accounts:', Object.keys(assetAccounts));
+          console.log('[depreciation] Found depreciation accounts:', Object.keys(depreciationAccounts));
+
           payload.connected = true;
 
           // Process each asset from the register
           assetRegister.assets.forEach(asset => {
             const cost = assetAccounts[asset.qbAccountName] || 0;
-            const accumDepr = depreciationAccounts[`Acc. Depr. ${asset.qbAccountName}`] ||
-                              depreciationAccounts[`Acc. Amort. ${asset.qbAccountName}`] || 0;
+
+            // Try multiple patterns for accumulated depreciation account names
+            let accumDepr = 0;
+            const deprPatterns = [
+              `Acc. Depr. ${asset.qbAccountName}`,
+              `Accumulated Depreciation - ${asset.qbAccountName}`,
+              `Acc. Depreciation - ${asset.qbAccountName}`,
+              `Acc. Amort. ${asset.qbAccountName}`,
+              `Accumulated Amortization - ${asset.qbAccountName}`
+            ];
+
+            for (const pattern of deprPatterns) {
+              if (depreciationAccounts[pattern]) {
+                accumDepr = depreciationAccounts[pattern];
+                console.log(`[depreciation] Matched "${asset.qbAccountName}" depr account: "${pattern}" = ${accumDepr}`);
+                break;
+              }
+            }
+
+            // Fallback: look for any depreciation account that mentions this asset name
+            if (!accumDepr && asset.qbAccountName) {
+              const assetNameLower = asset.qbAccountName.toLowerCase();
+              for (const [deprAcct, value] of Object.entries(depreciationAccounts)) {
+                if (deprAcct.toLowerCase().includes(assetNameLower)) {
+                  accumDepr = value;
+                  console.log(`[depreciation] Matched "${asset.qbAccountName}" depr account (fuzzy): "${deprAcct}" = ${accumDepr}`);
+                  break;
+                }
+              }
+            }
+
+            if (cost > 0 && !accumDepr) {
+              console.log(`[depreciation] WARNING: Asset "${asset.qbAccountName}" has cost ${cost} but no depreciation account found`);
+            }
 
             const assetInfo = {
               id: asset.id,
@@ -1257,6 +1321,84 @@ app.get('/api/depreciation-schedule', async (req, res) => {
   } catch (err) {
     console.error('[/api/depreciation-schedule]', err.message);
     res.json(payload);
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// DEBUG: Return raw QB accounts for troubleshooting asset matching
+app.get('/api/debug/qbo-accounts', async (req, res) => {
+  if (!qboReady()) return res.json({ connected: false });
+  try {
+    const token = await getQBOAccessToken();
+    if (!token) return res.json({ connected: false });
+
+    const endDate   = new Date();
+    const startDate = new Date(endDate);
+    startDate.setMonth(startDate.getMonth() - 12);
+
+    const bsRes = await axios.get(
+      QBO_BASE + '/v3/company/' + qboTokens.realmId + '/reports/BalanceSheet',
+      {
+        headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
+        params: {
+          start_date:           startDate.toISOString().slice(0, 10),
+          end_date:             endDate.toISOString().slice(0, 10),
+          summarize_column_by:  'Month',
+          accounting_method:    'Cash',
+          minorversion:         75
+        }
+      }
+    );
+
+    const rawCols = (bsRes.data.Columns && bsRes.data.Columns.Column) || [];
+    const moneyIndices = [];
+    rawCols.forEach((c, i) => {
+      if (c.ColType === 'Money') moneyIndices.push(i);
+    });
+    const lastMoneyIdx = moneyIndices[moneyIndices.length - 1] || 1;
+
+    const allAccounts = {};
+    const assetLike = {};
+    const deprLike = {};
+
+    function walkAllAccounts(rows) {
+      if (!Array.isArray(rows)) return;
+      rows.forEach(row => {
+        if (row.ColData && row.ColData[0]) {
+          const name = (row.ColData[0].value || '').trim();
+          const value = parseFloat((row.ColData[lastMoneyIdx]?.value || '0').replace(/,/g, '')) || 0;
+          if (name && !name.includes('Total')) {
+            allAccounts[name] = value;
+            if (name.toLowerCase().includes('acc') || name.toLowerCase().includes('depr') || name.toLowerCase().includes('amort')) {
+              deprLike[name] = value;
+            } else if (value > 0 && !name.toLowerCase().includes('liability') && !name.toLowerCase().includes('equity')) {
+              assetLike[name] = value;
+            }
+          }
+        }
+        if (row.Summary && row.Summary.ColData) {
+          const name = (row.Summary.ColData[0]?.value || '').trim();
+          const value = parseFloat((row.Summary.ColData[lastMoneyIdx]?.value || '0').replace(/,/g, '')) || 0;
+          if (name && !name.includes('Total')) {
+            allAccounts[name] = value;
+          }
+        }
+        if (row.Rows && row.Rows.Row) walkAllAccounts(row.Rows.Row);
+      });
+    }
+
+    walkAllAccounts((bsRes.data.Rows && bsRes.data.Rows.Row) || []);
+
+    res.json({
+      connected: true,
+      asOf: endDate.toISOString().slice(0, 10),
+      allAccounts,
+      assetLike,
+      deprLike
+    });
+  } catch (err) {
+    console.error('[/api/debug/qbo-accounts]', err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 
