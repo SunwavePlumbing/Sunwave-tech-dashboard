@@ -249,6 +249,21 @@
   </div>
 </div>
 
+<!-- Expense drill-down sheet (overhead / COGS sub-account detail) -->
+<div class="exp-backdrop" id="expBackdrop" hidden onclick="closeExpModal()">
+  <div class="exp-sheet" onclick="event.stopPropagation()">
+    <div class="exp-sheet-header">
+      <div>
+        <div class="exp-sheet-title" id="expSheetTitle"></div>
+        <div class="exp-sheet-sub"   id="expSheetSub"></div>
+      </div>
+      <button class="exp-sheet-close" onclick="closeExpModal()">&times;</button>
+    </div>
+    <div class="exp-sheet-body" id="expSheetBody"></div>
+    <div class="exp-sheet-footer" id="expSheetFooter"></div>
+  </div>
+</div>
+
 <script src="/app.js"></script>
 <script src="/technicians.js"></script>
 <script src="/marketing.js"></script>

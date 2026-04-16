@@ -132,18 +132,24 @@ function mfZoomDetail(id, items, segStart, segEnd, palette, segColor, segLabel) 
            '</div>';
   }).join('');
 
-  // Legend rows — full-row color tint + left accent stripe; click to cross-highlight
+  // Legend rows — full-row color tint + left accent stripe; click to cross-highlight or drill down
   var legend = visible.map(function(r, i) {
     var zid      = id + '-' + i;
     var rowColor = pal[i % pal.length];
     var rowBg    = hexAlpha(rowColor, 0.09);
     var pct      = (r.val / total * 100).toFixed(1);
-    return '<div class="mf-zoom-leg-row" data-zid="' + zid + '"' +
+    // If the item has a QB account key AND children data exists, make the row drillable
+    var hasDrill = !!(r.acctKey && ownersData && ownersData.children && ownersData.children[r.acctKey]);
+    var drillInd = hasDrill ? '<span class="mf-drill-ind" title="See line items">›</span>' : '';
+    var clickFn  = hasDrill
+      ? 'mfDrillDown(\'' + esc(r.label) + '\',\'' + r.acctKey + '\')'
+      : 'mfZoomSel(\'' + zid + '\')';
+    return '<div class="mf-zoom-leg-row' + (hasDrill ? ' mf-zoom-drillable' : '') + '" data-zid="' + zid + '"' +
       ' style="--i:' + i + ';background:' + rowBg + ';border-left:3px solid ' + rowColor + '"' +
       ' onmouseenter="mfZoomHL(\'' + zid + '\',true)"' +
       ' onmouseleave="mfZoomHL(\'' + zid + '\',false)"' +
-      ' onclick="mfZoomSel(\'' + zid + '\')">' +
-      '<span class="mf-zoom-leg-name">' + esc(r.label) + '</span>' +
+      ' onclick="' + clickFn + '">' +
+      '<span class="mf-zoom-leg-name">' + esc(r.label) + drillInd + '</span>' +
       '<span class="mf-zoom-leg-pct">' + pct + '%</span>' +
       '<span class="mf-zoom-leg-val">' + fmtDollar(r.val) + '</span>' +
     '</div>';
@@ -543,18 +549,18 @@ function renderOwners() {
     { label: 'Subcontractors', val: at(subs) }
   ];
   var ovhdItems = [
-    { label: 'Admin Payroll',     val: at(adminPay) },
-    { label: 'Marketing',         val: at(mktTotal) },
-    { label: 'Rent',              val: at(rentExp) },
-    { label: 'Vehicles',          val: at(vehicleExp) },
-    { label: 'Office',            val: at(officeExp) },
-    { label: 'Utilities',         val: at(utilExp) },
-    { label: 'Employee Benefits', val: at(benefitsExp) },
-    { label: 'Merchant Fees',     val: at(merchExp) },
-    { label: 'Taxes',             val: at(taxesExp) },
-    { label: 'Travel',            val: at(travelExp) },
-    { label: 'Meals',             val: at(mealsExp) },
-    { label: 'Other',             val: at(genExp) }
+    { label: 'Admin Payroll',     val: at(adminPay),    acctKey: 'Total Salaried & Admin Payroll Expense' },
+    { label: 'Marketing',         val: at(mktTotal),    acctKey: 'Total Advertising & marketing' },
+    { label: 'Rent',              val: at(rentExp),     acctKey: 'Total Rent' },
+    { label: 'Vehicles',          val: at(vehicleExp),  acctKey: 'Total Vehicle Expenses' },
+    { label: 'Office',            val: at(officeExp),   acctKey: 'Total Office expenses' },
+    { label: 'Utilities',         val: at(utilExp),     acctKey: 'Total Utilities' },
+    { label: 'Employee Benefits', val: at(benefitsExp), acctKey: 'Total Employee benefits' },
+    { label: 'Merchant Fees',     val: at(merchExp),    acctKey: 'Total Merchant account fees' },
+    { label: 'Taxes',             val: at(taxesExp),    acctKey: 'Total Taxes paid' },
+    { label: 'Travel',            val: at(travelExp),   acctKey: 'Total Travel' },
+    { label: 'Meals',             val: at(mealsExp),    acctKey: 'Total Meals' },
+    { label: 'Other',             val: at(genExp),      acctKey: 'Total General Expenses' }
   ];
 
   // Timestamp — rounded to minute, no seconds
@@ -1320,11 +1326,11 @@ function renderOwners() {
 
   // ── Trend lines ──────────────────────────────────────────────
   var TREND_SERIES = [
-    { key: 'gm',    label: 'Gross Margin %',    color: '#12A071', data: gmArr,    goal: 50 },
-    { key: 'tl',    label: 'Tech Labor %',       color: '#FF9500', data: tlArr,    goal: 25 },
-    { key: 'parts', label: 'Parts %',            color: '#FF6B35', data: partsArr, goal: 25 },
-    { key: 'admin', label: 'Admin & Office %',   color: '#8b5cf6', data: adminArr, goal: null },
-    { key: 'om',    label: 'Operating Margin %', color: '#4A90D9', data: noiArr,   goal: 15 }
+    { key: 'gm',    label: 'Gross Profit %',     color: '#12A071', data: gmArr,    goal: 50,   dir: 'above' },
+    { key: 'tl',    label: 'Tech Labor %',        color: '#FF9500', data: tlArr,    goal: 25,   dir: 'below' },
+    { key: 'parts', label: 'Parts %',             color: '#FF6B35', data: partsArr, goal: 25,   dir: 'below' },
+    { key: 'admin', label: 'Admin & Office %',    color: '#8b5cf6', data: adminArr, goal: null, dir: null    },
+    { key: 'om',    label: 'Operating Profit %',  color: '#4A90D9', data: noiArr,   goal: 15,   dir: 'above' }
   ];
   _trendSeries = TREND_SERIES; // cache for selectTrendLine
 
@@ -1530,10 +1536,17 @@ function buildTrendLegend(series, curIdx) {
       '<span class="tcl-val" style="color:' + active.color + '">' + curVal + '</span>' +
     '</div>';
   if (active.goal != null) {
+    var dirBadge = '';
+    if (active.dir === 'above') {
+      dirBadge = '<span class="tcl-dir tcl-dir--above">↑ aim above</span>';
+    } else if (active.dir === 'below') {
+      dirBadge = '<span class="tcl-dir tcl-dir--below">↓ stay below</span>';
+    }
     html +=
       '<div class="tcl-item">' +
         '<span class="tcl-swatch tcl-swatch--target"></span>' +
         '<span class="tcl-label" style="color:#94a3b8">Target ' + active.goal + '%</span>' +
+        dirBadge +
       '</div>';
   }
   el.innerHTML = html;
@@ -2073,6 +2086,72 @@ function renderDepreciation() {
   categoryHtml += '</div>';
 
   content.innerHTML = summaryHtml + categoryHtml;
+}
+
+// ── Overhead drill-down modal ─────────────────────────────────
+// Opens the expense detail sheet for a given overhead category.
+function mfDrillDown(label, acctKey) {
+  if (!ownersData) return;
+  var childNames = (ownersData.children && ownersData.children[acctKey]) || [];
+  var month      = finMonth || (ownersData.months || [])[( ownersData.months || []).length - 1];
+  var color      = '#f97316'; // orange — overhead theme
+
+  // Build sorted list of sub-accounts with non-zero values
+  var items = childNames.map(function(name) {
+    var val = (ownersData.accounts[name] && ownersData.accounts[name][month]) || 0;
+    return { name: name, val: val };
+  }).filter(function(i) { return i.val > 0; })
+    .sort(function(a, b) { return b.val - a.val; });
+
+  var total = (ownersData.accounts[acctKey] && ownersData.accounts[acctKey][month]) || 0;
+
+  showExpModal(label, fmtMk(month), items, total, color);
+}
+
+function showExpModal(title, monthLabel, items, total, color) {
+  var backdrop = document.getElementById('expBackdrop');
+  var titleEl  = document.getElementById('expSheetTitle');
+  var subEl    = document.getElementById('expSheetSub');
+  var bodyEl   = document.getElementById('expSheetBody');
+  var footEl   = document.getElementById('expSheetFooter');
+  if (!backdrop) return;
+
+  titleEl.textContent = title;
+  subEl.textContent   = monthLabel;
+  titleEl.style.color = color || '#333';
+
+  if (!items.length) {
+    bodyEl.innerHTML = '<div class="exp-empty">No sub-account detail available for this month.</div>';
+  } else {
+    var rowsHtml = items.map(function(item, i) {
+      var barPct = total > 0 ? (item.val / total * 100) : 0;
+      return '<div class="exp-row">' +
+        '<div class="exp-row-top">' +
+          '<span class="exp-row-name">' + esc(item.name) + '</span>' +
+          '<span class="exp-row-val">' + fmtDollar(item.val) + '</span>' +
+        '</div>' +
+        '<div class="exp-bar-track">' +
+          '<div class="exp-bar-fill" style="width:' + barPct.toFixed(1) + '%;background:' + (color || '#f97316') + '"></div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+    bodyEl.innerHTML = rowsHtml;
+  }
+
+  footEl.innerHTML = '<span class="exp-foot-label">Total</span>' +
+                     '<span class="exp-foot-val">' + fmtDollar(total) + '</span>';
+
+  backdrop.hidden = false;
+  // Small delay so CSS transition fires
+  requestAnimationFrame(function() { backdrop.classList.add('exp-open'); });
+}
+
+function closeExpModal() {
+  var backdrop = document.getElementById('expBackdrop');
+  if (!backdrop) return;
+  backdrop.classList.remove('exp-open');
+  // Hide after transition completes
+  setTimeout(function() { backdrop.hidden = true; }, 280);
 }
 
 // ── Narrow-bar label guard ────────────────────────────────────

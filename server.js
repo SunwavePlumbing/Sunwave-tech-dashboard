@@ -107,6 +107,9 @@ function parseFinancialReport(report) {
   });
 
   const accounts = {};
+  // children: 'Total X' → ['Sub-account A', 'Sub-account B', ...]
+  // Only leaf accounts (rows with ColData but no sub-rows of their own)
+  const children = {};
 
   function getVals(colData) {
     const out = {};
@@ -126,6 +129,19 @@ function parseFinancialReport(report) {
     });
   }
 
+  // Recursively collect all leaf account names (those with ColData, no sub-rows)
+  function collectLeaves(rows, out) {
+    if (!Array.isArray(rows)) return;
+    rows.forEach(row => {
+      if (row.Header && row.Rows && row.Rows.Row) {
+        collectLeaves(row.Rows.Row, out); // recurse into sub-sections
+      } else if (row.ColData && row.ColData[0]) {
+        const n = (row.ColData[0].value || '').trim();
+        if (n) out.push(n);
+      }
+    });
+  }
+
   function walk(rows) {
     if (!Array.isArray(rows)) return;
     rows.forEach(row => {
@@ -134,6 +150,12 @@ function parseFinancialReport(report) {
         if (row.Summary && row.Summary.ColData) {
           const n = ((row.Summary.ColData[0] || {}).value || '').trim();
           store(n, row.Summary.ColData);
+          // Build children list: all leaf accounts under this section
+          if (row.Rows && row.Rows.Row) {
+            const leaves = [];
+            collectLeaves(row.Rows.Row, leaves);
+            if (leaves.length) children[n] = leaves;
+          }
         }
       }
       if (row.ColData && row.ColData[0]) {
@@ -144,7 +166,7 @@ function parseFinancialReport(report) {
   }
 
   walk((report.Rows && report.Rows.Row) || []);
-  return { months, accounts };
+  return { months, accounts, children };
 }
 
 // Pull monthly marketing spend from a parsed report — sums every account whose

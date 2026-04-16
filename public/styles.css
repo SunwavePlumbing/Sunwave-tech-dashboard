@@ -142,6 +142,85 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .role-did { background: #F3F4F6; color: #6B7280; }
 .share-pct { font-size: 11px; color: #aaa; font-weight: 400; margin-left: 4px; }
 
+/* ── Expense drill-down sheet ─────────────────────────────────
+   Slides up from bottom on phone; centered sheet on desktop.     */
+.exp-backdrop {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0);
+  transition: background 0.25s;
+  display: flex; align-items: flex-end; justify-content: center;
+}
+@media (min-width: 600px) {
+  .exp-backdrop { align-items: center; }
+}
+.exp-backdrop.exp-open { background: rgba(0,0,0,0.38); }
+.exp-sheet {
+  background: white;
+  width: 100%; max-width: 480px;
+  border-radius: 16px 16px 0 0;
+  max-height: 80vh;
+  display: flex; flex-direction: column;
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.14);
+  transform: translateY(100%);
+  transition: transform 0.26s cubic-bezier(0.32,0,0.14,1);
+}
+@media (min-width: 600px) {
+  .exp-sheet { border-radius: 14px; transform: translateY(20px); max-height: 70vh; }
+}
+.exp-backdrop.exp-open .exp-sheet { transform: translateY(0); }
+
+.exp-sheet-header {
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  display: flex; align-items: flex-start; justify-content: space-between; flex-shrink: 0;
+}
+.exp-sheet-title { font-size: 17px; font-weight: 800; letter-spacing: -0.3px; }
+.exp-sheet-sub   { font-size: 12px; color: #aaa; font-weight: 500; margin-top: 2px; }
+.exp-sheet-close {
+  background: none; border: none; font-size: 22px; color: #bbb;
+  cursor: pointer; line-height: 1; padding: 0 2px; flex-shrink: 0; margin-left: 12px;
+}
+.exp-sheet-close:hover { color: #555; }
+
+.exp-sheet-body { overflow-y: auto; flex: 1; padding: 8px 0; }
+
+.exp-row { padding: 10px 18px; }
+.exp-row-top {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 8px; margin-bottom: 5px;
+}
+.exp-row-name { font-size: 13px; color: #444; flex: 1; line-height: 1.3; }
+.exp-row-val  { font-size: 14px; font-weight: 700; color: #1a2d3a;
+                font-variant-numeric: tabular-nums; white-space: nowrap; }
+.exp-bar-track {
+  height: 5px; background: #f0f0f0; border-radius: 3px; overflow: hidden;
+}
+.exp-bar-fill  {
+  height: 100%; border-radius: 3px;
+  transition: width 0.5s cubic-bezier(0.4,0,0.2,1);
+}
+.exp-empty { padding: 24px 18px; font-size: 13px; color: #aaa; text-align: center; }
+
+.exp-sheet-footer {
+  padding: 12px 18px; border-top: 1px solid #f0f0f0;
+  display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
+  background: #fafafa; border-radius: 0 0 14px 14px;
+}
+.exp-foot-label { font-size: 12px; font-weight: 700; text-transform: uppercase;
+                  letter-spacing: 0.6px; color: #aaa; }
+.exp-foot-val   { font-size: 18px; font-weight: 800; color: #1a2d3a;
+                  font-variant-numeric: tabular-nums; }
+
+/* ── Drill indicator on overhead legend rows ── */
+.mf-drill-ind {
+  font-size: 15px; font-weight: 700; color: #bbb;
+  margin-left: 5px; vertical-align: middle;
+  transition: color 0.12s, transform 0.12s;
+  display: inline-block;
+}
+.mf-zoom-drillable { cursor: pointer !important; }
+.mf-zoom-drillable:hover .mf-drill-ind { color: #f97316; transform: translateX(2px); }
+
 .footer { text-align: center; font-size: 11px; color: #aaa; padding: 1rem 1rem 1.4rem; }
 .footer-levi { margin-top: 6px; font-size: 11px; color: #c8c8c8; letter-spacing: 0.2px; }
 .error-msg { background: #fff3f3; color: #c62828; padding: 1.2rem 1.4rem; font-size: 14px; }
@@ -1220,6 +1299,18 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   white-space: nowrap;
   margin-left: 2px;
 }
+/* Direction badge — shown next to the target line in the legend */
+.tcl-dir {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  padding: 2px 7px;
+  border-radius: 20px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.tcl-dir--above { background: #dcfce7; color: #15803d; }
+.tcl-dir--below { background: #fff7ed; color: #c2410c; }
 
 /* ── Debt-to-Asset card ──────────────────────────────────────── */
 .dta-header {
