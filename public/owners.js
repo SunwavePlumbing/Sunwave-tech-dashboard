@@ -117,8 +117,8 @@ function mfZoomDetail(id, items, segStart, segEnd, palette, segColor, segLabel) 
   var segs = visible.map(function(r, i) {
     var zid    = id + '-' + i;
     var rawPct = r.val / total * 100;
-    // Only render % label when segment is >= 10% wide — prevents partial/clipped text
-    var pctLabel = rawPct >= 10 ? '<span class="mf-zoom-seg-pct">' + rawPct.toFixed(0) + '%</span>' : '';
+    // Render % label for all but tiny slivers — overflow:hidden clips it naturally if too narrow
+    var pctLabel = rawPct >= 3 ? '<span class="mf-zoom-seg-pct">' + rawPct.toFixed(0) + '%</span>' : '';
     return '<div class="mf-zoom-seg" data-zid="' + zid + '"' +
            ' style="flex:' + r.val.toFixed(0) + ';background:' + pal[i % pal.length] + '"' +
            ' onmouseenter="mfZoomHL(\'' + zid + '\',true)"' +
