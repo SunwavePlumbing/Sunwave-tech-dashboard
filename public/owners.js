@@ -1298,67 +1298,88 @@ function selectTrendLine(btn) {
   }
 }
 // ── Overhead drill-down modal ─────────────────────────────────
+
+// Fetches transactions for a single month/acctKey combo, including child-key fallback.
+// Returns an array of transaction objects (may be empty).
+async function fetchTxnsForMonth(acctKey, month) {
+  var resp = await fetch('/api/account-detail?acct=' + encodeURIComponent(acctKey) + '&month=' + encodeURIComponent(month));
+  var data = await resp.json();
+
+  if (data.transactions && data.transactions.length) return data.transactions;
+
+  // Key miss — try matching child sub-account keys the server returned
+  if (data.availableKeys && data.availableKeys.length) {
+    var childNames = (ownersData.children && ownersData.children[acctKey]) || [];
+    var childBases = childNames.map(function(n) { return n.toLowerCase(); });
+    var matchedKeys = data.availableKeys.filter(function(k) {
+      var kBase = k.replace(/^Total\s+/i, '').toLowerCase();
+      return childBases.some(function(b) { return b.includes(kBase) || kBase.includes(b); });
+    });
+    var childTxns = [];
+    for (var i = 0; i < matchedKeys.length; i++) {
+      try {
+        var r2 = await fetch('/api/account-detail?acct=' + encodeURIComponent(matchedKeys[i]) + '&month=' + encodeURIComponent(month));
+        var d2 = await r2.json();
+        if (d2.transactions) childTxns = childTxns.concat(d2.transactions);
+      } catch (e) { /* skip */ }
+    }
+    if (childTxns.length) return childTxns;
+  }
+  return [];
+}
+
 // Opens the expense detail sheet for a given overhead category.
+// In quarter mode, fetches and combines all 3 months of the quarter.
 async function mfDrillDown(label, acctKey) {
   if (!ownersData) return;
-  var month = finMonth || (ownersData.months || [])[(ownersData.months || []).length - 1];
   var color = '#f97316'; // orange — overhead theme
 
+  // Determine which months to pull and the label to show in the sheet header
+  var fetchMonths, periodLabel;
+  if (finGranularity === 'quarter' && finQuarter) {
+    fetchMonths = quarterMonths(finQuarter).filter(function(mk) {
+      return (ownersData.months || []).indexOf(mk) >= 0;
+    });
+    periodLabel = fmtQk(finQuarter);
+  } else {
+    var single = finMonth || (ownersData.months || [])[(ownersData.months || []).length - 1];
+    fetchMonths = [single];
+    periodLabel = fmtMk(single);
+  }
+
   // Show modal immediately with a loading spinner
-  showExpModalLoading(label, fmtMk(month), color);
+  showExpModalLoading(label, periodLabel, color);
 
   try {
-    var resp = await fetch('/api/account-detail?acct=' + encodeURIComponent(acctKey) + '&month=' + encodeURIComponent(month));
-    var data = await resp.json();
-
-    if (data.transactions && data.transactions.length) {
-      showExpModalTxns(label, fmtMk(month), data.transactions, color);
-      return;
+    var allTxns = [];
+    for (var mi = 0; mi < fetchMonths.length; mi++) {
+      var txns = await fetchTxnsForMonth(acctKey, fetchMonths[mi]);
+      allTxns = allTxns.concat(txns);
     }
 
-    // If exact key missed but the server returned available keys, try aggregating
-    // every child section key that contains any word from our key
-    if (data.availableKeys && data.availableKeys.length) {
-      console.log('[mfDrillDown] Key miss for', acctKey, '— available:', data.availableKeys);
-      // Collect all transactions across child keys whose names are sub-accounts of acctKey.
-      // Strategy: grab any key whose base name (strip "Total ") appears as a child account.
-      var childNames = (ownersData.children && ownersData.children[acctKey]) || [];
-      var childBases = childNames.map(function(n) { return n.toLowerCase(); });
-      var matchedKeys = data.availableKeys.filter(function(k) {
-        var kBase = k.replace(/^Total\s+/i, '').toLowerCase();
-        return childBases.some(function(b) { return b.includes(kBase) || kBase.includes(b); });
-      });
-      if (matchedKeys.length) {
-        // Fetch all matched child keys and combine
-        var allTxns = [];
-        for (var i = 0; i < matchedKeys.length; i++) {
-          try {
-            var r2 = await fetch('/api/account-detail?acct=' + encodeURIComponent(matchedKeys[i]) + '&month=' + encodeURIComponent(month));
-            var d2 = await r2.json();
-            if (d2.transactions) allTxns = allTxns.concat(d2.transactions);
-          } catch (e) { /* skip */ }
-        }
-        if (allTxns.length) {
-          // sort newest-first
-          allTxns.sort(function(a, b) { return new Date(b.date) - new Date(a.date); });
-          showExpModalTxns(label, fmtMk(month), allTxns, color);
-          return;
-        }
-      }
+    if (allTxns.length) {
+      // Sort largest amount first
+      allTxns.sort(function(a, b) { return Math.abs(b.amount) - Math.abs(a.amount); });
+      showExpModalTxns(label, periodLabel, allTxns, color);
+      return;
     }
   } catch (err) {
     console.error('[mfDrillDown] fetch failed:', err);
   }
 
-  // Final fallback: show sub-account totals from the P&L summary (better than nothing)
+  // Final fallback: show sub-account totals from the P&L summary, summed across period
   var childNames = (ownersData.children && ownersData.children[acctKey]) || [];
   var items = childNames.map(function(name) {
-    var val = (ownersData.accounts[name] && ownersData.accounts[name][month]) || 0;
+    var val = fetchMonths.reduce(function(s, mk) {
+      return s + ((ownersData.accounts[name] && ownersData.accounts[name][mk]) || 0);
+    }, 0);
     return { name: name, val: val };
   }).filter(function(i) { return i.val > 0; })
     .sort(function(a, b) { return b.val - a.val; });
-  var total = (ownersData.accounts[acctKey] && ownersData.accounts[acctKey][month]) || 0;
-  showExpModal(label, fmtMk(month), items, total, color);
+  var total = fetchMonths.reduce(function(s, mk) {
+    return s + ((ownersData.accounts[acctKey] && ownersData.accounts[acctKey][mk]) || 0);
+  }, 0);
+  showExpModal(label, periodLabel, items, total, color);
 }
 
 // Show the expense sheet in "loading" state while the transaction fetch runs
