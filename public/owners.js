@@ -673,7 +673,7 @@ function renderOwners() {
 
       // ── − Cost of Goods Sold ──────────────────────────────────
       '<div class="mf-op">' +
-        '<div class="mf-op-label"><span class="mf-op-sign">\u2212</span> Cost of Goods Sold</div>' +
+        '<div class="mf-op-label">Cost of Goods Sold</div>' +
         '<div class="mf-op-total">\u2212' + fmtDollar(curCOGS) + '</div>' +
         // 2-part split bar: red = COGS (clickable), pale-green = GP remainder (passive)
         '<div class="mf-split-wrap mf-split-wrap--cogs">' +
@@ -706,7 +706,7 @@ function renderOwners() {
 
       // ── − Overhead ────────────────────────────────────────────
       '<div class="mf-op">' +
-        '<div class="mf-op-label"><span class="mf-op-sign">\u2212</span> Overhead</div>' +
+        '<div class="mf-op-label">Overhead</div>' +
         '<div class="mf-op-total mf-op-total--orange">\u2212' + fmtDollar(curOvhd) + '</div>' +
         // 3-part split bar: click the orange Overhead segment to expand the breakdown
         '<div class="mf-split-wrap mf-split-wrap--ovhd">' +
@@ -770,8 +770,8 @@ function renderOwners() {
 
         return (
           '<div class="mf-step mf-step--noi">' +
-            '<div class="mf-step-label"><span class="mf-step-eq">=</span> Operating Profit</div>' +
-            '<div class="mf-step-num">' + fmtDollar(curNOI) + '</div>' +
+            '<div class="mf-step-label">Operating Profit</div>' +
+            '<div class="mf-step-num mf-step-num--eq">=</div>' +
             // Bar wrapper — position:relative so target line can sit on top
             '<div class="mf-noi-bar-wrap">' +
               // Gold target label above bar

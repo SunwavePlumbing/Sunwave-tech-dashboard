@@ -503,13 +503,18 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .mf-step--noi { background:#f9fafb; border-top:2px solid #e5e7eb; }
 
 .mf-step-label {
-  font-size:10px; font-weight:700; letter-spacing:1.4px;
-  text-transform:uppercase; color:#aaa;
+  font-size:13px; font-weight:700; letter-spacing:0.6px;
+  text-transform:uppercase; color:#555;
   display:flex; align-items:center; gap:8px; margin-bottom:8px;
 }
 .mf-step--gp  .mf-step-label { color:#059669; }
 .mf-step--noi .mf-step-label { color:#2563eb; }
-.mf-step-eq { font-size:16px; font-weight:700; line-height:1; }
+
+/* Big "=" in the Operating Profit slot instead of dollar amount */
+.mf-step-num--eq {
+  font-size:56px; font-weight:900; color:#2563eb;
+  line-height:1; margin:0 0 4px; letter-spacing:0;
+}
 
 .mf-step-num {
   font-size:42px; font-weight:800; letter-spacing:-1.5px;
@@ -665,8 +670,8 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   justify-content:space-between; gap:8px;
 }
 .mf-op-label {
-  font-size:10px; font-weight:700; letter-spacing:1.2px;
-  text-transform:uppercase; color:#999;
+  font-size:13px; font-weight:700; letter-spacing:0.6px;
+  text-transform:uppercase; color:#555;
   display:flex; align-items:center; gap:6px;
 }
 .mf-op-sign { font-size:20px; color:#ef4444; font-weight:800; line-height:1; }
@@ -924,11 +929,13 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 /* Hidden-until-hover: faint/passive segments */
 .mf-seg-dim .mf-bar-label,
 .mf-sb-prior .mf-bar-label,
-.mf-sb-pass .mf-bar-label { opacity: 0; }
+.mf-sb-pass .mf-bar-label,
+.mf-sb-gp .mf-bar-label { opacity: 0; }
 
 .mf-seg-dim:hover .mf-bar-label,
 .mf-sb-prior:hover .mf-bar-label,
-.mf-sb-pass:hover .mf-bar-label { opacity: 1; }
+.mf-sb-pass:hover .mf-bar-label,
+.mf-sb-gp:hover .mf-bar-label { opacity: 1; }
 
 /* Dark labels for pale-background segments */
 .mf-sb-pass .mf-bar-label { color: #1e40af; }
@@ -1044,7 +1051,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   font-weight: 700;
   color: rgba(255,255,255,0.75);
   pointer-events: none;
-  line-height: 1;
+  line-height: 0;        /* collapse line box so glyph centres exactly */
   transition: transform 0.2s, color 0.15s;
 }
 .mf-seg-click:hover .mf-op-chev,
@@ -1052,6 +1059,9 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   color: rgba(255,255,255,1);
   transform: translateY(-50%) scale(1.15);
 }
+/* GP segment: darker arrow (pale green bg makes white invisible) */
+.mf-sb-gp .mf-op-chev { color: rgba(21,128,61,0.55); }
+.mf-sb-gp:hover .mf-op-chev { color: rgba(21,128,61,1); }
 /* Operating Profit: label centered, chevron right-pinned */
 .mf-noi-profit-seg .mf-bar-label {
   position: absolute;
@@ -1110,7 +1120,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 @media (max-width:768px) {
   .mf-step       { padding:16px 16px; }
   .mf-op         { padding:12px 16px; }
-  .mf-step-label { font-size:11px; }
+  .mf-step-label { font-size:12px; }
   .mf-step-num   { font-size:38px; }
   .mf-step-desc  { font-size:13px; }
   .mf-op-total   { font-size:38px; }
