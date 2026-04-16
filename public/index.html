@@ -166,6 +166,43 @@
         <div style="font-size:11px;color:#888;margin-top:4px;margin-bottom:10px">Every income and expense line, month by month. The selected month is highlighted. % Rev shows each line as a share of revenue over the whole window.</div>
         <div id="finPnlGrid" class="fin-pnl-scroll"></div>
       </div>
+
+      <!-- Growth Decision Cards Section -->
+      <div id="growthSection" style="display:none;margin-top:2rem">
+        <!-- KPI Row — top metrics -->
+        <div id="growthKpiRow" class="growth-kpi-row" style="margin-bottom:1.4rem"></div>
+
+        <!-- Growth Readiness Meter — prominent card -->
+        <div class="fin-chart-card" id="growthReadinessCard" style="margin-bottom:1.4rem">
+          <div id="growthReadinessContent">Loading...</div>
+        </div>
+
+        <!-- Three decision cards in a row -->
+        <div class="growth-3col" style="margin-bottom:1.4rem">
+          <!-- Technician Hiring Card -->
+          <div class="fin-chart-card">
+            <div id="growthHiringContent">Loading...</div>
+          </div>
+
+          <!-- Van Readiness Card -->
+          <div class="fin-chart-card">
+            <div id="growthVanContent">Loading...</div>
+          </div>
+
+          <!-- Tool Purchase Card -->
+          <div class="fin-chart-card">
+            <div id="growthToolContent">Loading...</div>
+          </div>
+        </div>
+
+        <!-- 6-Month Cash Forecast Chart -->
+        <div class="fin-chart-card" id="growthForecastCard" style="margin-bottom:1.4rem">
+          <div class="fin-chart-title">6-Month Cash Forecast — Scenario Modeling</div>
+          <div style="font-size:11px;color:#888;margin-top:-8px;margin-bottom:10px">What happens if you hire a tech, buy a van, buy a tool, or make multiple moves?</div>
+          <div class="growth-forecast-controls" id="growthForecastControls"></div>
+          <div class="fin-chart-wrap" style="height:250px"><canvas id="growthForecastChart"></canvas></div>
+        </div>
+      </div>
     </div>
   </div>
 </div>

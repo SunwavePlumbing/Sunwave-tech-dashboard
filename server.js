@@ -968,6 +968,112 @@ app.get('/api/qbo-balance', async (req, res) => {
     res.status(500).json({ connected: false, error: err.message });
   }
 });
+
+// ────────────────────────────────────────────────────────────────────────────
+// GROWTH METRICS — Hiring, vans, tools, cash forecasting
+// ────────────────────────────────────────────────────────────────────────────
+app.get('/api/growth-metrics', async (req, res) => {
+  const GROWTH_TTL = 60 * 60 * 1000; // 1 hour
+  const cached = cacheGet('growth-metrics', GROWTH_TTL);
+  if (cached) return res.json(cached);
+
+  const payload = {
+    connected: false,
+    technicians: [],
+    monthlyRevenue: [],
+    months: [],
+    revenuePerTech: null,
+    availableGrowthCash: null,
+    vans: 0,
+    growthCapacityScore: 0
+  };
+
+  try {
+    // Fetch HCP data — technician count + utilization
+    if (API_KEY) {
+      try {
+        const techRes = await axios.get(BASE_URL + '/v1/team_members', {
+          headers: hcpHeaders(),
+          params: { active: true }
+        });
+        const techs = techRes.data?.data || [];
+        const activeTechs = techs.filter(t => t.status === 'active' || !t.status);
+        payload.technicians = activeTechs;
+        payload.connected = true;
+      } catch (e) {
+        console.log('[growth] HCP tech fetch failed:', e.message);
+      }
+    }
+
+    // Fetch QBO financial data for revenue trends
+    if (qboReady()) {
+      const token = await getQBOAccessToken();
+      if (token) {
+        try {
+          const now = new Date();
+          const reliableEnd = getReliableEndDate(now);
+          const start = new Date(reliableEnd.getFullYear(), reliableEnd.getMonth() - 5, 1);
+          const startDate = start.toISOString().slice(0, 10);
+          const endDate = reliableEnd.toISOString().slice(0, 10);
+
+          const pnlRes = await axios.get(
+            QBO_BASE + '/v3/company/' + qboTokens.realmId + '/reports/ProfitAndLoss',
+            {
+              headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
+              params: {
+                start_date: startDate,
+                end_date: endDate,
+                accounting_method: 'Cash',
+                summarize_column_by: 'Month',
+                minorversion: 75
+              }
+            }
+          );
+          const parsed = parseFinancialReport(pnlRes.data);
+          payload.months = parsed.months || [];
+
+          // Extract revenue per month using 'Total Income'
+          const revAccount = parsed.accounts['Total Income'] || {};
+          payload.monthlyRevenue = (payload.months || []).map(function(m) {
+            return revAccount[m] || 0;
+          });
+
+          payload.connected = true;
+        } catch (e) {
+          console.log('[growth] QBO fetch failed:', e.message);
+        }
+      }
+    }
+
+    // Compute derived metrics
+    if (payload.monthlyRevenue.length > 0 && payload.technicians.length > 0) {
+      const avgMonthlyRev = payload.monthlyRevenue.reduce((a, b) => a + b, 0) / payload.monthlyRevenue.length;
+      payload.revenuePerTech = Math.round(avgMonthlyRev / payload.technicians.length);
+
+      // Estimate available growth cash as 20% of monthly revenue (simplified)
+      payload.availableGrowthCash = Math.round(avgMonthlyRev * 0.2);
+
+      // Estimate vans (1 van per 2-3 techs)
+      payload.vans = Math.ceil(payload.technicians.length / 2.5);
+
+      // Growth Capacity Score (0-100) based on revenue per tech and team size
+      const minRevenuePerTech = 25000;
+      const maxRevenuePerTech = 50000;
+      const scoreFromRev = Math.min(100, Math.max(0,
+        (payload.revenuePerTech - minRevenuePerTech) / (maxRevenuePerTech - minRevenuePerTech) * 100
+      ));
+      const teamSizeBonus = Math.min(20, payload.technicians.length * 2);
+      payload.growthCapacityScore = Math.round(scoreFromRev * 0.7 + teamSizeBonus * 0.3);
+    }
+
+    cacheSet('growth-metrics', payload);
+    res.json(payload);
+  } catch (err) {
+    console.error('[/api/growth-metrics]', err.message);
+    res.json(payload); // Return partial payload rather than error
+  }
+});
+
 // ────────────────────────────────────────────────────────────────────────────
 
 app.listen(PORT, () => {

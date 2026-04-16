@@ -1599,6 +1599,56 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .fin-alert-range { font-size:11px;color:#aaa;margin-top:2px; }
 .fin-no-alerts { background:white;border-radius:10px;padding:16px 18px;font-size:13px;color:#aaa;box-shadow:0 1px 3px rgba(0,0,0,0.07); }
 
+/* ── Growth Decision Cards ─────────────────────────────────────── */
+.growth-kpi-row      { margin-bottom:1.4rem; }
+.growth-kpi-items    { display:grid; grid-template-columns:1fr; gap:12px; }
+.growth-kpi-item     { display:flex; gap:12px; background:#f9fafb; padding:12px; border-radius:6px; align-items:center; }
+.growth-kpi-icon     { font-size:24px; flex-shrink:0; }
+.growth-kpi-content  { flex:1; min-width:0; }
+.growth-kpi-label    { font-size:11px; color:#888; text-transform:uppercase; letter-spacing:0.5px; }
+.growth-kpi-value    { font-size:16px; font-weight:600; color:#1f2937; margin-top:2px; }
+
+.growth-readiness-header { margin-bottom:16px; }
+.growth-readiness-body   { display:flex; flex-direction:column; gap:16px; }
+.growth-readiness-bar    { background:#e5e7eb; border-radius:8px; overflow:hidden; height:24px; position:relative; }
+.growth-readiness-fill   { background:linear-gradient(90deg, #fbbf24 0%, #10b981 100%); height:100%; transition:width 0.3s ease; }
+.growth-readiness-labels { display:flex; justify-content:space-between; font-size:10px; color:#888; margin-top:6px; padding:0 2px; }
+.growth-readiness-score  { text-align:center; padding:16px; background:#eff6ff; border-radius:8px; }
+.growth-readiness-big    { font-size:32px; font-weight:700; color:#1e40af; }
+.growth-readiness-msg    { font-size:13px; color:#666; margin-top:4px; }
+.growth-readiness-facts  { display:flex; flex-direction:column; gap:10px; }
+.growth-readiness-fact   { display:flex; justify-content:space-between; align-items:center; padding:8px; border-left:3px solid #e5e7eb; }
+.growth-readiness-fact-label  { font-size:12px; color:#666; }
+.growth-readiness-fact-value  { font-size:13px; font-weight:600; color:#1f2937; }
+.growth-ready-excellent { color:#059669; }
+.growth-ready-good      { color:#0891b2; }
+.growth-ready-building  { color:#f59e0b; }
+
+.growth-3col { display:grid; grid-template-columns:1fr; gap:1.4rem; }
+.growth-card-title  { font-size:15px; font-weight:700; color:#1f2937; margin-bottom:4px; }
+.growth-card-sub    { font-size:11px; color:#888; margin-bottom:12px; }
+.growth-card-form   { margin-bottom:12px; }
+.growth-card-form label { display:flex; align-items:center; gap:8px; font-size:12px; }
+.growth-card-form input { width:60px; padding:6px; border:1px solid #d1d5db; border-radius:4px; font-size:12px; }
+.growth-card-metrics { display:flex; flex-direction:column; gap:8px; margin-bottom:12px; }
+.growth-card-metric  { display:flex; justify-content:space-between; align-items:center; font-size:12px; padding:8px 0; border-bottom:1px solid #f3f4f6; }
+.growth-card-metric-label { color:#666; }
+.growth-card-metric-value { font-weight:600; color:#1f2937; }
+.growth-card-metric-warn .growth-card-metric-value { color:#dc2626; }
+.growth-card-insight { font-size:12px; color:#666; background:#f9fafb; padding:10px; border-radius:4px; border-left:3px solid #10b981; }
+
+.growth-card-tools { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
+.growth-card-tool-btn { flex:1; min-width:80px; padding:10px 8px; background:#f9fafb; border:1px solid #d1d5db; border-radius:6px; cursor:pointer; transition:0.2s; font-size:11px; text-align:center; }
+.growth-card-tool-btn:hover { background:#f3f4f6; }
+.growth-card-tool-btn.active { background:#1e40af; color:#fff; border-color:#1e40af; }
+.growth-card-tool-name { font-weight:600; }
+.growth-card-tool-cost { font-size:12px; margin-top:4px; }
+.growth-card-tool-desc { font-size:10px; color:#666; margin-top:2px; }
+
+.growth-forecast-toggle-group { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+.growth-forecast-toggle { padding:8px 12px; background:#fff; border:2px solid; border-radius:6px; cursor:pointer; font-size:12px; transition:0.2s; min-height:36px; display:flex; align-items:center; justify-content:center; }
+.growth-forecast-toggle.active { color:#fff; background:currentColor; }
+
 /* ── Location Owners — mobile font/spacing bump ─────────────────
    Base sizes above are desktop-first. This block bumps everything
    up to comfortable reading size on phones (≥14px body, ≥12px labels). */
@@ -1671,4 +1721,18 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   .fin-alert-msg       { font-size:15px; }
   .fin-alert-range     { font-size:13px; }
   .fin-no-alerts       { font-size:15px; }
+
+  /* Growth cards — mobile size bump */
+  .growth-kpi-value    { font-size:18px; }
+  .growth-card-title   { font-size:16px; }
+  .growth-card-metric  { font-size:13px; }
+  .growth-card-form label { font-size:13px; }
+  .growth-card-form input { font-size:13px; }
+  .growth-card-tool-cost { font-size:13px; }
+}
+
+/* Tablet/Desktop breakpoint — 3-column growth card layout */
+@media (min-width: 768px) {
+  .growth-3col { grid-template-columns:1fr 1fr 1fr; }
+  .growth-kpi-items { grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); }
 }
