@@ -1563,12 +1563,11 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   }
 
   /* ── RESPONSIVE CHART HEIGHTS ────────────────────────────────────── */
-  .fin-chart-wrap { height: 180px !important; }  /* trend, revenue, cashflow */
-  #finTrendCard  .fin-chart-wrap { height: 180px; }
-  #finRevCard    .fin-chart-wrap { height: 180px; }
-  #finCashFlowCard .fin-chart-wrap { height: 180px; }
+  .fin-chart-wrap { height: 200px !important; }  /* trend, revenue, cashflow — increased from 180px for better label spacing */
+  #finTrendCard  .fin-chart-wrap { height: 200px; }
+  #finRevCard    .fin-chart-wrap { height: 200px; }
+  #finCashFlowCard .fin-chart-wrap { height: 200px; }
   #finRow2       .fin-chart-wrap { height: 280px; }  /* donut chart — much larger for readability */
-  #finCashFlowCard .fin-chart-wrap { height: 180px; }
 
   /* ── FONT SIZES: WCAG AA compliant (16px body, 14px labels, 12px small) */
   .fin-row-title { font-size: 13px; letter-spacing: 1px; }
@@ -1824,9 +1823,12 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   .fin-pct-tile-value { font-size: 32px; }
   .fin-chart-title { font-size: 17px; }
 
-  /* Chart heights - donut still large, others more compact */
-  .fin-chart-wrap { height: 160px !important; }
-  #finRow2 .fin-chart-wrap { height: 260px; }  /* keep donut large for legend readability */
+  /* Chart heights - donut still large, others more compact on ultra-small phones */
+  .fin-chart-wrap { height: 180px !important; }  /* bar charts revert to 180px on ultra-small (was 200px) */
+  #finTrendCard .fin-chart-wrap { height: 180px; }
+  #finRevCard .fin-chart-wrap { height: 180px; }
+  #finCashFlowCard .fin-chart-wrap { height: 180px; }
+  #finRow2 .fin-chart-wrap { height: 260px; }  /* keep donut at 260px for legend readability */
 
   /* Reduce padding on very small screens */
   .fin-card { padding: 16px; }

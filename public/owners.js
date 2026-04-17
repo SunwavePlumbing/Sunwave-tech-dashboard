@@ -1138,9 +1138,10 @@ function renderOwners() {
   var dCtx = document.getElementById('donutChart').getContext('2d');
   // Detect mobile for responsive chart legend sizing
   var isMobile = window.innerWidth <= 768;
-  var legendFontSize = isMobile ? 13 : 11;
-  var legendBoxWidth = isMobile ? 16 : 12;
-  var legendPadding = isMobile ? 12 : 8;
+  var isUltraSmall = window.innerWidth <= 413;
+  var legendFontSize = isUltraSmall ? 12 : (isMobile ? 14 : 11);  // 12 for ultra-small, 14 for regular mobile
+  var legendBoxWidth = isMobile ? 18 : 12;  // increased from 16 for more spacing
+  var legendPadding = isMobile ? 14 : 8;    // increased from 12 for breathing room
 
   donutChartInst = new Chart(dCtx, {
     type: 'doughnut',
@@ -1339,6 +1340,10 @@ function renderOwners() {
     if (revBarChartInst) revBarChartInst.destroy();
     var revCtx = document.getElementById('revBarChart').getContext('2d');
 
+    // Mobile detection for responsive sizing
+    var isMobile = window.innerWidth <= 768;
+    var revLabelFontSize = isMobile ? 12 : 11;
+
     // Inline plugin: dollar label above each bar
     var revLabelPlugin = {
       id: 'revBarLabels',
@@ -1352,7 +1357,7 @@ function renderOwners() {
           var v = ds.data[i];
           if (!v) return;
           var isLast = (revStart + i) === revEnd;
-          ctx2.font = (isLast ? '700' : '600') + ' 11px "Inter",system-ui,sans-serif';
+          ctx2.font = (isLast ? '700' : '600') + ' ' + revLabelFontSize + 'px "Inter",system-ui,sans-serif';
           ctx2.fillStyle = isLast ? '#9a3412' : '#64748b';
           ctx2.fillText(fmtDollar(v), bar.x, bar.y - 5);
         });
@@ -1361,7 +1366,6 @@ function renderOwners() {
     };
 
     // Mobile-aware x-axis label configuration
-    var isMobile = window.innerWidth <= 768;
     var xAxisRotation = isMobile ? 45 : 0;
     var xAxisFontSize = isMobile ? 9 : 11;
     var xAxisAutoSkip = isMobile ? true : false;  // skip some labels on mobile to prevent overlap
@@ -1479,6 +1483,8 @@ function renderOwners() {
     var cfCtx = document.getElementById('cfBarChart').getContext('2d');
 
     // Inline plugin: draw the dollar value above each bar
+    var cfMobile = window.innerWidth <= 768;
+    var cfLabelFontSize = cfMobile ? 12 : 11;
     var cfLabelPlugin = {
       id: 'cfBarLabels',
       afterDatasetsDraw: function(chart) {
@@ -1492,7 +1498,7 @@ function renderOwners() {
           var v = ds.data[i];
           if (!v) return;
           var isLast = (bsStart + i) === bsEnd;
-          ctx2.font = (isLast ? '700' : '600') + ' 11px "Inter",system-ui,sans-serif';
+          ctx2.font = (isLast ? '700' : '600') + ' ' + cfLabelFontSize + 'px "Inter",system-ui,sans-serif';
           ctx2.fillStyle = isLast ? '#1e3a8a' : '#64748b';
           ctx2.fillText(fmtDollar(v), bar.x, bar.y - 5);
         });
@@ -1532,17 +1538,24 @@ function renderOwners() {
             }
           }
         },
-        scales: {
-          x: {
-            grid: { display: false },
-            border: { display: false },
-            ticks: {
-              font: { size: 11, weight: '600' },
-              color: '#94a3b8',
-              maxRotation: 0, minRotation: 0,
-              autoSkip: false
-            }
-          },
+        scales: (function() {
+          var cfMobile = window.innerWidth <= 768;
+          var cfXFontSize = cfMobile ? 9 : 11;
+          var cfXRotation = cfMobile ? 45 : 0;
+          var cfXAutoSkip = cfMobile ? true : false;
+          var cfMaxTicks = cfMobile ? 6 : 15;
+          return {
+            x: {
+              grid: { display: false },
+              border: { display: false },
+              ticks: {
+                font: { size: cfXFontSize, weight: '600' },
+                color: '#94a3b8',
+                maxRotation: cfXRotation, minRotation: cfXRotation,
+                autoSkip: cfXAutoSkip,
+                maxTicksLimit: cfMaxTicks
+              }
+            },
           y: {
             ticks: {
               callback: function(v) { return fmtDollar(v); },
@@ -1553,7 +1566,8 @@ function renderOwners() {
             grid: { color: '#f0f0f0', lineWidth: 1 },
             border: { display: false }
           }
-        }
+          };
+        }())
       }
     });
 
