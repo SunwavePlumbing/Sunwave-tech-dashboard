@@ -408,6 +408,52 @@ body.paper-mode .fin-chart-wrap--scroll::before {
 body.paper-mode .fin-chart-wrap--scroll::after {
   background: linear-gradient(to right, rgba(247, 246, 242, 0), rgba(247, 246, 242, 0.98)) !important;
 }
+
+/* ── Summary Plate (hover/scrub header on Revenue + Cash charts) ──
+   Default is flat #f8fafc on neutral gray border with a cool shadow —
+   reads as plastic against the warm paper surface. Re-skin as a sticky
+   note resting on the page: paper-card fill, faint pencil border,
+   warm sepia shadow, fountain-pen ink text. */
+body.paper-mode .fin-summary-plate {
+  background: var(--paper-card-alt);
+  border: 1px solid var(--paper-border-firm);
+  box-shadow: 0 2px 8px rgba(70, 65, 60, 0.06);
+  border-radius: 10px;
+}
+body.paper-mode .fin-summary-plate-month {
+  color: var(--brand-ink-muted);
+}
+body.paper-mode .fin-summary-plate-value {
+  color: var(--riso-oxford);            /* fountain-pen Oxford Blue */
+  letter-spacing: -0.4px;
+}
+/* Delta pills — soften the bright candy green/red to muted paper tones */
+body.paper-mode .fin-summary-plate-delta.up {
+  background: rgba(138, 154, 91, 0.18);  /* sage wash */
+  color: #4F5E2E;                        /* deep sage ink */
+}
+body.paper-mode .fin-summary-plate-delta.down {
+  background: rgba(181, 102, 121, 0.18); /* dusty rose wash */
+  color: #6E3040;                        /* deep rose ink */
+}
+
+/* ── Custom floating trend-chart tooltip (owners.js renderTrendTooltip) ──
+   Default card was stark white with cool slate border + black-tinted
+   shadow. Same sticky-note treatment as the Summary Plate. */
+body.paper-mode .fin-trend-tooltip {
+  background: var(--paper-card-alt);
+  border: 1px solid rgba(70, 65, 60, 0.12);
+  box-shadow: 0 4px 12px rgba(70, 65, 60, 0.08);
+}
+body.paper-mode .fin-trend-tooltip-date {
+  color: var(--brand-ink-muted);
+}
+body.paper-mode .fin-trend-tooltip-label {
+  color: var(--brand-ink-soft);
+}
+/* NOTE: .fin-trend-tooltip-value is color-tinted inline by JS (matches
+   the active series color) — we intentionally leave that alone so the
+   legend swatch and the tooltip value stay visually linked. */
 /* Sort / date pills — unchecked state was pure white */
 body.paper-mode .sort-btn:not(.active),
 body.paper-mode .date-btn:not(.active) {

@@ -67,9 +67,27 @@ const ST_PATTERN = /\b(service[\s\-_]?titan|st[\s\-_]?import)\b/i;
 // Returns true if the job's tags / lead_source / notes / custom fields
 // indicate a ServiceTitan origin. Tolerant of multiple shapes the HCP API
 // can return (bare strings, {name}, {value}, nested arrays).
+// Safely coerce any of the many shapes HCP returns (array, {data:[...]},
+// {fields:[...]}, single object, string, null) into an iterable array so
+// downstream `for...of` loops never blow up with "X is not iterable".
+function toArrayish(v) {
+  if (v == null) return [];
+  if (Array.isArray(v)) return v;
+  if (typeof v === 'object') {
+    // Common wrapper shapes: {data: [...]}, {fields: [...]}, {items: [...]}
+    if (Array.isArray(v.data))   return v.data;
+    if (Array.isArray(v.fields)) return v.fields;
+    if (Array.isArray(v.items))  return v.items;
+    // Single field object — wrap it so the caller still gets one iteration
+    return [v];
+  }
+  // String / number / boolean — wrap so `.value`/`.name` tests still work-ish
+  return [v];
+}
+
 function isServiceTitanJob(job) {
   if (!job) return false;
-  const tags = job.tags || [];
+  const tags = toArrayish(job.tags);
   for (const t of tags) {
     const v = typeof t === 'string' ? t : (t && (t.name || t.value || ''));
     if (v && ST_PATTERN.test(v)) return true;
@@ -82,7 +100,7 @@ function isServiceTitanJob(job) {
     const v = job[key];
     if (v && typeof v === 'string' && ST_PATTERN.test(v)) return true;
   }
-  const jf = job.job_fields || job.custom_fields || [];
+  const jf = toArrayish(job.job_fields || job.custom_fields);
   for (const f of jf) {
     const v = (f && (f.value || f.text || f.name)) || '';
     if (v && typeof v === 'string' && ST_PATTERN.test(v)) return true;
@@ -103,7 +121,7 @@ function isPostCutoverSTArtifact(job) {
 // Diagnostic: which field(s) triggered the ST match, for the debug endpoint.
 function describeSTMatch(job) {
   const hits = [];
-  (job.tags || []).forEach((t, i) => {
+  toArrayish(job.tags).forEach((t, i) => {
     const v = typeof t === 'string' ? t : (t && (t.name || t.value || ''));
     if (v && ST_PATTERN.test(v)) hits.push('tags[' + i + ']=' + v);
   });
