@@ -73,8 +73,9 @@ var commonKeys = ['day', 'yesterday', 'mtd', 'lm', 'l30d', 'ytd'];
 
 // Selects a range and updates all UI that reflects it (pill row + bottom
 // sheet). Safe to call from any source (pill tap, sheet tap, etc.).
+// If a previous fetch is still in flight, fetchData() aborts it — the
+// user can always override an accidental click with a new one.
 function selectRange(key) {
-  if (isFetching) return;
   if (key === currentTimeRange) return;
   currentTimeRange = key;
   // Update pill buttons in the horizontal row
@@ -390,10 +391,11 @@ function activateTab(tab) {
   document.querySelectorAll('.view-panel').forEach(function(p) { p.classList.remove('active'); });
   document.getElementById(TAB_MAP[tab].view).classList.add('active');
 
-  // Paper-mode skin — active only on the Marketing tab. The body class
-  // is consumed by public/marketing-paper.css. To fully disable: delete
-  // that file, remove its <link> tag, and this toggle.
-  document.body.classList.toggle('paper-mode', tab === 'marketing');
+  // Paper-mode skin — active site-wide (all tabs). The body class is
+  // consumed by public/marketing-paper.css. To fully disable: delete
+  // that file, remove its <link> tag, and the class in index.html's
+  // <body class="paper-mode"> tag.
+  document.body.classList.add('paper-mode');
 
   // Sidebar is a child of #techView and auto-hides with the tab —
   // no JS toggle needed. Tab nav width is now constant across tabs, so

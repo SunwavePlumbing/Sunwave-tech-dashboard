@@ -140,7 +140,15 @@ function showTechSkeleton() {
   startStatusCycle();
 }
 
+var _fetchAbort = null;     // AbortController for the currently in-flight fetch
+
 async function fetchData() {
+  // Abort any previous in-flight fetch — the newer request supersedes it.
+  // This lets users click a new range immediately after an accidental
+  // click, instead of waiting for the old fetch to complete.
+  if (_fetchAbort) _fetchAbort.abort();
+  var thisAbort = _fetchAbort = new AbortController();
+
   isFetching = true;
   // Delay skeleton — cache hits return in <100ms so the user never sees
   // a flicker. Only show skeleton if the request is genuinely slow.
@@ -148,8 +156,10 @@ async function fetchData() {
   _skelTimer = setTimeout(showTechSkeleton, SKELETON_DELAY_MS);
 
   try {
-    var response = await fetch('/api/metrics?range=' + currentTimeRange);
+    var response = await fetch('/api/metrics?range=' + currentTimeRange, { signal: thisAbort.signal });
     var data = await response.json();
+    // Ignore response if this fetch was superseded by a newer one
+    if (thisAbort !== _fetchAbort) return;
     if (!response.ok || data.error) {
       clearTimeout(_skelTimer); _skelTimer = null;
       teardownLoadingUI();
@@ -162,12 +172,20 @@ async function fetchData() {
     currentData = data;
     render();
   } catch (err) {
+    // Aborted fetches throw AbortError — that's expected (user clicked
+    // a different range). Silently skip; the newer fetch handles the UI.
+    if (err.name === 'AbortError') return;
     clearTimeout(_skelTimer); _skelTimer = null;
     teardownLoadingUI();
     document.getElementById('leaderboardBody').innerHTML =
       '<tr><td colspan="4"><div class="error-msg">Error loading data. Check API key and server logs.</div></td></tr>';
   } finally {
-    isFetching = false;
+    // Only clear the "fetching" state if THIS fetch is the currently
+    // tracked one (not if we were superseded).
+    if (thisAbort === _fetchAbort) {
+      isFetching = false;
+      _fetchAbort = null;
+    }
   }
 }
 

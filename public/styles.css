@@ -158,14 +158,13 @@ body {
   -webkit-user-select: none;
 }
 
-/* Name-reveal scramble: while the label is mid-reveal it inherits the
-   cipher's muted monospace look. Once the final char locks, the class
-   is stripped and the label reverts to normal typography. */
+/* Name-reveal scramble: matches the final name typography exactly so
+   there's zero flicker at the moment of reveal. Only the text color is
+   slightly muted during scramble to hint "still computing." */
 .tech-name-label.is-revealing {
-  font-family: ui-monospace, 'SF Mono', 'Menlo', 'Consolas', monospace;
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
+  /* Inherit font-family, size, weight, and letter-spacing from the
+     base .tech-name-label rule (no overrides here) so the font stays
+     identical before AND after the reveal completes. */
   color: #475569;
 }
 
@@ -250,7 +249,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 
 .tech-cell { display: flex; align-items: center; gap: 12px; }
 .avatar { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: white; flex-shrink: 0; letter-spacing: 0.5px; }
-.tech-name-label { font-size: 14px; font-weight: 500; color: #333; }
+.tech-name-label { font-size: 15px; font-weight: 600; color: #1a2d3a; letter-spacing: 0; }
 .tech-name-short { display: none; } /* first-name-only span — shown on mobile */
 .rank-num { font-size: 13px; font-weight: 700; color: #bbb; min-width: 18px; text-align: center; }
 
@@ -599,7 +598,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   tbody td:first-child, thead th:first-child { padding-left: 12px; }
   tfoot td { font-size: 13px; }
   .tech-cell { gap: 6px; }
-  .tech-name-label { font-size: 15px; font-weight: 600; }
+  .tech-name-label { font-size: 16px; font-weight: 600; letter-spacing: 0; }
   .rank-num { font-size: 14px; min-width: 16px; }
   /* Modal becomes a bottom sheet on mobile */
   .modal-backdrop { align-items: flex-end; }

@@ -32,6 +32,18 @@ function cacheSet(key, data) {
   _cache.set(key, { at: Date.now(), data });
 }
 
+// ── In-flight promise de-dup ─────────────────────────────────────────────────
+// If two requests arrive for the same raw-jobs fetch at once, they should
+// share one network round-trip instead of each firing their own. Keyed by
+// cache key; value is the pending promise that resolves to the cached data.
+const _inflight = new Map();
+function inflightGet(key, factory) {
+  if (_inflight.has(key)) return _inflight.get(key);
+  const p = factory().finally(() => { _inflight.delete(key); });
+  _inflight.set(key, p);
+  return p;
+}
+
 // ── QuickBooks Online ────────────────────────────────────────────────────────
 const QBO_CLIENT_ID     = process.env.QBO_CLIENT_ID;
 const QBO_CLIENT_SECRET = process.env.QBO_CLIENT_SECRET;
@@ -423,41 +435,157 @@ app.get('/api/metrics', async (req, res) => {
 
     const headers = hcpHeaders();
 
-    // ── CLIENT-SIDE COMPLETION DATE FILTERING ────────────────────────────────────
-    // HCP's /jobs endpoint doesn't support filtering by completed_at, only
-    // scheduled_start. So we fetch a wider window (90 days prior) and filter
-    // by actual completion date on the server side.
-    const COMPLETION_LOOKBACK_DAYS = 90;
-    const fetchStart = new Date(periodStart);
-    fetchStart.setDate(fetchStart.getDate() - COMPLETION_LOOKBACK_DAYS);
+    // ── Shared raw-jobs cache for "short" ranges ────────────────────
+    // All common short ranges (day, yesterday, WTD, MTD, last month,
+    // l7/14/30/90d) fit inside a 180-day window. We fetch that wider
+    // window ONCE, cache it for 5 minutes, then derive every range
+    // from the same cached array via in-memory filtering. Result:
+    // switching Today → Yesterday → WTD → MTD is near-instant after
+    // the first load.
+    //
+    // Longer ranges (ytd, l365d, ly, quarter-to-date variants) fall
+    // through to a per-range fetch below.
+    const RAW_WINDOW_DAYS = 180;
+    const SHORT_RANGES = new Set([
+      'day','yesterday','week','wtd','l7d','l14d','l30d','mtd','lm','l90d'
+    ]);
 
-    // ── Parallel pagination ─────────────────────────────────────────
-    // HCP pages are ~200 jobs each. Fetch page 1 first to learn
-    // total_pages, then fire pages 2..N concurrently via Promise.all.
-    // For ranges that span many pages this cuts fetch time ~linearly.
-    const pageSize = 200;
-    const jobsParams = {
-      work_status: ['completed'],
-      scheduled_start_min: fetchStart.toISOString(),
-      scheduled_start_max: periodEnd.toISOString(),
-      page_size: pageSize
-    };
-    const firstPageRes = await axios.get(BASE_URL + '/jobs', {
-      headers,
-      params: { ...jobsParams, page: 1 }
-    });
-    const allJobs = firstPageRes.data.jobs || [];
-    const totalPages = firstPageRes.data.total_pages || 1;
+    // Builds the raw cache by fetching the wide window + all estimates.
+    // De-duped via inflightGet() so concurrent requests share one fetch.
+    const fetchRawShort = () => inflightGet('raw-short', async () => {
+      const RAW_TTL = 5 * 60 * 1000;
+      const ck = 'raw-jobs-short:' + RAW_WINDOW_DAYS;
+      const cached = cacheGet(ck, RAW_TTL);
+      if (cached) return cached;
 
-    if (totalPages > 1) {
-      const pagePromises = [];
-      for (let p = 2; p <= totalPages; p++) {
-        pagePromises.push(
-          axios.get(BASE_URL + '/jobs', { headers, params: { ...jobsParams, page: p } })
-        );
+      const rawStart = new Date(now);
+      rawStart.setDate(rawStart.getDate() - RAW_WINDOW_DAYS - 90); // +90d lookback
+      const rawEnd = new Date(now);
+      rawEnd.setDate(rawEnd.getDate() + 1);
+
+      const pageSize = 200;
+      const jobsParams = {
+        work_status: ['completed'],
+        scheduled_start_min: rawStart.toISOString(),
+        scheduled_start_max: rawEnd.toISOString(),
+        page_size: pageSize
+      };
+      const firstPageRes = await axios.get(BASE_URL + '/jobs', {
+        headers, params: { ...jobsParams, page: 1 }
+      });
+      const jobs = firstPageRes.data.jobs || [];
+      const totalPages = firstPageRes.data.total_pages || 1;
+      if (totalPages > 1) {
+        const pagePromises = [];
+        for (let p = 2; p <= totalPages; p++) {
+          pagePromises.push(axios.get(BASE_URL + '/jobs', {
+            headers, params: { ...jobsParams, page: p }
+          }));
+        }
+        const pageResults = await Promise.all(pagePromises);
+        pageResults.forEach(r => jobs.push(...(r.data.jobs || [])));
       }
-      const pageResults = await Promise.all(pagePromises);
-      pageResults.forEach(r => allJobs.push(...(r.data.jobs || [])));
+
+      // Pre-fetch estimate seller map for EVERY job in the window so
+      // downstream per-range filters never need another round-trip.
+      const estimateIds = [...new Set(
+        jobs
+          .map(j => j.original_estimate_id || (j.original_estimate_uuids && j.original_estimate_uuids[0]))
+          .filter(Boolean)
+      )];
+      const sellerMap = {};
+      if (estimateIds.length > 0) {
+        const BATCH = 10;
+        for (let i = 0; i < estimateIds.length; i += BATCH) {
+          const batch = estimateIds.slice(i, i + BATCH);
+          const results = await Promise.all(
+            batch.map(id =>
+              axios.get(BASE_URL + '/estimates/' + id, { headers })
+                .then(r => {
+                  const d = r.data;
+                  const employees = d.assigned_employees
+                    || (d.assigned_employee ? [d.assigned_employee] : []);
+                  return { id, employees };
+                })
+                .catch(() => ({ id, employees: [] }))
+          ));
+          results.forEach(r => { sellerMap[r.id] = r.employees; });
+        }
+      }
+
+      const result = { jobs, sellerMap };
+      cacheSet(ck, result);
+      return result;
+    });
+
+    let allJobs, estimateSellerMap;
+
+    if (SHORT_RANGES.has(range)) {
+      // Share the cached wide-window fetch
+      const raw = await fetchRawShort();
+      allJobs = raw.jobs;
+      estimateSellerMap = raw.sellerMap;
+    } else {
+      // Per-range fetch for longer windows that outgrow the shared cache
+      const COMPLETION_LOOKBACK_DAYS = 90;
+      const fetchStart = new Date(periodStart);
+      fetchStart.setDate(fetchStart.getDate() - COMPLETION_LOOKBACK_DAYS);
+
+      const pageSize = 200;
+      const jobsParams = {
+        work_status: ['completed'],
+        scheduled_start_min: fetchStart.toISOString(),
+        scheduled_start_max: periodEnd.toISOString(),
+        page_size: pageSize
+      };
+      const firstPageRes = await axios.get(BASE_URL + '/jobs', {
+        headers, params: { ...jobsParams, page: 1 }
+      });
+      allJobs = firstPageRes.data.jobs || [];
+      const totalPages = firstPageRes.data.total_pages || 1;
+
+      if (totalPages > 1) {
+        const pagePromises = [];
+        for (let p = 2; p <= totalPages; p++) {
+          pagePromises.push(
+            axios.get(BASE_URL + '/jobs', { headers, params: { ...jobsParams, page: p } })
+          );
+        }
+        const pageResults = await Promise.all(pagePromises);
+        pageResults.forEach(r => allJobs.push(...(r.data.jobs || [])));
+      }
+
+      // Filter-then-fetch-estimates for the longer ranges (same as before)
+      const isCompleted = (job) => {
+        if (!job.work_timestamps?.completed_at) return false;
+        const d = new Date(job.work_timestamps.completed_at);
+        return d >= periodStart && d < periodEnd;
+      };
+      const completed = allJobs.filter(isCompleted);
+      const estimateIds = [...new Set(
+        completed
+          .map(j => j.original_estimate_id || (j.original_estimate_uuids && j.original_estimate_uuids[0]))
+          .filter(Boolean)
+      )];
+      estimateSellerMap = {};
+      if (estimateIds.length > 0) {
+        const BATCH = 10;
+        for (let i = 0; i < estimateIds.length; i += BATCH) {
+          const batch = estimateIds.slice(i, i + BATCH);
+          const results = await Promise.all(
+            batch.map(id =>
+              axios.get(BASE_URL + '/estimates/' + id, { headers })
+                .then(r => {
+                  const d = r.data;
+                  const employees = d.assigned_employees
+                    || (d.assigned_employee ? [d.assigned_employee] : []);
+                  return { id, employees };
+                })
+                .catch(() => ({ id, employees: [] }))
+          ));
+          results.forEach(r => { estimateSellerMap[r.id] = r.employees; });
+        }
+      }
     }
 
     // Filter jobs by actual completion date (not scheduled date)
@@ -467,34 +595,6 @@ app.get('/api/metrics', async (req, res) => {
       return completedDate >= periodStart && completedDate < periodEnd;
     };
     const completedJobs = allJobs.filter(isJobCompleted);
-
-    // Fetch original estimates to identify who sold each job (the seller gets 1/3 credit)
-    const estimateIds = [...new Set(
-      completedJobs
-        .map(j => j.original_estimate_id || (j.original_estimate_uuids && j.original_estimate_uuids[0]))
-        .filter(Boolean)
-    )];
-    const estimateSellerMap = {};
-    if (estimateIds.length > 0) {
-      const BATCH = 10;
-      for (let i = 0; i < estimateIds.length; i += BATCH) {
-        const batch = estimateIds.slice(i, i + BATCH);
-        const results = await Promise.all(
-          batch.map(id =>
-            axios.get(BASE_URL + '/estimates/' + id, { headers })
-              .then(r => {
-                // HCP may return a single object (assigned_employee) or an array (assigned_employees)
-                const d = r.data;
-                const employees = d.assigned_employees
-                  || (d.assigned_employee ? [d.assigned_employee] : []);
-                return { id, employees };
-              })
-              .catch(() => ({ id, employees: [] }))
-          )
-        );
-        results.forEach(r => { estimateSellerMap[r.id] = r.employees; });
-      }
-    }
 
     const techMetrics = {};
 

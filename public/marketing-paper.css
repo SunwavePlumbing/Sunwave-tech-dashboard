@@ -1,53 +1,70 @@
 /* ═══════════════════════════════════════════════════════════════════
-   marketing-paper.css  —  natural-paper aesthetic, MARKETING TAB ONLY
+   marketing-paper.css  —  site-wide "paper" aesthetic + brand theme
    -------------------------------------------------------------------
-   Every rule is scoped to `body.paper-mode` so it only applies when
-   the Marketing tab is active. Adding/removing the class is handled
-   by activateTab() in app.js.
+   Applies to every tab (Technicians, Marketing, Location Owners) via
+   `body.paper-mode` which is set in index.html and defensively re-
+   added on every tab switch in app.js.
 
-   To disable or roll back completely:
-     1. Remove the <link rel="stylesheet" href="/marketing-paper.css">
-        from public/index.html
-     2. Delete this file.
-     3. Remove the one-line `document.body.classList.toggle('paper-mode', ...)`
-        inside activateTab() in public/app.js.
-   Nothing else in the codebase is modified.
+   Brand palette (per user spec):
+     #F38A3F  Orange   — hero / strong CTAs
+     #E88140  Orange-soft (off-color) — buttons, pills, bar fills
+     #373B4D  Black/Ink — text, titles, totals
+     #BFE0F3  Light Blue — sparse accent
+     #F1F3F5  (not used — too cold for paper texture)
+
+   Paper canvas: slightly warmer than #F1F3F5 (which reads as e-paper)
+   but noticeably less warm than the original #FAF9F6.
+
+   To roll back completely: (1) delete this file, (2) remove its
+   <link> tag from index.html, (3) remove class="paper-mode" from
+   <body>, (4) remove the one-line class add in activateTab() (app.js).
    ═══════════════════════════════════════════════════════════════════ */
 
-/* ── 1. Base canvas: warm off-white ───────────────────────────── */
+/* ── Custom properties (tweak here, cascade everywhere) ────────── */
 body.paper-mode {
-  background-color: #FAF9F6;
-  /* Global typographic softening — replaces harsh pure black ink */
-  color: #2C2A28;
+  /* Paper surfaces */
+  --paper-bg:           #F4F3EF;   /* page canvas — subtle warmth, not yellow */
+  --paper-card:         #F9F8F4;   /* cards sit one step lighter than canvas */
+  --paper-card-alt:     #FBFAF6;   /* alt rows, hover states */
+
+  /* Brand */
+  --brand-orange:       #F38A3F;   /* full-vibrant hero */
+  --brand-orange-soft:  #E88140;   /* off-color: slightly muted/deeper — everyday UI */
+  --brand-orange-pale:  rgba(232, 129, 64, 0.12);
+  --brand-orange-tint:  rgba(232, 129, 64, 0.08);
+
+  --brand-ink:          #373B4D;   /* titles, body, totals — brand black */
+  --brand-ink-soft:     #4A4E5F;   /* slightly lighter variant */
+  --brand-ink-muted:    #6B7280;   /* secondary text, labels */
+
+  --brand-blue:         #BFE0F3;   /* soft accent — sparse */
+  --brand-blue-deep:    #7FB5D3;   /* deeper blue for text/borders when blue is used */
+
+  /* Borders & shadows — tuned to brand ink, not pure black */
+  --paper-border:       rgba(55, 59, 77, 0.08);
+  --paper-border-firm:  rgba(55, 59, 77, 0.14);
+  --paper-shadow-sm:    0 1px 2px rgba(55, 59, 77, 0.04);
+  --paper-shadow-md:    0 1px 2px rgba(55, 59, 77, 0.04), 0 6px 18px rgba(55, 59, 77, 0.06);
+  --paper-shadow-lg:    0 1px 2px rgba(55, 59, 77, 0.04), 0 6px 18px rgba(55, 59, 77, 0.06), 0 16px 40px rgba(55, 59, 77, 0.05);
+
+  /* Apply base canvas + ink */
+  background-color: var(--paper-bg);
+  color: var(--brand-ink);
   transition: background-color 0.35s ease;
 }
 
-/* The page chrome (header, footer, card surfaces) re-tinted to the
-   same warm off-white so the tab feels like one continuous page. */
+/* Base canvas extends into chrome so the page reads as one sheet */
 body.paper-mode .header,
-body.paper-mode .footer {
-  background-color: #FAF9F6;
-  color: #2C2A28;
+body.paper-mode .footer,
+body.paper-mode .main-wrapper,
+body.paper-mode .content,
+body.paper-mode .view-panel {
+  background-color: transparent;
+  color: var(--brand-ink);
 }
-body.paper-mode #marketingView,
-body.paper-mode #marketingView .kpi-card,
-body.paper-mode #marketingView .chart-card,
-body.paper-mode #marketingView .table-card,
-body.paper-mode #marketingView .card,
-body.paper-mode #marketingView .marketing-card,
-body.paper-mode #marketingView .stat-card,
-body.paper-mode #marketingView table,
-body.paper-mode #marketingView .marketing-section,
-body.paper-mode #marketingView > div > div {
-  background-color: #FDFBF7;
-  color: #2C2A28;
-}
+body.paper-mode .footer { color: var(--brand-ink-muted); }
 
-/* ── 2 & 3. Procedural SVG noise overlay, blended into the page ─
-   SVG turbulence → URL-encoded data URI → fixed full-viewport layer,
-   pointer-events:none so it never blocks clicks. mix-blend-mode:
-   multiply lets the dark grain sink INTO the off-white canvas rather
-   than sitting on top like static. */
+/* ── Procedural SVG noise overlay (fine fractal grain) ───────── */
 body.paper-mode::before {
   content: "";
   position: fixed;
@@ -56,85 +73,164 @@ body.paper-mode::before {
   height: 100vh;
   pointer-events: none;
   z-index: 9999;
-  opacity: 0.045;
+  opacity: 0.04;                   /* a touch lighter for cooler paper */
   mix-blend-mode: multiply;
   background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   background-size: 220px 220px;
-  /* Fade in as tab activates so the grain doesn't flash on other tabs */
   transition: opacity 0.4s ease;
 }
 
-/* ── 4. Softened "ink" typography ─────────────────────────────── */
-body.paper-mode #marketingView,
-body.paper-mode #marketingView h1,
-body.paper-mode #marketingView h2,
-body.paper-mode #marketingView h3,
-body.paper-mode #marketingView h4,
-body.paper-mode #marketingView p,
-body.paper-mode #marketingView span,
-body.paper-mode #marketingView td,
-body.paper-mode #marketingView th,
-body.paper-mode #marketingView li,
-body.paper-mode #marketingView a {
-  color: #2C2A28;
+/* ── Card surfaces (all 3 tabs) ────────────────────────────────── */
+body.paper-mode .stat-card,
+body.paper-mode .table-wrapper,
+body.paper-mode .fin-chart-card,
+body.paper-mode .fin-month-picker,
+body.paper-mode #finCards,
+body.paper-mode #finCards > *,
+body.paper-mode #marketingContent > *,
+body.paper-mode .exp-sheet,
+body.paper-mode .modal,
+body.paper-mode .date-bs-sheet {
+  background-color: var(--paper-card);
+  box-shadow: var(--paper-shadow-md);
+  border: 1px solid var(--paper-border);
 }
-/* Secondary / muted text — same hue family, lighter value */
-body.paper-mode #marketingView .muted,
-body.paper-mode #marketingView .sub,
-body.paper-mode #marketingView small,
-body.paper-mode #marketingView .label,
-body.paper-mode #marketingView [class*="subtitle"],
-body.paper-mode #marketingView [class*="sub-"] {
-  color: #6E6A65;
+body.paper-mode .stat-card { border-radius: 12px; }
+body.paper-mode .fin-chart-card,
+body.paper-mode .modal,
+body.paper-mode .exp-sheet,
+body.paper-mode .fin-month-picker,
+body.paper-mode .date-bs-sheet { border-radius: 14px; }
+
+/* Tables read as paper, not stark white */
+body.paper-mode table { background-color: transparent; }
+body.paper-mode thead,
+body.paper-mode tfoot { background-color: var(--paper-card-alt); }
+body.paper-mode th { color: var(--brand-ink-muted); border-bottom-color: var(--paper-border-firm); }
+body.paper-mode td { border-bottom-color: var(--paper-border); }
+body.paper-mode tr:hover td { background-color: var(--paper-card-alt); }
+
+/* ── Softened ink typography ──────────────────────────────────── */
+body.paper-mode h1,
+body.paper-mode h2,
+body.paper-mode h3,
+body.paper-mode h4,
+body.paper-mode .stat-value,
+body.paper-mode .fin-month-title,
+body.paper-mode .fin-pnl-month,
+body.paper-mode .mf-header-title,
+body.paper-mode .mf-step-num,
+body.paper-mode .modal-title,
+body.paper-mode .exp-sheet-title,
+body.paper-mode .tech-name-label {
+  color: var(--brand-ink);
+}
+body.paper-mode .stat-label,
+body.paper-mode .fin-card-label,
+body.paper-mode .mf-step-label,
+body.paper-mode .mf-step-desc,
+body.paper-mode .header-eyebrow,
+body.paper-mode .fin-pnl-overline,
+body.paper-mode .fin-month-eyebrow,
+body.paper-mode small,
+body.paper-mode .footer {
+  color: var(--brand-ink-muted);
 }
 
-/* ── 5. Warm, diffused shadows ────────────────────────────────── */
-body.paper-mode #marketingView .kpi-card,
-body.paper-mode #marketingView .chart-card,
-body.paper-mode #marketingView .table-card,
-body.paper-mode #marketingView .card,
-body.paper-mode #marketingView .marketing-card,
-body.paper-mode #marketingView .stat-card,
-body.paper-mode #marketingView .marketing-section {
-  box-shadow:
-    0 1px 2px rgba(70, 65, 60, 0.03),
-    0 6px 18px rgba(70, 65, 60, 0.05),
-    0 16px 40px rgba(70, 65, 60, 0.04);
+/* ── Orange brand accent applied everywhere orange used to be ── */
+/* Active pill in the horizontal date row */
+body.paper-mode .date-btn.active {
+  background: var(--brand-orange-soft);
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(232, 129, 64, 0.28);
+}
+/* Bottom-sheet selected item */
+body.paper-mode .date-bs-item.active {
+  background: var(--brand-orange-tint);
+  color: var(--brand-ink);
+}
+body.paper-mode .date-bs-item-check { color: var(--brand-orange-soft); }
+
+/* Tab nav + sliding indicator */
+body.paper-mode .tab-indicator { background: var(--brand-orange-soft); }
+body.paper-mode .tab-btn.active { color: var(--brand-ink); }
+
+/* Sort pills */
+body.paper-mode .sort-btn.active {
+  background: var(--brand-orange-soft);
+  color: #fff;
+  border-color: var(--brand-orange-soft);
 }
 
-/* ── 6. Softer structural borders ─────────────────────────────── */
-body.paper-mode #marketingView * {
-  border-color: rgba(44, 42, 40, 0.08) !important;
-}
-/* Table row separators — treat as faint pencil guides */
-body.paper-mode #marketingView table tr {
-  border-bottom: 1px solid rgba(44, 42, 40, 0.07);
-}
-/* Scope the !important above so it doesn't override orange accents.
-   Orange brand elements (buttons, bars) keep their original colors. */
-body.paper-mode #marketingView .btn-primary,
-body.paper-mode #marketingView [class*="bar-fill"],
-body.paper-mode #marketingView [style*="background:"],
-body.paper-mode #marketingView .tab-btn.active,
-body.paper-mode #marketingView canvas {
-  border-color: initial !important;
+/* Trend-chart toggle buttons (owners) */
+body.paper-mode .fin-trend-btn.on {
+  background: var(--brand-orange-tint);
+  color: var(--brand-ink);
 }
 
-/* ── Card radius softening — mimics cut cardstock ─────────────── */
-body.paper-mode #marketingView .kpi-card,
-body.paper-mode #marketingView .chart-card,
-body.paper-mode #marketingView .table-card,
-body.paper-mode #marketingView .card,
-body.paper-mode #marketingView .marketing-card,
-body.paper-mode #marketingView .stat-card,
-body.paper-mode #marketingView .marketing-section {
-  border-radius: 14px;
+/* $/% toggle inside Full Picture card */
+body.paper-mode .fin-toggle button.active {
+  background: var(--brand-ink);
+  color: #fff;
 }
 
-/* ── Reduce motion: keep transitions elegant but respect prefs ── */
+/* Month-picker active row + left accent bar */
+body.paper-mode .fin-month-item.active {
+  background: var(--brand-orange-tint);
+  color: var(--brand-ink);
+}
+body.paper-mode .fin-month-item.active::before { background: var(--brand-orange-soft); }
+
+/* Month/quarter period tabs underline */
+body.paper-mode .fin-period-tab.active {
+  color: var(--brand-ink);
+  border-bottom-color: var(--brand-orange-soft);
+}
+
+/* Compare chip (Full Picture) */
+body.paper-mode .pnl-cmp-chip.act {
+  background: var(--brand-ink);
+  color: #fff;
+  border-color: var(--brand-ink);
+}
+
+/* Primary month pill in Full Picture header */
+body.paper-mode .fin-pnl-head #finPnlSubtitle,
+body.paper-mode .fin-pnl-month { color: var(--brand-ink); }
+
+/* Gross Profit progress bar target line / labels that were hard orange */
+body.paper-mode .progress-bar-fill { background: linear-gradient(90deg, var(--brand-orange-soft), var(--brand-orange)); }
+
+/* Connect-QuickBooks banner CTA */
+body.paper-mode .fin-connect-banner a[href*="connect"] { background: var(--brand-orange-soft) !important; }
+
+/* ── Light-blue sparse accents ────────────────────────────────── */
+/* Use blue as a quiet complement: chart compare column header + the
+   small "compare" tag next to the compared-month label */
+body.paper-mode .pnl2-th-cmp,
+body.paper-mode .pnl2-cmp-tag { color: var(--brand-blue-deep) !important; }
+body.paper-mode .pnl2-cmp-tag { background: var(--brand-blue) !important; }
+
+/* Cash-in-the-bank chart already uses blues — keep those intact;
+   downstream Chart.js color prop overrides aren't reachable from CSS. */
+
+/* ── Borders softened to warm-gray-ink ─────────────────────────── */
+body.paper-mode .tab-nav,
+body.paper-mode th,
+body.paper-mode td,
+body.paper-mode .pnl-cmp-chip,
+body.paper-mode .fin-month-item,
+body.paper-mode .fin-period-tabs,
+body.paper-mode .modal-header,
+body.paper-mode .modal-footer,
+body.paper-mode .exp-sheet-drag,
+body.paper-mode .fin-pnl-head,
+body.paper-mode .tab-btn {
+  border-color: var(--paper-border);
+}
+
+/* ── Respect reduced-motion preferences ──────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   body.paper-mode,
-  body.paper-mode::before {
-    transition: none;
-  }
+  body.paper-mode::before { transition: none; }
 }
