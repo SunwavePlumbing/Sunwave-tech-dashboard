@@ -21,8 +21,11 @@ var MF_CHEV = '<svg class="mf-op-chev" viewBox="0 0 12 8" width="14" height="14"
 function mfToggle(panelId, btn) {
   var panel = document.getElementById(panelId);
   if (!panel) return;
-  var nowOpen = panel.hidden; // true = was hidden, about to open
-  panel.hidden = !nowOpen;
+  // Use class rather than `hidden` so CSS can drive a smooth
+  // max-height/opacity open/close transition. Strip any lingering
+  // `hidden` attribute so display:none doesn't block the CSS transition.
+  var nowOpen = !panel.classList.contains('is-open');
+  if (panel.hasAttribute('hidden')) panel.removeAttribute('hidden');
   // Find chevron: inside the button, or in a sibling .mf-cogs-chev-wrap (COGS bar case)
   var chev = btn && btn.querySelector('.mf-op-chev');
   if (!chev && btn) {
@@ -33,7 +36,6 @@ function mfToggle(panelId, btn) {
   var anim = panel.querySelector('.mf-zoom-bar-anim');
   if (nowOpen) {
     // Opening — reset then animate bar + trigger stagger
-    panel.classList.remove('is-open');
     if (anim) anim.classList.remove('mf-zoom-expanded');
     requestAnimationFrame(function() {
       requestAnimationFrame(function() {
@@ -109,15 +111,12 @@ function mfZoomDetail(id, items, segStart, segEnd, palette, segColor, segLabel) 
   var e  = Math.min(100, segEnd).toFixed(1);
   var sw = (parseFloat(e) - parseFloat(s)).toFixed(1);
 
-  var topCol  = hexAlpha(color, 0.9);  // solid top bar (source segment marker)
-  var gradId  = id + '-g';             // unique gradient id per panel
-
-  // Segments with hover handlers + inline % label (hidden by overflow when too narrow)
+  // Segments with hover handlers + inline % label — threshold raised to
+  // 8% so tiny slivers don't cram overlapping numbers into each other.
   var segs = visible.map(function(r, i) {
     var zid    = id + '-' + i;
     var rawPct = r.val / total * 100;
-    // Render % label for all but tiny slivers — overflow:hidden + min-width hides it when too narrow
-    var pctLabel = rawPct >= 3 ? '<span class="mf-zoom-seg-pct">' + rawPct.toFixed(0) + '%</span>' : '';
+    var pctLabel = rawPct >= 8 ? '<span class="mf-zoom-seg-pct">' + rawPct.toFixed(0) + '%</span>' : '';
     return '<div class="mf-zoom-seg" data-zid="' + zid + '"' +
            ' style="flex:' + r.val.toFixed(0) + ';background:' + pal[i % pal.length] + '"' +
            ' onmouseenter="mfZoomHL(\'' + zid + '\',true)"' +
@@ -151,24 +150,14 @@ function mfZoomDetail(id, items, segStart, segEnd, palette, segColor, segLabel) 
     '</div>';
   }).join('');
 
+  // Flat, minimal "Details" header — replaces the old gradient trapezoid.
+  // Just a thin divider + small muted uppercase label, no SVG needed.
   return (
-    '<div class="mf-zoom-detail" id="' + id + '" hidden>' +
-      // Connector: gradient color block, no lines — widens from segment to full
+    '<div class="mf-zoom-detail" id="' + id + '">' +
       '<div class="mf-zoom-connector-wrap">' +
-        '<svg class="mf-zoom-trap" viewBox="0 0 100 64" preserveAspectRatio="none" width="100%" height="64">' +
-          '<defs>' +
-            '<linearGradient id="' + gradId + '" x1="0" y1="0" x2="0" y2="1">' +
-              '<stop offset="0%" stop-color="' + color + '" stop-opacity="0.45"/>' +
-              '<stop offset="100%" stop-color="' + color + '" stop-opacity="0.12"/>' +
-            '</linearGradient>' +
-          '</defs>' +
-          // Solid marker bar = the source segment position
-          '<rect x="' + s + '" y="0" width="' + sw + '" height="5" fill="' + topCol + '"/>' +
-          // Gradient fill trapezoid — no border lines
-          '<polygon points="' + s + ',5 ' + e + ',5 100,64 0,64" fill="url(#' + gradId + ')"/>' +
-        '</svg>' +
-        '<div class="mf-zoom-conn-label" style="color:' + color + '">' +
-          (label ? label + ' breakdown \u2193' : 'breakdown \u2193') +
+        '<div class="mf-zoom-conn-divider"></div>' +
+        '<div class="mf-zoom-conn-label">' +
+          (label ? label + ' details' : 'Details') +
         '</div>' +
       '</div>' +
       // Bar: starts at segment width, expands to full on open

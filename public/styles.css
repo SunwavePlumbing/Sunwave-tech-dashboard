@@ -1272,13 +1272,36 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 
 /* ── Zoom-in breakdown panel ───────────────────────────────── */
 
-.mf-zoom-detail { margin-top: 0; }
+/* Accordion container: collapses via max-height + opacity + padding so
+   the height change is fluid rather than snapping (hidden attribute).
+   Chevron rotation + staggered row reveal are layered on top. */
+.mf-zoom-detail {
+  margin-top: 0;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transition:
+    max-height 0.38s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity   0.28s ease-out,
+    margin-top 0.3s ease;
+}
+.mf-zoom-detail.is-open {
+  max-height: 4000px;           /* generous ceiling for long expense lists */
+  opacity: 1;
+  pointer-events: auto;
+}
 /* GP detail: no extra top gap — it's the first thing inside the card now */
 .mf-step--gp .mf-zoom-detail { margin-top: 8px; }
 /* Legend divider on the blue card */
 .mf-step--gp .mf-zoom-legend { border-top-color: #bfdbfe; }
 /* GP detail is always open — skip the stagger animation, show rows immediately */
 .mf-gp-detail .mf-zoom-leg-row { opacity: 1; animation: none !important; }
+
+/* Chevron rotation — 200ms ease-in-out so the flip feels intentional */
+.mf-op-chev {
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
 /* GP "We kept X%" line inside the panel */
 /* Tight gap above ($129K ↔ "We kept 47.1%"), larger gap below to
@@ -1311,33 +1334,36 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   left: var(--tx);
   width: 2px;
   height: 34px;                  /* bar (26) + 2 above + 4 below */
-  background: #6b7280;
+  background: #9ca3af;
   transform: translateX(-50%);
   border-radius: 2px;
   z-index: 10;
 }
+/* Flat, subtle target pill — pale fill, dark text, no shadow.
+   Anchors directly under the target tick so the user reads it as a
+   caption for the line, not a competing badge. */
 .fin-target-lbl {
   position: absolute;
-  top: 6px;
+  top: 4px;
   left: var(--tx);
   transform: translateX(-50%);
-  padding: 3px 9px;
+  padding: 2px 8px;
   font-size: 9px; font-weight: 700;
-  letter-spacing: 0.8px; text-transform: uppercase;
-  color: white;
-  background: #6b7280;
-  border-radius: 10px;
+  letter-spacing: 0.7px; text-transform: uppercase;
+  color: #475569;
+  background: #f1f5f9;
+  border-radius: 4px;
   white-space: nowrap;
   z-index: 11;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  box-shadow: none;
 }
-/* Section-accent colors for the tick + pill */
+/* Section-accent colors for the tick + pale-tint pill */
 .fin-target-mark--red .fin-target-tick    { background: #ef4444; }
-.fin-target-mark--red .fin-target-lbl     { background: #ef4444; color: #fff; }
+.fin-target-mark--red .fin-target-lbl     { background: #fee2e2; color: #991b1b; }
 .fin-target-mark--green .fin-target-tick  { background: #16a34a; }
-.fin-target-mark--green .fin-target-lbl   { background: #16a34a; color: #fff; }
+.fin-target-mark--green .fin-target-lbl   { background: #dcfce7; color: #14532d; }
 .fin-target-mark--blue .fin-target-tick   { background: #2563eb; }
-.fin-target-mark--blue .fin-target-lbl    { background: #2563eb; color: #fff; }
+.fin-target-mark--blue .fin-target-lbl    { background: #dbeafe; color: #1e3a8a; }
 
 
 /* ── GP reversed competition bar ───────────────────────────── */
@@ -1405,23 +1431,30 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   margin: 14px 0 8px;
 }
 
-/* Connector: gradient color block fanning out from the source segment */
-.mf-zoom-connector-wrap { position: relative; margin-bottom: 0; }
-.mf-zoom-trap { display: block; width: 100%; overflow: visible; }
-
-/* Label centered in the connector gradient zone */
+/* Flat, minimal connector: just a thin divider + tiny muted label.
+   Replaces the old full-width gradient trapezoid "funnel" which ate
+   too much vertical space and clashed with the flat aesthetic. */
+.mf-zoom-connector-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0 8px;
+  pointer-events: none;                   /* never absorb clicks from rows below */
+}
+.mf-zoom-conn-divider {
+  flex: 1;
+  height: 1px;
+  background: #e5e7eb;
+}
 .mf-zoom-conn-label {
-  position: absolute;
-  top: 54%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  flex: 0 0 auto;
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.9px;
+  letter-spacing: 1.2px;
   text-transform: uppercase;
+  color: #9ca3af;
   white-space: nowrap;
-  pointer-events: none;
-  opacity: 0.7;
 }
 
 /* Breakdown bar — shoots from segment width to full with expo-out easing */
@@ -1456,7 +1489,9 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   position: relative;
   z-index: 2;
 }
-/* Inline % label — hides itself when segment is too narrow via overflow:hidden */
+/* Inline % label — only rendered for segments ≥ 8% (JS-side threshold).
+   Lets the span shrink with the flex parent so nothing leaks into the
+   neighbor segment. */
 .mf-zoom-seg-pct {
   font-size: 10px;
   font-weight: 700;
@@ -1465,14 +1500,15 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   pointer-events: none;
   user-select: none;
   letter-spacing: 0.2px;
-  /* Ensures the label either fits fully or disappears — no partial characters */
-  min-width: max-content;
+  min-width: 0;
+  max-width: 100%;
   overflow: hidden;
+  text-overflow: clip;
 }
 
-/* Staggered legend row fade-up */
+/* Staggered legend row fade-up — 40ms per row for a premium cascading feel */
 @keyframes mfRowIn {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; transform: translateY(-10px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 .mf-zoom-legend {
@@ -1495,8 +1531,8 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   opacity: 0; /* hidden until is-open triggers animation */
 }
 .mf-zoom-detail.is-open .mf-zoom-leg-row {
-  animation: mfRowIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
-  animation-delay: calc(0.3s + var(--i, 0) * 0.055s);
+  animation: mfRowIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(0.18s + var(--i, 0) * 0.04s);
 }
 /* Hover: brighten the row's own tint */
 .mf-zoom-leg-row.mf-zoom-hl { filter: brightness(0.93); }
