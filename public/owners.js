@@ -55,11 +55,10 @@ function mfToggleGp(btn) {
   if (section) section.hidden = !section.hidden;
 }
 
-// Special toggle for NOI section (also toggles the gap message)
+// Special toggle for NOI section
+// (status footer now lives INSIDE #mfNoiDetail, so one toggle suffices)
 function mfToggleNoi(btn) {
   mfToggle('mfNoiDetail', btn);
-  var gap = document.getElementById('mfNoiGap');
-  if (gap) gap.hidden = !gap.hidden;
 }
 
 // Highlight a zoom item across both segment bar and legend row (by data-zid)
@@ -910,20 +909,29 @@ function renderOwners() {
         // Position the "current" needle label — clamp so it doesn't overflow edges
         var needleLeft   = Math.min(Math.max(parseFloat(gaugeFill), 5), 92).toFixed(1);
 
+        // Gauge: "now" value above the track (at needle), "goal" label below
+        // (at pin) — vertical separation avoids label overlap when values
+        // are close (e.g., 14.9% vs 15% goal).
         var gaugeHtml =
           '<div class="mf-noi-gauge">' +
+            '<div class="mf-noi-gauge-top">' +
+              '<span class="mf-noi-gauge-now" style="left:' + needleLeft + '%">' + fmtPct(noiPct) + '</span>' +
+            '</div>' +
             '<div class="mf-noi-gauge-track">' +
               '<div class="mf-noi-gauge-fill" style="width:' + gaugeFill + '%;background:' + gaugeColor + '"></div>' +
               '<div class="mf-noi-gauge-pin" style="left:' + gaugeGoal + '%"></div>' +
               '<div class="mf-noi-gauge-needle" style="left:' + gaugeFill + '%"></div>' +
             '</div>' +
             '<div class="mf-noi-gauge-scale">' +
-              '<span>0%</span>' +
-              '<span class="mf-noi-gauge-now" style="left:' + needleLeft + '%">' + fmtPct(noiPct) + '</span>' +
+              '<span class="mf-noi-gauge-edge">0%</span>' +
               '<span class="mf-noi-gauge-goal-tag" style="left:' + gaugeGoal + '%">15% goal</span>' +
-              '<span>25%</span>' +
+              '<span class="mf-noi-gauge-edge">25%</span>' +
             '</div>' +
           '</div>';
+
+        // Integrated footer pill replacing the old floating #mfNoiGap
+        var gapFooterHtml =
+          '<div class="mf-noi-status mf-noi-status--' + gapCls + '">' + gapTxt + '</div>';
 
         var noiDetailHtml =
           '<div id="mfNoiDetail" class="mf-zoom-detail mf-noi-detail" hidden>' +
@@ -953,11 +961,13 @@ function renderOwners() {
               '</div>' +
               '<div class="mf-noi-explain-tip">' +
                 '<span class="mf-noi-tip-head">How to keep more of it:</span>' +
-                ' Charge more per job, reduce parts costs, or trim overhead.' +
+                ' <strong>Charge more per job</strong>, <strong>reduce parts costs</strong>, or <strong>trim overhead</strong>.' +
                 ' Every extra 1% on ' + fmtDollar(curRev) + ' revenue = ' +
                 '<strong>' + fmtDollar(curRev * 0.01) + ' more this ' + periodWord + '</strong>' +
                 ' \u2014 or about ' + fmtDollar(curRev * 0.01 * 12) + ' over a full year.' +
               '</div>' +
+              /* Status footer pill — integrated inside the green card */
+              gapFooterHtml +
             '</div>' +
           '</div>';
 
@@ -994,8 +1004,6 @@ function renderOwners() {
               '</div>' +
             '</div>' +
             noiDetailHtml +
-            // Gap line (hidden by default, shown when detail expands)
-            '<div id="mfNoiGap" hidden style="margin-top:10px"><div class="mf-score-gap ' + gapCls + '">' + gapTxt + '</div></div>' +
           '</div>'
         );
       }()) +

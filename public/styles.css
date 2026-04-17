@@ -1331,23 +1331,57 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .mf-sl-noi-profit::before { background: #22c55e; font-weight: 700; color: #15803d; }
 
 /* ── NOI expandable detail ───────────────────────────────────── */
-.mf-noi-detail { margin-top: 10px; }
+/* Container cohesion: green card connects flush with the parent row;
+   top corners flatten, top border vanishes so it reads as one block. */
+.mf-noi-detail { margin-top: 0; }
 .mf-noi-explain {
-  padding: 16px 18px;
+  padding: 18px 20px 14px;
   background: #f0fdf4;
-  border-radius: 10px;
+  border-radius: 0 0 12px 12px;
   border: 1px solid #d1fae5;
+  border-top: none;
+  margin-top: -2px;   /* overlap 2px with bar above for seamless join */
 }
 .mf-noi-explain-head {
-  font-size: 13px; font-weight: 700; color: #14532d;
-  margin-bottom: 7px;
+  font-size: 15px; font-weight: 800; color: #14532d;
+  margin-bottom: 8px;
+  letter-spacing: -0.1px;
 }
 .mf-noi-explain-body {
-  font-size: 13px; color: #444; line-height: 1.55;
-  margin-bottom: 14px;
+  font-size: 13px; color: #374151; line-height: 1.65;
+  margin-bottom: 18px;
 }
 /* ── Profit gauge bar ─────────────────────────────────────── */
-.mf-noi-gauge { margin-bottom: 14px; }
+/* Structure: [ now-label row (above) ] → [ track ] → [ scale row w/ goal below ]
+   Vertical separation prevents "14.9%" and "15% goal" colliding when close. */
+.mf-noi-gauge { margin-bottom: 18px; }
+.mf-noi-gauge-top {
+  position: relative;
+  height: 18px;
+  margin-bottom: 4px;
+}
+.mf-noi-gauge-now {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: 12px; font-weight: 800;
+  color: #1a2d3a;
+  white-space: nowrap;
+  padding: 2px 8px;
+  background: white;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+/* Tiny caret pointing down from the "now" pill toward the needle */
+.mf-noi-gauge-now::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: white;
+  border-bottom: 0;
+}
 .mf-noi-gauge-track {
   height: 10px; background: #e2e8f0; border-radius: 5px;
   position: relative; overflow: visible; margin-bottom: 6px;
@@ -1356,41 +1390,41 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   height: 100%; border-radius: 5px; position: absolute; left: 0; top: 0;
   transition: width 0.7s cubic-bezier(0.4,0,0.2,1);
 }
+/* Solid 3px goal line that cuts fully through the track (and a bit above/
+   below) — clear visual anchor without dotted/gradient frills. */
 .mf-noi-gauge-pin {
-  position: absolute; top: -3px; bottom: -3px; width: 2px;
-  background: #f59e0b; transform: translateX(-50%);
-  border-radius: 1px; z-index: 2;
+  position: absolute; top: -5px; bottom: -5px; width: 3px;
+  background: #b45309; transform: translateX(-50%);
+  border-radius: 2px; z-index: 2;
 }
 .mf-noi-gauge-needle {
-  position: absolute; top: -4px; width: 10px; height: 10px;
-  background: white; border: 2px solid #64748b;
-  border-radius: 50%; transform: translateX(-50%);
-  box-shadow: 0 1px 4px rgba(0,0,0,0.18); z-index: 3;
-  top: 0; margin-top: -0px;
-  transform: translate(-50%, 0);
+  position: absolute; top: -4px; width: 12px; height: 12px;
+  background: white; border: 2px solid #1a2d3a;
+  border-radius: 50%; box-shadow: 0 1px 4px rgba(0,0,0,0.18); z-index: 3;
+  transform: translate(-50%, -1px);
 }
 .mf-noi-gauge-scale {
   position: relative; display: flex;
   justify-content: space-between;
   font-size: 10px; color: #94a3b8; height: 16px;
 }
-.mf-noi-gauge-now {
-  position: absolute; transform: translateX(-50%);
-  font-size: 11px; font-weight: 700; color: #1a2d3a;
-  white-space: nowrap;
-}
+.mf-noi-gauge-edge { font-weight: 600; }
 .mf-noi-gauge-goal-tag {
   position: absolute; transform: translateX(-50%);
-  font-size: 10px; font-weight: 600; color: #b45309;
+  font-size: 10px; font-weight: 700; color: #b45309;
   white-space: nowrap; top: 0;
+  text-transform: uppercase; letter-spacing: 0.6px;
 }
-/* ── Three stat cards ─────────────────────────────────────── */
+/* ── Three stat cards (responsive) ────────────────────────── */
 .mf-noi-explain-row {
-  display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
 }
 .mf-noi-explain-stat {
-  flex: 1; min-width: 90px; background: white; border-radius: 8px;
-  padding: 10px 12px;
+  background: white; border-radius: 10px;
+  padding: 11px 13px;
   box-shadow: 0 1px 4px rgba(0,0,0,0.06);
 }
 .mf-noi-explain-stat-label {
@@ -1406,10 +1440,27 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   margin-left: 5px; vertical-align: middle; opacity: 0.85;
 }
 .mf-noi-explain-tip {
-  font-size: 12px; color: #666; line-height: 1.5;
-  border-top: 1px solid #d1fae5; padding-top: 10px;
+  font-size: 12.5px; color: #4b5563; line-height: 1.65;
+  border-top: 1px solid #d1fae5; padding-top: 12px;
 }
+.mf-noi-explain-tip strong { color: #1a2d3a; font-weight: 700; }
 .mf-noi-tip-head { font-weight: 700; color: #14532d; }
+
+/* ── Integrated status footer pill ─────────────────────────
+   Replaces the old "floating" #mfNoiGap that hung outside the card. */
+.mf-noi-status {
+  display: inline-block;
+  margin-top: 14px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  border-radius: 999px;
+  line-height: 1.2;
+}
+.mf-noi-status--above { background: #dcfce7; color: #166534; }
+.mf-noi-status--near  { background: #fef3c7; color: #92400e; }
+.mf-noi-status--below { background: #fee2e2; color: #991b1b; }
 
 /* Clickable bar segment — red/orange/green portions the user taps to expand */
 .mf-seg-click {
@@ -1667,6 +1718,16 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   }
   .fin-month-title { font-size: 22px; }  /* fits button padding on mobile */
   .fin-month-chev { width: 24px; height: 14px; }  /* was 18x11; now more visible */
+
+  /* Profit stat cards: 2-up grid with third card spanning full width below.
+     Keeps text spacious + scannable on narrow phones. */
+  .mf-noi-explain-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .mf-noi-explain-stat:nth-child(3) {
+    grid-column: 1 / -1;
+  }
+  .mf-noi-explain-stat-val { font-size: 18px; }
 
   .fin-trend-btn {
     font-size: 13px;
