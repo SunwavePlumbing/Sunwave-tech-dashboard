@@ -1435,7 +1435,7 @@ function renderOwners() {
       }
     });
 
-    // Scroll-triggered stagger animation
+    // Scroll-triggered stagger animation (DESKTOP ONLY - mobile animations cause color flashing on scroll)
     (function() {
       function runRevAnim() {
         if (!revBarChartInst) return;
@@ -1446,16 +1446,15 @@ function renderOwners() {
         revBarChartInst.update('active');
         revBarChartInst.options.animation = false;
       }
-      // Desktop: scroll-triggered animation
+      // Desktop ONLY: scroll-triggered animation
+      // Mobile: disabled due to scroll/animation rendering conflicts causing purple color flashing
       if (window.innerWidth > 768 && window.IntersectionObserver) {
         var revObs = new IntersectionObserver(function(entries) {
           if (entries[0].isIntersecting) { runRevAnim(); revObs.disconnect(); }
         }, { threshold: 0.25 });
         revObs.observe(revCard);
-      } else {
-        // Mobile: trigger immediately on load
-        runRevAnim();
       }
+      // Note: Mobile users see static bars with no animation to avoid rendering artifacts
     })();
 
     // Subtitle: date range
@@ -1583,7 +1582,7 @@ function renderOwners() {
       }
     });
 
-    // Scroll-triggered grow animation
+    // Scroll-triggered grow animation (DESKTOP ONLY - mobile animations cause color flashing on scroll)
     (function() {
       var card = document.getElementById('finCashFlowCard');
       function runAnim() {
@@ -1596,16 +1595,15 @@ function renderOwners() {
         cfBarChartInst.update('active');
         cfBarChartInst.options.animation = false; // don't re-animate on hover/tooltip
       }
-      // Desktop: scroll-triggered animation
+      // Desktop ONLY: scroll-triggered animation
+      // Mobile: disabled due to scroll/animation rendering conflicts causing purple color flashing
       if (window.innerWidth > 768 && window.IntersectionObserver) {
         var obs = new IntersectionObserver(function(entries) {
           if (entries[0].isIntersecting) { runAnim(); obs.disconnect(); }
         }, { threshold: 0.25 });
         obs.observe(card);
-      } else {
-        // Mobile: trigger immediately on load
-        runAnim();
       }
+      // Note: Mobile users see static bars with no animation to avoid rendering artifacts
     })();
 
     // Subtitle: date range instead of just a count
