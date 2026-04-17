@@ -22,7 +22,21 @@ var dateRanges = [
   { label: 'Last Year', key: 'ly' }
 ];
 
-var AVATAR_COLORS = ['#FF9500','#007AFF','#34C759','#AF52DE','#FF3B30','#5AC8FA','#FF6B35','#30B0C7'];
+/* Muted "dusty" avatar palette — each tone is low-saturation and
+   earthy so the initials read as ink-on-paper rather than neon
+   lozenges. All keep enough luminance contrast for white 700-weight
+   text. Hashed deterministically by name so each tech always gets
+   the same color. */
+var AVATAR_COLORS = [
+  '#C75A3A',  // terracotta     — warm rust, cousin of the brand orange
+  '#E88140',  // brand off-orange
+  '#B5903A',  // antique gold
+  '#7A9B5F',  // sage green
+  '#4D8A8A',  // muted teal
+  '#5F7B9A',  // dusty blue
+  '#8878A0',  // heather purple
+  '#B56679'   // dusty rose
+];
 function avatarColor(name) {
   var h = 0;
   for (var i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);

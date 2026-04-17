@@ -392,6 +392,29 @@ function render() {
       if (lbl) {
         var nm  = lbl.getAttribute('data-reveal-name') || '';
         var htm = lbl.getAttribute('data-reveal-html') || nm;
+
+        // Lock the label's width to the FINAL rendered name width so
+        // the revenue column doesn't slide right as characters pile in.
+        // Measure via an off-screen clone that inherits the same classes
+        // (and therefore the same font + responsive span visibility) —
+        // so this works correctly on both mobile and desktop viewports.
+        var measurer = document.createElement('span');
+        measurer.className = lbl.className;
+        measurer.innerHTML = htm;
+        measurer.style.position   = 'absolute';
+        measurer.style.visibility = 'hidden';
+        measurer.style.whiteSpace = 'nowrap';
+        measurer.style.pointerEvents = 'none';
+        measurer.style.left = '-9999px';
+        lbl.parentNode.appendChild(measurer);
+        var finalW = measurer.offsetWidth;
+        lbl.parentNode.removeChild(measurer);
+        if (finalW > 0) {
+          lbl.style.minWidth  = finalW + 'px';
+          lbl.style.display   = 'inline-block';  /* min-width only kicks in for block-level */
+          lbl.style.whiteSpace = 'nowrap';
+        }
+
         // Apply cipher-style monospace ON the label during reveal,
         // removed at completion via innerHTML replace (nested spans
         // don't carry the reveal class so the style drops off).
@@ -399,7 +422,14 @@ function render() {
         revealName(lbl, nm, htm);
         // Strip the reveal styling once the swap completes
         var totalMs = (nm.length + 1) * 90 + 60;
-        setTimeout(function() { lbl.classList.remove('is-revealing'); }, totalMs);
+        setTimeout(function() {
+          lbl.classList.remove('is-revealing');
+          // Release the hard width lock so subsequent viewport resizes
+          // (rotation, window drag) can reflow naturally.
+          lbl.style.minWidth   = '';
+          lbl.style.display    = '';
+          lbl.style.whiteSpace = '';
+        }, totalMs);
       }
       // Numeric count-up
       row.querySelectorAll('.row-count').forEach(function(el) {

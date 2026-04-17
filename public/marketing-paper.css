@@ -24,8 +24,8 @@
 body.paper-mode {
   /* Paper surfaces */
   --paper-bg:           #F4F3EF;   /* page canvas — subtle warmth, not yellow */
-  --paper-card:         #F9F8F4;   /* cards sit one step lighter than canvas */
-  --paper-card-alt:     #FBFAF6;   /* alt rows, hover states */
+  --paper-card:         #F7F6F2;   /* cards sit just one step lighter than canvas, same hue family */
+  --paper-card-alt:     #F9F8F4;   /* alt rows, hover states */
 
   /* Brand */
   --brand-orange:       #F38A3F;   /* full-vibrant hero */
@@ -90,6 +90,8 @@ body.paper-mode #finCards > *,
 body.paper-mode .mkt-table-card,
 body.paper-mode .mkt-proj-card,
 body.paper-mode .mkt-chart-card,
+body.paper-mode .proj-card,
+body.paper-mode .progress-wrap,
 body.paper-mode .exp-sheet,
 body.paper-mode .modal,
 body.paper-mode .date-bs-sheet {
@@ -97,6 +99,10 @@ body.paper-mode .date-bs-sheet {
   box-shadow: var(--paper-shadow-md);
   border: 1px solid var(--paper-border);
 }
+/* Clip the card corners so inner rectangular elements don't poke
+   past the rounded edge */
+body.paper-mode .proj-card,
+body.paper-mode .progress-wrap { border-radius: 12px; overflow: hidden; }
 body.paper-mode .stat-card { border-radius: 12px; }
 body.paper-mode .fin-chart-card,
 body.paper-mode .modal,
@@ -186,10 +192,11 @@ body.paper-mode .sort-btn.active {
   border-color: var(--brand-orange-soft);
 }
 
-/* Trend-chart toggle buttons (owners) */
+/* Trend-chart toggle buttons (owners) — keep the metric's own color
+   as the pill background (var(--c) inline), but flip the text from
+   white to brand ink so it's readable on any brand color. */
 body.paper-mode .fin-trend-btn.on {
-  background: var(--brand-orange-tint);
-  color: var(--brand-ink);
+  color: var(--brand-ink) !important;
 }
 
 /* $/% toggle inside Full Picture card */
@@ -224,6 +231,17 @@ body.paper-mode .fin-pnl-month { color: var(--brand-ink); }
 
 /* Gross Profit progress bar target line / labels that were hard orange */
 body.paper-mode .progress-bar-fill { background: linear-gradient(90deg, var(--brand-orange-soft), var(--brand-orange)); }
+
+/* Marketing projection cards — big number + track softened to brand tones */
+body.paper-mode .proj-card-value { color: var(--brand-orange-soft); }
+body.paper-mode .proj-card-label,
+body.paper-mode .proj-card-sub,
+body.paper-mode .progress-label-row { color: var(--brand-ink-muted); }
+/* Progress track was `#f0f0f0` — looks like a hard gray block against
+   paper. Use a soft paper-ink-tinted track instead. */
+body.paper-mode .progress-bar-bg {
+  background: rgba(55, 59, 77, 0.07);
+}
 
 /* Connect-QuickBooks banner CTA */
 body.paper-mode .fin-connect-banner a[href*="connect"] { background: var(--brand-orange-soft) !important; }
@@ -287,10 +305,10 @@ body.paper-mode .modal-table thead th {
    fading to pure white; fade to the paper-card color instead so the
    soft gradient blends into the card surface rather than flashing. */
 body.paper-mode .fin-chart-wrap--scroll::before {
-  background: linear-gradient(to left, rgba(249, 248, 244, 0), rgba(249, 248, 244, 0.98)) !important;
+  background: linear-gradient(to left, rgba(247, 246, 242, 0), rgba(247, 246, 242, 0.98)) !important;
 }
 body.paper-mode .fin-chart-wrap--scroll::after {
-  background: linear-gradient(to right, rgba(249, 248, 244, 0), rgba(249, 248, 244, 0.98)) !important;
+  background: linear-gradient(to right, rgba(247, 246, 242, 0), rgba(247, 246, 242, 0.98)) !important;
 }
 /* Sort / date pills — unchecked state was pure white */
 body.paper-mode .sort-btn:not(.active),
@@ -302,8 +320,290 @@ body.paper-mode .date-btn:not(.active) {
 body.paper-mode .fin-toggle button { background: var(--paper-card); color: var(--brand-ink-muted); }
 /* Legacy mkt-table also had white first-column (handled above) */
 
+/* ═════ Full Picture "Ledger" redesign ═════════════════════════
+   Replaces the horizontal scrolling chip picker with a dual-anchor
+   header ("MAR 2026  vs  MAR 2025 ▾"), ledger-style row dividers,
+   highlighter delta pills, and a dedicated compare-month sheet. */
+
+/* Dual-anchor header block */
+body.paper-mode .pnl-anchor {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 0 22px;
+  flex-wrap: wrap;
+}
+body.paper-mode .pnl-anchor-pri,
+body.paper-mode .pnl-anchor-cmp {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+body.paper-mode .pnl-anchor-kicker {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--brand-ink-muted);
+  line-height: 1;
+}
+body.paper-mode .pnl-anchor-pri-month {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--brand-ink);
+  letter-spacing: -0.3px;
+  line-height: 1.15;
+}
+/* Stamped circular "vs" badge — inset shadow makes it look pressed
+   into the paper rather than sitting on top of it. */
+body.paper-mode .pnl-anchor-vs {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  background: var(--paper-bg);
+  color: var(--brand-ink-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow:
+    inset 0 2px 4px rgba(55, 59, 77, 0.12),
+    inset 0 -1px 2px rgba(255, 255, 255, 0.65);
+  flex-shrink: 0;
+}
+/* Tappable compare button — dashed outline signals "interactive" */
+body.paper-mode .pnl-anchor-cmp {
+  background: transparent;
+  border: 1px dashed var(--paper-border-firm);
+  border-radius: 10px;
+  padding: 7px 14px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+  font: inherit;
+}
+body.paper-mode .pnl-anchor-cmp:hover {
+  border-color: var(--brand-ink-muted);
+  background: rgba(55, 59, 77, 0.03);
+}
+body.paper-mode .pnl-anchor-cmp-month {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--brand-ink-soft);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1.15;
+}
+body.paper-mode .pnl-anchor-chev {
+  color: var(--brand-ink-muted);
+  transform: translateY(1px);
+}
+
+/* Hide the old chip-picker CSS (row/chip classes) if ever re-rendered */
+body.paper-mode .pnl-cmp-row { display: none; }
+
+/* ── Ledger rows — dashed pencil-line dividers + breathing room ── */
+body.paper-mode .pnl-grid--2col td,
+body.paper-mode .pnl-grid--2col th {
+  border-bottom: 1px dashed rgba(55, 59, 77, 0.15) !important;
+  padding-top: 14px !important;
+  padding-bottom: 14px !important;
+}
+body.paper-mode .pnl-grid--2col tr.indent td {
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+}
+
+/* Primary column — deep umber ink */
+body.paper-mode .pnl2-cell--pri .pnl2-dollar { color: #2C2A28 !important; }
+
+/* Comparison column — faded, italicized ink */
+body.paper-mode .pnl2-cell--cmp .pnl2-dollar,
+body.paper-mode .pnl2-cell--cmp .pnl2-pct-sub {
+  color: #7A7571 !important;
+  font-style: italic;
+  font-weight: 500;
+}
+
+/* Highlighter delta — flat color wash, no shadow, deep-tone text */
+body.paper-mode .pnl2-delta.pnl2-good .pnl2-pill {
+  background: rgba(42, 89, 52, 0.1) !important;
+  color: #2A5934 !important;
+  box-shadow: none !important;
+}
+body.paper-mode .pnl2-delta.pnl2-bad .pnl2-pill {
+  background: rgba(140, 58, 58, 0.1) !important;
+  color: #8C3A3A !important;
+  box-shadow: none !important;
+}
+body.paper-mode .pnl2-pill-pct { opacity: 0.7; }
+
+/* Category + subtotal rows — keep hierarchy via font weight, drop the
+   solid grey fills so the paper texture shows through. */
+body.paper-mode .pnl-grid--2col tr.category td,
+body.paper-mode .pnl-grid--2col tr.category .pnl2-td-lbl,
+body.paper-mode .pnl-grid--2col tr.subtotal td,
+body.paper-mode .pnl-grid--2col tr.subtotal .pnl2-td-lbl {
+  background: transparent !important;
+}
+body.paper-mode .pnl-grid--2col tr.category .pnl2-td-lbl {
+  font-weight: 700;
+  font-size: 14.5px;
+}
+body.paper-mode .pnl-grid--2col tr.subtotal .pnl2-td-lbl {
+  font-weight: 800;
+  color: var(--brand-ink);
+}
+/* Total row stays the dark ink block — it's the financial bottom line */
+body.paper-mode .pnl-grid--2col tr.total td,
+body.paper-mode .pnl-grid--2col tr.total .pnl2-td-lbl {
+  background: var(--brand-ink) !important;
+  color: #fff !important;
+}
+
+/* ── Compare-month sheet / modal ────────────────────────────── */
+.pnl-cmp-backdrop[hidden] { display: none !important; }
+.pnl-cmp-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(55, 59, 77, 0);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 1000;
+  pointer-events: none;
+  transition: background 0.28s ease;
+}
+.pnl-cmp-backdrop.is-open {
+  background: rgba(55, 59, 77, 0.4);
+  pointer-events: auto;
+}
+.pnl-cmp-sheet {
+  width: 100%;
+  max-width: 520px;
+  max-height: 82vh;
+  background: var(--paper-card, #F7F6F2);
+  border-radius: 18px 18px 0 0;
+  padding: 0 0 env(safe-area-inset-bottom);
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 -8px 30px rgba(55, 59, 77, 0.15);
+}
+.pnl-cmp-backdrop.is-open .pnl-cmp-sheet { transform: translateY(0); }
+/* Desktop: centered modal with fade+slide-down entrance + X close */
+@media (min-width: 769px) {
+  .pnl-cmp-backdrop { align-items: center; }
+  .pnl-cmp-sheet {
+    max-width: 420px;
+    max-height: 72vh;
+    border-radius: 14px;
+    transform: translateY(-10px);
+    opacity: 0;
+    transition: transform 0.2s ease-out, opacity 0.2s ease-out;
+  }
+  .pnl-cmp-backdrop.is-open .pnl-cmp-sheet { transform: translateY(0); opacity: 1; }
+}
+.pnl-cmp-sheet-drag {
+  flex-shrink: 0;
+  padding: 16px 20px 14px;
+  border-bottom: 1px solid rgba(55, 59, 77, 0.08);
+  position: relative;
+}
+.pnl-cmp-sheet-grabber {
+  width: 38px; height: 4px;
+  background: #cbd5e1;
+  border-radius: 2px;
+  margin: 0 auto 10px;
+}
+@media (min-width: 769px) { .pnl-cmp-sheet-grabber { display: none; } }
+.pnl-cmp-sheet-title {
+  font-size: 15px; font-weight: 700;
+  color: var(--brand-ink);
+  text-align: center;
+}
+.pnl-cmp-sheet-close {
+  position: absolute;
+  top: 10px; right: 10px;
+  width: 32px; height: 32px;
+  border: none;
+  background: transparent;
+  font-size: 22px;
+  color: var(--brand-ink-muted);
+  cursor: pointer;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+.pnl-cmp-sheet-close:hover { background: rgba(55, 59, 77, 0.06); color: var(--brand-ink); }
+@media (max-width: 768px) { .pnl-cmp-sheet-close { display: none; } }
+
+.pnl-cmp-sheet-list {
+  overflow-y: auto;
+  padding: 6px 0;
+  -webkit-overflow-scrolling: touch;
+}
+.pnl-cmp-sheet-item {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px 14px 22px;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--brand-ink);
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed rgba(55, 59, 77, 0.1);
+  text-align: left;
+  cursor: pointer;
+  min-height: 48px;
+  transition: background 0.1s;
+}
+.pnl-cmp-sheet-item:last-child { border-bottom: none; }
+.pnl-cmp-sheet-item:hover,
+.pnl-cmp-sheet-item:focus-visible { background: rgba(55, 59, 77, 0.04); outline: none; }
+.pnl-cmp-sheet-item.is-active {
+  background: var(--brand-orange-tint);
+  font-weight: 700;
+}
+.pnl-cmp-sheet-item.is-active::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+  background: var(--brand-orange-soft);
+  border-radius: 0 2px 2px 0;
+}
+.pnl-cmp-sheet-item-label { flex: 1; }
+.pnl-cmp-sheet-tag {
+  font-size: 9px;
+  font-weight: 800;
+  padding: 2px 6px;
+  background: rgba(55, 59, 77, 0.08);
+  color: var(--brand-ink-soft);
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.pnl-cmp-sheet-check {
+  color: var(--brand-orange-soft);
+  font-size: 18px;
+  font-weight: 800;
+}
+
 /* ── Respect reduced-motion preferences ──────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   body.paper-mode,
   body.paper-mode::before { transition: none; }
+  .pnl-cmp-sheet { transition: none; }
+  .pnl-cmp-backdrop { transition: none; }
 }

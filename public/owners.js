@@ -520,6 +520,91 @@ function setPnlCompare(mk) {
   if (ownersData && ownersData.connected) renderOwners();
 }
 
+// ── Compare-month bottom-sheet / modal ────────────────────────
+// Opens a sheet where the user picks which month to compare the
+// current Full Picture to. Same UX pattern as the primary-month
+// picker: bottom-sheet on mobile, centered popover on desktop.
+function openPnlCompareSheet() {
+  var backdrop = document.getElementById('pnlCompareBackdrop');
+  if (!backdrop) {
+    backdrop = document.createElement('div');
+    backdrop.id = 'pnlCompareBackdrop';
+    backdrop.className = 'pnl-cmp-backdrop';
+    backdrop.setAttribute('hidden', '');
+    backdrop.onclick = closePnlCompareSheet;
+    var sheet = document.createElement('div');
+    sheet.id = 'pnlCompareSheet';
+    sheet.className = 'pnl-cmp-sheet';
+    sheet.onclick = function(e) { e.stopPropagation(); };
+    backdrop.appendChild(sheet);
+    document.body.appendChild(backdrop);
+  }
+  populatePnlCompareSheet();
+  backdrop.removeAttribute('hidden');
+  requestAnimationFrame(function() {
+    requestAnimationFrame(function() { backdrop.classList.add('is-open'); });
+  });
+}
+
+function closePnlCompareSheet() {
+  var backdrop = document.getElementById('pnlCompareBackdrop');
+  if (!backdrop) return;
+  backdrop.classList.remove('is-open');
+  setTimeout(function() {
+    if (!backdrop.classList.contains('is-open')) backdrop.setAttribute('hidden', '');
+  }, 320);
+}
+
+// (Re)builds the list inside the compare sheet — pinned YoY + Prior
+// first, then remaining months most-recent first.
+function populatePnlCompareSheet() {
+  var sheet = document.getElementById('pnlCompareSheet');
+  if (!sheet || !ownersData) return;
+  var months = ownersData.months || [];
+  if (!finMonth || !months.length) return;
+
+  var parts = finMonth.split('-');
+  var yoyKey = (parseInt(parts[0]) - 1) + '-' + parts[1];
+  var curIdx = months.indexOf(finMonth);
+  var priorMonthKey = curIdx > 0 ? months[curIdx - 1] : null;
+
+  var pinned = [];
+  if (months.indexOf(yoyKey) >= 0) pinned.push({ key: yoyKey, tag: 'YoY' });
+  if (priorMonthKey && priorMonthKey !== yoyKey) pinned.push({ key: priorMonthKey, tag: 'Prior' });
+  var pinnedKeys = pinned.map(function(p) { return p.key; });
+  var list = pinned.concat(
+    months.slice().reverse()
+      .filter(function(m) { return m !== finMonth && pinnedKeys.indexOf(m) < 0; })
+      .map(function(m) { return { key: m, tag: null }; })
+  );
+
+  var header =
+    '<div class="pnl-cmp-sheet-drag">' +
+      '<div class="pnl-cmp-sheet-grabber"></div>' +
+      '<div class="pnl-cmp-sheet-title">Compare to…</div>' +
+      '<button class="pnl-cmp-sheet-close" onclick="closePnlCompareSheet()" aria-label="Close">&times;</button>' +
+    '</div>';
+  var items = list.map(function(c) {
+    var active = c.key === pnlCompareMonth ? ' is-active' : '';
+    var tag = c.tag ? '<span class="pnl-cmp-sheet-tag">' + c.tag + '</span>' : '';
+    var check = c.key === pnlCompareMonth ? '<span class="pnl-cmp-sheet-check">\u2713</span>' : '';
+    return '<button class="pnl-cmp-sheet-item' + active + '" onclick="pickPnlCompare(\'' + c.key + '\')">' +
+      '<span class="pnl-cmp-sheet-item-label">' + fmtMkFull(c.key) + '</span>' + tag + check +
+    '</button>';
+  }).join('');
+  sheet.innerHTML = header + '<div class="pnl-cmp-sheet-list">' + items + '</div>';
+}
+
+function pickPnlCompare(key) {
+  setPnlCompare(key);
+  closePnlCompareSheet();
+}
+
+// Expose globally for inline onclick handlers
+window.openPnlCompareSheet  = openPnlCompareSheet;
+window.closePnlCompareSheet = closePnlCompareSheet;
+window.pickPnlCompare       = pickPnlCompare;
+
 function renderOwners() {
   if (!ownersData || !ownersData.connected) {
     var reason = ownersData && ownersData.reason || 'unknown';
@@ -1268,29 +1353,27 @@ function renderOwners() {
       return '<td class="pnl2-delta' + cls + '"><span class="pnl2-pill">' + sign + fmtDollar(diff) + pctStr + '</span></td>';
     }
 
-    // Comparison chip picker — YoY chip pinned first (most useful default),
-    // then prior month, then the rest of history most-recent-first.
-    var parts2  = finMonth.split('-');
-    var yoyKey2 = (parseInt(parts2[0]) - 1) + '-' + parts2[1];
-    var priorMonthKey = priIdx2 > 0 ? months[priIdx2 - 1] : null;
-    var pinned = [];
-    if (months.indexOf(yoyKey2) >= 0) pinned.push({ key: yoyKey2, tag: 'YoY' });
-    if (priorMonthKey && priorMonthKey !== yoyKey2) pinned.push({ key: priorMonthKey, tag: 'Prior' });
-    var pinnedKeys = pinned.map(function(p) { return p.key; });
-    var chipList = pinned.concat(
-      months.slice().reverse()
-        .filter(function(m) { return m !== finMonth && pinnedKeys.indexOf(m) < 0; })
-        .map(function(m) { return { key: m, tag: null }; })
-    );
-    var chipHtml = chipList.map(function(c) {
-      var act = c.key === pnlCompareMonth ? ' act' : '';
-      var tag = c.tag ? '<span class="pnl-cmp-chip-tag">' + c.tag + '</span>' : '';
-      return '<button class="pnl-cmp-chip' + act + '" onclick="setPnlCompare(\'' + c.key + '\')">' +
-             fmtMkShort(c.key) + tag + '</button>';
-    }).join('');
-    var pickerHtml = '<div class="pnl-cmp-row">' +
-      '<span class="pnl-cmp-lbl">Compare to</span>' +
-      '<div class="pnl-cmp-chips">' + chipHtml + '</div></div>';
+    // Dual-anchor "MAR 2026  vs  MAR 2025 ▾" header replaces the
+    // horizontal scrolling chip list. The compare button opens a
+    // bottom-sheet (mobile) / centered modal (desktop) via
+    // openPnlCompareSheet() so the user picks from a clean list.
+    var priFullLabel = fmtMkFull(finMonth);
+    var cmpFullLabel = pnlCompareMonth ? fmtMkFull(pnlCompareMonth) : 'Select…';
+    var pickerHtml =
+      '<div class="pnl-anchor">' +
+        '<div class="pnl-anchor-pri">' +
+          '<div class="pnl-anchor-kicker">Viewing</div>' +
+          '<div class="pnl-anchor-pri-month">' + esc(priFullLabel) + '</div>' +
+        '</div>' +
+        '<div class="pnl-anchor-vs" aria-hidden="true">vs</div>' +
+        '<button class="pnl-anchor-cmp" onclick="openPnlCompareSheet()" aria-label="Change comparison month">' +
+          '<div class="pnl-anchor-kicker">Compare to</div>' +
+          '<div class="pnl-anchor-cmp-month">' + esc(cmpFullLabel) +
+          '<svg class="pnl-anchor-chev" viewBox="0 0 12 7" width="13" height="8" aria-hidden="true">' +
+            '<path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
+          '</svg></div>' +
+        '</button>' +
+      '</div>';
 
     var priHead = fmtMkShort(finMonth);
     var cmpHead = pnlCompareMonth ? fmtMkShort(pnlCompareMonth) : '—';
@@ -1373,8 +1456,8 @@ function renderOwners() {
       datasets: [{
         data: donutValues,
         backgroundColor: donutColors,
-        borderWidth: 3, borderColor: '#F9F8F4',          /* matches --paper-card so the ring slices blend into the card */
-        hoverOffset: 8, hoverBorderColor: '#F9F8F4'
+        borderWidth: 3, borderColor: '#F7F6F2',          /* matches --paper-card so the ring slices blend into the card */
+        hoverOffset: 8, hoverBorderColor: '#F7F6F2'
       }]
     },
     options: {
@@ -1419,7 +1502,10 @@ function renderOwners() {
     { key: 'tl',    label: 'Technician Cost %',   color: '#FF9500', data: tlArr,    goal: 25,   dir: 'below' },
     { key: 'parts', label: 'Parts Cost %',        color: '#FF6B35', data: partsArr, goal: 25,   dir: 'below' },
     { key: 'admin', label: 'Admin & Office %',    color: '#8b5cf6', data: adminArr, goal: null, dir: null    },
-    { key: 'om',    label: 'Profit %',            color: '#22c55e', data: noiArr,   goal: 15,   dir: 'above' }
+    { key: 'om',    label: 'Profit %',            color: '#22c55e', data: noiArr,   goal: 15,   dir: 'above' },
+    /* Revenue is not a ratio — it's raw dollars. Flagged via `isRevenue`
+       so the y-axis / tooltip / legend know to format as currency. */
+    { key: 'rev',   label: 'Revenue',             color: '#7FB5D3', data: revenue,  goal: null, dir: null, isRevenue: true }
   ];
   _trendSeries = TREND_SERIES; // cache for selectTrendLine
 
@@ -1516,7 +1602,18 @@ function renderOwners() {
           grid: { color: 'rgba(148,163,184,0.10)', drawTicks: false },
           border: { display: false },
           ticks: {
-            callback: function(v) { return v.toFixed(0) + '%'; },
+            /* Format axis labels as dollars when Revenue is the active
+               series, as percentages otherwise. `trendActive` is a
+               closed-over global that changes on pill select. */
+            callback: function(v) {
+              if (trendActive === 'rev') {
+                var a = Math.abs(v);
+                if (a >= 1e6) return '$' + (v/1e6).toFixed(1) + 'M';
+                if (a >= 1e3) return '$' + Math.round(v/1e3) + 'K';
+                return '$' + Math.round(v);
+              }
+              return v.toFixed(0) + '%';
+            },
             font: { size: 12, weight: '500' }, color: '#64748b', padding: 8
           }
         }
@@ -2113,7 +2210,16 @@ function renderTrendTooltip(context) {
   var pt = tt.dataPoints.find(function(d) { return !/target$/.test(d.dataset.label); });
   if (!pt) { el.classList.remove('is-visible'); return; }
   var color = pt.dataset.borderColor || '#1a2d3a';
-  var val   = pt.parsed.y.toFixed(1) + '%';
+  // Revenue is dollars; every other series is a percentage ratio.
+  var val;
+  if (trendActive === 'rev') {
+    var a = Math.abs(pt.parsed.y);
+    if (a >= 1e6)      val = '$' + (pt.parsed.y / 1e6).toFixed(2) + 'M';
+    else if (a >= 1e3) val = '$' + Math.round(pt.parsed.y / 1e3).toLocaleString() + 'K';
+    else               val = '$' + Math.round(pt.parsed.y).toLocaleString();
+  } else {
+    val = pt.parsed.y.toFixed(1) + '%';
+  }
   el.innerHTML =
     '<div class="fin-trend-tooltip-date">' + esc(pt.label) + '</div>' +
     '<div class="fin-trend-tooltip-row">' +
@@ -2141,7 +2247,18 @@ function buildTrendLegend(series, curIdx) {
   if (!el) return;
   var active = series.filter(function(s) { return s.key === trendActive; })[0];
   if (!active) return;
-  var curVal = (active.data && active.data[curIdx] != null) ? active.data[curIdx].toFixed(1) + '%' : '\u2014';
+  var rawVal = (active.data && active.data[curIdx] != null) ? active.data[curIdx] : null;
+  var curVal;
+  if (rawVal == null) {
+    curVal = '\u2014';
+  } else if (active.isRevenue) {
+    var a = Math.abs(rawVal);
+    if (a >= 1e6)      curVal = '$' + (rawVal / 1e6).toFixed(2) + 'M';
+    else if (a >= 1e3) curVal = '$' + Math.round(rawVal / 1e3).toLocaleString() + 'K';
+    else               curVal = '$' + Math.round(rawVal).toLocaleString();
+  } else {
+    curVal = rawVal.toFixed(1) + '%';
+  }
   var html =
     '<div class="tcl-item">' +
       '<span class="tcl-swatch" style="background:' + active.color + '"></span>' +
@@ -2175,8 +2292,8 @@ function selectTrendLine(btn) {
   var btns = document.querySelectorAll('#trendToggles .fin-trend-btn');
   btns.forEach(function(b) { b.classList.toggle('on', b.dataset.key === key); });
   if (trendChartInst) {
-    var keys = ['gm','tl','parts','admin','om'];
-    var goals = { gm:50, tl:25, parts:25, admin:null, om:15 };
+    var keys = ['gm','tl','parts','admin','om','rev'];
+    var goals = { gm:50, tl:25, parts:25, admin:null, om:15, rev:null };
     keys.forEach(function(k, idx) {
       trendChartInst.data.datasets[idx].hidden = k !== key;
       if (trendChartInst.data.datasets[idx + keys.length]) {
