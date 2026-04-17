@@ -950,38 +950,47 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 /* GP "We kept X%" line inside the panel */
 .mf-gp-pct-line { margin-bottom: 14px !important; }
 
-/* ── COGS bar target marker (below the bar, subtle) ───────────
+/* ── Shared target/goal marker (below the bar, subtle) ────────
    Chevron moved out of the bar, so the target can live cleanly
-   below with just a thin dashed tick + small label. */
+   below with just a thin dashed tick + small label.
+   Used for both "Target 50%" (COGS bar) and "Profit Goal 15%"
+   (Profit bar) — horizontal position driven by --tx CSS var. */
 .mf-cogs-bar-wrap {
   position: relative;
   margin: 12px 0 4px;
 }
-.mf-cogs-target-mark {
+.fin-target-mark {
+  --tx: 50%;
   position: relative;
   height: 18px;
   margin-top: 4px;
   pointer-events: none;
 }
-.mf-cogs-target-tick {
+.fin-target-tick {
   position: absolute;
-  top: -4px;
-  left: 50%;
-  width: 1px;
-  height: 6px;
-  background: rgba(239, 68, 68, 0.45);
+  top: -10px;                    /* pierces slightly INTO the bar above */
+  left: var(--tx);
+  width: 0;
+  height: 14px;
+  border-left: 1px dashed rgba(0, 0, 0, 0.3);
   transform: translateX(-50%);
 }
-.mf-cogs-target-lbl {
+.fin-target-lbl {
   position: absolute;
-  top: 3px;
-  left: 50%;
+  top: 5px;
+  left: var(--tx);
   transform: translateX(-50%);
-  font-size: 9px; font-weight: 700;
+  font-size: 10px; font-weight: 600;
   letter-spacing: 0.7px; text-transform: uppercase;
-  color: rgba(239, 68, 68, 0.7);
+  color: #9ca3af;
   white-space: nowrap;
 }
+/* Section-accent colors for the tick + label */
+.fin-target-mark--red .fin-target-tick   { border-left-color: rgba(239, 68, 68, 0.5); }
+.fin-target-mark--red .fin-target-lbl    { color: rgba(239, 68, 68, 0.75); }
+.fin-target-mark--green .fin-target-tick { border-left-color: rgba(22, 163, 74, 0.5); }
+.fin-target-mark--green .fin-target-lbl  { color: rgba(22, 163, 74, 0.8); }
+
 
 /* ── GP reversed competition bar ───────────────────────────── */
 .mf-gp-revbar-wrap { margin: 0 0 12px; }
@@ -1182,6 +1191,38 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   background: linear-gradient(to bottom, #ccf2d6, #bbf7d0);  /* pale green: operating profit */
   flex: 1; min-width: 2px; position: relative;
 }
+
+/* ── Profit bar "ghost" segments ─────────────────────────────
+   Match the COGS and Overhead colors above but at ~40% intensity so
+   the green Profit segment pops as the most important info in the row.
+   Using diluted colors (not opacity) keeps hover/tap feedback clean. */
+.mf-sb-ghost-cogs {
+  background: linear-gradient(to bottom, #fdeaea, #fbdede);  /* softer pale red */
+  flex-shrink: 0; position: relative;
+}
+.mf-sb-ghost-ovhd {
+  background: linear-gradient(to bottom, #ffeadb, #ffe0cc);  /* softer pale orange */
+  flex-shrink: 0; position: relative;
+}
+/* Active profit segment — vibrant, commands attention */
+.mf-sb-profit {
+  background: linear-gradient(to bottom, #34d399, #22c55e);
+  flex: 1; min-width: 2px; position: relative;
+}
+/* Ghost-segment labels hidden by default; show on hover like mf-sb-prior/pass */
+.mf-sb-ghost-cogs .mf-bar-label,
+.mf-sb-ghost-ovhd .mf-bar-label { opacity: 0; transition: opacity 0.15s; }
+.mf-sb-ghost-cogs:hover .mf-bar-label,
+.mf-sb-ghost-ovhd:hover .mf-bar-label { opacity: 1; }
+.mf-sb-ghost-cogs .mf-bar-label { color: #b91c1c; }
+.mf-sb-ghost-ovhd .mf-bar-label { color: #9a3412; }
+
+/* Green variant of the header chevron badge — matches Profit accent */
+.mf-op-head-chev--green {
+  background: #f0fdf4;
+  color: #16a34a;
+}
+.mf-op-head-click:hover .mf-op-head-chev--green { background: #dcfce7; }
 
 /* Labels inside bar segments */
 .mf-bar-label {

@@ -799,10 +799,10 @@ function renderOwners() {
                 '<span class="mf-bar-label">Gross Profit</span>' +
               '</div>' +
             '</div>' +
-            // Subtle target marker below the bar (dashed line + small label)
-            '<div class="mf-cogs-target-mark">' +
-              '<div class="mf-cogs-target-tick"></div>' +
-              '<div class="mf-cogs-target-lbl">Target 50%</div>' +
+            // Subtle target marker below the bar (dashed tick + small label)
+            '<div class="fin-target-mark fin-target-mark--red" style="--tx:50%">' +
+              '<div class="fin-target-tick"></div>' +
+              '<div class="fin-target-lbl">Target 50%</div>' +
             '</div>' +
           '</div>' +
         '</div>' +
@@ -939,29 +939,35 @@ function renderOwners() {
 
         return (
           '<div class="mf-step mf-step--noi">' +
-            '<div class="mf-step-label">Profit</div>' +
-            '<div class="mf-step-num"><span class="mf-step-eq">=&thinsp;</span>' + fmtDollar(curNOI) + '<span class="mf-op-pct">' + fmtPct(noiPct) + '</span></div>' +
-            // Bar wrapper — position:relative so target line can sit on top
+            // Clickable header — mirrors COGS/Overhead pattern for consistency
+            '<div class="mf-op-head-click" onclick="mfToggleNoi(this)">' +
+              '<div class="mf-op-head-text">' +
+                '<div class="mf-step-label">Profit</div>' +
+                '<div class="mf-step-num"><span class="mf-op-neg">=</span>' + fmtDollar(curNOI) + '<span class="mf-op-pct">' + fmtPct(noiPct) + '</span></div>' +
+              '</div>' +
+              '<div class="mf-op-head-chev mf-op-head-chev--green">' + MF_CHEV + '</div>' +
+            '</div>' +
+            // Cumulative "waterfall" bar: ghost COGS + ghost Overhead + active Profit
             '<div class="mf-noi-bar-wrap">' +
-              // Gold target label above bar
-              '<div class="mf-noi-goal-lbl" style="left:' + targetX + '%">Profit Goal 15%</div>' +
-              // 3-segment mirror bar
               '<div class="mf-split-bar mf-noi-mirror-bar">' +
-                '<div class="mf-seg-dim" style="width:' + Math.max(0, cogsPct).toFixed(1) + '%;background:#fecaca;flex-shrink:0;position:relative;">' +
+                // Segment 1: ghost COGS — matches dark-red width above at reduced intensity
+                '<div class="mf-sb-ghost-cogs" style="width:' + Math.max(0, cogsPct).toFixed(1) + '%">' +
                   '<span class="mf-bar-label">COGS</span>' +
                 '</div>' +
-                '<div class="mf-seg-dim" style="width:' + Math.max(0, ovhdPct).toFixed(1) + '%;background:#fed7aa;flex-shrink:0;position:relative;">' +
+                // Segment 2: ghost Overhead — matches orange width above at reduced intensity
+                '<div class="mf-sb-ghost-ovhd" style="width:' + Math.max(0, ovhdPct).toFixed(1) + '%">' +
                   '<span class="mf-bar-label">Overhead</span>' +
                 '</div>' +
-                // Green NOI segment — clickable
-                '<div class="mf-noi-profit-seg mf-seg-click" onclick="mfToggleNoi(this)" ' +
-                    'style="flex:1;min-width:2px;background:#22c55e;position:relative;">' +
+                // Segment 3: active Profit — vibrant green, no chevron inside
+                '<div class="mf-sb-profit mf-seg-click" onclick="mfToggleNoi(this);event.stopPropagation();">' +
                   '<span class="mf-bar-label">Profit</span>' +
-                  MF_CHEV +
                 '</div>' +
               '</div>' +
-              // Gold vertical target line
-              '<div class="mf-noi-target-line" style="left:' + targetX + '%"></div>' +
+              // Goal marker — same component as Target 50%, positioned at 85% (15% goal from right)
+              '<div class="fin-target-mark fin-target-mark--green" style="--tx:' + targetX + '%">' +
+                '<div class="fin-target-tick"></div>' +
+                '<div class="fin-target-lbl">Profit Goal 15%</div>' +
+              '</div>' +
             '</div>' +
             noiDetailHtml +
             // Gap line (hidden by default, shown when detail expands)
