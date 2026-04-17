@@ -301,6 +301,16 @@ app.get('/api/metrics', async (req, res) => {
 
   try {
     const range = req.query.range || 'mtd';
+
+    // ── Per-range response cache ─────────────────────────────────────
+    // Metrics for a given range rarely change minute-to-minute. A 2-min
+    // TTL makes repeat clicks (Today → Yesterday → Today) feel instant
+    // while still letting the 5-min auto-refresh pick up fresh data.
+    const METRICS_TTL = 2 * 60 * 1000;
+    const cacheKey = 'metrics:' + range;
+    const cached = cacheGet(cacheKey, METRICS_TTL);
+    if (cached) return res.json(cached);
+
     const now = new Date();
     let periodStart, periodEnd, periodLabel;
 
@@ -421,25 +431,33 @@ app.get('/api/metrics', async (req, res) => {
     const fetchStart = new Date(periodStart);
     fetchStart.setDate(fetchStart.getDate() - COMPLETION_LOOKBACK_DAYS);
 
-    const allJobs = [];
-    let page = 1;
+    // ── Parallel pagination ─────────────────────────────────────────
+    // HCP pages are ~200 jobs each. Fetch page 1 first to learn
+    // total_pages, then fire pages 2..N concurrently via Promise.all.
+    // For ranges that span many pages this cuts fetch time ~linearly.
     const pageSize = 200;
-    while (true) {
-      const jobsRes = await axios.get(BASE_URL + '/jobs', {
-        headers,
-        params: {
-          work_status: ['completed'],
-          scheduled_start_min: fetchStart.toISOString(),
-          scheduled_start_max: periodEnd.toISOString(),
-          page,
-          page_size: pageSize
-        }
-      });
-      const pageJobs = jobsRes.data.jobs || [];
-      allJobs.push(...pageJobs);
-      const totalPages = jobsRes.data.total_pages || 1;
-      if (page >= totalPages) break;
-      page++;
+    const jobsParams = {
+      work_status: ['completed'],
+      scheduled_start_min: fetchStart.toISOString(),
+      scheduled_start_max: periodEnd.toISOString(),
+      page_size: pageSize
+    };
+    const firstPageRes = await axios.get(BASE_URL + '/jobs', {
+      headers,
+      params: { ...jobsParams, page: 1 }
+    });
+    const allJobs = firstPageRes.data.jobs || [];
+    const totalPages = firstPageRes.data.total_pages || 1;
+
+    if (totalPages > 1) {
+      const pagePromises = [];
+      for (let p = 2; p <= totalPages; p++) {
+        pagePromises.push(
+          axios.get(BASE_URL + '/jobs', { headers, params: { ...jobsParams, page: p } })
+        );
+      }
+      const pageResults = await Promise.all(pagePromises);
+      pageResults.forEach(r => allJobs.push(...(r.data.jobs || [])));
     }
 
     // Filter jobs by actual completion date (not scheduled date)
@@ -584,10 +602,12 @@ app.get('/api/metrics', async (req, res) => {
     const totalJobs = completedJobs.length;
     const avgTicket = totalJobs > 0 ? Math.round(totalRevenue / totalJobs) : 0;
 
-    res.json({
+    const payload = {
       leaderboard,
       summary: { totalRevenue, totalJobs, averageTicket: avgTicket, period: periodLabel }
-    });
+    };
+    cacheSet(cacheKey, payload);
+    res.json(payload);
 
   } catch (error) {
     console.error('[/api/tech]', error.response?.status || '', error.message);

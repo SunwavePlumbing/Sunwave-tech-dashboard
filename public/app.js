@@ -46,46 +46,133 @@ function esc(s) {
 var sidebar = document.getElementById('dateSidebar');
 var commonKeys = ['day', 'yesterday', 'mtd', 'lm', 'l30d', 'ytd'];
 
+// Selects a range and updates all UI that reflects it (pill row + bottom
+// sheet). Safe to call from any source (pill tap, sheet tap, etc.).
+function selectRange(key) {
+  if (isFetching) return;
+  if (key === currentTimeRange) return;
+  currentTimeRange = key;
+  // Update pill buttons in the horizontal row
+  document.querySelectorAll('.date-btn').forEach(function(b) {
+    b.classList.toggle('active', b.dataset.range === key);
+  });
+  // Update bottom-sheet item selection
+  document.querySelectorAll('.date-bs-item').forEach(function(b) {
+    b.classList.toggle('active', b.dataset.range === key);
+  });
+  // Update "More" pill label to reflect the picked range when it lives
+  // in the sheet (not in the common pills)
+  updateMoreBtnLabel();
+  fetchData();
+}
+
 function createDateBtn(range) {
   var btn = document.createElement('button');
-  btn.className = 'date-btn' + (range.key === 'mtd' ? ' active' : '');
+  btn.className = 'date-btn' + (range.key === currentTimeRange ? ' active' : '');
   btn.textContent = range.label;
   btn.dataset.range = range.key;
-  btn.addEventListener('click', function() {
-    if (isFetching) return;
-    currentTimeRange = this.dataset.range;
-    document.querySelectorAll('.date-btn').forEach(function(b) { b.classList.remove('active'); });
-    this.classList.add('active');
-    fetchData();
-  });
+  btn.addEventListener('click', function() { selectRange(this.dataset.range); });
   return btn;
 }
 
-if (window.innerWidth <= 768) {
-  var primaryRow = document.createElement('div');
-  primaryRow.className = 'sidebar-primary';
-  var morePanel = document.createElement('div');
-  morePanel.className = 'sidebar-more-panel';
+/* ── Bottom-sheet modal for "More" date ranges ─────────────────
+   Slide-up panel from the bottom of the screen, covering the whole
+   viewport with a semi-transparent backdrop. Replaces the old inline
+   dropdown that caused layout jumps on mobile. */
+function buildDateSheet() {
+  var backdrop = document.createElement('div');
+  backdrop.className = 'date-bs-backdrop';
+  backdrop.id = 'dateBsBackdrop';
+  backdrop.addEventListener('click', closeDateSheet);
 
+  var sheet = document.createElement('div');
+  sheet.className = 'date-bs-sheet';
+  sheet.addEventListener('click', function(e) { e.stopPropagation(); });
+
+  sheet.innerHTML =
+    '<div class="date-bs-handle"></div>' +
+    '<div class="date-bs-title">Select Date Range</div>';
+
+  var list = document.createElement('div');
+  list.className = 'date-bs-list';
+  // Include ALL ranges so the sheet is a single source of truth
+  dateRanges.forEach(function(range) {
+    var item = document.createElement('button');
+    item.className = 'date-bs-item' + (range.key === currentTimeRange ? ' active' : '');
+    item.dataset.range = range.key;
+    item.innerHTML =
+      '<span class="date-bs-item-label">' + range.label + '</span>' +
+      '<span class="date-bs-item-check">\u2713</span>';
+    item.addEventListener('click', function() {
+      selectRange(this.dataset.range);
+      closeDateSheet();
+    });
+    list.appendChild(item);
+  });
+  sheet.appendChild(list);
+  backdrop.appendChild(sheet);
+  document.body.appendChild(backdrop);
+}
+
+function openDateSheet() {
+  var bd = document.getElementById('dateBsBackdrop');
+  if (!bd) return;
+  // Sync active state each open so selections made elsewhere stay in sync
+  bd.querySelectorAll('.date-bs-item').forEach(function(el) {
+    el.classList.toggle('active', el.dataset.range === currentTimeRange);
+  });
+  document.body.classList.add('date-bs-open');
+  bd.classList.add('open');
+}
+
+function closeDateSheet() {
+  var bd = document.getElementById('dateBsBackdrop');
+  if (!bd) return;
+  document.body.classList.remove('date-bs-open');
+  bd.classList.remove('open');
+}
+
+/* If the active range lives in the sheet (not a common pill), show the
+   picked label inside the "More" button so the user sees their current
+   selection without needing to open the sheet. */
+function updateMoreBtnLabel() {
+  var moreBtn = document.getElementById('dateMoreBtn');
+  if (!moreBtn) return;
+  var isCommon = commonKeys.indexOf(currentTimeRange) !== -1;
+  var labelEl = moreBtn.querySelector('.date-more-label');
+  if (isCommon) {
+    labelEl.textContent = 'More';
+    moreBtn.classList.remove('active');
+  } else {
+    var range = dateRanges.find(function(r) { return r.key === currentTimeRange; });
+    labelEl.textContent = range ? range.label : 'More';
+    moreBtn.classList.add('active');
+  }
+}
+
+if (window.innerWidth <= 768) {
+  // Common pills flow horizontally; "More" is the LAST pill in the same
+  // scroll container (not absolutely positioned anymore).
   dateRanges.forEach(function(range) {
     if (commonKeys.indexOf(range.key) !== -1) {
-      primaryRow.appendChild(createDateBtn(range));
-    } else {
-      morePanel.appendChild(createDateBtn(range));
+      sidebar.appendChild(createDateBtn(range));
     }
   });
-
-  var moreToggle = document.createElement('button');
-  moreToggle.className = 'sidebar-more-toggle';
-  moreToggle.textContent = 'More date ranges \u25be';
-  moreToggle.addEventListener('click', function() {
-    var open = morePanel.classList.toggle('open');
-    this.textContent = open ? 'Fewer options \u25b4' : 'More date ranges \u25be';
-  });
-
-  sidebar.appendChild(primaryRow);
-  sidebar.appendChild(moreToggle);
-  sidebar.appendChild(morePanel);
+  var moreBtn = document.createElement('button');
+  moreBtn.id = 'dateMoreBtn';
+  moreBtn.className = 'date-btn date-more-btn';
+  /* Small calendar glyph + short label ("More" or the current picked range) */
+  moreBtn.innerHTML =
+    '<svg class="date-more-icon" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">' +
+      '<rect x="2" y="3" width="12" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/>' +
+      '<path d="M2 6h12" stroke="currentColor" stroke-width="1.5"/>' +
+      '<path d="M5 2v3M11 2v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>' +
+    '</svg>' +
+    '<span class="date-more-label">More</span>';
+  moreBtn.addEventListener('click', openDateSheet);
+  sidebar.appendChild(moreBtn);
+  buildDateSheet();
+  updateMoreBtnLabel();
 } else {
   dateRanges.forEach(function(range) {
     sidebar.appendChild(createDateBtn(range));
