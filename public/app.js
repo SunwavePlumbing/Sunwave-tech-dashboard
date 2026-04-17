@@ -284,13 +284,6 @@ window.addEventListener('hashchange', function() {
 
 // init() is called from index.html after all script files have loaded
 function init() {
-  // On mobile, move the date sidebar into techView so it sits below the tabs
-  // (not above them). Desktop layout is unchanged — sidebar stays in the grid.
-  if (window.innerWidth <= 768) {
-    var techView = document.getElementById('techView');
-    var dateSidebar = document.getElementById('dateSidebar');
-    techView.insertBefore(dateSidebar, techView.firstChild);
-  }
   var tab = window.location.hash.replace('#', '') || DEFAULT_TAB;
   activateTab(tab); // indicator snaps on first paint (no stale position to animate from)
   fetchData();
