@@ -1383,11 +1383,13 @@ function renderOwners() {
       }
     };
 
-    // Mobile-aware x-axis label configuration
+    // With 150% canvas width, we have room for every label — no auto-skip needed
     var xAxisRotation = isMobile ? 45 : 0;
-    var xAxisFontSize = isMobile ? 9 : 11;
-    var xAxisAutoSkip = isMobile ? true : false;  // skip some labels on mobile to prevent overlap
-    var xAxisMaxTicksLimit = isMobile ? 8 : 15;   // show max 8 labels on mobile
+    var xAxisFontSize = isMobile ? 10 : 11;
+
+    // Lock Y axis max so the bouncy spring overshoot doesn't cause axis rescaling
+    var revMaxVal = Math.max.apply(null, revData.concat(revPriorData.filter(function(v) { return v; })));
+    var revYMax = revMaxVal * 1.15;
 
     revBarChartInst = new Chart(revCtx, {
       type: 'bar',
@@ -1400,6 +1402,35 @@ function renderOwners() {
         responsive: true, maintainAspectRatio: false,
         animation: false,
         layout: { padding: { top: 26, left: 6, right: isMobile ? 12 : 6, bottom: isMobile ? 30 : 0 } },
+        // ── Bar tap: 5% scale pulse + light haptic ──
+        onClick: function(evt, elements, chart) {
+          if (!elements || !elements.length) return;
+          var idx = elements[0].index;
+          // Light haptic on supported devices (Android + some desktop browsers)
+          if (navigator.vibrate) { try { navigator.vibrate(10); } catch(e) {} }
+          if (!chart._targetData) return;
+          // Cancel any prior pulse so rapid taps don't stack
+          if (chart._tapAnimId) cancelAnimationFrame(chart._tapAnimId);
+          var orig = chart._targetData[idx];
+          var start = null;
+          var DUR = 280;
+          function pulse(ts) {
+            if (!start) start = ts;
+            var t = (ts - start) / DUR;
+            if (t >= 1) {
+              chart.data.datasets[0].data[idx] = orig;
+              chart.update('none');
+              chart._tapAnimId = null;
+              return;
+            }
+            // Sine pulse: 0 → peak at t=0.5 → 0
+            var bump = Math.sin(t * Math.PI) * 0.05;
+            chart.data.datasets[0].data[idx] = orig * (1 + bump);
+            chart.update('none');
+            chart._tapAnimId = requestAnimationFrame(pulse);
+          }
+          chart._tapAnimId = requestAnimationFrame(pulse);
+        },
         plugins: {
           legend: { display: false },
           tooltip: {
@@ -1415,7 +1446,7 @@ function renderOwners() {
             padding: 12, cornerRadius: 8, displayColors: false, footerMarginTop: 8,
             callbacks: {
               title:  function(items) { return items[0].label; },
-              label:  function(ctx)   { return 'Revenue:  ' + fmtDollar(ctx.parsed.y); },
+              label:  function(ctx)   { return 'Revenue:  ' + fmtDollar(revBarChartInst._targetData ? revBarChartInst._targetData[ctx.dataIndex] : ctx.parsed.y); },
               footer: function(items) {
                 var i     = items[0].dataIndex;
                 var prior = revPriorData[i];
@@ -1434,38 +1465,56 @@ function renderOwners() {
         scales: {
           x: {
             grid: { display: false }, border: { display: false },
-            ticks: { font: { size: xAxisFontSize, weight: '600' }, color: '#94a3b8', maxRotation: xAxisRotation, minRotation: xAxisRotation, autoSkip: xAxisAutoSkip, maxTicksLimit: xAxisMaxTicksLimit }
+            ticks: {
+              font: { family: "'Inter',system-ui,sans-serif", size: xAxisFontSize, weight: '600' },
+              color: '#64748b',
+              maxRotation: xAxisRotation, minRotation: xAxisRotation,
+              autoSkip: false // 150% width gives room for every month label
+            }
           },
           y: {
-            ticks: { callback: function(v) { return fmtDollar(v); }, font: { size: 11 }, color: '#94a3b8', maxTicksLimit: 5 },
-            grid: { color: '#f0f0f0', lineWidth: 1 }, border: { display: false }
+            max: revYMax, // prevent rescaling during spring overshoot
+            ticks: {
+              callback: function(v) { return fmtDollar(v); },
+              font: { family: "'Inter',system-ui,sans-serif", size: 11, weight: '600' },
+              color: '#64748b',
+              maxTicksLimit: 5
+            },
+            // 10% opacity of the bar color — recedes into the background
+            grid: { color: 'rgba(249, 115, 22, 0.1)', lineWidth: 1 },
+            border: { display: false }
           }
         }
       }
     });
 
-    // ── Scroll-triggered RAF animation: bars start flat, rise up ───
-    // Uses requestAnimationFrame + update('none') to avoid Chart.js color
-    // interpolation bugs that caused purple flashing on mobile scroll.
-    // Works on BOTH desktop and mobile.
+    // ── Scroll-triggered RAF spring animation ────────────────────
+    // 300ms spring with bounciness 0.4 — bars rise flat → target with a
+    // subtle overshoot (~4%) that settles. Uses update('none') to skip
+    // Chart.js's own animation pipeline (avoids color-interp artifacts).
     (function() {
-      // Stash the target values on the chart instance; labels read from here
       revBarChartInst._targetData = revData.slice();
-      // Start with all bars at zero height (flat baseline)
       revBarChartInst._animScale = 0;
       revBarChartInst.data.datasets[0].data = revData.map(function() { return 0; });
       revBarChartInst.update('none');
+
+      // Spring easing: back-style overshoot tuned for "bounciness 0.4"
+      //   Standard easeOutBack uses c1 = 1.70158 (strong bounce)
+      //   c1 = 1.0 gives ~4% overshoot — subtle and satisfying
+      function springEase(t) {
+        var c1 = 1.0, c3 = c1 + 1;
+        return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+      }
 
       function runRevAnim() {
         if (!revBarChartInst) return;
         if (window._revAnimId) cancelAnimationFrame(window._revAnimId);
         var start = null;
-        var DURATION = 900;
+        var DURATION = 300;
         function step(ts) {
           if (!start) start = ts;
           var t = Math.min((ts - start) / DURATION, 1);
-          // easeOutCubic: fast rise at start, gentle settle at end (no overshoot)
-          var eased = 1 - Math.pow(1 - t, 3);
+          var eased = springEase(t);
           revBarChartInst._animScale = eased;
           revBarChartInst.data.datasets[0].data = revBarChartInst._targetData.map(function(v) {
             return v * eased;
@@ -1474,20 +1523,22 @@ function renderOwners() {
           if (t < 1) {
             window._revAnimId = requestAnimationFrame(step);
           } else {
+            // Snap to exact target values so labels match bars perfectly
+            revBarChartInst._animScale = 1;
+            revBarChartInst.data.datasets[0].data = revBarChartInst._targetData.slice();
+            revBarChartInst.update('none');
             window._revAnimId = null;
           }
         }
         window._revAnimId = requestAnimationFrame(step);
       }
 
-      // Trigger when card scrolls into view — works on desktop AND mobile
       if (window.IntersectionObserver) {
         var revObs = new IntersectionObserver(function(entries) {
           if (entries[0].isIntersecting) { runRevAnim(); revObs.disconnect(); }
         }, { threshold: 0.2 });
         revObs.observe(revCard);
       } else {
-        // Old browser fallback: trigger immediately
         runRevAnim();
       }
     })();
@@ -1559,6 +1610,10 @@ function renderOwners() {
       }
     };
 
+    // Lock Y max so spring overshoot doesn't cause axis rescaling
+    var cfMaxVal = Math.max.apply(null, cfBal);
+    var cfYMax = cfMaxVal * 1.15;
+
     cfBarChartInst = new Chart(cfCtx, {
       type: 'bar',
       data: {
@@ -1574,8 +1629,34 @@ function renderOwners() {
       plugins: [cfLabelPlugin],
       options: {
         responsive: true, maintainAspectRatio: false,
-        animation: false, // animated by IntersectionObserver below
-        layout: { padding: { top: 26, left: 6, right: 6, bottom: 0 } },
+        animation: false, // driven by RAF spring below
+        layout: { padding: { top: 26, left: 6, right: 6, bottom: cfMobile ? 30 : 0 } },
+        // ── Bar tap: 5% scale pulse + light haptic ──
+        onClick: function(evt, elements, chart) {
+          if (!elements || !elements.length) return;
+          var idx = elements[0].index;
+          if (navigator.vibrate) { try { navigator.vibrate(10); } catch(e) {} }
+          if (!chart._targetData) return;
+          if (chart._tapAnimId) cancelAnimationFrame(chart._tapAnimId);
+          var orig = chart._targetData[idx];
+          var start = null;
+          var DUR = 280;
+          function pulse(ts) {
+            if (!start) start = ts;
+            var t = (ts - start) / DUR;
+            if (t >= 1) {
+              chart.data.datasets[0].data[idx] = orig;
+              chart.update('none');
+              chart._tapAnimId = null;
+              return;
+            }
+            var bump = Math.sin(t * Math.PI) * 0.05;
+            chart.data.datasets[0].data[idx] = orig * (1 + bump);
+            chart.update('none');
+            chart._tapAnimId = requestAnimationFrame(pulse);
+          }
+          chart._tapAnimId = requestAnimationFrame(pulse);
+        },
         plugins: {
           legend: { display: false },
           tooltip: {
@@ -1587,65 +1668,59 @@ function renderOwners() {
             displayColors: false,
             callbacks: {
               title: function(items) { return items[0].label; },
-              label: function(ctx) { return 'Balance: ' + fmtDollar(ctx.parsed.y); }
+              label: function(ctx) { return 'Balance: ' + fmtDollar(cfBarChartInst._targetData ? cfBarChartInst._targetData[ctx.dataIndex] : ctx.parsed.y); }
             }
           }
         },
-        scales: (function() {
-          var cfMobile = window.innerWidth <= 768;
-          var cfXFontSize = cfMobile ? 9 : 11;
-          var cfXRotation = cfMobile ? 45 : 0;
-          var cfXAutoSkip = cfMobile ? true : false;
-          var cfMaxTicks = cfMobile ? 6 : 15;
-          return {
-            x: {
-              grid: { display: false },
-              border: { display: false },
-              ticks: {
-                font: { size: cfXFontSize, weight: '600' },
-                color: '#94a3b8',
-                maxRotation: cfXRotation, minRotation: cfXRotation,
-                autoSkip: cfXAutoSkip,
-                maxTicksLimit: cfMaxTicks
-              }
-            },
+        scales: {
+          x: {
+            grid: { display: false },
+            border: { display: false },
+            ticks: {
+              font: { family: "'Inter',system-ui,sans-serif", size: cfMobile ? 10 : 11, weight: '600' },
+              color: '#64748b',
+              maxRotation: cfMobile ? 45 : 0, minRotation: cfMobile ? 45 : 0,
+              autoSkip: false // 150% width fits every label
+            }
+          },
           y: {
+            max: cfYMax,
             ticks: {
               callback: function(v) { return fmtDollar(v); },
-              font: { size: 10 },
-              color: '#94a3b8',
+              font: { family: "'Inter',system-ui,sans-serif", size: 11, weight: '600' },
+              color: '#64748b',
               maxTicksLimit: 5
             },
-            grid: { color: '#f0f0f0', lineWidth: 1 },
+            // 10% opacity of the bar color
+            grid: { color: 'rgba(37, 99, 235, 0.1)', lineWidth: 1 },
             border: { display: false }
           }
-          };
-        }())
+        }
       }
     });
 
-    // ── Scroll-triggered RAF animation: bars start flat, rise up ───
-    // Uses requestAnimationFrame + update('none') to avoid Chart.js color
-    // interpolation bugs that caused purple flashing on mobile scroll.
-    // Works on BOTH desktop and mobile.
+    // ── Scroll-triggered RAF spring animation (300ms, bounciness 0.4) ───
     (function() {
       var card = document.getElementById('finCashFlowCard');
-      // Stash target values for labels; start bars at zero (flat)
       cfBarChartInst._targetData = cfBal.slice();
       cfBarChartInst._animScale = 0;
       cfBarChartInst.data.datasets[0].data = cfBal.map(function() { return 0; });
       cfBarChartInst.update('none');
 
+      function springEase(t) {
+        var c1 = 1.0, c3 = c1 + 1;
+        return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+      }
+
       function runAnim() {
         if (!cfBarChartInst) return;
         if (window._cfAnimId) cancelAnimationFrame(window._cfAnimId);
         var start = null;
-        var DURATION = 900;
+        var DURATION = 300;
         function step(ts) {
           if (!start) start = ts;
           var t = Math.min((ts - start) / DURATION, 1);
-          // easeOutCubic: smooth rise without overshoot
-          var eased = 1 - Math.pow(1 - t, 3);
+          var eased = springEase(t);
           cfBarChartInst._animScale = eased;
           cfBarChartInst.data.datasets[0].data = cfBarChartInst._targetData.map(function(v) {
             return v * eased;
@@ -1654,13 +1729,15 @@ function renderOwners() {
           if (t < 1) {
             window._cfAnimId = requestAnimationFrame(step);
           } else {
+            cfBarChartInst._animScale = 1;
+            cfBarChartInst.data.datasets[0].data = cfBarChartInst._targetData.slice();
+            cfBarChartInst.update('none');
             window._cfAnimId = null;
           }
         }
         window._cfAnimId = requestAnimationFrame(step);
       }
 
-      // Trigger when card scrolls into view — desktop AND mobile
       if (window.IntersectionObserver) {
         var obs = new IntersectionObserver(function(entries) {
           if (entries[0].isIntersecting) { runAnim(); obs.disconnect(); }
