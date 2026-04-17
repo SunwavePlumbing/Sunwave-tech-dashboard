@@ -413,6 +413,14 @@ app.get('/api/metrics', async (req, res) => {
 
     const headers = hcpHeaders();
 
+    // ── CLIENT-SIDE COMPLETION DATE FILTERING ────────────────────────────────────
+    // HCP's /jobs endpoint doesn't support filtering by completed_at, only
+    // scheduled_start. So we fetch a wider window (90 days prior) and filter
+    // by actual completion date on the server side.
+    const COMPLETION_LOOKBACK_DAYS = 90;
+    const fetchStart = new Date(periodStart);
+    fetchStart.setDate(fetchStart.getDate() - COMPLETION_LOOKBACK_DAYS);
+
     const allJobs = [];
     let page = 1;
     const pageSize = 200;
@@ -421,8 +429,8 @@ app.get('/api/metrics', async (req, res) => {
         headers,
         params: {
           work_status: ['completed'],
-          completed_start_min: periodStart.toISOString(),
-          completed_start_max: periodEnd.toISOString(),
+          scheduled_start_min: fetchStart.toISOString(),
+          scheduled_start_max: periodEnd.toISOString(),
           page,
           page_size: pageSize
         }
@@ -434,9 +442,17 @@ app.get('/api/metrics', async (req, res) => {
       page++;
     }
 
+    // Filter jobs by actual completion date (not scheduled date)
+    const isJobCompleted = (job) => {
+      if (!job.work_timestamps?.completed_at) return false;
+      const completedDate = new Date(job.work_timestamps.completed_at);
+      return completedDate >= periodStart && completedDate < periodEnd;
+    };
+    const completedJobs = allJobs.filter(isJobCompleted);
+
     // Fetch original estimates to identify who sold each job (the seller gets 1/3 credit)
     const estimateIds = [...new Set(
-      allJobs
+      completedJobs
         .map(j => j.original_estimate_id || (j.original_estimate_uuids && j.original_estimate_uuids[0]))
         .filter(Boolean)
     )];
@@ -471,7 +487,7 @@ app.get('/api/metrics', async (req, res) => {
       }
     }
 
-    allJobs.forEach(job => {
+    completedJobs.forEach(job => {
       const doers = job.assigned_employees || [];
       if (doers.length === 0) return;
 
@@ -565,7 +581,7 @@ app.get('/api/metrics', async (req, res) => {
     // Use the raw job count (all completed jobs in range) for the summary card so it
     // matches what the marketing tab shows. Per-tech credited entries can differ because
     // multi-tech jobs are counted once per tech, and jobs with no employees are skipped.
-    const totalJobs = allJobs.length;
+    const totalJobs = completedJobs.length;
     const avgTicket = totalJobs > 0 ? Math.round(totalRevenue / totalJobs) : 0;
 
     res.json({
@@ -616,6 +632,19 @@ app.get('/api/marketing', async (req, res) => {
 
     // Fetch all months in parallel (each is a single page_size=200 request — increase if needed)
     const fetchMonth = async (bucket) => {
+      // ── CLIENT-SIDE COMPLETION DATE FILTERING ────────────────────────────────────
+      // HCP's /jobs endpoint doesn't support filtering by completed_at, only
+      // scheduled_start. For the oldest bucket, expand the window 90 days back to
+      // catch jobs scheduled long ago but completed recently.
+      const COMPLETION_LOOKBACK_DAYS = 90;
+      let fetchStart = bucket.start;
+
+      // Only expand backward on first (oldest) bucket
+      if (bucket === buckets[0]) {
+        fetchStart = new Date(bucket.start);
+        fetchStart.setDate(fetchStart.getDate() - COMPLETION_LOOKBACK_DAYS);
+      }
+
       const allJobs = [];
       let page = 1;
       while (true) {
@@ -623,8 +652,8 @@ app.get('/api/marketing', async (req, res) => {
           headers,
           params: {
             work_status: ['completed'],
-            completed_start_min: bucket.start.toISOString(),
-            completed_start_max: bucket.end.toISOString(),
+            scheduled_start_min: fetchStart.toISOString(),
+            scheduled_start_max: bucket.end.toISOString(),
             page,
             page_size: 200
           }
@@ -634,12 +663,20 @@ app.get('/api/marketing', async (req, res) => {
         if (page >= (r.data.total_pages || 1)) break;
         page++;
       }
-      const revenue = allJobs.reduce((s, j) => s + parseFloat(j.total_amount || 0) / 100, 0);
+
+      // Filter jobs by actual completion date within this bucket
+      const completedInBucket = allJobs.filter(job => {
+        if (!job.work_timestamps?.completed_at) return false;
+        const completedDate = new Date(job.work_timestamps.completed_at);
+        return completedDate >= bucket.start && completedDate < bucket.end;
+      });
+
+      const revenue = completedInBucket.reduce((s, j) => s + parseFloat(j.total_amount || 0) / 100, 0);
       return {
         ...bucket,
-        jobs: allJobs.length,
+        jobs: completedInBucket.length,
         revenue: Math.round(revenue),
-        avgTicket: allJobs.length > 0 ? Math.round(revenue / allJobs.length) : 0
+        avgTicket: completedInBucket.length > 0 ? Math.round(revenue / completedInBucket.length) : 0
       };
     };
 
