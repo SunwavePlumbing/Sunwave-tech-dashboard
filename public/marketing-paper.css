@@ -967,166 +967,192 @@ body.paper-mode .pnl-row:not(.pnl-row--cat):not(.pnl-row--total):hover {
 }
 
 /* ════════════════════════════════════════════════════════════════
-   "Teletype Auditor" loading sequence (Marketing tab, first visit)
+   "Modern Ledger" loading state (Marketing tab, first visit)
    ────────────────────────────────────────────────────────────────
-   Terminal-style print of simulated sync logs in the foreground,
-   faint matrix of rapidly-cycling numbers in the background, and
-   a high-precision progress counter below. Frames the data pull
-   as complex work being performed, not a generic wait.
+   Editorial, document-forward loading state: a heavily blurred
+   placeholder skeleton of the dashboard in the background with a
+   breathing "Reconciling Marketing Ledger…" tagline centered over
+   it, plus an infinite batch-processing tally ticking continuously.
+   Resolution: tagline fades out and the blur snaps to zero as the
+   real dashboard mounts beneath. No monospace, no percentages.
    ════════════════════════════════════════════════════════════════ */
 
-body.paper-mode .tt-loader {
+body.paper-mode .ledger-loader {
   position: relative;
-  min-height: 320px;
-  padding: 40px 24px 48px;
+  min-height: 440px;
+  padding: 32px 28px;
   overflow: hidden;
   border-radius: 14px;
   background: var(--paper-card);
-  transition: opacity 300ms ease, transform 300ms ease;
-  font-family: 'Courier New', 'Roboto Mono', 'Fira Code', Courier, monospace;
-  color: #2C2A28;
+  transition: opacity 380ms ease;
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: var(--brand-ink);
 }
-body.paper-mode .tt-loader.tt-fading {
+body.paper-mode .ledger-loader.ll-done {
   opacity: 0;
-  transform: translateY(-6px);
   pointer-events: none;
 }
 
-/* ── Background data matrix ──────────────────────────────────── */
-body.paper-mode .tt-matrix {
+/* ── Blurred placeholder skeleton ────────────────────────────── */
+/* Three fake stat cards + a fake bar chart + a few fake table rows,
+   blurred hard and pulsing gently — reads as "paper about to come
+   into focus." On finalize() the blur snaps to zero simultaneously
+   with opacity fading to 0 so the real content can mount behind. */
+body.paper-mode .ll-skeleton {
+  position: absolute;
+  inset: 24px 28px;
+  opacity: 0.35;
+  filter: blur(8px);
+  animation: llBreathe 3.8s ease-in-out infinite;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+body.paper-mode .ledger-loader.ll-focusing .ll-skeleton {
+  filter: blur(0px);
+  opacity: 0;
+  transition: filter 420ms cubic-bezier(0.22, 1, 0.36, 1), opacity 340ms ease;
+  animation: none;
+}
+@keyframes llBreathe {
+  0%, 100% { filter: blur(8px);   opacity: 0.30; }
+  50%      { filter: blur(5.5px); opacity: 0.42; }
+}
+
+body.paper-mode .ll-skel-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 14px;
+}
+body.paper-mode .ll-skel-card {
+  background: rgba(55, 59, 77, 0.06);
+  border-radius: 10px;
+  padding: 18px 16px;
+  height: 94px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+body.paper-mode .ll-skel-line {
+  border-radius: 3px;
+  background: rgba(55, 59, 77, 0.22);
+}
+body.paper-mode .ll-skel-line--sm { width: 42%; height: 9px; opacity: 0.55; }
+body.paper-mode .ll-skel-line--lg { width: 68%; height: 20px; }
+
+body.paper-mode .ll-skel-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  height: 128px;
+  padding: 0 4px;
+}
+body.paper-mode .ll-skel-bar {
+  flex: 1;
+  background: linear-gradient(180deg, rgba(243, 138, 63, 0.45), rgba(243, 138, 63, 0.28));
+  border-radius: 5px;
+  min-height: 18px;
+}
+
+body.paper-mode .ll-skel-table {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 6px 4px 0;
+}
+body.paper-mode .ll-skel-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 22px;
+  align-items: center;
+}
+body.paper-mode .ll-skel-cell {
+  height: 12px;
+  border-radius: 3px;
+  background: rgba(55, 59, 77, 0.2);
+}
+body.paper-mode .ll-skel-cell--wide { width: 60%; }
+body.paper-mode .ll-skel-cell--med  { width: 88px; }
+body.paper-mode .ll-skel-cell--sm   { width: 54px; }
+
+/* ── Centered overlay: tagline + tally ──────────────────────── */
+body.paper-mode .ll-overlay {
   position: absolute;
   inset: 0;
   display: flex;
-  justify-content: space-around;
-  align-items: stretch;
-  opacity: 0.06;
-  pointer-events: none;
-  user-select: none;
-  padding: 16px 12px;
-}
-body.paper-mode .tt-matrix-col {
-  flex: 1;
-  display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  text-align: center;
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  color: #2C2A28;
-  letter-spacing: 0.04em;
-  font-variant-numeric: tabular-nums;
-}
-body.paper-mode .tt-matrix-num {
-  line-height: 1.45;
-  white-space: nowrap;
-}
-
-/* ── Foreground console ──────────────────────────────────────── */
-body.paper-mode .tt-console {
-  position: relative;
-  z-index: 2;
-  max-width: 560px;
-  margin: 0 auto;
-  padding: 14px 18px;
-  background: rgba(247, 246, 242, 0.88);   /* matches paper-card, 88% */
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
-  border-radius: 8px;
-  box-shadow: 0 1px 0 rgba(55, 59, 77, 0.05);
-}
-body.paper-mode .tt-console-lines {
-  font-family: inherit;
-  font-size: 13.5px;
-  line-height: 1.65;
-  color: #2C2A28;
-  font-variant-numeric: tabular-nums;
-  min-height: 170px;
-}
-body.paper-mode .tt-line {
-  white-space: pre-wrap;
-  word-break: break-word;
-  letter-spacing: 0;
-  animation: ttLineSettle 180ms ease-out;
-}
-body.paper-mode .tt-line--done {
-  color: #2C2A28;
-}
-body.paper-mode .tt-line--success {
-  color: #15803D;
-  font-weight: 700;
-  margin-top: 6px;
-}
-body.paper-mode .tt-cursor {
-  display: inline-block;
-  margin-left: 1px;
-  font-weight: 800;
-  color: #2C2A28;
-  animation: ttCursorBlink 900ms steps(2, start) infinite;
-}
-@keyframes ttCursorBlink {
-  0%, 49%  { opacity: 1; }
-  50%, 100%{ opacity: 0; }
-}
-@keyframes ttLineSettle {
-  from { opacity: 0; transform: translateY(2px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* ── Precision progress indicator ─────────────────────────────── */
-body.paper-mode .tt-progress {
-  margin-top: 18px;
-  display: flex;
   align-items: center;
+  justify-content: center;
   gap: 14px;
+  pointer-events: none;
+  z-index: 2;
+  transition: opacity 280ms ease;
 }
-body.paper-mode .tt-progress-track {
-  flex: 1;
-  height: 3px;
-  background: rgba(55, 59, 77, 0.08);
-  border-radius: 2px;
-  overflow: hidden;
-  position: relative;
+body.paper-mode .ledger-loader.ll-focusing .ll-overlay {
+  opacity: 0;
 }
-body.paper-mode .tt-progress-fill {
-  height: 100%;
-  width: 0%;
-  background: #2C2A28;   /* charcoal ink bleeding across the paper */
-  border-radius: 2px;
-  transition: width 60ms linear;
-  /* Faint ink "bleed" edge on the right leading edge */
-  box-shadow: 2px 0 4px rgba(44, 42, 40, 0.18);
+body.paper-mode .ll-title {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--riso-oxford);
+  animation: llBreathePulse 2.8s ease-in-out infinite;
+  text-align: center;
 }
-body.paper-mode .tt-progress-pct {
-  font-family: inherit;
-  font-size: 12.5px;
-  font-weight: 700;
-  color: #2C2A28;
+@keyframes llBreathePulse {
+  0%, 100% { opacity: 1;    transform: translateY(0); }
+  50%      { opacity: 0.55; transform: translateY(-1px); }
+}
+body.paper-mode .ll-tally {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--brand-ink-muted);
   font-variant-numeric: tabular-nums;
-  min-width: 78px;
-  text-align: right;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
 }
+body.paper-mode .ll-tally-num {
+  font-weight: 700;
+  color: var(--brand-ink);
+  font-variant-numeric: tabular-nums;
+  display: inline-block;
+  min-width: 5.5ch;
+  text-align: right;
+}
+body.paper-mode .ll-tally-label {
+  transition: opacity 180ms ease;
+  margin-left: 2px;
+}
+body.paper-mode .ll-tally-label.is-fading { opacity: 0; }
 
 /* ── Mount-in animation for the real dashboard ─────────────────
-   Applied briefly after finalize() fades the teletype out, so the
-   cards slide up + fade in instead of popping in abruptly. */
+   Triggered briefly after finalize() completes so the real cards
+   slide up + fade in as the blurred loader is cross-faded away. */
 body.paper-mode #marketingContent.mkt-mount-in > * {
-  animation: mktMountIn 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: mktMountIn 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 @keyframes mktMountIn {
   from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ── Mobile — tighter spacing, fewer matrix columns ─────────── */
+/* ── Mobile: stack stats 2-wide, shorter chart, tighter padding ─ */
 @media (max-width: 768px) {
-  body.paper-mode .tt-loader { min-height: 260px; padding: 28px 14px 36px; }
-  body.paper-mode .tt-console { padding: 12px 14px; max-width: 100%; }
-  body.paper-mode .tt-console-lines { font-size: 12px; min-height: 150px; }
-  body.paper-mode .tt-matrix-col { font-size: 11px; }
-  body.paper-mode .tt-matrix { opacity: 0.05; }
-  body.paper-mode .tt-progress-pct { font-size: 11.5px; min-width: 68px; }
+  body.paper-mode .ledger-loader { min-height: 360px; padding: 24px 16px; }
+  body.paper-mode .ll-skeleton   { inset: 16px 18px; gap: 16px; }
+  body.paper-mode .ll-skel-stats { grid-template-columns: 1fr 1fr; gap: 10px; }
+  body.paper-mode .ll-skel-stats .ll-skel-card:nth-child(3) { display: none; }
+  body.paper-mode .ll-skel-card  { height: 74px; padding: 14px 12px; }
+  body.paper-mode .ll-skel-chart { height: 86px; gap: 6px; }
+  body.paper-mode .ll-title      { font-size: 17px; }
+  body.paper-mode .ll-tally      { font-size: 12px; }
+}
+
+/* ── Reduced motion: hold a static blur, no pulsing or breathing ─ */
+@media (prefers-reduced-motion: reduce) {
+  body.paper-mode .ll-skeleton { animation: none; filter: blur(6px); opacity: 0.35; }
+  body.paper-mode .ll-title    { animation: none; opacity: 1; transform: none; }
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -1336,10 +1362,9 @@ body.paper-mode .tech-name-label.is-revealing {
   body.paper-mode::before { transition: none; }
   .pnl-cmp-sheet { transition: none; }
   .pnl-cmp-backdrop { transition: none; }
-  /* Disable the teletype animations for reduced-motion users —
-     cursor doesn't blink, lines don't settle, mount-in is instant. */
-  body.paper-mode .tt-cursor { animation: none; opacity: 1; }
-  body.paper-mode .tt-line { animation: none; }
+  /* Marketing loader: the ll-skeleton + ll-title reduced-motion
+     overrides are already scoped inside the ledger-loader block;
+     this rule just ensures the mount-in slide-up is skipped too. */
   body.paper-mode #marketingContent.mkt-mount-in > * { animation: none; }
   /* Skeleton shimmer also stops — block stays at base tone. */
   body.paper-mode .skel { animation: none; background-image: none; }

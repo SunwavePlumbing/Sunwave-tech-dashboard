@@ -1357,13 +1357,22 @@ app.get('/api/qbo-balance', async (req, res) => {
 // ────────────────────────────────────────────────────────────────────────────
 // Pulls every completed job in the last N days (default 180), groups by the
 // exact HCP employee record each job is attributed to, and returns:
-//   - `employees`   : every unique tech seen, with id/name/jobs/revenue
-//   - `suspects`    : employees whose name matches Gill/Gil/Thomas/unknown —
-//                     helps spot ServiceTitan-migration duplicates where the
-//                     same person exists under two employee IDs
-//   - `orphanJobs`  : completed jobs with ZERO assigned_employees; these
-//                     are counted in totalJobs but excluded from every
-//                     tech's revenue (the common ST→HCP import gap)
+//   - `employees`        : every unique tech seen — id/name/jobs/revenue
+//   - `gillSuspects`     : employees whose name TOKEN matches "gill" or
+//                          "gil" only (ST-migration records for Thomas Gill
+//                          showing up under any first/last name spelling).
+//                          Does NOT flag on a "Thomas" match alone — that
+//                          would sweep in Thomas Agnew, a different tech
+//                          whose profile was separately renamed, and
+//                          merging him into Gill would cause the inverse
+//                          data error the user is trying to prevent.
+//   - `unnamedProfiles`  : employees with blank / "Unknown" names — usually
+//                          orphaned migration shells, worth inspecting
+//                          separately from the Gill question.
+//   - `orphanJobs`       : completed jobs with ZERO assigned_employees;
+//                          counted in totalJobs but excluded from every
+//                          tech's revenue (common ST→HCP import gap).
+//
 // Tech attribution in HCP is by employee UUID, not by name — so if a
 // ServiceTitan technician was imported as "Thomas Gill" under employee
 // id A, and later re-created in HCP as "Gill Gill" under employee id B,
@@ -1466,12 +1475,26 @@ app.get('/api/debug/techs', async (req, res) => {
       .map(e => ({ ...e, revenue: Math.round(e.revenue) }))
       .sort((a, b) => b.jobs - a.jobs);
 
-    // Suspect list: anything that could be the missing Gill records
-    const SUSPECT_RE = /(gill|gil|thomas|unknown|\(blank\))/i;
-    const suspects = employees.filter(e =>
-      SUSPECT_RE.test(e.name) ||
-      SUSPECT_RE.test(e.first_name) ||
-      SUSPECT_RE.test(e.last_name)
+    // Gill-specific suspect list. `\bgill?\b` matches "gill" OR "gil" as
+    // a whole word token (case-insensitive) — catches "Gill Gill",
+    // "Thomas Gill", "Gil", "T Gill", "Gill T", etc. It intentionally
+    // does NOT match "gilbert", "virgil", or a bare "thomas" — so Thomas
+    // Agnew (a separate tech whose profile was renamed) cannot be swept
+    // into this list and accidentally merged into Gill.
+    const GILL_TOKEN = /\bgill?\b/i;
+    const gillSuspects = employees.filter(e =>
+      GILL_TOKEN.test(e.first_name) ||
+      GILL_TOKEN.test(e.last_name)  ||
+      GILL_TOKEN.test(e.name)
+    );
+
+    // Separately: employees with blank or placeholder names. These are
+    // usually migration shells and deserve a human look, but they are
+    // not automatically "Gill" — surfacing them in their own bucket
+    // prevents confusion between the two data issues.
+    const UNNAMED_RE = /^(unknown|\(blank\))$/i;
+    const unnamedProfiles = employees.filter(e =>
+      !e.first_name.trim() && !e.last_name.trim() || UNNAMED_RE.test(e.name.trim())
     );
 
     const filtered = needle
@@ -1481,14 +1504,15 @@ app.get('/api/debug/techs', async (req, res) => {
     res.json({
       window:  { days, from: winStart.toISOString(), to: end.toISOString() },
       totals:  {
-        completedJobs:   completed.length,
-        uniqueEmployees: employees.length,
-        orphanJobCount:  orphanJobs.length,
+        completedJobs:    completed.length,
+        uniqueEmployees:  employees.length,
+        orphanJobCount:   orphanJobs.length,
         orphanJobRevenue: Math.round(orphanJobs.reduce((s, j) => s + j.amount, 0))
       },
-      suspects,                      // flagged by name heuristic
-      employees: filtered,           // full list (or filtered by ?q=)
-      orphanJobs                     // jobs with no assigned employee
+      gillSuspects,       // strictly Gill-pattern names — never Thomas Agnew
+      unnamedProfiles,    // blank / unknown-name employees (separate issue)
+      employees: filtered,// full list (or filtered by ?q=)
+      orphanJobs          // jobs with no assigned employee
     });
   } catch (err) {
     console.error('[/api/debug/techs]', err.response?.status || '', err.message);

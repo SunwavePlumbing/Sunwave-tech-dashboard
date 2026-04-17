@@ -13,204 +13,130 @@ async function fetchQBOMarketing() {
   if (marketingData) renderMarketing();
 }
 
-/* ── "Teletype Auditor" loading sequence ────────────────────────
-   Replaces the plain "Loading marketing data..." line with a narrative
-   terminal-style print of simulated sync logs, a faint randomizing
-   number-matrix in the background, and a high-precision progress
-   counter — reframing the wait as "valuable work being performed"
-   instead of a generic spinner. Returns a control object:
-     .destroy()  — tear down all timers (used on error paths)
-     .finalize(cb) — print success line, fade out, fire `cb` when
-                     it's safe to mount the real dashboard. */
-function startTeletypeLoader(container) {
+/* ── "Modern Ledger" loading state ──────────────────────────────
+   Replaces the monospace teletype with an editorial sans-serif
+   presentation: a blurred placeholder ledger in the background,
+   a centered "Reconciling Marketing Ledger…" breathing tagline,
+   and an infinite batch-processing tally (records scanned) that
+   ticks continuously instead of chasing an arbitrary 100%.
+     .destroy()    — tear down all timers (used on error paths)
+     .finalize(cb) — unblur + fade out, fire `cb` when safe to mount */
+function startLedgerLoader(container) {
   if (_ttLoader) _ttLoader.destroy();
 
-  var lines = [
-    '> INITIATING SECURE SYNC...',
-    '> Authenticating QuickBooks API... [OK]',
-    '> Fetching Housecall Pro invoices... [FETCHING 4,209 NODES]',
-    '> Reconciling cross-platform timestamps...',
-    '> Aggregating marketing ROI metrics...',
-    '> Calculating fractional attribution...'
-  ];
+  // Placeholder skeleton of the real dashboard — three stat cards, a
+  // short bar chart, and table rows. Heavily blurred + translucent so
+  // it reads as "the paper that's about to come into focus," never as
+  // real data. Bars are rendered with brand-orange tint so the eye
+  // still registers "marketing dashboard shape" through the blur.
+  function skelRow() {
+    return '<div class="ll-skel-row">' +
+      '<div class="ll-skel-cell ll-skel-cell--wide"></div>' +
+      '<div class="ll-skel-cell ll-skel-cell--med"></div>' +
+      '<div class="ll-skel-cell ll-skel-cell--sm"></div>' +
+    '</div>';
+  }
+  var rows = '';
+  for (var i = 0; i < 6; i++) rows += skelRow();
+
+  var barHeights = [40, 72, 58, 85, 48, 76, 62, 55, 88, 66, 50, 78];
+  var bars = barHeights.map(function(h) {
+    return '<div class="ll-skel-bar" style="height:' + h + '%"></div>';
+  }).join('');
 
   container.innerHTML =
-    '<div class="tt-loader" id="ttLoader">' +
-      '<div class="tt-matrix" aria-hidden="true"></div>' +
-      '<div class="tt-console">' +
-        '<div class="tt-console-lines" id="ttLines"></div>' +
-        '<div class="tt-progress">' +
-          '<div class="tt-progress-track"><div class="tt-progress-fill" id="ttFill"></div></div>' +
-          '<div class="tt-progress-pct" id="ttPct">0.000%</div>' +
+    '<div class="ledger-loader" id="ttLoader">' +
+      '<div class="ll-skeleton" aria-hidden="true">' +
+        '<div class="ll-skel-stats">' +
+          '<div class="ll-skel-card"><div class="ll-skel-line ll-skel-line--sm"></div><div class="ll-skel-line ll-skel-line--lg"></div></div>' +
+          '<div class="ll-skel-card"><div class="ll-skel-line ll-skel-line--sm"></div><div class="ll-skel-line ll-skel-line--lg"></div></div>' +
+          '<div class="ll-skel-card"><div class="ll-skel-line ll-skel-line--sm"></div><div class="ll-skel-line ll-skel-line--lg"></div></div>' +
+        '</div>' +
+        '<div class="ll-skel-chart">' + bars + '</div>' +
+        '<div class="ll-skel-table">' + rows + '</div>' +
+      '</div>' +
+      '<div class="ll-overlay">' +
+        '<div class="ll-title">Reconciling Marketing Ledger\u2026</div>' +
+        '<div class="ll-tally">' +
+          '<span class="ll-tally-num" id="llTallyNum">0</span> ' +
+          '<span class="ll-tally-label" id="llTallyLabel">records scanned</span>' +
         '</div>' +
       '</div>' +
     '</div>';
 
-  var rootEl   = container.querySelector('#ttLoader');
-  var matrixEl = container.querySelector('.tt-matrix');
-  var linesEl  = container.querySelector('#ttLines');
-  var fillEl   = container.querySelector('#ttFill');
-  var pctEl    = container.querySelector('#ttPct');
+  var rootEl  = container.querySelector('#ttLoader');
+  var tallyEl = container.querySelector('#llTallyNum');
+  var labelEl = container.querySelector('#llTallyLabel');
 
-  // ── Background data matrix: columns of rapidly-cycling numbers ──
-  // Layout: 8 columns on desktop flanking the console, 3 on mobile.
-  // Opacity held extremely low (0.05) so the matrix reads as atmosphere,
-  // never competes with the foreground console text.
-  function randNum() {
-    var kind = Math.floor(Math.random() * 4);
-    if (kind === 0) return (Math.random() * 10000).toFixed(2);
-    if (kind === 1) return (Math.random() * 100).toFixed(3);
-    if (kind === 2) return (Math.random() * 10).toFixed(4);
-    return Math.floor(Math.random() * 100000).toString().padStart(5, '0');
-  }
-  var isMobile = window.innerWidth <= 768;
-  var NCOLS = isMobile ? 3 : 8;
-  var NROWS = isMobile ? 12 : 16;
-  var mHtml = '';
-  for (var c = 0; c < NCOLS; c++) {
-    mHtml += '<div class="tt-matrix-col">';
-    for (var r = 0; r < NROWS; r++) {
-      mHtml += '<div class="tt-matrix-num">' + randNum() + '</div>';
-    }
-    mHtml += '</div>';
-  }
-  matrixEl.innerHTML = mHtml;
-  var matrixCells = matrixEl.querySelectorAll('.tt-matrix-num');
-  // Randomize ~35% of cells every 80ms — creates a subtle "crunching"
-  // flicker across the grid without seizure-inducing chaos.
-  var matrixInterval = setInterval(function() {
-    for (var i = 0; i < matrixCells.length; i++) {
-      if (Math.random() < 0.35) matrixCells[i].textContent = randNum();
-    }
-  }, 80);
-
-  // ── High-precision progress counter ─────────────────────────────
-  // `pctTarget` is bumped up as each log line completes; `pctValue`
-  // eases toward the target so the decimal counter ticks rapidly with
-  // natural acceleration / deceleration between stages.
-  var pctValue  = 0;
-  var pctTarget = 0;
-  var pctLocked = false;
-  var pctInterval = setInterval(function() {
-    if (pctLocked) return;
-    if (pctValue < pctTarget) {
-      var gap   = pctTarget - pctValue;
-      var delta = gap * 0.09 + 0.04;
-      pctValue  = Math.min(pctTarget, pctValue + delta);
-      pctEl.textContent    = pctValue.toFixed(3) + '%';
-      fillEl.style.width   = pctValue + '%';
-    }
-  }, 32);
-
-  // ── Typewriter: print each line char-by-char with blinking cursor ─
-  var lineIdx        = 0;
-  var charIdx        = 0;
-  var currentLineEl  = null;
-  var typingTimeout  = null;
-  var destroyed      = false;
-
-  function startLine() {
+  // ── Infinite tally: continuously ticking up ─────────────────────
+  // The rate varies sinusoidally (~130–220/sec) so the counter feels
+  // alive and non-linear, but never approaches a ceiling. There's no
+  // arbitrary "100%" finish line to stall against.
+  var startTs   = performance.now();
+  var destroyed = false;
+  var rafId     = null;
+  function tickTally(ts) {
     if (destroyed) return;
-    if (lineIdx >= lines.length) {
-      // All scripted lines typed — keep an idle cursor blinking while
-      // we wait for the real fetch to resolve.
-      appendCursorLine();
-      return;
-    }
-    currentLineEl = document.createElement('div');
-    currentLineEl.className = 'tt-line tt-line--active';
-    currentLineEl.innerHTML = '<span class="tt-line-text"></span><span class="tt-cursor">\u2588</span>';
-    linesEl.appendChild(currentLineEl);
-    charIdx = 0;
-    typeNext();
+    var elapsed = ts - startTs;
+    var rate    = 170 + Math.sin(elapsed / 850) * 50;  // ~120–220 rec/sec
+    var value   = Math.floor(elapsed / 1000 * rate);
+    if (tallyEl) tallyEl.textContent = value.toLocaleString();
+    rafId = requestAnimationFrame(tickTally);
   }
-  function appendCursorLine() {
-    currentLineEl = document.createElement('div');
-    currentLineEl.className = 'tt-line tt-line--active';
-    currentLineEl.innerHTML = '<span class="tt-line-text">&gt; </span><span class="tt-cursor">\u2588</span>';
-    linesEl.appendChild(currentLineEl);
-  }
-  function typeNext() {
-    if (destroyed) return;
-    var line = lines[lineIdx];
-    if (charIdx < line.length) {
-      var textSpan = currentLineEl.querySelector('.tt-line-text');
-      textSpan.textContent = line.substring(0, charIdx + 1);
-      charIdx++;
-      // Ellipses get a longer pause to feel like "thinking"; normal
-      // characters fire every 12–28ms for dot-matrix printer cadence.
-      var prev  = line[charIdx - 1];
-      var delay = prev === '.' ? 70 : (12 + Math.random() * 16);
-      typingTimeout = setTimeout(typeNext, delay);
-    } else {
-      // Line complete — freeze the text, drop the cursor, bump progress.
-      currentLineEl.classList.remove('tt-line--active');
-      currentLineEl.classList.add('tt-line--done');
-      var cur = currentLineEl.querySelector('.tt-cursor');
-      if (cur) cur.remove();
-      lineIdx++;
-      pctTarget = Math.min(96, (lineIdx / lines.length) * 94 + Math.random() * 3);
-      typingTimeout = setTimeout(startLine, 140 + Math.random() * 140);
-    }
-  }
-  startLine();
+  rafId = requestAnimationFrame(tickTally);
+
+  // ── Label rotation: swap the "records scanned" phrase every ~2s
+  // so the running tally feels like different stages of work, not a
+  // single repetitive counter. Fade-out/in via CSS opacity transition.
+  var labels = [
+    'records scanned',
+    'invoices cross-checked',
+    'ledger lines reconciled',
+    'accounts aggregated',
+    'entries balanced'
+  ];
+  var labelIdx = 0;
+  var labelTimer = setInterval(function() {
+    if (!labelEl || destroyed) return;
+    labelIdx = (labelIdx + 1) % labels.length;
+    labelEl.classList.add('is-fading');
+    setTimeout(function() {
+      if (destroyed || !labelEl) return;
+      labelEl.textContent = labels[labelIdx];
+      labelEl.classList.remove('is-fading');
+    }, 180);
+  }, 2000);
 
   return {
     destroy: function() {
       destroyed = true;
-      clearInterval(matrixInterval);
-      clearInterval(pctInterval);
-      if (typingTimeout) clearTimeout(typingTimeout);
+      if (rafId) cancelAnimationFrame(rafId);
+      clearInterval(labelTimer);
     },
     finalize: function(onComplete) {
       if (destroyed) { if (onComplete) onComplete(); return; }
       destroyed = true;
-      if (typingTimeout) clearTimeout(typingTimeout);
-      clearInterval(matrixInterval);
+      if (rafId) cancelAnimationFrame(rafId);
+      clearInterval(labelTimer);
 
-      // Drop any active cursor from the last scripted line
-      if (currentLineEl) {
-        var cur = currentLineEl.querySelector('.tt-cursor');
-        if (cur) cur.remove();
-        currentLineEl.classList.remove('tt-line--active');
-        currentLineEl.classList.add('tt-line--done');
-      }
-
-      // Rush progress to 100 over ~280ms
-      pctLocked = true;
-      clearInterval(pctInterval);
-      var fStart = performance.now();
-      var fFrom  = pctValue;
-      function pRush(now) {
-        var t = Math.min(1, (now - fStart) / 280);
-        var v = fFrom + (100 - fFrom) * (1 - Math.pow(1 - t, 3));
-        pctEl.textContent  = v.toFixed(3) + '%';
-        fillEl.style.width = v + '%';
-        if (t < 1) requestAnimationFrame(pRush);
-      }
-      requestAnimationFrame(pRush);
-
-      // Print the final success line
-      var successLine = document.createElement('div');
-      successLine.className = 'tt-line tt-line--success';
-      successLine.textContent = '> COMPILATION SUCCESSFUL. RENDERING LEDGER.';
-      linesEl.appendChild(successLine);
-
-      // Brief pause so the user registers the success message, then
-      // fade teletype + matrix out over 300ms and mount real content.
+      // Tagline fades, then the whole loader unblurs + dissolves.
+      // Mirrors a camera snapping into focus — matches the "aha" of
+      // the data resolving. The fake skeleton intentionally fades too
+      // so the real dashboard underneath can mount cleanly.
+      rootEl.classList.add('ll-focusing');
       setTimeout(function() {
-        rootEl.classList.add('tt-fading');
+        rootEl.classList.add('ll-done');
         setTimeout(function() {
           if (onComplete) onComplete();
-        }, 320);
-      }, 380);
+        }, 180);
+      }, 420);
     }
   };
 }
 
 async function fetchMarketing() {
   var container = document.getElementById('marketingContent');
-  _ttLoader = startTeletypeLoader(container);
+  _ttLoader = startLedgerLoader(container);
   try {
     var resp = await fetch('/api/marketing');
     var data = await resp.json();
