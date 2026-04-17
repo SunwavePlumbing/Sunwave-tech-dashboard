@@ -1330,37 +1330,93 @@ function renderOwners() {
     var cmpIdx2 = pnlCompareMonth ? months.indexOf(pnlCompareMonth) : -1;
     var cmpRev  = cmpIdx2 >= 0 ? (revenue[cmpIdx2] || 0) : 0;
 
-    // Data cell: stacked $ amount + % of revenue. `which` is 'pri' or 'cmp'
-    // for mobile-stacked layout targeting.
-    function pCell2(arr, idx, rev, which) {
-      if (idx < 0) return '<td class="pnl2-cell pnl2-cell--' + which + ' pnl2-empty">—</td>';
-      var v   = arr[idx] || 0;
-      var pct = rev > 0 ? (v / rev * 100).toFixed(1) + '%' : '—';
-      var cls = v < 0 ? ' pnl2-neg' : '';
-      return '<td class="pnl2-cell pnl2-cell--' + which + cls + '"><div class="pnl2-dollar">' + fmtDollar(v) + '</div>' +
-             '<div class="pnl2-pct-sub">' + pct + '</div></td>';
-    }
-
-    // Delta cell: change from compare → primary, direction-aware green/red.
-    // Now shows both $ delta and % delta, e.g. "+$72K (+36%)".
-    function dCell2(arr, pi, ci, good) {
-      if (ci < 0) return '<td class="pnl2-delta"><span class="pnl2-pill">—</span></td>';
-      var pv   = arr[pi] || 0;
-      var cv   = arr[ci] || 0;
+    // ── "Performance Impact" ledger row builder ───────────────────
+    // Replaces the old 3-column table with a stacked flex row that
+    // prioritizes the CHANGE (delta) over the raw totals. Returns:
+    //   { html, sign: 'pos'|'neg'|'flat', absDiff, absPct }
+    // so the caller can sort/group by performance direction.
+    function buildLedgerRow(row, pi, ci, priRev, cmpRev) {
+      var pv   = row.arr[pi] || 0;
+      var cv   = ci >= 0 ? (row.arr[ci] || 0) : 0;
       var diff = pv - cv;
-      if (diff === 0) return '<td class="pnl2-delta"><span class="pnl2-pill">—</span></td>';
-      var sign   = diff > 0 ? '+' : '';
-      var isGood = good === 'up' ? diff > 0 : diff < 0;
-      var cls    = isGood ? ' pnl2-good' : ' pnl2-bad';
-      // Percent delta — only if base is non-zero and meaningful
-      var pctStr = '';
-      if (cv !== 0 && Math.abs(cv) > 1) {
-        var pctVal = (diff / Math.abs(cv)) * 100;
-        // Clamp huge swings so the pill stays readable
-        var pctTxt = (Math.abs(pctVal) > 999 ? '>999' : Math.round(pctVal)) + '%';
-        pctStr = ' <span class="pnl2-pill-pct">(' + sign + pctTxt + ')</span>';
+
+      // Direction: is this diff a "win" or a "watch"?
+      // Revenue/GP/NOI: up=good. Costs/expenses: down=good.
+      var isFlat  = (diff === 0) || ci < 0;
+      var isGood  = !isFlat && (row.good === 'up' ? diff > 0 : diff < 0);
+      var sign    = isFlat ? 'flat' : (isGood ? 'pos' : 'neg');
+
+      // Percent change vs compare base — used for spark-bar width
+      // AND for the "(+25%)" secondary text in the delta badge.
+      var pctVal = 0, pctTxt = '';
+      if (!isFlat) {
+        if (Math.abs(cv) > 1) {
+          pctVal = (diff / Math.abs(cv)) * 100;
+          var absP = Math.abs(pctVal);
+          pctTxt = (absP > 999 ? '>999' : Math.round(pctVal)) + '%';
+        } else if (pv !== 0) {
+          // New category this period — no prior base to compare against
+          pctVal = 100; // max spark bar
+          pctTxt = 'new';
+        }
       }
-      return '<td class="pnl2-delta' + cls + '"><span class="pnl2-pill">' + sign + fmtDollar(diff) + pctStr + '</span></td>';
+
+      // Spark-bar width: percent change clamped to 0–100 of the max
+      // width. "new" categories peg to 100. Flat rows get no bar.
+      var sparkW = isFlat ? 0 : Math.min(Math.abs(pctVal), 100);
+
+      // Delta badge text: "+$55K (+25%)" — sign prefix only for non-flat
+      var deltaTxt;
+      if (isFlat) {
+        deltaTxt = ci < 0 ? '—' : 'no change';
+      } else {
+        var sgn = diff > 0 ? '+' : '';
+        var pctChunk = pctTxt
+          ? ' <span class="pnl-delta-pct">(' + (diff > 0 ? '+' : '') + (pctTxt === 'new' ? 'new' : pctTxt) + ')</span>'
+          : '';
+        deltaTxt = sgn + fmtDollar(diff) + pctChunk;
+      }
+
+      // Highlighter classes (vibrant palette — kelly green / coral)
+      var deltaCls = isFlat ? 'pnl-row-delta--flat'
+                   : isGood ? 'pnl-row-delta--good'
+                   :          'pnl-row-delta--bad';
+      var sparkCls = isGood ? 'pnl-spark--good' : 'pnl-spark--bad';
+
+      // Category vs leaf vs subtotal vs grand-total — typography tiers
+      var rowTier = row.cls === 'indent'  ? 'pnl-row--indent'
+                  : row.cls === 'total'   ? 'pnl-row--total'
+                  : row.cls === 'subtotal'? 'pnl-row--sub'
+                  :                         'pnl-row--cat';
+
+      // Right side: current value + faded "was $X" below
+      var curHtml  = '<div class="pnl-row-cur">' + fmtDollar(pv) + '</div>';
+      var prevHtml = ci < 0
+        ? '<div class="pnl-row-prev">&mdash;</div>'
+        : '<div class="pnl-row-prev">was ' + fmtDollar(cv) + '</div>';
+
+      // Delta badge + spark bar stacked as one inline group on the left.
+      // Flat rows omit the spark for calm typography.
+      var sparkHtml = isFlat ? '' :
+        '<span class="pnl-spark ' + sparkCls + '" style="--w:' + sparkW + '%"></span>';
+      var deltaHtml =
+        '<div class="pnl-row-delta ' + deltaCls + '">' +
+          '<span class="pnl-delta-text">' + deltaTxt + '</span>' +
+          sparkHtml +
+        '</div>';
+
+      var html =
+        '<div class="pnl-row ' + rowTier + '" data-sign="' + sign + '">' +
+          '<div class="pnl-row-left">' +
+            '<div class="pnl-row-label">' + esc(row.label) + '</div>' +
+            deltaHtml +
+          '</div>' +
+          '<div class="pnl-row-right">' +
+            curHtml + prevHtml +
+          '</div>' +
+        '</div>';
+
+      return { html: html, sign: sign, absDiff: Math.abs(diff), absPct: Math.abs(pctVal), row: row };
     }
 
     // Dual-anchor "MAR 2026  vs  MAR 2025 ▾" header replaces the
@@ -1385,30 +1441,58 @@ function renderOwners() {
         '</button>' +
       '</div>';
 
-    var priHead = fmtMkShort(finMonth);
-    var cmpHead = pnlCompareMonth ? fmtMkShort(pnlCompareMonth) : '—';
-    var pnlHead = '<tr>' +
-      '<th class="pnl2-th-lbl">Line Item</th>' +
-      '<th class="pnl2-th-pri">' + priHead + '</th>' +
-      '<th class="pnl2-th-cmp">' + cmpHead + '<span class="pnl2-cmp-tag">compare</span></th>' +
-      '<th class="pnl2-th-delta">&Delta; Change</th>' +
-      '</tr>';
-    var pnlBody = pnlRows.map(function(row) {
-      // A "category" is a non-indent, non-total row — Revenue, COGS,
-      // Gross Profit, Operating Expenses. Used for visual hierarchy.
-      var isCat = row.cls !== 'indent' && row.cls !== 'total';
-      var catCls = isCat ? ' category' : '';
-      return '<tr class="' + row.cls + catCls + '">' +
-        '<td class="pnl2-td-lbl">' + esc(row.label) + '</td>' +
-        pCell2(row.arr, priIdx2, priRev, 'pri') +
-        pCell2(row.arr, cmpIdx2, cmpRev, 'cmp') +
-        dCell2(row.arr, priIdx2, cmpIdx2, row.good) +
-        '</tr>';
-    }).join('');
+    // ── Build ledger rows, group by performance, sort by magnitude ──
+    // Skip indent rows where both months are zero (no signal). Always
+    // keep subtotals/grand-totals/categories as orientation anchors.
+    var ledgerItems = pnlRows.map(function(row) {
+      return buildLedgerRow(row, priIdx2, cmpIdx2, priRev, cmpRev);
+    }).filter(function(it) {
+      if (it.row.cls === 'indent') {
+        var pv = it.row.arr[priIdx2] || 0;
+        var cv = cmpIdx2 >= 0 ? (it.row.arr[cmpIdx2] || 0) : 0;
+        if (pv === 0 && cv === 0) return false;
+      }
+      return true;
+    });
 
-    document.getElementById('finPnlGrid').innerHTML =
-      pickerHtml +
-      '<table class="pnl-grid pnl-grid--2col"><thead>' + pnlHead + '</thead><tbody>' + pnlBody + '</tbody></table>';
+    // Group into Wins / Watchlist / Flat. Within each group sort by
+    // absolute dollar impact descending — biggest swings surface first.
+    var wins = [], watch = [], flat = [];
+    ledgerItems.forEach(function(it) {
+      (it.sign === 'pos' ? wins : it.sign === 'neg' ? watch : flat).push(it);
+    });
+    wins.sort(function(a, b)  { return b.absDiff - a.absDiff; });
+    watch.sort(function(a, b) { return b.absDiff - a.absDiff; });
+    // Flat rows stay in their original financial order so subtotals
+    // still read top-to-bottom (Revenue → GP → NOI) when nothing moved.
+
+    function renderGroup(title, items, modifier) {
+      if (!items.length) return '';
+      return '<div class="pnl-group pnl-group--' + modifier + '">' +
+        '<div class="pnl-group-title">' + esc(title) + '</div>' +
+        items.map(function(it) { return it.html; }).join('') +
+      '</div>';
+    }
+
+    var ledgerHtml;
+    if (cmpIdx2 < 0) {
+      // No compare month available — render a single flat list
+      ledgerHtml =
+        '<div class="pnl-ledger">' +
+          renderGroup('Current Period', ledgerItems, 'single') +
+        '</div>';
+    } else {
+      ledgerHtml =
+        '<div class="pnl-ledger">' +
+          renderGroup('Growth & Improvements', wins, 'wins') +
+          (wins.length && (watch.length || flat.length) ? '<div class="pnl-divider" aria-hidden="true"></div>' : '') +
+          renderGroup('Areas for Attention', watch, 'watch') +
+          (watch.length && flat.length ? '<div class="pnl-divider" aria-hidden="true"></div>' : '') +
+          renderGroup('Unchanged', flat, 'flat') +
+        '</div>';
+    }
+
+    document.getElementById('finPnlGrid').innerHTML = pickerHtml + ledgerHtml;
     document.getElementById('finPnlSubtitle').textContent = fmtMkFull(finMonth);
   }
 
