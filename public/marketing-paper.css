@@ -1183,10 +1183,67 @@ body.paper-mode .pnl-grid--2col tr:hover:not(.total) .pnl2-td-lbl {
    through, turning flat digital colors into richer "ink on paper"
    tones. Applied to every canvas in the Location Owners tab. */
 body.paper-mode #trendChart,
-body.paper-mode #donutChart,
 body.paper-mode #revBarChart,
 body.paper-mode #cfBarChart {
   mix-blend-mode: multiply;
+}
+/* #donutChart is intentionally EXCLUDED from multiply. The 3px slice
+   borders are set to paper-card (#F7F6F2); multiply would darken them
+   against the same paper tone beneath, producing visible cream lines
+   between slices. Leaving it as normal blend lets the borders blend
+   seamlessly into the card background. */
+
+/* ── Donut center total (animated count-up) ─────────────────────
+   Overlays the donut hole with a small label + animated total. The
+   value is populated in JS; this just handles the visual. */
+body.paper-mode .fin-donut-wrap {
+  position: relative;
+}
+body.paper-mode .fin-donut-center {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;   /* never blocks slice clicks */
+  font-variant-numeric: tabular-nums;
+  width: 46%;             /* constrain so long values don't overflow the hole */
+  max-width: 170px;
+}
+body.paper-mode .fin-donut-center-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--brand-ink-muted);
+  margin-bottom: 4px;
+}
+body.paper-mode .fin-donut-center-value {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--brand-ink);
+  line-height: 1.1;
+}
+@media (max-width: 768px) {
+  body.paper-mode .fin-donut-center-value { font-size: 20px; }
+  body.paper-mode .fin-donut-center-label { font-size: 9.5px; }
+}
+
+/* ── Hidden-slice pill state ──────────────────────────────────
+   When a user taps a pill to hide its slice, the pill fades, the
+   colored dot drops to a hollow ring, and a strike-through runs
+   across the label so the "off" state is unmistakable at a glance. */
+body.paper-mode .fin-donut-chip--hidden {
+  opacity: 0.45;
+  background: transparent !important;
+}
+body.paper-mode .fin-donut-chip--hidden .fin-donut-chip-label {
+  text-decoration: line-through;
+  text-decoration-color: rgba(55, 59, 77, 0.4);
+  text-decoration-thickness: 1.5px;
+}
+body.paper-mode .fin-donut-chip--hidden .fin-donut-chip-dot {
+  background: transparent !important;
+  box-shadow: inset 0 0 0 2px var(--chip-c);
 }
 
 /* ── 5. Reinforce premium ink feel on subtotal / total labels ───

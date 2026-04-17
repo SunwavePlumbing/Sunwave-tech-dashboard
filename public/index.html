@@ -125,8 +125,15 @@
       <div id="finRow2" style="display:none">
         <div class="fin-chart-card" style="margin-bottom:1.4rem">
           <div class="fin-chart-title">Where Every Dollar Went <span id="donutSubtitle"></span></div>
-          <div style="font-size:11px;color:#888;margin-top:-8px;margin-bottom:14px">Tap or hover a slice to see the category and dollar amount. Tap a pill below to hide or show that category.</div>
-          <div class="fin-donut-wrap"><canvas id="donutChart"></canvas></div>
+          <div style="font-size:11px;color:#888;margin-top:-8px;margin-bottom:14px">Tap a slice to open its line items. Tap a pill below to hide or show that category.</div>
+          <div class="fin-donut-wrap">
+            <canvas id="donutChart"></canvas>
+            <!-- Center total — animated count-up synced with the radial unfold -->
+            <div class="fin-donut-center" aria-live="polite">
+              <div class="fin-donut-center-label">Total</div>
+              <div class="fin-donut-center-value" id="donutCenterValue">$0</div>
+            </div>
+          </div>
           <!-- Custom interactive legend pills — clickable filters for slices -->
           <div class="fin-donut-legend" id="donutLegend"></div>
         </div>

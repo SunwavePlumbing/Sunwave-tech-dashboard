@@ -1539,10 +1539,12 @@ function renderOwners() {
 
   if (donutChartInst) donutChartInst.destroy();
   var dCtx = document.getElementById('donutChart').getContext('2d');
+  var dCard = document.getElementById('finRow2');   /* observer target */
 
   var donutLabels = ['Tech Labor','Parts','Subcontractors','Admin Payroll','Marketing','Rent','Vehicle','Office','Merchant','Insurance','Benefits','Utilities','Other'];
   var donutColors = ['#FF6B35','#E5484D','#f59e0b','#64748b','#14b8a6','#8b5cf6','#FF9500','#3b82f6','#a855f7','#6366f1','#22c55e','#06b6d4','#9ca3af'];
   var donutValues = [dTechLabor,dParts,dSubs,dAdmin,dMkt,dRent,dVehicle,dOffice,dMerch,dInsure,dBenefits,dUtil,dOther];
+  var donutTotal  = dAllCosts;
   /* Map each donut category to the QBO account key mfDrillDown wants.
      "Other" is the gap between dAllCosts and the accounted categories
      and has no single underlying account, so it's intentionally null. */
@@ -1564,13 +1566,23 @@ function renderOwners() {
   // Cache arrays globally so toggleDonutSlice can read them
   window._donutLabels = donutLabels;
   window._donutAccts  = donutAccts;
+  window._donutValues = donutValues;
+  window._donutTotal  = donutTotal;
+
+  // ── Build chart with ZERO data initially ─────────────────────
+  // The IntersectionObserver below will swap in the real values and
+  // run the radial-unfold animation once the chart scrolls >=40%
+  // into view. On subsequent month changes (chart already revealed)
+  // we still animate naturally via Chart.js's default animation.
+  var alreadyRevealed = !!window._donutRevealed;
+  var initialData     = alreadyRevealed ? donutValues : donutValues.map(function() { return 0; });
 
   donutChartInst = new Chart(dCtx, {
     type: 'doughnut',
     data: {
       labels: donutLabels,
       datasets: [{
-        data: donutValues,
+        data: initialData,
         backgroundColor: donutColors,
         borderWidth: 3, borderColor: '#F7F6F2',          /* matches --paper-card so the ring slices blend into the card */
         hoverOffset: 8, hoverBorderColor: '#F7F6F2'
@@ -1578,9 +1590,18 @@ function renderOwners() {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      cutout: '54%',              /* thicker ring — more visual weight */
+      cutout: '58%',              /* slightly thicker hole — room for center total */
       layout: { padding: 4 },
-      /* Tap a slice → same drill-down sheet as the COGS/Overhead bars */
+      // Radial unfold: slices rotate from 0° to their target angles.
+      // Exponential ease-out (cubic-bezier 0.16,1,0.3,1 ≈ easeOutExpo) so
+      // the sweep starts fast and decelerates into its final position.
+      animation: {
+        duration: 1100,
+        easing: 'easeOutQuart',
+        animateRotate: true,
+        animateScale: false
+      },
+      /* Tap a slice → drill-down to line items. Pills handle toggling. */
       onClick: function(evt, elements) {
         if (!elements || !elements.length) return;
         var idx = elements[0].index;
@@ -1611,6 +1632,62 @@ function renderOwners() {
 
   // ── Custom interactive legend pills ──────────────────────────
   buildDonutLegend(donutLabels, donutColors, donutValues);
+
+  // ── Center total: set to $0 initially, count-up on reveal ────
+  var centerEl = document.getElementById('donutCenterValue');
+  if (centerEl) centerEl.textContent = alreadyRevealed ? fmtDollar(donutTotal) : '$0';
+
+  // ── Viewport-triggered radial unfold ─────────────────────────
+  // Fires only on first reveal. Once triggered, sets `_donutRevealed`
+  // so switching months later doesn't replay the intro animation
+  // (Chart.js's default inter-state animation handles those cleanly).
+  // Change `triggerOnce` to false below to re-animate on every scroll
+  // back into view.
+  var triggerOnce = true;
+  // Disconnect any prior observer from a rapid month-switch before this
+  // chart had a chance to unfurl — prevents stale data from the previous
+  // mfRenderFormula call overwriting the new chart's values.
+  if (window._donutObs) { try { window._donutObs.disconnect(); } catch(e) {} }
+  if (!alreadyRevealed && dCard && window.IntersectionObserver) {
+    var revealed = false;
+    var donutObs = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.4) {
+          if (revealed && triggerOnce) return;
+          revealed = true;
+          window._donutRevealed = true;
+          // Swap in real values — Chart.js runs the configured animation
+          donutChartInst.data.datasets[0].data = donutValues.slice();
+          donutChartInst.update();
+          // Simultaneously ramp the center total from 0 → donutTotal,
+          // easing in lockstep with the chart (1100ms, easeOutQuart).
+          var startTs = null;
+          var DUR = 1100;
+          function centerStep(ts) {
+            if (!centerEl) return;
+            if (!startTs) startTs = ts;
+            var t = Math.min(1, (ts - startTs) / DUR);
+            var eased = 1 - Math.pow(1 - t, 4);  /* easeOutQuart */
+            centerEl.textContent = fmtDollar(donutTotal * eased);
+            if (t < 1) requestAnimationFrame(centerStep);
+            else centerEl.textContent = fmtDollar(donutTotal);
+          }
+          requestAnimationFrame(centerStep);
+          if (triggerOnce) donutObs.disconnect();
+        } else if (!triggerOnce && revealed) {
+          // Scrolled away — reset so the next intersection re-animates
+          revealed = false;
+          donutChartInst.data.datasets[0].data = donutValues.map(function() { return 0; });
+          donutChartInst.update('none');
+          if (centerEl) centerEl.textContent = '$0';
+        }
+      });
+    }, { threshold: [0.4] });
+    donutObs.observe(dCard);
+    window._donutObs = donutObs;
+  } else if (alreadyRevealed && centerEl) {
+    centerEl.textContent = fmtDollar(donutTotal);
+  }
 
   // ── Trend lines ──────────────────────────────────────────────
   var TREND_SERIES = [
@@ -2278,25 +2355,19 @@ function renderOwners() {
 }
 
 /* ── Donut interactive legend ───────────────────────────────────
-   Builds soft-tinted pill buttons for each slice. Tapping a pill
-   opens the expense drill-down sheet for that category — same sheet
-   used when tapping a slice of the donut itself. */
+   Builds soft-tinted pill buttons for each slice. TWO interactions:
+     • Tap pill  → toggle that slice's visibility (hide/show)
+     • Tap slice → open expense drill-down (handled in Chart onClick)
+   This matches the instruction text above the donut. */
 function buildDonutLegend(labels, colors, values) {
   var el = document.getElementById('donutLegend');
   if (!el) return;
   var html = labels.map(function(label, i) {
-    // Skip slices with $0 — nothing to drill into
-    if (!values[i]) return '';
+    if (!values[i]) return '';  // Skip $0 slices — nothing to toggle
     var color = colors[i];
-    // "Other" has no single underlying account, so don't pretend it's clickable
-    var acct = (window._donutAccts || [])[i];
-    var clickable = !!acct;
-    var onClickAttr = clickable
-      ? ' onclick="openDonutDrillDown(' + i + ')"'
-      : '';
-    var extraCls = clickable ? '' : ' fin-donut-chip--static';
-    return '<button class="fin-donut-chip' + extraCls + '" data-idx="' + i +
-      '" style="--chip-c:' + color + '"' + onClickAttr + '>' +
+    return '<button class="fin-donut-chip" data-idx="' + i +
+      '" style="--chip-c:' + color + '" onclick="toggleDonutSlice(' + i + ')"' +
+      ' aria-pressed="true" title="Tap to hide/show this slice">' +
       '<span class="fin-donut-chip-dot" style="background:' + color + '"></span>' +
       '<span class="fin-donut-chip-label">' + esc(label) + '</span>' +
       '</button>';
@@ -2304,16 +2375,34 @@ function buildDonutLegend(labels, colors, values) {
   el.innerHTML = html;
 }
 
+/* Toggle a donut slice's visibility. Uses Chart.js's built-in
+   toggleDataVisibility (which hides the slice from the arc AND
+   recalculates the remaining slice angles). The pill gets a faded
+   visual state and aria-pressed flips so screen readers announce
+   the change. */
+function toggleDonutSlice(idx) {
+  if (!donutChartInst) return;
+  donutChartInst.toggleDataVisibility(idx);
+  donutChartInst.update();
+  var pill = document.querySelector('.fin-donut-chip[data-idx="' + idx + '"]');
+  if (pill) {
+    var nowVisible = donutChartInst.getDataVisibility(idx);
+    pill.classList.toggle('fin-donut-chip--hidden', !nowVisible);
+    pill.setAttribute('aria-pressed', nowVisible ? 'true' : 'false');
+  }
+  if (navigator.vibrate) { try { navigator.vibrate(6); } catch(e) {} }
+}
+
 /* Open the expense drill-down sheet for a donut category by index.
-   Reuses the exact same mfDrillDown() path that the COGS and Overhead
-   bar legends use, so the modal, transactions, and styling are
-   identical across the three entry points. */
+   Called only from the chart's own onClick (tap a slice). Reuses
+   the same mfDrillDown() path as the COGS/Overhead bar legends, so
+   the modal + transactions are identical across all entry points. */
 function openDonutDrillDown(idx) {
   var labels = window._donutLabels || [];
   var accts  = window._donutAccts  || [];
   var label  = labels[idx];
   var acct   = accts[idx];
-  if (!label || !acct) return;   // "Other" or missing mapping — no-op
+  if (!label || !acct) return;   // "Other" has no single account — no-op
   if (navigator.vibrate) { try { navigator.vibrate(8); } catch(e) {} }
   mfDrillDown(label, acct);
 }
