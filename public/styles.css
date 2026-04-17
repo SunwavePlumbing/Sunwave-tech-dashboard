@@ -1563,11 +1563,11 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   }
 
   /* ── RESPONSIVE CHART HEIGHTS & SCROLLING ──────────────────────────────── */
-  .fin-chart-wrap { height: 200px !important; }  /* trend, revenue, cashflow — increased from 180px for better label spacing */
-  #finTrendCard  .fin-chart-wrap { height: 200px; }
-  #finRevCard    .fin-chart-wrap { height: 200px; }
-  #finCashFlowCard .fin-chart-wrap { height: 200px; }
-  #finRow2       .fin-chart-wrap { height: 420px; }  /* donut chart — MUCH larger (was 280px) to accommodate legend and improve visibility */
+  .fin-chart-wrap { height: 240px !important; }  /* bar charts — increased from 180px for better label spacing */
+  #finTrendCard  .fin-chart-wrap { height: 240px; }
+  #finRevCard    .fin-chart-wrap { height: 240px; }
+  #finCashFlowCard .fin-chart-wrap { height: 240px; }
+  #finRow2       .fin-chart-wrap { height: 480px; }  /* donut chart — larger (was 280px) to accommodate legend and improve visibility */
 
   /* ── FONT SIZES: WCAG AA compliant (16px body, 14px labels, 12px small) */
   .fin-row-title { font-size: 13px; letter-spacing: 1px; }
@@ -1829,11 +1829,11 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   .fin-chart-title { font-size: 17px; }
 
   /* Chart heights - donut still large, others more compact on ultra-small phones */
-  .fin-chart-wrap { height: 180px !important; }  /* bar charts revert to 180px on ultra-small (was 200px) */
-  #finTrendCard .fin-chart-wrap { height: 180px; }
-  #finRevCard .fin-chart-wrap { height: 180px; }
-  #finCashFlowCard .fin-chart-wrap { height: 180px; }
-  #finRow2 .fin-chart-wrap { height: 350px; }  /* donut reduced to 350px on ultra-small (from 420px) but still large for visibility */
+  .fin-chart-wrap { height: 220px !important; }  /* bar charts at 220px on ultra-small for space efficiency */
+  #finTrendCard .fin-chart-wrap { height: 220px; }
+  #finRevCard .fin-chart-wrap { height: 220px; }
+  #finCashFlowCard .fin-chart-wrap { height: 220px; }
+  #finRow2 .fin-chart-wrap { height: 400px; }  /* donut at 400px on ultra-small (from 350px) but still large for visibility */
 
   /* Reduce padding on very small screens */
   .fin-card { padding: 16px; }

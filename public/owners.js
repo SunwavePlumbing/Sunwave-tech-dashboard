@@ -1342,7 +1342,7 @@ function renderOwners() {
 
     // Mobile detection for responsive sizing
     var isMobile = window.innerWidth <= 768;
-    var revLabelFontSize = isMobile ? 14 : 11;  // increased to 14px for better readability
+    var revLabelFontSize = isMobile ? 12 : 11;  // 12px on mobile for readability without overlap
 
     // Inline plugin: dollar label above each bar
     var revLabelPlugin = {
@@ -1487,7 +1487,7 @@ function renderOwners() {
 
     // Inline plugin: draw the dollar value above each bar
     var cfMobile = window.innerWidth <= 768;
-    var cfLabelFontSize = cfMobile ? 14 : 11;  // increased to 14px for better readability
+    var cfLabelFontSize = cfMobile ? 12 : 11;  // 12px on mobile for readability without overlap
     var cfLabelPlugin = {
       id: 'cfBarLabels',
       afterDatasetsDraw: function(chart) {
