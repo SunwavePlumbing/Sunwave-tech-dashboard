@@ -40,6 +40,24 @@ body.paper-mode {
   --brand-blue:         #BFE0F3;   /* soft accent — sparse */
   --brand-blue-deep:    #7FB5D3;   /* deeper blue for text/borders when blue is used */
 
+  /* ── Risograph ink palette ──────────────────────────────────
+     Vibrant, saturated pigments designed to be applied ON TOP of the
+     paper canvas via `mix-blend-mode: multiply` + low alpha, so the
+     color reads like wet ink soaking into the page instead of a
+     glowing digital overlay. Use sparingly, for accents only. */
+  --riso-cyan:          #00A3E0;
+  --riso-magenta:       #E30074;
+  --riso-yellow:        #FFD100;
+  --riso-tangerine:     #FF671F;
+  --riso-oxford:        #002147;   /* fountain-pen deep blue — premium headers */
+  --riso-hunter:        #1A3622;   /* fountain-pen deep green — alt headers */
+
+  /* Watercolor wash hovers — extremely faint tints of the ink palette,
+     drawn on top of the paper via mix-blend-mode: multiply. */
+  --wash-cyan:          rgba(0, 163, 224, 0.06);
+  --wash-cyan-firm:     rgba(0, 163, 224, 0.10);
+  --wash-yellow:        rgba(255, 209, 0, 0.45);   /* highlighter marker */
+
   /* Borders & shadows — tuned to brand ink, not pure black */
   --paper-border:       rgba(55, 59, 77, 0.08);
   --paper-border-firm:  rgba(55, 59, 77, 0.14);
@@ -838,10 +856,280 @@ body.paper-mode .pnl-spark--bad  { background: #EF4444; }
   font-weight: 800;
 }
 
+/* ════════════════════════════════════════════════════════════════
+   "Teletype Auditor" loading sequence (Marketing tab, first visit)
+   ────────────────────────────────────────────────────────────────
+   Terminal-style print of simulated sync logs in the foreground,
+   faint matrix of rapidly-cycling numbers in the background, and
+   a high-precision progress counter below. Frames the data pull
+   as complex work being performed, not a generic wait.
+   ════════════════════════════════════════════════════════════════ */
+
+body.paper-mode .tt-loader {
+  position: relative;
+  min-height: 320px;
+  padding: 40px 24px 48px;
+  overflow: hidden;
+  border-radius: 14px;
+  background: var(--paper-card);
+  transition: opacity 300ms ease, transform 300ms ease;
+  font-family: 'Courier New', 'Roboto Mono', 'Fira Code', Courier, monospace;
+  color: #2C2A28;
+}
+body.paper-mode .tt-loader.tt-fading {
+  opacity: 0;
+  transform: translateY(-6px);
+  pointer-events: none;
+}
+
+/* ── Background data matrix ──────────────────────────────────── */
+body.paper-mode .tt-matrix {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: space-around;
+  align-items: stretch;
+  opacity: 0.06;
+  pointer-events: none;
+  user-select: none;
+  padding: 16px 12px;
+}
+body.paper-mode .tt-matrix-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  text-align: center;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2C2A28;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+body.paper-mode .tt-matrix-num {
+  line-height: 1.45;
+  white-space: nowrap;
+}
+
+/* ── Foreground console ──────────────────────────────────────── */
+body.paper-mode .tt-console {
+  position: relative;
+  z-index: 2;
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 14px 18px;
+  background: rgba(247, 246, 242, 0.88);   /* matches paper-card, 88% */
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  border-radius: 8px;
+  box-shadow: 0 1px 0 rgba(55, 59, 77, 0.05);
+}
+body.paper-mode .tt-console-lines {
+  font-family: inherit;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: #2C2A28;
+  font-variant-numeric: tabular-nums;
+  min-height: 170px;
+}
+body.paper-mode .tt-line {
+  white-space: pre-wrap;
+  word-break: break-word;
+  letter-spacing: 0;
+  animation: ttLineSettle 180ms ease-out;
+}
+body.paper-mode .tt-line--done {
+  color: #2C2A28;
+}
+body.paper-mode .tt-line--success {
+  color: #15803D;
+  font-weight: 700;
+  margin-top: 6px;
+}
+body.paper-mode .tt-cursor {
+  display: inline-block;
+  margin-left: 1px;
+  font-weight: 800;
+  color: #2C2A28;
+  animation: ttCursorBlink 900ms steps(2, start) infinite;
+}
+@keyframes ttCursorBlink {
+  0%, 49%  { opacity: 1; }
+  50%, 100%{ opacity: 0; }
+}
+@keyframes ttLineSettle {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Precision progress indicator ─────────────────────────────── */
+body.paper-mode .tt-progress {
+  margin-top: 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+body.paper-mode .tt-progress-track {
+  flex: 1;
+  height: 3px;
+  background: rgba(55, 59, 77, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+body.paper-mode .tt-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: #2C2A28;   /* charcoal ink bleeding across the paper */
+  border-radius: 2px;
+  transition: width 60ms linear;
+  /* Faint ink "bleed" edge on the right leading edge */
+  box-shadow: 2px 0 4px rgba(44, 42, 40, 0.18);
+}
+body.paper-mode .tt-progress-pct {
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #2C2A28;
+  font-variant-numeric: tabular-nums;
+  min-width: 78px;
+  text-align: right;
+  letter-spacing: 0.02em;
+}
+
+/* ── Mount-in animation for the real dashboard ─────────────────
+   Applied briefly after finalize() fades the teletype out, so the
+   cards slide up + fade in instead of popping in abruptly. */
+body.paper-mode #marketingContent.mkt-mount-in > * {
+  animation: mktMountIn 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes mktMountIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Mobile — tighter spacing, fewer matrix columns ─────────── */
+@media (max-width: 768px) {
+  body.paper-mode .tt-loader { min-height: 260px; padding: 28px 14px 36px; }
+  body.paper-mode .tt-console { padding: 12px 14px; max-width: 100%; }
+  body.paper-mode .tt-console-lines { font-size: 12px; min-height: 150px; }
+  body.paper-mode .tt-matrix-col { font-size: 11px; }
+  body.paper-mode .tt-matrix { opacity: 0.05; }
+  body.paper-mode .tt-progress-pct { font-size: 11.5px; min-width: 68px; }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Risograph ink accents (see palette vars at top of this file)
+   ────────────────────────────────────────────────────────────────
+   Five targeted injections of color over the charcoal-on-paper base:
+     1. Fountain-pen Oxford Blue on the primary page title
+     2. Highlighter marker on the #1 revenue leader
+     3. Watercolor cyan wash on row hover / active states
+     4. Multiply blend mode on chart canvases (richer ink tones)
+     5. Fountain-pen Hunter Green on major section titles
+   "Platform rubber-stamp icons" (spec #2) is omitted — no platform
+   data (Google LSA / Yelp / Angi) exists in the dataset to apply to.
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── 1. Fountain-pen header ink ───────────────────────────────── */
+/* Main page title "Sunwave Plumbing" — swap charcoal for deep Oxford
+   Blue. Reads as premium stationery ink, not digital grey. */
+body.paper-mode h1 {
+  color: var(--riso-oxford);
+}
+/* Section titles across tabs ("Jobs Per Month", "Monthly History",
+   "Cash in the Bank Over Time", etc.) — Hunter Green feels like a
+   ledger heading penned in rich ink. */
+body.paper-mode .section-title,
+body.paper-mode .fin-chart-title {
+  color: var(--riso-hunter);
+  font-weight: 700;
+}
+
+/* ── 2. Highlighter marker on the leaderboard #1 ─────────────── */
+/* Applied to the span.row-count with class `is-winner` on the top-
+   ranked technician's Revenue cell. Uses a ::before pseudo behind the
+   digits, irregular border-radius for a hand-drawn edge, and skewed
+   + multiply-blended so the yellow stains THROUGH the digits like a
+   real marker. Ignored when the count-up animation is mid-frame
+   (same ::before position tracks the element). */
+body.paper-mode .row-count.is-winner {
+  position: relative;
+  display: inline-block;
+  padding: 0 6px;
+  font-weight: 800;
+  color: #1a2d3a;  /* stays charcoal — highlighter is BEHIND the text */
+  z-index: 0;
+}
+body.paper-mode .row-count.is-winner::before {
+  content: '';
+  position: absolute;
+  inset: 22% -4px 18% -2px;       /* shorter than line-height, offset right */
+  background: var(--wash-yellow);
+  mix-blend-mode: multiply;        /* pigment soaks into the paper */
+  z-index: -1;
+  transform: skew(-3deg) rotate(-0.6deg);
+  border-radius: 3px 7px 2px 5px;  /* irregular hand-drawn corners */
+  pointer-events: none;
+}
+
+/* ── 3. Watercolor wash on interactive rows ────────────────────
+   Replace the previous flat-grey hover (paper-card-alt / rgba black)
+   with a faint cyan ink wash. Applied via multiply so the wash tints
+   whatever texture sits under it (paper noise included) instead of
+   overlaying as a solid block. */
+body.paper-mode tr:hover td {
+  background-color: var(--wash-cyan) !important;
+}
+body.paper-mode .pnl-row:hover {
+  background: var(--wash-cyan);
+}
+body.paper-mode .pnl-row:active {
+  background: var(--wash-cyan-firm);
+  transform: scale(0.99);
+}
+/* Marketing "Monthly History" sticky first column — keep wash aligned
+   with the rest of the row on hover. */
+body.paper-mode .mkt-table tbody tr:hover td:first-child {
+  background-color: var(--wash-cyan) !important;
+}
+/* Full Picture 2-col legacy table — stop the old #eef2f7 hover from
+   winning specificity battles against the new cyan wash. */
+body.paper-mode .pnl-grid--2col tr:hover:not(.total) td,
+body.paper-mode .pnl-grid--2col tr:hover:not(.total) .pnl2-td-lbl {
+  background-color: var(--wash-cyan) !important;
+}
+
+/* ── 4. Chart canvas: multiply blend mode ──────────────────────
+   Chart.js paints colors at full opacity; layering the canvas with
+   mix-blend-mode: multiply lets the paper texture beneath show
+   through, turning flat digital colors into richer "ink on paper"
+   tones. Applied to every canvas in the Location Owners tab. */
+body.paper-mode #trendChart,
+body.paper-mode #donutChart,
+body.paper-mode #revBarChart,
+body.paper-mode #cfBarChart {
+  mix-blend-mode: multiply;
+}
+
+/* ── 5. Reinforce premium ink feel on subtotal / total labels ───
+   The P&L ledger's category and subtotal rows ("Revenue", "Gross
+   Profit", "Net Operating Income") pick up the fountain-pen blue so
+   they read as anchor lines of a hand-kept ledger. Leaves + the big
+   grand-total row stay in the brand ink for contrast. */
+body.paper-mode .pnl-row--cat .pnl-row-label,
+body.paper-mode .pnl-row--sub .pnl-row-label { color: var(--riso-oxford); }
+
 /* ── Respect reduced-motion preferences ──────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   body.paper-mode,
   body.paper-mode::before { transition: none; }
   .pnl-cmp-sheet { transition: none; }
   .pnl-cmp-backdrop { transition: none; }
+  /* Disable the teletype animations for reduced-motion users —
+     cursor doesn't blink, lines don't settle, mount-in is instant. */
+  body.paper-mode .tt-cursor { animation: none; opacity: 1; }
+  body.paper-mode .tt-line { animation: none; }
+  body.paper-mode #marketingContent.mkt-mount-in > * { animation: none; }
 }

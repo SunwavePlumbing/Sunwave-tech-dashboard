@@ -364,7 +364,7 @@ function render() {
           ' data-reveal-name="' + esc(tech.name) + '"' +
           ' data-reveal-html="' + esc(finalNameHtml) + '"></span>' +
       '</div></td>' +
-      '<td><span class="row-count" data-kind="dollar" data-val="' + tech.monthlyRevenue + '">$0</span></td>' +
+      '<td><span class="row-count' + (idx === 0 ? ' is-winner' : '') + '" data-kind="dollar" data-val="' + tech.monthlyRevenue + '">$0</span></td>' +
       '<td class="' + ticketClass + '"><span class="row-count" data-kind="dollar" data-val="' + tech.averageTicket + '">$0</span></td>' +
       '<td><span class="row-count" data-kind="int" data-val="' + tech.jobsCompleted + '">0</span></td>' +
       '</tr>';
