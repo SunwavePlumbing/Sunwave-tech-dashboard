@@ -1298,27 +1298,29 @@ function renderOwners() {
   }
   window.restartTrendAnim = restartTrendAnim; // Expose globally for period changes
 
-  // Scroll-triggered animation: restart reveal when card enters viewport
-  (function() {
-    var trendCard = document.getElementById('finTrendCard');
-    // Desktop (>768px): Scroll animation enabled for smooth reveal
-    if (window.innerWidth > 768 && window.IntersectionObserver) {
-      var trendObs = new IntersectionObserver(function(entries) {
-        if (entries[0].isIntersecting) { restartTrendAnim(); trendObs.disconnect(); }
-      }, { threshold: 0.25 });
-      trendObs.observe(trendCard);
-    } else {
-      // Mobile or old browsers: trigger immediately
-      restartTrendAnim();
-    }
-  })();
-
   // Build the 2-item overlay legend (active series + target if it exists)
   buildTrendLegend(TREND_SERIES, curIdx);
 
-  // Restart animation immediately when chart data changes (period selection, tab switching, etc.)
-  // This ensures the smooth center-out reveal plays every time the chart is rendered
+  // ── CRITICAL: Always restart animation immediately when chart data changes ────
+  // This ensures the smooth center-out reveal plays every time the chart is rendered,
+  // regardless of visibility state. IntersectionObserver won't fire if element is already visible.
   restartTrendAnim();
+
+  // ── Set up scroll-triggered re-animation for desktop users scrolling back ────
+  // (This is a secondary enhancement; the primary trigger is the immediate restartTrendAnim above)
+  if (window.innerWidth > 768 && window.IntersectionObserver) {
+    var trendCard = document.getElementById('finTrendCard');
+    if (trendCard) {
+      var trendObs = new IntersectionObserver(function(entries) {
+        // Re-animate when user scrolls back into view (visibility goes from false → true)
+        if (entries[0].isIntersecting) {
+          restartTrendAnim();
+          trendObs.disconnect();
+        }
+      }, { threshold: 0.25 });
+      trendObs.observe(trendCard);
+    }
+  }
 
   // ── Revenue Over Time ─────────────────────────────────────────
   var revCard = document.getElementById('finRevCard');
