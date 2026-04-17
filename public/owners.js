@@ -1668,7 +1668,8 @@ function selectTrendLine(btn) {
         trendChartInst.data.datasets[idx + keys.length].hidden = k !== key || goals[k] == null;
       }
     });
-    trendChartInst.update();
+    // Update chart WITHOUT Chart.js animations (we use RAF instead)
+    trendChartInst.update('none');
   }
   // Rebuild the 2-item overlay legend
   if (_trendSeries) {
@@ -1677,6 +1678,11 @@ function selectTrendLine(btn) {
     var ci = finMonth ? months.indexOf(finMonth) : months.length - 1;
     if (ci < 0) ci = months.length - 1;
     buildTrendLegend(_trendSeries, ci);
+  }
+  // ── RESTART ANIMATION when ratio selection changes ────────────────────
+  // This ensures the center-out reveal plays when user clicks a different metric
+  if (window.restartTrendAnim) {
+    restartTrendAnim();
   }
 }
 // ── Overhead drill-down modal ─────────────────────────────────
