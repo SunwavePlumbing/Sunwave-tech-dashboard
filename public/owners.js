@@ -134,8 +134,15 @@ function mfZoomDetail(id, items, segStart, segEnd, palette, segColor, segLabel) 
     var rowColor = pal[i % pal.length];
     var rowBg    = hexAlpha(rowColor, 0.09);
     var pct      = (r.val / total * 100).toFixed(1);
-    // If the item has a QB account key AND children data exists, make the row drillable
-    var hasDrill = !!(r.acctKey && ownersData && ownersData.children && ownersData.children[r.acctKey]);
+    // Drillable when there's any account key with a non-zero amount. We
+    // don't gate on `children[acctKey]` because that map is keyed by the
+    // QBO subtotal label ("Total X") so leaf accounts like Parts and
+    // Subcontractors — real categories with real transactions — would
+    // never register. The server's /api/account-detail endpoint already
+    // falls back through "Total X" prefix match and base-name match, and
+    // mfDrillDown() itself falls back to sub-account totals if nothing
+    // comes back, so relaxing the gate is safe.
+    var hasDrill = !!(r.acctKey && r.val > 0);
     var clickFn  = hasDrill
       ? 'mfDrillDown(\'' + esc(r.label) + '\',\'' + r.acctKey + '\')'
       : 'mfZoomSel(\'' + zid + '\')';
@@ -1308,8 +1315,11 @@ function renderOwners() {
     // Default compare = SAME MONTH prior year (YoY). Falls back to
     // prior month if the YoY month isn't in the dataset.
     if (!pnlCompareMonth || pnlCompareMonth === finMonth || months.indexOf(pnlCompareMonth) < 0) {
-      var parts = finMonth.split('-');
-      var yoyKey = (parseInt(parts[0]) - 1) + '-' + parts[1];
+      // NOTE: must not shadow the outer `parts` (the Job-Supplies monthly
+      // value array from line 693) — doing so zeroes out `dParts` in the
+      // donut below and dumps the $83K into the "Other" slice.
+      var ymParts = finMonth.split('-');
+      var yoyKey = (parseInt(ymParts[0]) - 1) + '-' + ymParts[1];
       if (months.indexOf(yoyKey) >= 0) {
         pnlCompareMonth = yoyKey;
       } else {
