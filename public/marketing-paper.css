@@ -107,6 +107,7 @@ body.paper-mode #finCards > .mf-card,
 body.paper-mode .mkt-table-card,
 body.paper-mode .mkt-proj-card,
 body.paper-mode .mkt-chart-card,
+body.paper-mode .bar-chart-card,    /* Marketing "Jobs Per Month" card was white */
 body.paper-mode .proj-card,
 body.paper-mode .progress-wrap,
 body.paper-mode .exp-sheet,
@@ -131,9 +132,17 @@ body.paper-mode .date-bs-sheet { border-radius: 14px; }
 body.paper-mode table { background-color: transparent; }
 body.paper-mode thead,
 body.paper-mode tfoot { background-color: var(--paper-card-alt); }
-body.paper-mode th { color: var(--brand-ink-muted); border-bottom-color: var(--paper-border-firm); }
+/* Fountain-pen ink on column headers — rich Oxford Blue reads as
+   premium stationery, still small + bold, replaces the muted grey. */
+body.paper-mode th {
+  color: var(--riso-oxford);
+  border-bottom-color: var(--paper-border-firm);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
 body.paper-mode td { border-bottom-color: var(--paper-border); }
-body.paper-mode tr:hover td { background-color: var(--paper-card-alt); }
+/* NOTE: the earlier tr:hover rule at this selector has been replaced by
+   the stable row-level hover defined in the Risograph block below. */
 
 /* Marketing "Monthly History" table — the sticky first column was
    hardcoded to `background: white` and the current-month row to
@@ -800,11 +809,13 @@ body.paper-mode .pnl-row-flag {
 body.paper-mode .pnl-row-flag--good { background: #D4A94A; }   /* muted mustard */
 body.paper-mode .pnl-row-flag--bad  { background: #C75A3A; }   /* soft terracotta */
 
-/* ── Watercolor hover state (respects cyan wash rule defined later) ─
-   Rows are transparent by default, so a cyan hover pairs nicely with
-   the dotted leader + b&w values. */
+/* ── Hover state on ledger rows (Location Owners Full Picture) ──
+   Warm-gray fill matches the Technicians hover — no blend modes,
+   no cyan wash, just a simple solid tint. Only fires on leaf /
+   subtotal rows; categories keep their persistent wash, total keeps
+   its double-rule borders. */
 body.paper-mode .pnl-row:not(.pnl-row--cat):not(.pnl-row--total):hover {
-  background: var(--wash-cyan);
+  background: rgba(70, 65, 60, 0.04);
 }
 
 /* ── Mobile — tighter padding, smaller labels, narrower delta col ── */
@@ -1183,40 +1194,109 @@ body.paper-mode .fin-chart-title {
   font-weight: 700;
 }
 
-/* ── 2. Leaderboard #1 winner emphasis ───────────────────────────
-   The yellow highlighter previously applied to the top-revenue cell
-   was removed (misapplied per later P&L spec — highlighter washes
-   belong in the Delta column of the Full Picture ledger, not on the
-   Technicians leaderboard). We keep the .is-winner class on the #1
-   row's Revenue span, but intentionally leave it unstyled here so
-   the medal emoji next to the name remains the sole rank cue. */
+/* ── 2. Leaderboard #1 winner highlighter ────────────────────────
+   Marker-stroke behind the top-ranked technician's Revenue number.
+   Simple + stable: solid-ish sunflower yellow background, small
+   radius, subtle horizontal padding. No mix-blend-mode (caused
+   paint glitches on hover) and no pseudo-elements — the span's own
+   background handles it cleanly. */
+body.paper-mode .row-count.is-winner {
+  display: inline-block;
+  background-color: rgba(255, 209, 0, 0.25);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+  color: var(--brand-ink);
+}
 
-/* ── 3. Watercolor wash on interactive rows ────────────────────
-   Replace the previous flat-grey hover (paper-card-alt / rgba black)
-   with a faint cyan ink wash. Applied via multiply so the wash tints
-   whatever texture sits under it (paper noise included) instead of
-   overlaying as a solid block. */
-body.paper-mode tr:hover td {
-  background-color: var(--wash-cyan) !important;
+/* ── Stamped-ink avatar circles (paper-mode override) ────────────
+   Base .avatar rule in styles.css sets a 36×36 rounded-square tile
+   with white text on a solid color; paper-mode flips that to a
+   circular chip whose background comes from JS (faint tinted hue)
+   and whose text is the matching dark ink — both set inline via
+   the new AVATAR_PALETTES in app.js. CSS here just handles shape +
+   sizing so the ink letter has enough breathing room. */
+body.paper-mode .avatar {
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border: 1px solid rgba(55, 59, 77, 0.06);
 }
-/* Scoped to leaf/subtotal rows only — categories carry a persistent
-   warm-gray wash and the grand-total carries double-rule borders, so
-   neither should flip to cyan on hover (would fight the section
-   chrome). Matches the :hover rule higher up in the ledger block. */
-body.paper-mode .pnl-row:not(.pnl-row--cat):not(.pnl-row--total):active {
-  background: var(--wash-cyan-firm);
-  transform: scale(0.99);
+
+/* ── "Pencil Sketch" projection bar (Jobs Per Month → current month) ─
+   Replaces the harsh diagonal peach stripes on the forthcoming-month
+   bar with a tactile pencil-sketched look: a dashed charcoal outline,
+   a nearly-invisible 45° hatch fill, and italic graphite typography
+   for the projected number + PROJ badge. Reads as "penciled in,
+   not yet permanent" — the way an accountant marks a projection
+   in a physical ledger before inking it in. */
+body.paper-mode .bar.is-current {
+  background: repeating-linear-gradient(
+    45deg,
+    transparent 0,
+    transparent 4px,
+    rgba(44, 42, 40, 0.04) 4px,
+    rgba(44, 42, 40, 0.04) 5px
+  ) !important;   /* beats any lingering inline background */
+  border: 2px dashed rgba(243, 138, 63, 0.5);   /* brand orange @ 50% */
+  opacity: 1 !important;                        /* reset the old 0.6 */
+  box-sizing: border-box;
+  border-radius: 4px 4px 0 0;
 }
-/* Marketing "Monthly History" sticky first column — keep wash aligned
-   with the rest of the row on hover. */
+
+/* Projected value + PROJ tag — italic, graphite pencil color */
+body.paper-mode .bar-val--proj {
+  font-style: italic;
+  color: #6B6761;   /* warm graphite gray */
+  font-weight: 600;
+}
+body.paper-mode .bar-proj-tag {
+  font-size: 8px;
+  font-weight: 700;
+  font-style: italic;
+  letter-spacing: 0.08em;
+  color: #6B6761;
+  line-height: 1;
+  margin-top: 2px;
+}
+
+/* X-axis baseline tinted warm instead of cool grey #f0f0f0, so the
+   tiny hairline under the bars reads as part of the paper palette. */
+body.paper-mode .bar-chart::after {
+  background: var(--paper-border-firm) !important;
+}
+
+/* ── 3. Row hover: simple, stable, no blending ─────────────────
+   Previously applied a cyan-wash + multiply blend to every cell
+   individually, which caused paint flicker on rapid mouse moves
+   (multiple compositing layers re-running per td). Replaced with
+   a single solid warm-gray fill applied across all cells of the
+   hovered row. No mix-blend-mode, no per-cell !important battles;
+   150ms background transition keeps it tactile without re-renders. */
+body.paper-mode tbody tr {
+  transition: background-color 150ms ease;
+}
+body.paper-mode tbody tr:hover td {
+  background-color: rgba(70, 65, 60, 0.04);
+}
+/* Marketing "Monthly History" sticky first column — keep the warm
+   gray aligned with the rest of the row on hover. */
 body.paper-mode .mkt-table tbody tr:hover td:first-child {
-  background-color: var(--wash-cyan) !important;
+  background-color: rgba(70, 65, 60, 0.04);
 }
-/* Full Picture 2-col legacy table — stop the old #eef2f7 hover from
-   winning specificity battles against the new cyan wash. */
-body.paper-mode .pnl-grid--2col tr:hover:not(.total) td,
-body.paper-mode .pnl-grid--2col tr:hover:not(.total) .pnl2-td-lbl {
-  background-color: var(--wash-cyan) !important;
+/* Full Picture 2-col legacy table — same warm gray, beats the base
+   styles.css `#eef2f7` hover on specificity via paper-mode prefix. */
+body.paper-mode .pnl-grid--2col tbody tr:hover:not(.total) td,
+body.paper-mode .pnl-grid--2col tbody tr:hover:not(.total) .pnl2-td-lbl {
+  background-color: rgba(70, 65, 60, 0.04);
+}
+/* Full Picture ledger rows (Location Owners) — press state only. */
+body.paper-mode .pnl-row:not(.pnl-row--cat):not(.pnl-row--total):active {
+  background: rgba(70, 65, 60, 0.08);
+  transform: scale(0.99);
 }
 
 /* ── 4. Chart canvas: multiply blend mode ──────────────────────

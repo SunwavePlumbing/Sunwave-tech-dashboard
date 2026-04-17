@@ -27,20 +27,24 @@ var dateRanges = [
    lozenges. All keep enough luminance contrast for white 700-weight
    text. Hashed deterministically by name so each tech always gets
    the same color. */
-var AVATAR_COLORS = [
-  '#C75A3A',  // terracotta     — warm rust, cousin of the brand orange
-  '#E88140',  // brand off-orange
-  '#B5903A',  // antique gold
-  '#7A9B5F',  // sage green
-  '#4D8A8A',  // muted teal
-  '#5F7B9A',  // dusty blue
-  '#8878A0',  // heather purple
-  '#B56679'   // dusty rose
+/* "Stamped Ink" avatar palette — each entry has a faint tinted bg
+   (~15% alpha) plus a matching saturated-dark text color. Rendered
+   as circular chips (border-radius:50% via paper-mode CSS) so the
+   ink letter reads as the real mark and the bg as a soft halo. */
+var AVATAR_PALETTES = [
+  { bg: 'rgba(0, 128, 128, 0.15)',   fg: '#006666' },  // muted teal
+  { bg: 'rgba(204, 85, 0, 0.15)',    fg: '#8A3D00' },  // terracotta
+  { bg: 'rgba(138, 154, 91, 0.15)',  fg: '#4F5E2E' },  // sage green
+  { bg: 'rgba(225, 173, 1, 0.15)',   fg: '#7A5C00' },  // mustard
+  { bg: 'rgba(95, 123, 154, 0.15)',  fg: '#2E4466' },  // dusty blue
+  { bg: 'rgba(136, 120, 160, 0.15)', fg: '#4A4069' },  // heather purple
+  { bg: 'rgba(181, 102, 121, 0.15)', fg: '#6E3040' },  // dusty rose
+  { bg: 'rgba(90, 102, 112, 0.15)',  fg: '#2A3540' }   // slate
 ];
 function avatarColor(name) {
   var h = 0;
   for (var i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
-  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+  return AVATAR_PALETTES[Math.abs(h) % AVATAR_PALETTES.length];
 }
 function initials(name) {
   var p = name.trim().split(/\s+/);

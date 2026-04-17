@@ -44,6 +44,81 @@ function inflightGet(key, factory) {
   return p;
 }
 
+// ── ServiceTitan migration filter ────────────────────────────────────────────
+// Sunwave switched from ServiceTitan to Housecall Pro on 2026-04-01. Historical
+// ST jobs were imported into HCP with migration-era `completed_at` values, so
+// some show up in post-cutover ranges (e.g. month-to-date for April 2026)
+// even though the underlying work was done months or years earlier in ST.
+//
+// Any job completed on/after the cutover AND flagged as ST-origin is treated
+// as an import artifact and excluded from all post-cutover period metrics.
+// ST jobs completed BEFORE cutover are left alone — they represent real ST-era
+// work correctly dated in its historical period.
+//
+// Override the cutover via env var: ST_CUTOVER_DATE=2026-04-01
+const ST_CUTOVER = new Date(process.env.ST_CUTOVER_DATE || '2026-04-01T00:00:00Z');
+
+// Match "ServiceTitan" / "service titan" / "service-titan" / "ST Import" /
+// "ST_IMPORT" / "st-import" — the common tag names HCP migration tools
+// stamp onto imported records. Word boundaries stop false positives like
+// "last" or "institution".
+const ST_PATTERN = /\b(service[\s\-_]?titan|st[\s\-_]?import)\b/i;
+
+// Returns true if the job's tags / lead_source / notes / custom fields
+// indicate a ServiceTitan origin. Tolerant of multiple shapes the HCP API
+// can return (bare strings, {name}, {value}, nested arrays).
+function isServiceTitanJob(job) {
+  if (!job) return false;
+  const tags = job.tags || [];
+  for (const t of tags) {
+    const v = typeof t === 'string' ? t : (t && (t.name || t.value || ''));
+    if (v && ST_PATTERN.test(v)) return true;
+  }
+  if (job.lead_source) {
+    const ls = typeof job.lead_source === 'string' ? job.lead_source : job.lead_source.name;
+    if (ls && ST_PATTERN.test(ls)) return true;
+  }
+  for (const key of ['description', 'note', 'notes', 'customer_notes', 'public_note']) {
+    const v = job[key];
+    if (v && typeof v === 'string' && ST_PATTERN.test(v)) return true;
+  }
+  const jf = job.job_fields || job.custom_fields || [];
+  for (const f of jf) {
+    const v = (f && (f.value || f.text || f.name)) || '';
+    if (v && typeof v === 'string' && ST_PATTERN.test(v)) return true;
+  }
+  return false;
+}
+
+// Returns true ONLY for ST-flagged jobs whose completed_at falls on/after
+// the cutover — these are the mis-dated import artifacts we want to hide.
+// ST jobs with legitimate pre-cutover completion dates pass through.
+function isPostCutoverSTArtifact(job) {
+  if (!isServiceTitanJob(job)) return false;
+  const c = job.work_timestamps && job.work_timestamps.completed_at;
+  if (!c) return false;
+  return new Date(c) >= ST_CUTOVER;
+}
+
+// Diagnostic: which field(s) triggered the ST match, for the debug endpoint.
+function describeSTMatch(job) {
+  const hits = [];
+  (job.tags || []).forEach((t, i) => {
+    const v = typeof t === 'string' ? t : (t && (t.name || t.value || ''));
+    if (v && ST_PATTERN.test(v)) hits.push('tags[' + i + ']=' + v);
+  });
+  if (job.lead_source) {
+    const ls = typeof job.lead_source === 'string' ? job.lead_source : job.lead_source.name;
+    if (ls && ST_PATTERN.test(ls)) hits.push('lead_source=' + ls);
+  }
+  for (const key of ['description', 'note', 'notes', 'customer_notes', 'public_note']) {
+    if (job[key] && typeof job[key] === 'string' && ST_PATTERN.test(job[key])) {
+      hits.push(key + '=' + job[key].slice(0, 60));
+    }
+  }
+  return hits.join(' | ') || '(unknown)';
+}
+
 // ── QuickBooks Online ────────────────────────────────────────────────────────
 const QBO_CLIENT_ID     = process.env.QBO_CLIENT_ID;
 const QBO_CLIENT_SECRET = process.env.QBO_CLIENT_SECRET;
@@ -591,9 +666,12 @@ app.get('/api/metrics', async (req, res) => {
         pageResults.forEach(r => allJobs.push(...(r.data.jobs || [])));
       }
 
-      // Filter-then-fetch-estimates for the longer ranges (same as before)
+      // Filter-then-fetch-estimates for the longer ranges (same as before).
+      // Excludes post-cutover ST import artifacts so estimate IDs for
+      // mis-dated legacy jobs don't pollute the fetch batch either.
       const isCompleted = (job) => {
         if (!job.work_timestamps?.completed_at) return false;
+        if (isPostCutoverSTArtifact(job)) return false;
         const d = new Date(job.work_timestamps.completed_at);
         return d >= periodStart && d < periodEnd;
       };
@@ -624,9 +702,12 @@ app.get('/api/metrics', async (req, res) => {
       }
     }
 
-    // Filter jobs by actual completion date (not scheduled date)
+    // Filter jobs by actual completion date (not scheduled date). Also
+    // drops post-cutover ServiceTitan import artifacts so MTD / this-week /
+    // etc. don't show legacy ST work as though it were done this month.
     const isJobCompleted = (job) => {
       if (!job.work_timestamps?.completed_at) return false;
+      if (isPostCutoverSTArtifact(job)) return false;
       const completedDate = new Date(job.work_timestamps.completed_at);
       return completedDate >= periodStart && completedDate < periodEnd;
     };
@@ -820,9 +901,13 @@ app.get('/api/marketing', async (req, res) => {
         page++;
       }
 
-      // Filter jobs by actual completion date within this bucket
+      // Filter jobs by actual completion date within this bucket.
+      // Excludes post-cutover ST import artifacts so the marketing
+      // monthly history + projection don't double-count legacy ST jobs
+      // as if they happened after the HCP migration.
       const completedInBucket = allJobs.filter(job => {
         if (!job.work_timestamps?.completed_at) return false;
+        if (isPostCutoverSTArtifact(job)) return false;
         const completedDate = new Date(job.work_timestamps.completed_at);
         return completedDate >= bucket.start && completedDate < bucket.end;
       });
@@ -1537,6 +1622,33 @@ app.get('/api/debug/techs', async (req, res) => {
       ? employees.filter(e => e.name.toLowerCase().includes(needle))
       : employees;
 
+    // ── ServiceTitan import audit ──────────────────────────────────
+    // Any job in the window flagged as ST-origin, split into:
+    //   - `postCutover` : dated on/after ST_CUTOVER — MIS-DATED imports
+    //                     now filtered out of /api/metrics + /api/marketing
+    //   - `preCutover`  : dated before cutover — legitimate ST-era work
+    //                     (not filtered — they belong in their period)
+    // The `matchedOn` field shows which job field triggered the ST
+    // detection so you can verify the heuristic isn't over-matching.
+    const stAll = completed.filter(isServiceTitanJob);
+    const stPost = stAll.filter(isPostCutoverSTArtifact);
+    const stPre  = stAll.filter(j => !isPostCutoverSTArtifact(j));
+    function summarizeST(list) {
+      return list.map(j => ({
+        id: j.id,
+        invoice: j.invoice_number || null,
+        completedAt: j.work_timestamps && j.work_timestamps.completed_at,
+        customer: j.customer
+          ? ((j.customer.first_name || '') + ' ' + (j.customer.last_name || '')).trim()
+          : '',
+        employees: (j.assigned_employees || []).map(e =>
+          ((e.first_name || '') + ' ' + (e.last_name || '')).trim()
+        ),
+        amount: Math.round(parseFloat(j.total_amount || 0) / 100),
+        matchedOn: describeSTMatch(j)
+      })).sort((a, b) => (b.completedAt || '').localeCompare(a.completedAt || ''));
+    }
+
     res.json({
       window:  { days, from: winStart.toISOString(), to: end.toISOString() },
       totals:  {
@@ -1544,6 +1656,19 @@ app.get('/api/debug/techs', async (req, res) => {
         uniqueEmployees:  employees.length,
         orphanJobCount:   orphanJobs.length,
         orphanJobRevenue: Math.round(orphanJobs.reduce((s, j) => s + j.amount, 0))
+      },
+      serviceTitanAudit: {
+        cutoverDate:        ST_CUTOVER.toISOString(),
+        totalFlagged:       stAll.length,
+        postCutoverExcluded:{
+          count:   stPost.length,
+          revenue: Math.round(stPost.reduce((s, j) => s + parseFloat(j.total_amount || 0) / 100, 0)),
+          jobs:    summarizeST(stPost)
+        },
+        preCutoverKept: {
+          count:   stPre.length,
+          revenue: Math.round(stPre.reduce((s, j) => s + parseFloat(j.total_amount || 0) / 100, 0))
+        }
       },
       gillSuspects,       // strictly Gill-pattern names — never Thomas Agnew
       unnamedProfiles,    // blank / unknown-name employees (separate issue)

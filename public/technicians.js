@@ -358,7 +358,7 @@ function render() {
       '<span class="tech-name-short">' + firstName + '</span>';
     return '<tr data-idx="' + idx + '" data-name="' + esc(tech.name) + '">' +
       '<td><div class="tech-cell">' +
-        '<div class="avatar" style="background:' + color + '">' + av + '</div>' +
+        '<div class="avatar" style="background:' + color.bg + ';color:' + color.fg + '">' + av + '</div>' +
         rankHtml +
         '<span class="tech-name-label"' +
           ' data-reveal-name="' + esc(tech.name) + '"' +

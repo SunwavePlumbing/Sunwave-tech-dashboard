@@ -213,14 +213,17 @@ function renderMarketing() {
     var displayJobs = effectiveJobs[idx];
     var h = Math.max(3, Math.round(displayJobs / maxJobs * BAR_MAX_PX));
     var isCur = m.isCurrent ? ' is-current' : '';
-    var barStyle = m.isCurrent
-      ? 'height:' + h + 'px;opacity:0.6;background:repeating-linear-gradient(135deg,#FF6B35 0,#FF6B35 4px,#ffb07a 4px,#ffb07a 8px)'
-      : 'height:' + h + 'px';
-    var valHtml = m.isCurrent
-      ? displayJobs + '<div style="font-size:7px;color:#FF9500;font-weight:700;line-height:1;margin-top:1px">PROJ</div>'
+    // Height is the only inline style now. The projected (is-current)
+    // bar gets its "pencil sketch" treatment — dashed border + faint
+    // hatch — from the `.bar.is-current` CSS in marketing-paper.css,
+    // so the look can stay on-theme instead of a hardcoded stripe.
+    var barStyle = 'height:' + h + 'px';
+    var valClass = m.isCurrent ? 'bar-val bar-val--proj' : 'bar-val';
+    var valHtml  = m.isCurrent
+      ? displayJobs + '<div class="bar-proj-tag">PROJ</div>'
       : (m.jobs > 0 ? m.jobs : '');
     return '<div class="bar-col">' +
-      '<div class="bar-val">' + valHtml + '</div>' +
+      '<div class="' + valClass + '">' + valHtml + '</div>' +
       '<div class="bar' + isCur + '" style="' + barStyle + '"></div>' +
       '<div class="bar-lbl">' + esc(m.label) + '</div>' +
     '</div>';
