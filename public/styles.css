@@ -69,8 +69,19 @@ body {
   max-width: 100%;
   overflow: hidden; /* belt-and-suspenders */
 }
-.main-wrapper.no-sidebar { grid-template-columns: 1fr; }
-.sidebar { background: white; padding: 1rem 1.5rem; border-top: 1px solid #e5e5e5; display: flex; flex-wrap: wrap; gap: 8px; overflow-y: visible; }
+/* Date range menu — sits INSIDE #techView, just below the tab nav.
+   No background/border of its own; reads as a clean pill row on the
+   page's gray bg with a proper gap before the stat cards below. */
+.sidebar {
+  padding: 0;
+  margin: 0 0 1.2rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  overflow-y: visible;
+}
 .date-btn { display: inline-flex; width: auto; padding: 7px 13px; font-size: 13px; border: 1px solid #e8e8e8; background: white; color: #666; cursor: pointer; border-radius: 20px; white-space: nowrap; font-weight: 500; transition: all 0.15s; }
 .date-btn:hover { background: #f0f0f0; border-color: #d0d0d0; }
 .date-btn.active { background: #FF9500; color: white; font-weight: 600; border-color: #FF9500; }
@@ -241,7 +252,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 
 @media (max-width: 768px) {
   .main-wrapper { grid-template-columns: 1fr; }
-  .sidebar { border-top: 1px solid #eee; border-right: none; overflow-x: auto; overflow-y: hidden; padding: 0.8rem 1.2rem; margin-bottom: 0; border-radius: 0; display: flex; flex-wrap: nowrap; gap: 6px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .sidebar { border: none; background: transparent; overflow-x: auto; overflow-y: hidden; padding: 0; margin: 0 0 1rem; border-radius: 0; display: flex; flex-wrap: nowrap; gap: 6px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
   .sidebar::-webkit-scrollbar { display: none; }
   .sidebar-primary { display: flex; overflow-x: auto; gap: 6px; padding: 0; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
   .sidebar-primary::-webkit-scrollbar { display: none; }
@@ -707,8 +718,10 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 
 
 .mf-step-num {
-  font-size:42px; font-weight:800; letter-spacing:-1.5px;
-  color:#1a2d3a; line-height:1.05; margin:0 0 4px;
+  /* Fluid scaling from ~32px on narrow phones to 42px on desktop */
+  font-size: clamp(32px, 6vw, 42px);
+  font-weight:800; letter-spacing:-1.5px;
+  color:#1a2d3a; line-height:1.05; margin:0 0 2px;
   font-variant-numeric:tabular-nums;
 }
 .mf-step--gp  .mf-step-num { color:#2563eb; }
@@ -956,7 +969,9 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .mf-gp-detail .mf-zoom-leg-row { opacity: 1; animation: none !important; }
 
 /* GP "We kept X%" line inside the panel */
-.mf-gp-pct-line { margin-bottom: 14px !important; }
+/* Tight gap above ($129K ↔ "We kept 47.1%"), larger gap below to
+   clearly separate the header group from the bar + its label */
+.mf-gp-pct-line { margin-top: 2px !important; margin-bottom: 22px !important; }
 
 /* ── Shared target/goal marker (below the bar, subtle) ────────
    Chevron moved out of the bar, so the target can live cleanly
@@ -1005,10 +1020,12 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 /* Section-accent colors for the tick + pill */
-.fin-target-mark--red .fin-target-tick   { background: #ef4444; }
-.fin-target-mark--red .fin-target-lbl    { background: #ef4444; color: #fff; }
-.fin-target-mark--green .fin-target-tick { background: #16a34a; }
-.fin-target-mark--green .fin-target-lbl  { background: #16a34a; color: #fff; }
+.fin-target-mark--red .fin-target-tick    { background: #ef4444; }
+.fin-target-mark--red .fin-target-lbl     { background: #ef4444; color: #fff; }
+.fin-target-mark--green .fin-target-tick  { background: #16a34a; }
+.fin-target-mark--green .fin-target-lbl   { background: #16a34a; color: #fff; }
+.fin-target-mark--blue .fin-target-tick   { background: #2563eb; }
+.fin-target-mark--blue .fin-target-lbl    { background: #2563eb; color: #fff; }
 
 
 /* ── GP reversed competition bar ───────────────────────────── */
@@ -1018,34 +1035,55 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   text-transform: uppercase; letter-spacing: 0.8px;
   margin-bottom: 8px;
 }
-/* Outer: position:relative kept for layout */
-.mf-gp-revbar-outer { position: relative; margin-bottom: 6px; }
+/* Outer: position:relative so the boundary pill can absolutely position
+   above the bar. Top padding reserves headroom for that floating label. */
+.mf-gp-revbar-outer { position: relative; padding-top: 22px; margin-bottom: 6px; }
 
-/* The bar itself */
+/* Flat bar — radius matches the other split bars (7px) for visual cohesion */
 .mf-gp-revbar {
   display: flex;
   height: 24px;
-  border-radius: 5px;
+  border-radius: 7px;
   overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.04);
 }
 .mf-gp-revbar-cogs {
   background: #fecaca;
   flex-shrink: 0;
-  overflow: hidden;
+  border-right: 1px solid #fff;
 }
 .mf-gp-revbar-gp {
   flex: 1;
   background: #3b82f6;
-  display: flex; align-items: center;
-  justify-content: flex-end;
-  padding-right: 8px;
-  overflow: hidden;
 }
-.mf-gp-revbar-txt {
-  font-size: 10px; font-weight: 700;
-  color: rgba(255,255,255,0.92);
+
+/* Floating boundary label — sits above the seam where pink meets blue.
+   `left` is set inline via JS to track the COGS % width. */
+.mf-gp-boundary-lbl {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  padding: 3px 9px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #fff;
+  background: #2563eb;
+  border-radius: 10px;
   white-space: nowrap;
-  pointer-events: none;
+  letter-spacing: 0.3px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  z-index: 5;
+}
+/* Tiny caret pointing down from the pill to the bar seam */
+.mf-gp-boundary-lbl::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: #2563eb;
+  border-bottom: 0;
 }
 
 /* "Where that GP went:" section header */
@@ -1360,6 +1398,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   height: 18px;
   margin-bottom: 4px;
 }
+/* "Now" pill — sits ABOVE the needle; highest z-index so overlap is clean */
 .mf-noi-gauge-now {
   position: absolute;
   transform: translateX(-50%);
@@ -1370,6 +1409,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   background: white;
   border-radius: 6px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  z-index: 5;
 }
 /* Tiny caret pointing down from the "now" pill toward the needle */
 .mf-noi-gauge-now::after {
@@ -1390,18 +1430,27 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   height: 100%; border-radius: 5px; position: absolute; left: 0; top: 0;
   transition: width 0.7s cubic-bezier(0.4,0,0.2,1);
 }
-/* Solid 3px goal line that cuts fully through the track (and a bit above/
-   below) — clear visual anchor without dotted/gradient frills. */
+/* Slim 2px goal line — sharp flat edges, no rounding, peeks just
+   slightly above/below the 10px track for a precise anchor without bulk */
 .mf-noi-gauge-pin {
-  position: absolute; top: -5px; bottom: -5px; width: 3px;
+  position: absolute; top: -3px; bottom: -3px; width: 2px;
   background: #b45309; transform: translateX(-50%);
-  border-radius: 2px; z-index: 2;
+  border-radius: 0;
+  z-index: 2;  /* BELOW the needle/pill so the dot sits on top cleanly */
 }
+/* Needle dot — solid color matching the bar (inline var --needle-color
+   set in JS), white halo ring acts as visual mask when it overlaps
+   the goal line. Exact mathematical centering via translate(-50%). */
 .mf-noi-gauge-needle {
-  position: absolute; top: -4px; width: 12px; height: 12px;
-  background: white; border: 2px solid #1a2d3a;
-  border-radius: 50%; box-shadow: 0 1px 4px rgba(0,0,0,0.18); z-index: 3;
-  transform: translate(-50%, -1px);
+  position: absolute;
+  top: -3px;                    /* centers a 16px dot on a 10px track */
+  width: 16px; height: 16px;
+  background: var(--needle-color, #f59e0b);
+  border: 3px solid #ffffff;    /* white halo = visual mask over pin */
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+  z-index: 4;                   /* above pin (2), below pill (5) */
+  transform: translate(-50%, 0);
 }
 .mf-noi-gauge-scale {
   position: relative; display: flex;
@@ -1557,7 +1606,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   .mf-step       { padding:16px 16px; }
   .mf-op         { padding:12px 16px; }
   .mf-step-label { font-size:12px; }
-  .mf-step-num   { font-size:38px; }
+  /* .mf-step-num now uses clamp() for fluid scaling — no override needed */
   .mf-step-desc  { font-size:13px; }
   .mf-op-total   { font-size:38px; }
   .mf-op-item-label { font-size:14px; }

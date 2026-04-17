@@ -764,22 +764,32 @@ function renderOwners() {
     : gpGap.toFixed(1) + ' pts below the 50% target';
 
 
+  // Boundary label position: the seam between COGS (left) and GP (right)
+  // sits at cogsPct from the left. Clamp so it can't collide with edges.
+  var gpBoundaryX = Math.min(Math.max(cogsPct, 10), 90).toFixed(1);
   var gpDetailHtml =
     '<div id="mfGpDetail" class="mf-zoom-detail mf-gp-detail" hidden>' +
       // "We kept X%" context line
       '<div class="mf-score-pct-line mf-gp-pct-line">We kept ' + fmtPct(gmPct) + ' of every dollar \u2014 goal is 50%</div>' +
-      // Reversed competition bar: COGS eating from left, GP defending the right
+      // Reversed competition bar: COGS eating from left, GP defending the right.
+      // Labels live OUTSIDE the bar (above/below) so they never clip on mobile.
       '<div class="mf-gp-revbar-wrap">' +
         '<div class="mf-gp-revbar-head">Of ' + fmtDollar(curRev) + ' revenue, COGS consumed:</div>' +
         '<div class="mf-gp-revbar-outer">' +
+          // Floating "GP XX.X%" pill above the pink/blue boundary
+          '<div class="mf-gp-boundary-lbl" style="left:' + gpBoundaryX + '%">GP ' + fmtPct(gmPct) + '</div>' +
           '<div class="mf-gp-revbar">' +
             '<div class="mf-gp-revbar-cogs" style="width:' + Math.min(cogsPct, 99).toFixed(1) + '%"></div>' +
-            '<div class="mf-gp-revbar-gp">' +
-              '<span class="mf-gp-revbar-txt">GP ' + fmtPct(gmPct) + '</span>' +
-            '</div>' +
+            '<div class="mf-gp-revbar-gp"></div>' +
+          '</div>' +
+          // Solid blue target line at 50% with matching pill label below
+          '<div class="fin-target-mark fin-target-mark--blue" style="--tx:50%">' +
+            '<div class="fin-target-tick"></div>' +
+            '<div class="fin-target-lbl">50% Goal</div>' +
           '</div>' +
         '</div>' +
-        '<div class="mf-score-gap ' + gpGapCls + '">' + gpGapTxt + '</div>' +
+        // Status pill (was floating orange text)
+        '<div class="mf-noi-status mf-noi-status--' + gpGapCls + '">' + gpGapTxt + '</div>' +
       '</div>' +
     '</div>';
 
@@ -920,7 +930,8 @@ function renderOwners() {
             '<div class="mf-noi-gauge-track">' +
               '<div class="mf-noi-gauge-fill" style="width:' + gaugeFill + '%;background:' + gaugeColor + '"></div>' +
               '<div class="mf-noi-gauge-pin" style="left:' + gaugeGoal + '%"></div>' +
-              '<div class="mf-noi-gauge-needle" style="left:' + gaugeFill + '%"></div>' +
+              // Pass the bar color into the dot via --needle-color so fill + dot stay unified
+              '<div class="mf-noi-gauge-needle" style="left:' + gaugeFill + '%;--needle-color:' + gaugeColor + '"></div>' +
             '</div>' +
             '<div class="mf-noi-gauge-scale">' +
               '<span class="mf-noi-gauge-edge">0%</span>' +

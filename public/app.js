@@ -228,11 +228,6 @@ var DEFAULT_TAB = 'technicians';
 function activateTab(tab) {
   if (!TAB_MAP[tab]) tab = DEFAULT_TAB;
 
-  // Capture the currently-active tab BEFORE changing anything so we can
-  // detect whether this switch will cause a sidebar show/hide on desktop.
-  var prevBtn = document.querySelector('.tab-btn.active');
-  var prevTab = prevBtn ? prevBtn.dataset.tab : null;
-
   // Update buttons
   document.querySelectorAll('.tab-btn').forEach(function(b) {
     b.classList.toggle('active', b.dataset.tab === tab);
@@ -241,22 +236,10 @@ function activateTab(tab) {
   document.querySelectorAll('.view-panel').forEach(function(p) { p.classList.remove('active'); });
   document.getElementById(TAB_MAP[tab].view).classList.add('active');
 
-  // Sidebar only on Technicians tab
-  var isTech = tab === 'technicians';
-  // On desktop the sidebar is a grid column — show/hide it and toggle the class.
-  // On mobile it was moved inside techView by init(), so the panel show/hide
-  // handles visibility automatically; we only toggle the wrapper class.
-  if (window.innerWidth > 768) {
-    document.getElementById('dateSidebar').style.display = isTech ? '' : 'none';
-  }
-  document.getElementById('mainWrapper').classList.toggle('no-sidebar', !isTech);
-
-  // Switching to/from Technicians on desktop changes the sidebar column width,
-  // so the tab-nav reflows to a different pixel width. The indicator's old left
-  // value becomes stale and the slide animation looks broken. Snap instead.
-  var layoutShifts = window.innerWidth > 768 &&
-    ((tab === 'technicians') !== (prevTab === 'technicians'));
-  updateTabIndicator(tab, layoutShifts);
+  // Sidebar is a child of #techView and auto-hides with the tab —
+  // no JS toggle needed. Tab nav width is now constant across tabs, so
+  // the indicator slides smoothly on every switch.
+  updateTabIndicator(tab, false);
   // Lazy-load tab data
   if (tab === 'marketing' && !marketingLoaded) {
     marketingLoaded = true;
