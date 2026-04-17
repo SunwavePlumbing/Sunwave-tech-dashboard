@@ -7,6 +7,9 @@
   <link rel="icon" type="image/png" href="/Favicon.png">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <link rel="stylesheet" href="/styles.css">
+  <!-- Marketing-tab "paper" aesthetic. Safe to remove: delete this line
+       + public/marketing-paper.css + the paper-mode toggle in app.js. -->
+  <link rel="stylesheet" href="/marketing-paper.css">
 </head>
 <body>
 
@@ -219,13 +222,16 @@
 <!-- Expense drill-down sheet (overhead / COGS sub-account detail) -->
 <div class="exp-backdrop" id="expBackdrop" onclick="closeExpModal()">
   <div class="exp-sheet" onclick="event.stopPropagation()">
-    <!-- Drag zone: swipe down to dismiss. Replaces the old X button. -->
+    <!-- Drag zone: swipe down to dismiss on mobile (grabber visible).
+         On desktop the grabber is hidden and an X close button appears
+         in the top-right of the header. -->
     <div class="exp-sheet-drag" id="expSheetDrag">
       <div class="exp-sheet-grabber"></div>
       <div class="exp-sheet-header">
         <div class="exp-sheet-title" id="expSheetTitle"></div>
         <div class="exp-sheet-sub"   id="expSheetSub"></div>
       </div>
+      <button class="exp-sheet-close" id="expSheetClose" onclick="event.stopPropagation();closeExpModal()" aria-label="Close">&times;</button>
     </div>
     <div class="exp-sheet-body" id="expSheetBody"></div>
     <div class="exp-sheet-footer" id="expSheetFooter"></div>

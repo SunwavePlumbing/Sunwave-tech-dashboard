@@ -1,0 +1,140 @@
+/* ═══════════════════════════════════════════════════════════════════
+   marketing-paper.css  —  natural-paper aesthetic, MARKETING TAB ONLY
+   -------------------------------------------------------------------
+   Every rule is scoped to `body.paper-mode` so it only applies when
+   the Marketing tab is active. Adding/removing the class is handled
+   by activateTab() in app.js.
+
+   To disable or roll back completely:
+     1. Remove the <link rel="stylesheet" href="/marketing-paper.css">
+        from public/index.html
+     2. Delete this file.
+     3. Remove the one-line `document.body.classList.toggle('paper-mode', ...)`
+        inside activateTab() in public/app.js.
+   Nothing else in the codebase is modified.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── 1. Base canvas: warm off-white ───────────────────────────── */
+body.paper-mode {
+  background-color: #FAF9F6;
+  /* Global typographic softening — replaces harsh pure black ink */
+  color: #2C2A28;
+  transition: background-color 0.35s ease;
+}
+
+/* The page chrome (header, footer, card surfaces) re-tinted to the
+   same warm off-white so the tab feels like one continuous page. */
+body.paper-mode .header,
+body.paper-mode .footer {
+  background-color: #FAF9F6;
+  color: #2C2A28;
+}
+body.paper-mode #marketingView,
+body.paper-mode #marketingView .kpi-card,
+body.paper-mode #marketingView .chart-card,
+body.paper-mode #marketingView .table-card,
+body.paper-mode #marketingView .card,
+body.paper-mode #marketingView .marketing-card,
+body.paper-mode #marketingView .stat-card,
+body.paper-mode #marketingView table,
+body.paper-mode #marketingView .marketing-section,
+body.paper-mode #marketingView > div > div {
+  background-color: #FDFBF7;
+  color: #2C2A28;
+}
+
+/* ── 2 & 3. Procedural SVG noise overlay, blended into the page ─
+   SVG turbulence → URL-encoded data URI → fixed full-viewport layer,
+   pointer-events:none so it never blocks clicks. mix-blend-mode:
+   multiply lets the dark grain sink INTO the off-white canvas rather
+   than sitting on top like static. */
+body.paper-mode::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.045;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 220px 220px;
+  /* Fade in as tab activates so the grain doesn't flash on other tabs */
+  transition: opacity 0.4s ease;
+}
+
+/* ── 4. Softened "ink" typography ─────────────────────────────── */
+body.paper-mode #marketingView,
+body.paper-mode #marketingView h1,
+body.paper-mode #marketingView h2,
+body.paper-mode #marketingView h3,
+body.paper-mode #marketingView h4,
+body.paper-mode #marketingView p,
+body.paper-mode #marketingView span,
+body.paper-mode #marketingView td,
+body.paper-mode #marketingView th,
+body.paper-mode #marketingView li,
+body.paper-mode #marketingView a {
+  color: #2C2A28;
+}
+/* Secondary / muted text — same hue family, lighter value */
+body.paper-mode #marketingView .muted,
+body.paper-mode #marketingView .sub,
+body.paper-mode #marketingView small,
+body.paper-mode #marketingView .label,
+body.paper-mode #marketingView [class*="subtitle"],
+body.paper-mode #marketingView [class*="sub-"] {
+  color: #6E6A65;
+}
+
+/* ── 5. Warm, diffused shadows ────────────────────────────────── */
+body.paper-mode #marketingView .kpi-card,
+body.paper-mode #marketingView .chart-card,
+body.paper-mode #marketingView .table-card,
+body.paper-mode #marketingView .card,
+body.paper-mode #marketingView .marketing-card,
+body.paper-mode #marketingView .stat-card,
+body.paper-mode #marketingView .marketing-section {
+  box-shadow:
+    0 1px 2px rgba(70, 65, 60, 0.03),
+    0 6px 18px rgba(70, 65, 60, 0.05),
+    0 16px 40px rgba(70, 65, 60, 0.04);
+}
+
+/* ── 6. Softer structural borders ─────────────────────────────── */
+body.paper-mode #marketingView * {
+  border-color: rgba(44, 42, 40, 0.08) !important;
+}
+/* Table row separators — treat as faint pencil guides */
+body.paper-mode #marketingView table tr {
+  border-bottom: 1px solid rgba(44, 42, 40, 0.07);
+}
+/* Scope the !important above so it doesn't override orange accents.
+   Orange brand elements (buttons, bars) keep their original colors. */
+body.paper-mode #marketingView .btn-primary,
+body.paper-mode #marketingView [class*="bar-fill"],
+body.paper-mode #marketingView [style*="background:"],
+body.paper-mode #marketingView .tab-btn.active,
+body.paper-mode #marketingView canvas {
+  border-color: initial !important;
+}
+
+/* ── Card radius softening — mimics cut cardstock ─────────────── */
+body.paper-mode #marketingView .kpi-card,
+body.paper-mode #marketingView .chart-card,
+body.paper-mode #marketingView .table-card,
+body.paper-mode #marketingView .card,
+body.paper-mode #marketingView .marketing-card,
+body.paper-mode #marketingView .stat-card,
+body.paper-mode #marketingView .marketing-section {
+  border-radius: 14px;
+}
+
+/* ── Reduce motion: keep transitions elegant but respect prefs ── */
+@media (prefers-reduced-motion: reduce) {
+  body.paper-mode,
+  body.paper-mode::before {
+    transition: none;
+  }
+}

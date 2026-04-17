@@ -390,6 +390,11 @@ function activateTab(tab) {
   document.querySelectorAll('.view-panel').forEach(function(p) { p.classList.remove('active'); });
   document.getElementById(TAB_MAP[tab].view).classList.add('active');
 
+  // Paper-mode skin — active only on the Marketing tab. The body class
+  // is consumed by public/marketing-paper.css. To fully disable: delete
+  // that file, remove its <link> tag, and this toggle.
+  document.body.classList.toggle('paper-mode', tab === 'marketing');
+
   // Sidebar is a child of #techView and auto-hides with the tab —
   // no JS toggle needed. Tab nav width is now constant across tabs, so
   // the indicator slides smoothly on every switch.

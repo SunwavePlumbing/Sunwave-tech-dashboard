@@ -1524,21 +1524,26 @@ function renderOwners() {
     }
   });
 
-  // RAF-driven center-out expand — both directions at once, line and fill in sync
+  // RAF-driven left-to-right reveal. Uses chart.update('none') (not the
+  // internal draw()) so Chart.js's full render pipeline runs every frame —
+  // this is more reliable when the canvas isn't yet sized on first mount.
   if (window._trendAnimId) cancelAnimationFrame(window._trendAnimId);
-  _tRev.v = 0;
+  // Start FULLY DRAWN: if the animation never fires (timing edge case on
+  // mobile / tab switch), the chart is at least visible. The reveal
+  // animation resets this to 0 and plays forward.
+  _tRev.v = 1;
   var _tStart = null, _TDUR = 950;
   function _tAnimLoop(ts) {
     if (!_tStart) _tStart = ts;
     var t = Math.min((ts - _tStart) / _TDUR, 1);
-    // easeOutCubic — fast burst from center, settles smoothly at edges
+    // easeOutCubic — fast start, smooth settle
     _tRev.v = 1 - Math.pow(1 - t, 3);
-    if (trendChartInst) trendChartInst.draw();
+    if (trendChartInst) trendChartInst.update('none');
     if (t < 1) {
       window._trendAnimId = requestAnimationFrame(_tAnimLoop);
     } else {
       _tRev.v = 1;
-      if (trendChartInst) trendChartInst.draw();
+      if (trendChartInst) trendChartInst.update('none');
       window._trendAnimId = null;
     }
   }
@@ -1546,10 +1551,12 @@ function renderOwners() {
   // ── ANIMATION RESTART (exposed globally so it can be called on data changes) ────────────────────
   function restartTrendAnim() {
     if (!trendChartInst) return;
-    // Reset and restart the reveal animation
+    // Reset to invisible, then rAF plays forward to fully-revealed
     if (window._trendAnimId) cancelAnimationFrame(window._trendAnimId);
     _tRev.v = 0;
     _tStart = null;
+    // Immediate paint at v=0 so the reveal starts cleanly
+    trendChartInst.update('none');
     window._trendAnimId = requestAnimationFrame(_tAnimLoop);
   }
   window.restartTrendAnim = restartTrendAnim; // Expose globally for period changes
@@ -1557,26 +1564,38 @@ function renderOwners() {
   // Build the 2-item overlay legend (active series + target if it exists)
   buildTrendLegend(TREND_SERIES, curIdx);
 
-  // ── CRITICAL: Always restart animation immediately when chart data changes ────
-  // This ensures the smooth center-out reveal plays every time the chart is rendered,
-  // regardless of visibility state. IntersectionObserver won't fire if element is already visible.
-  restartTrendAnim();
-
-  // ── Set up scroll-triggered re-animation for desktop users scrolling back ────
-  // (This is a secondary enhancement; the primary trigger is the immediate restartTrendAnim above)
-  if (window.innerWidth > 768 && window.IntersectionObserver) {
+  // ── Initial reveal: ALL screen sizes (was desktop-only, which left
+  //    mobile showing a frozen chart until the user tapped a toggle).
+  // IntersectionObserver fires immediately with isIntersecting=true if
+  // the card is already in view, so no scrolling is required for the
+  // animation to kick off on the first load. We disconnect after the
+  // first reveal; subsequent period/ratio changes re-invoke via
+  // restartTrendAnim() directly.
+  if (window.IntersectionObserver) {
     var trendCard = document.getElementById('finTrendCard');
     if (trendCard) {
       var trendObs = new IntersectionObserver(function(entries) {
-        // Re-animate when user scrolls back into view (visibility goes from false → true)
         if (entries[0].isIntersecting) {
           restartTrendAnim();
           trendObs.disconnect();
         }
-      }, { threshold: 0.25 });
+      }, { threshold: 0.15 });
       trendObs.observe(trendCard);
+    } else {
+      restartTrendAnim();
     }
+  } else {
+    restartTrendAnim();
   }
+  // Safety net: if for any reason neither the IntersectionObserver
+  // nor rAF ever fires (very old browsers, background tab restore),
+  // ensure the chart is fully painted after a short delay.
+  setTimeout(function() {
+    if (trendChartInst && _tRev.v < 1 && !window._trendAnimId) {
+      _tRev.v = 1;
+      trendChartInst.update('none');
+    }
+  }, 2000);
 
   // ── Revenue Over Time ─────────────────────────────────────────
   var revCard = document.getElementById('finRevCard');

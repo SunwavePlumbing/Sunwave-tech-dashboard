@@ -1004,29 +1004,41 @@ app.get('/api/account-detail', async (req, res) => {
 
     let transactions = (txnMap[acct] || []).slice();
 
-    // Case-insensitive fallback
+    // Case-insensitive exact fallback
     if (!transactions.length) {
       const lower = acct.toLowerCase();
       const match = Object.keys(txnMap).find(k => k.toLowerCase() === lower);
       if (match) transactions = txnMap[match].slice();
     }
 
-    // If still empty, check whether the P&L summary children map has sub-accounts
-    // and aggregate all their "Total X" detail rows (covers parent-section lookups
-    // where QBO only stores transactions under child section keys).
+    // "Total X" prefix fallback — most P&L-summary account names are the
+    // LEAF name (e.g. "Cost of Goods Sold - Job Supplies"), but the P&L
+    // Detail report keys those sections under the subtotal row name
+    // ("Total Cost of Goods Sold - Job Supplies"). Try the prefixed form.
+    if (!transactions.length && !/^total\s+/i.test(acct)) {
+      const prefixed = 'Total ' + acct;
+      if (txnMap[prefixed]) {
+        transactions = txnMap[prefixed].slice();
+      } else {
+        const pl = prefixed.toLowerCase();
+        const m = Object.keys(txnMap).find(k => k.toLowerCase() === pl);
+        if (m) transactions = txnMap[m].slice();
+      }
+    }
+
+    // Base-name match: strip "Total " from both sides and compare. Handles
+    // cases where the client sends "Total X" but detail keys it as just "X",
+    // or vice-versa with different casing/whitespace variations.
     if (!transactions.length) {
-      // Strip leading "Total " to get the parent section name, then look for children
-      // whose "Total <child>" keys exist in txnMap
-      const base = acct.replace(/^Total\s+/i, '').toLowerCase();
-      const childKeys = Object.keys(txnMap).filter(k => {
-        const kb = k.replace(/^Total\s+/i, '').toLowerCase();
-        return kb !== base; // skip self
+      const base = acct.replace(/^Total\s+/i, '').toLowerCase().trim();
+      const m = Object.keys(txnMap).find(k => {
+        const kb = k.replace(/^Total\s+/i, '').toLowerCase().trim();
+        return kb === base;
       });
-      // Broad aggregation: take every key that exists under this parent in ownersData
-      // We can't access ownersData here, so instead aggregate any child key whose
-      // parent section name appears in the acct string (heuristic for sub-sections)
-      // Better: just expose all txnMap keys so the client can pick the right one.
-      // For now, log what we have so we can fix the acctKey.
+      if (m) transactions = txnMap[m].slice();
+    }
+
+    if (!transactions.length) {
       console.log('[account-detail] Miss for', JSON.stringify(acct),
         '— available keys:', Object.keys(txnMap).join(' | '));
     }
