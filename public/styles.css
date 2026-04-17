@@ -1562,12 +1562,14 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
     justify-content: center;
   }
 
-  /* ── RESPONSIVE CHART HEIGHTS ────────────────────────────────────── */
+  /* ── RESPONSIVE CHART HEIGHTS & SCROLLING ──────────────────────────────── */
   .fin-chart-wrap { height: 200px !important; }  /* trend, revenue, cashflow — increased from 180px for better label spacing */
   #finTrendCard  .fin-chart-wrap { height: 200px; }
-  #finRevCard    .fin-chart-wrap { height: 200px; }
-  #finCashFlowCard .fin-chart-wrap { height: 200px; }
-  #finRow2       .fin-chart-wrap { height: 280px; }  /* donut chart — much larger for readability */
+  #finRevCard    .fin-chart-wrap { height: 200px; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
+  #finRevCard canvas { min-width: 600px; height: auto !important; }
+  #finCashFlowCard .fin-chart-wrap { height: 200px; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
+  #finCashFlowCard canvas { min-width: 600px; height: auto !important; }
+  #finRow2       .fin-chart-wrap { height: 420px; }  /* donut chart — MUCH larger (was 280px) to accommodate legend and improve visibility */
 
   /* ── FONT SIZES: WCAG AA compliant (16px body, 14px labels, 12px small) */
   .fin-row-title { font-size: 13px; letter-spacing: 1px; }
@@ -1611,6 +1613,11 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   .fin-chart-card {
     margin-bottom: 2.4rem;  /* increased from 2rem */
     padding: 20px;          /* increased from 18px */
+  }
+
+  /* Extra space for donut chart legend on mobile */
+  #finRow2 {
+    margin-bottom: 3rem !important;  /* extra space for donut legend */
   }
 
   /* ── TREND CHART: Stack legend below toggles ──────────────────────── */
@@ -1828,7 +1835,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   #finTrendCard .fin-chart-wrap { height: 180px; }
   #finRevCard .fin-chart-wrap { height: 180px; }
   #finCashFlowCard .fin-chart-wrap { height: 180px; }
-  #finRow2 .fin-chart-wrap { height: 260px; }  /* keep donut at 260px for legend readability */
+  #finRow2 .fin-chart-wrap { height: 350px; }  /* donut reduced to 350px on ultra-small (from 420px) but still large for visibility */
 
   /* Reduce padding on very small screens */
   .fin-card { padding: 16px; }
