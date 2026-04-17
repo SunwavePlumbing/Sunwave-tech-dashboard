@@ -821,7 +821,7 @@ function renderOwners() {
               '<span class="mf-bar-label">COGS</span>' +
             '</div>' +
             '<div class="mf-sb-ovhd mf-seg-click" onclick="mfToggle(\'mfOvhdDetail\',this)"' +
-                ' style="width:' + Math.max(0,Math.min(ovhdPct,100-cogsPct)).toFixed(1) + '%">' +
+                ' style="width:' + Math.max(0, ovhdPct).toFixed(1) + '%">' +
               '<span class="mf-bar-label">Overhead</span>' +
               MF_CHEV +
             '</div>' +
