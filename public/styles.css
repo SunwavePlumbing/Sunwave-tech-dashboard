@@ -859,12 +859,18 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 }
 .mf-op-sign { font-size:20px; color:#ef4444; font-weight:800; line-height:1; }
 .mf-op-total {
-  font-size:42px; font-weight:800; color:#ef4444; letter-spacing:-1.5px;
-  letter-spacing:-0.5px; margin:8px 0 0;
+  font-size:42px; font-weight:800; color:#ef4444; letter-spacing:-0.5px;
+  margin:8px 0 0;
   font-variant-numeric:tabular-nums; line-height:1.1;
 }
 .mf-op-total--orange { color:#f97316; }  /* overhead deduction */
 .mf-op-total-sub { font-size:13px; font-weight:500; color:#bbb; margin-left:6px; }
+/* Smaller, less-aggressive negative sign — balances the big numbers */
+.mf-op-neg {
+  font-size: 0.55em; font-weight: 700;
+  vertical-align: 0.28em; margin-right: 2px;
+  opacity: 0.72;
+}
 /* Inline % of revenue badge — sits after the big dollar, inherits section color */
 .mf-op-pct {
   font-size: 16px;
@@ -875,6 +881,52 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   vertical-align: middle;
   font-variant-numeric: tabular-nums;
 }
+
+/* ── Clickable section header (replaces chevron-inside-bar) ──
+   Title + total on the left, chevron top-right. Whole row is a tap
+   target; subtle hover feedback telegraphs the interaction. */
+.mf-op-head-click {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  padding: 4px 4px 2px;
+  margin: 0 -4px;
+  border-radius: 12px;
+  transition: background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.mf-op-head-click:hover { background: rgba(0,0,0,0.025); }
+.mf-op-head-click:active { background: rgba(0,0,0,0.045); }
+.mf-op-head-text { flex: 1; min-width: 0; }
+
+/* Pill-style chevron badge in the header corner */
+.mf-op-head-chev {
+  flex-shrink: 0;
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: #fef2f2;               /* pale red tint for COGS */
+  display: flex; align-items: center; justify-content: center;
+  color: #ef4444;
+  transition: background 0.15s, transform 0.2s, color 0.15s;
+  margin-top: 6px;
+}
+.mf-op-head-chev--orange {
+  background: #fff7ed;
+  color: #f97316;
+}
+.mf-op-head-chev .mf-op-chev {
+  position: static;
+  transform: none;
+  top: auto; right: auto;
+  color: inherit;
+}
+.mf-op-head-chev .mf-op-chev--open {
+  transform: rotate(180deg);
+}
+.mf-op-head-click:hover .mf-op-head-chev { background: #fee2e2; }
+.mf-op-head-click:hover .mf-op-head-chev--orange { background: #ffedd5; }
 .mf-op-btn {
   font-size:11px; color:#aaa; background:none;
   border:1px solid #e5e7eb; border-radius:20px;
@@ -898,32 +950,37 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 /* GP "We kept X%" line inside the panel */
 .mf-gp-pct-line { margin-bottom: 14px !important; }
 
-/* ── COGS bar target marker (red, at 50%) ────────────────────── */
+/* ── COGS bar target marker (below the bar, subtle) ───────────
+   Chevron moved out of the bar, so the target can live cleanly
+   below with just a thin dashed tick + small label. */
 .mf-cogs-bar-wrap {
   position: relative;
-  margin: 10px 0 4px;
-  padding-top: 34px;   /* room for the label above */
+  margin: 12px 0 4px;
 }
-.mf-cogs-goal-lbl {
+.mf-cogs-target-mark {
+  position: relative;
+  height: 18px;
+  margin-top: 4px;
+  pointer-events: none;
+}
+.mf-cogs-target-tick {
   position: absolute;
-  top: 0;
+  top: -4px;
+  left: 50%;
+  width: 1px;
+  height: 6px;
+  background: rgba(239, 68, 68, 0.45);
+  transform: translateX(-50%);
+}
+.mf-cogs-target-lbl {
+  position: absolute;
+  top: 3px;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 10px; font-weight: 700;
-  letter-spacing: 0.8px; text-transform: uppercase;
-  color: #ef4444;
+  font-size: 9px; font-weight: 700;
+  letter-spacing: 0.7px; text-transform: uppercase;
+  color: rgba(239, 68, 68, 0.7);
   white-space: nowrap;
-  pointer-events: none;
-}
-.mf-cogs-target-line {
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  height: 24px;   /* matches bar height */
-  width: 2px;
-  background: #ef4444;
-  transform: translateX(-50%);
-  pointer-events: none;
 }
 
 /* ── GP reversed competition bar ───────────────────────────── */
@@ -1090,38 +1147,41 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   font-size: 11px; color: #888;
 }
 
-/* ── Cascading split bars (COGS 2-part, Overhead 3-part) ──── */
+/* ── Cascading split bars (COGS 2-part, Overhead 3-part) ────
+   Chevron has been moved to the section header, so the bar itself
+   is purely data-visual. Both bars share identical geometry for
+   perfect vertical alignment between rows. */
 .mf-split-wrap { margin: 10px 0 4px; }
 
 .mf-split-bar {
-  display: flex; height: 24px; border-radius: 5px;
+  display: flex; height: 26px;
+  border-radius: 7px;
   overflow: hidden; gap: 0;
+  /* Soft "floating paper" shadow replaces hard borders */
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
 }
 
-/* Segments — widths set inline via JS */
-.mf-sb-prior { background: #fecaca; flex-shrink: 0; position: relative; }  /* light red: COGS reference */
-.mf-sb-cogs  { background: #f87171; flex-shrink: 0; position: relative; }  /* red: cost of goods sold */
-/* COGS chevron lives in a separate wrapper anchored just left of the 50% target line */
-.mf-cogs-chev-wrap {
-  position: absolute;
-  right: calc(50% + 5px); /* right edge of icon sits 5px left of the target line */
-  bottom: 0;
-  height: 24px; /* matches bar height */
-  display: flex;
-  align-items: center;
-  pointer-events: none;
+/* Segments — widths set inline via JS, gradients give premium depth */
+.mf-sb-prior {
+  background: linear-gradient(to bottom, #fed7d7, #fecaca);  /* light red: COGS reference */
+  flex-shrink: 0; position: relative;
 }
-.mf-cogs-chev-wrap .mf-op-chev {
-  position: static;
-  transform: none;
-  top: auto; right: auto;
-  color: rgba(255,255,255,0.85);
-  transition: transform 0.2s;
+.mf-sb-cogs  {
+  background: linear-gradient(to bottom, #fb8a8a, #f87171);  /* red: cost of goods sold */
+  flex-shrink: 0; position: relative;
 }
-.mf-cogs-chev-wrap .mf-op-chev--open { transform: rotate(180deg); }
-.mf-sb-gp    { background: #bfdbfe; flex: 1; min-width: 2px; position: relative; }  /* pale blue: gross profit */
-.mf-sb-ovhd  { background: #f97316; flex-shrink: 0; position: relative; }  /* orange: overhead */
-.mf-sb-pass  { flex: 1; min-width: 2px; position: relative; background: #bbf7d0; }  /* pale green: operating profit */
+.mf-sb-gp    {
+  background: linear-gradient(to bottom, #cfe3fe, #bfdbfe);  /* pale blue: gross profit */
+  flex: 1; min-width: 2px; position: relative;
+}
+.mf-sb-ovhd  {
+  background: linear-gradient(to bottom, #fb923c, #f97316);  /* orange: overhead */
+  flex-shrink: 0; position: relative;
+}
+.mf-sb-pass  {
+  background: linear-gradient(to bottom, #ccf2d6, #bbf7d0);  /* pale green: operating profit */
+  flex: 1; min-width: 2px; position: relative;
+}
 
 /* Labels inside bar segments */
 .mf-bar-label {

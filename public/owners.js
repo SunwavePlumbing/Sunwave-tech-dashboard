@@ -779,24 +779,31 @@ function renderOwners() {
 
       // ── − Cost of Goods Sold ──────────────────────────────────
       '<div class="mf-op">' +
-        '<div class="mf-op-label">Cost of Goods Sold</div>' +
-        '<div class="mf-op-total">\u2212' + fmtDollar(curCOGS) + '<span class="mf-op-pct">' + fmtPct(cogsPct) + '</span></div>' +
-        // 2-part split bar: red = COGS (clickable), pale-green = GP remainder (passive)
+        // Clickable header: title + total + chevron live together at top-right
+        '<div class="mf-op-head-click" onclick="mfToggle(\'mfCogsDetail\',this)">' +
+          '<div class="mf-op-head-text">' +
+            '<div class="mf-op-label">Cost of Goods Sold</div>' +
+            '<div class="mf-op-total"><span class="mf-op-neg">\u2212</span>' + fmtDollar(curCOGS) + '<span class="mf-op-pct">' + fmtPct(cogsPct) + '</span></div>' +
+          '</div>' +
+          '<div class="mf-op-head-chev">' + MF_CHEV + '</div>' +
+        '</div>' +
+        // Clean 2-part bar: no chevron inside — pure data visualization
         '<div class="mf-split-wrap mf-split-wrap--cogs">' +
           '<div class="mf-cogs-bar-wrap">' +
-            '<div class="mf-cogs-goal-lbl">Target 50%</div>' +
             '<div class="mf-split-bar">' +
-              '<div class="mf-sb-cogs mf-seg-click" onclick="mfToggle(\'mfCogsDetail\',this)"' +
+              '<div class="mf-sb-cogs mf-seg-click" onclick="mfToggle(\'mfCogsDetail\',this);event.stopPropagation();"' +
                   ' style="width:' + Math.max(0,Math.min(cogsPct,99)).toFixed(1) + '%">' +
                 '<span class="mf-bar-label">Cost of Goods Sold</span>' +
               '</div>' +
-              '<div class="mf-sb-gp mf-seg-click" onclick="mfToggleGp(this)">' +
+              '<div class="mf-sb-gp mf-seg-click" onclick="mfToggleGp(this);event.stopPropagation();">' +
                 '<span class="mf-bar-label">Gross Profit</span>' +
-                MF_CHEV +
               '</div>' +
             '</div>' +
-            '<div class="mf-cogs-target-line"></div>' +
-            '<div class="mf-cogs-chev-wrap">' + MF_CHEV + '</div>' +
+            // Subtle target marker below the bar (dashed line + small label)
+            '<div class="mf-cogs-target-mark">' +
+              '<div class="mf-cogs-target-tick"></div>' +
+              '<div class="mf-cogs-target-lbl">Target 50%</div>' +
+            '</div>' +
           '</div>' +
         '</div>' +
         mfZoomDetail('mfCogsDetail', cogsItems, 0, cogsPct,
@@ -812,18 +819,23 @@ function renderOwners() {
 
       // ── − Overhead ────────────────────────────────────────────
       '<div class="mf-op">' +
-        '<div class="mf-op-label">Overhead</div>' +
-        '<div class="mf-op-total mf-op-total--orange">\u2212' + fmtDollar(curOvhd) + '<span class="mf-op-pct">' + fmtPct(ovhdPct) + '</span></div>' +
-        // 3-part split bar: click the orange Overhead segment to expand the breakdown
+        // Clickable header: mirrors the COGS section for visual consistency
+        '<div class="mf-op-head-click" onclick="mfToggle(\'mfOvhdDetail\',this)">' +
+          '<div class="mf-op-head-text">' +
+            '<div class="mf-op-label">Overhead</div>' +
+            '<div class="mf-op-total mf-op-total--orange"><span class="mf-op-neg">\u2212</span>' + fmtDollar(curOvhd) + '<span class="mf-op-pct">' + fmtPct(ovhdPct) + '</span></div>' +
+          '</div>' +
+          '<div class="mf-op-head-chev mf-op-head-chev--orange">' + MF_CHEV + '</div>' +
+        '</div>' +
+        // Clean 3-part stacked bar: chevron removed, segments are contiguous
         '<div class="mf-split-wrap mf-split-wrap--ovhd">' +
           '<div class="mf-split-bar">' +
             '<div class="mf-sb-prior" style="width:' + Math.max(0,Math.min(cogsPct,99)).toFixed(1) + '%">' +
               '<span class="mf-bar-label">COGS</span>' +
             '</div>' +
-            '<div class="mf-sb-ovhd mf-seg-click" onclick="mfToggle(\'mfOvhdDetail\',this)"' +
+            '<div class="mf-sb-ovhd mf-seg-click" onclick="mfToggle(\'mfOvhdDetail\',this);event.stopPropagation();"' +
                 ' style="width:' + Math.max(0, ovhdPct).toFixed(1) + '%">' +
               '<span class="mf-bar-label">Overhead</span>' +
-              MF_CHEV +
             '</div>' +
             '<div class="mf-sb-pass">' +
               '<span class="mf-bar-label" style="left:50%;transform:translate(-50%,-50%)">Profit</span>' +
