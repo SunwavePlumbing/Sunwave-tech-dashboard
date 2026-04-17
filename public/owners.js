@@ -1354,16 +1354,25 @@ function renderOwners() {
     var revLabelFontSize = isMobile ? 12 : 11;  // 12px on mobile for readability without overlap
 
     // Inline plugin: dollar label above each bar
+    // Shows TARGET values (from _targetData) so labels display correct amounts
+    // even while bars are mid-animation. Labels fade in as animation completes.
     var revLabelPlugin = {
       id: 'revBarLabels',
       afterDatasetsDraw: function(chart) {
         var ctx2 = chart.ctx, ds = chart.data.datasets[0];
         var meta = chart.getDatasetMeta(0);
+        // Use target data if animation is active, otherwise current data
+        var targets = chart._targetData || ds.data;
+        // Fade labels in as animation progresses (hidden until 70% through)
+        var scale = chart._animScale != null ? chart._animScale : 1;
+        var labelOpacity = Math.max(0, (scale - 0.7) / 0.3);
+        if (labelOpacity <= 0) return;
         ctx2.save();
         ctx2.textAlign = 'center';
         ctx2.textBaseline = 'bottom';
+        ctx2.globalAlpha = labelOpacity;
         meta.data.forEach(function(bar, i) {
-          var v = ds.data[i];
+          var v = targets[i];
           if (!v) return;
           var isLast = (revStart + i) === revEnd;
           ctx2.font = (isLast ? '700' : '600') + ' ' + revLabelFontSize + 'px "Inter",system-ui,sans-serif';
@@ -1435,26 +1444,52 @@ function renderOwners() {
       }
     });
 
-    // Scroll-triggered stagger animation (DESKTOP ONLY - mobile animations cause color flashing on scroll)
+    // ── Scroll-triggered RAF animation: bars start flat, rise up ───
+    // Uses requestAnimationFrame + update('none') to avoid Chart.js color
+    // interpolation bugs that caused purple flashing on mobile scroll.
+    // Works on BOTH desktop and mobile.
     (function() {
+      // Stash the target values on the chart instance; labels read from here
+      revBarChartInst._targetData = revData.slice();
+      // Start with all bars at zero height (flat baseline)
+      revBarChartInst._animScale = 0;
+      revBarChartInst.data.datasets[0].data = revData.map(function() { return 0; });
+      revBarChartInst.update('none');
+
       function runRevAnim() {
         if (!revBarChartInst) return;
-        revBarChartInst.options.animation = {
-          duration: 900, easing: 'easeOutBack',
-          delay: function(ctx) { return ctx.type === 'data' ? ctx.dataIndex * 40 : 0; }
-        };
-        revBarChartInst.update('active');
-        revBarChartInst.options.animation = false;
+        if (window._revAnimId) cancelAnimationFrame(window._revAnimId);
+        var start = null;
+        var DURATION = 900;
+        function step(ts) {
+          if (!start) start = ts;
+          var t = Math.min((ts - start) / DURATION, 1);
+          // easeOutCubic: fast rise at start, gentle settle at end (no overshoot)
+          var eased = 1 - Math.pow(1 - t, 3);
+          revBarChartInst._animScale = eased;
+          revBarChartInst.data.datasets[0].data = revBarChartInst._targetData.map(function(v) {
+            return v * eased;
+          });
+          revBarChartInst.update('none');
+          if (t < 1) {
+            window._revAnimId = requestAnimationFrame(step);
+          } else {
+            window._revAnimId = null;
+          }
+        }
+        window._revAnimId = requestAnimationFrame(step);
       }
-      // Desktop ONLY: scroll-triggered animation
-      // Mobile: disabled due to scroll/animation rendering conflicts causing purple color flashing
-      if (window.innerWidth > 768 && window.IntersectionObserver) {
+
+      // Trigger when card scrolls into view — works on desktop AND mobile
+      if (window.IntersectionObserver) {
         var revObs = new IntersectionObserver(function(entries) {
           if (entries[0].isIntersecting) { runRevAnim(); revObs.disconnect(); }
-        }, { threshold: 0.25 });
+        }, { threshold: 0.2 });
         revObs.observe(revCard);
+      } else {
+        // Old browser fallback: trigger immediately
+        runRevAnim();
       }
-      // Note: Mobile users see static bars with no animation to avoid rendering artifacts
     })();
 
     // Subtitle: date range
@@ -1502,11 +1537,18 @@ function renderOwners() {
         var ctx2 = chart.ctx;
         var ds   = chart.data.datasets[0];
         var meta = chart.getDatasetMeta(0);
+        // Use target data if animation is active, otherwise current data
+        var targets = chart._targetData || ds.data;
+        // Fade labels in as animation progresses (hidden until 70% through)
+        var scale = chart._animScale != null ? chart._animScale : 1;
+        var labelOpacity = Math.max(0, (scale - 0.7) / 0.3);
+        if (labelOpacity <= 0) return;
         ctx2.save();
         ctx2.textAlign = 'center';
         ctx2.textBaseline = 'bottom';
+        ctx2.globalAlpha = labelOpacity;
         meta.data.forEach(function(bar, i) {
-          var v = ds.data[i];
+          var v = targets[i];
           if (!v) return;
           var isLast = (bsStart + i) === bsEnd;
           ctx2.font = (isLast ? '700' : '600') + ' ' + cfLabelFontSize + 'px "Inter",system-ui,sans-serif';
@@ -1582,28 +1624,51 @@ function renderOwners() {
       }
     });
 
-    // Scroll-triggered grow animation (DESKTOP ONLY - mobile animations cause color flashing on scroll)
+    // ── Scroll-triggered RAF animation: bars start flat, rise up ───
+    // Uses requestAnimationFrame + update('none') to avoid Chart.js color
+    // interpolation bugs that caused purple flashing on mobile scroll.
+    // Works on BOTH desktop and mobile.
     (function() {
       var card = document.getElementById('finCashFlowCard');
+      // Stash target values for labels; start bars at zero (flat)
+      cfBarChartInst._targetData = cfBal.slice();
+      cfBarChartInst._animScale = 0;
+      cfBarChartInst.data.datasets[0].data = cfBal.map(function() { return 0; });
+      cfBarChartInst.update('none');
+
       function runAnim() {
         if (!cfBarChartInst) return;
-        cfBarChartInst.options.animation = {
-          duration: 900,
-          easing: 'easeOutBack',
-          delay: function(ctx) { return ctx.type === 'data' ? ctx.dataIndex * 55 : 0; }
-        };
-        cfBarChartInst.update('active');
-        cfBarChartInst.options.animation = false; // don't re-animate on hover/tooltip
+        if (window._cfAnimId) cancelAnimationFrame(window._cfAnimId);
+        var start = null;
+        var DURATION = 900;
+        function step(ts) {
+          if (!start) start = ts;
+          var t = Math.min((ts - start) / DURATION, 1);
+          // easeOutCubic: smooth rise without overshoot
+          var eased = 1 - Math.pow(1 - t, 3);
+          cfBarChartInst._animScale = eased;
+          cfBarChartInst.data.datasets[0].data = cfBarChartInst._targetData.map(function(v) {
+            return v * eased;
+          });
+          cfBarChartInst.update('none');
+          if (t < 1) {
+            window._cfAnimId = requestAnimationFrame(step);
+          } else {
+            window._cfAnimId = null;
+          }
+        }
+        window._cfAnimId = requestAnimationFrame(step);
       }
-      // Desktop ONLY: scroll-triggered animation
-      // Mobile: disabled due to scroll/animation rendering conflicts causing purple color flashing
-      if (window.innerWidth > 768 && window.IntersectionObserver) {
+
+      // Trigger when card scrolls into view — desktop AND mobile
+      if (window.IntersectionObserver) {
         var obs = new IntersectionObserver(function(entries) {
           if (entries[0].isIntersecting) { runAnim(); obs.disconnect(); }
-        }, { threshold: 0.25 });
+        }, { threshold: 0.2 });
         obs.observe(card);
+      } else {
+        runAnim();
       }
-      // Note: Mobile users see static bars with no animation to avoid rendering artifacts
     })();
 
     // Subtitle: date range instead of just a count
