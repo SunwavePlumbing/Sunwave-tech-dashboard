@@ -1771,7 +1771,13 @@ function renderOwners() {
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        animation: false,
+        // Zero-duration default keeps geometry snappy during the RAF spring
+        // and tap-pulse. The `animations.colors` override below re-enables
+        // color transitions only, so hover dim/restore cross-fades.
+        animation: { duration: 0 },
+        animations: {
+          colors: { type: 'color', properties: ['backgroundColor','borderColor'], duration: 280, easing: 'easeOutCubic' }
+        },
         // Reduced top padding — no floating labels to reserve headroom for
         layout: { padding: { top: 8, left: 6, right: isMobile ? 12 : 6, bottom: isMobile ? 30 : 0 } },
         // ── Hover / scrub: update Summary Plate + highlight active bar ──
@@ -1785,14 +1791,15 @@ function renderOwners() {
             if (navigator.vibrate) { try { navigator.vibrate(8); } catch(e) {} }
             // Dim non-active bars; active bar keeps its saturated color
             chart.data.datasets[0].backgroundColor = revBaseColors.map(function(c, i) {
-              return i === idx ? c : c + '80';  // 50% alpha hex suffix
+              return i === idx ? c : c + '66';  // ~40% alpha — softer dim
             });
           } else {
             // No hover — revert to default palette + default Summary
             setRevSummary(null);
             chart.data.datasets[0].backgroundColor = revBaseColors.slice();
           }
-          chart.update('none');
+          // Default update() so the colors animation config kicks in.
+          chart.update();
         },
         // ── Bar tap: 5% scale pulse + haptic ──
         onClick: function(evt, elements, chart) {
@@ -1999,7 +2006,13 @@ function renderOwners() {
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        animation: false, // driven by RAF spring below
+        // Zero-duration default keeps geometry snappy during the RAF spring
+        // and tap-pulse. The `animations.colors` override re-enables color
+        // transitions only, so hover dim/restore cross-fades.
+        animation: { duration: 0 },
+        animations: {
+          colors: { type: 'color', properties: ['backgroundColor','borderColor'], duration: 280, easing: 'easeOutCubic' }
+        },
         layout: { padding: { top: 8, left: 6, right: 6, bottom: cfMobile ? 30 : 0 } },
         // ── Hover / scrub: update Summary Plate + highlight active bar ──
         onHover: function(evt, elements, chart) {
@@ -2010,13 +2023,14 @@ function renderOwners() {
             setCfSummary(idx);
             if (navigator.vibrate) { try { navigator.vibrate(8); } catch(e) {} }
             chart.data.datasets[0].backgroundColor = cfBaseColors.map(function(c, i) {
-              return i === idx ? c : c + '80';  // dim non-active bars
+              return i === idx ? c : c + '66';  // ~40% alpha — softer dim
             });
           } else {
             setCfSummary(null);
             chart.data.datasets[0].backgroundColor = cfBaseColors.slice();
           }
-          chart.update('none');
+          // Default update() so the colors animation config kicks in.
+          chart.update();
         },
         onClick: function(evt, elements, chart) {
           if (!elements || !elements.length) return;

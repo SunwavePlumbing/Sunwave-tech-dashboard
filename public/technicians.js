@@ -390,8 +390,15 @@ function render() {
       // nested responsive spans (tech-name-full + tech-name-short).
       var lbl = row.querySelector('.tech-name-label');
       if (lbl) {
-        var nm  = lbl.getAttribute('data-reveal-name') || '';
-        var htm = lbl.getAttribute('data-reveal-html') || nm;
+        var fullNm = lbl.getAttribute('data-reveal-name') || '';
+        var htm    = lbl.getAttribute('data-reveal-html') || fullNm;
+        // On mobile the final render hides .tech-name-full and only shows
+        // first name via .tech-name-short — so scramble just the first
+        // name to match. Otherwise the animation reveals "John Smith"
+        // then pops to "John" when the final HTML swaps in. Breakpoint
+        // mirrors the `max-width: 768px` rule in styles.css.
+        var isMobile = window.innerWidth <= 768;
+        var nm = isMobile ? fullNm.trim().split(/\s+/)[0] : fullNm;
 
         // Lock the label's width to the FINAL rendered name width so
         // the revenue column doesn't slide right as characters pile in.

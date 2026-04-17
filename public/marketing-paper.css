@@ -85,8 +85,7 @@ body.paper-mode .stat-card,
 body.paper-mode .table-wrapper,
 body.paper-mode .fin-chart-card,
 body.paper-mode .fin-month-picker,
-body.paper-mode #finCards,
-body.paper-mode #finCards > *,
+body.paper-mode #finCards > .mf-card,
 body.paper-mode .mkt-table-card,
 body.paper-mode .mkt-proj-card,
 body.paper-mode .mkt-chart-card,
@@ -139,6 +138,32 @@ body.paper-mode .section-title {
   color: var(--brand-ink-muted);
   padding-left: 2px;
 }
+
+/* "# JOBS" cell: three-column mini-grid (number / delta / PROJ) with
+   fixed-width slots so numbers align vertically across every row
+   regardless of whether the delta and PROJ badges are present. */
+body.paper-mode .mkt-jobs-grid {
+  display: inline-grid;
+  grid-template-columns: 3.5ch 4.5ch auto;
+  align-items: baseline;
+  gap: 6px;
+  /* Cell is right-aligned by default (.mkt-table td:not(:first-child));
+     inline-grid respects that so the whole group is anchored right. */
+}
+body.paper-mode .mkt-jobs-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+body.paper-mode .mkt-jobs-delta-slot {
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+body.paper-mode .mkt-jobs-proj-slot {
+  text-align: left;
+}
+/* Reset margin on any delta span that was set via inline CSS earlier */
+body.paper-mode .mkt-jobs-delta-slot .delta { margin-left: 0; }
 
 /* ── Softened ink typography ──────────────────────────────────── */
 body.paper-mode h1,
@@ -279,6 +304,41 @@ body.paper-mode .tab-btn {
    them to the paper-card tone so they read as gentle creases. */
 body.paper-mode .mf-split-bar > *:not(:last-child) {
   box-shadow: inset -1px 0 0 var(--paper-card) !important;
+}
+/* Unify "Profit formula" section backgrounds. Before: .mf-op used
+   #f7f8f9 and .mf-step--gp/noi each had their own tinted fills, so
+   the 1px paper-card cuts between stacked-bar segments looked off-
+   colored against the surrounding surface. Making every sub-section
+   transparent lets them inherit the card's paper tone, and the bar
+   cuts now blend perfectly. */
+body.paper-mode .mf-op,
+body.paper-mode .mf-step--gp,
+body.paper-mode .mf-step--noi {
+  background: transparent !important;
+}
+body.paper-mode .mf-op {
+  border-top-color: var(--paper-border) !important;
+  border-bottom-color: var(--paper-border) !important;
+}
+body.paper-mode .mf-step--gp,
+body.paper-mode .mf-step--noi {
+  border-top-color: var(--paper-border) !important;
+}
+
+/* Revenue bar at the top — bump to match the 26px split-bar height
+   below it so every bar in this card shares the same vertical rhythm. */
+body.paper-mode .mf-rev-bar {
+  height: 26px;
+  border-radius: 7px;
+}
+
+/* Modern, earthy heart in the footer credit line — replaces the glossy
+   red emoji with a minimal outlined terracotta heart that sits
+   comfortably on the paper canvas. */
+body.paper-mode .footer-heart {
+  color: #C75A3A;
+  vertical-align: -2px;
+  margin: 0 2px;
 }
 body.paper-mode .mf-gp-revbar-cogs {
   border-right-color: var(--paper-card) !important;

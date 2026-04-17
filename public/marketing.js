@@ -132,9 +132,18 @@ function renderMarketing() {
     var projTag = m.isCurrent
       ? ' <span style="font-size:10px;color:#FF9500;font-weight:600">PROJ</span>'
       : '';
+    // Jobs cell: three slots (number / delta / PROJ) each in a fixed
+    // grid column so the number always lands at the same x position,
+    // regardless of whether the row has a delta or PROJ badge.
+    var jobsCell =
+      '<div class="mkt-jobs-grid">' +
+        '<span class="mkt-jobs-num">' + displayJobs + '</span>' +
+        '<span class="mkt-jobs-delta-slot">' + deltaJobs + '</span>' +
+        '<span class="mkt-jobs-proj-slot">' + projTag + '</span>' +
+      '</div>';
     return '<tr' + rowClass + '>' +
       '<td>' + esc(m.fullLabel) + '</td>' +
-      '<td>' + displayJobs + deltaJobs + projTag + '</td>' +
+      '<td>' + jobsCell + '</td>' +
       '<td>' + fmt(m.revenue) + '</td>' +
       '<td>' + spendCell + '</td>' +
       '<td>' + costCell + '</td>' +
