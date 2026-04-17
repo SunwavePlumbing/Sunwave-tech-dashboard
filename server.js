@@ -212,9 +212,16 @@ function parseFinancialReport(report) {
   return { months, accounts, children };
 }
 
-// Parse QBO ProfitAndLossDetail report — extracts individual transactions
-// grouped by their "Total X" parent section.
-// Returns { 'Total X': [{ date, type, num, name, memo, amount }, ...] }
+// Parse QBO ProfitAndLossDetail report — extracts individual transactions and
+// buckets them by every useful key we can derive:
+//   • "Total X"   — the Summary subtotal row name (what sections close with)
+//   • "X"         — the bare Header account name (for leaf-account lookups)
+//   • per-txn Account column value (fallback when QBO flattens leaves under
+//                                   a parent section without wrapping them)
+// Bucketing under all three variants means the /api/account-detail handler
+// can find transactions no matter whether QBO returns a given leaf account
+// as its own Header+Summary section OR as flat ColData rows under a parent.
+// Returns { keyName: [{ date, type, num, name, memo, amount }, ...] }
 function parsePnLDetail(report) {
   const cols = (report.Columns && report.Columns.Column) || [];
 
@@ -226,8 +233,12 @@ function parsePnLDetail(report) {
     if (t === 'date' || t.includes('date')) ci.date = ci.date == null ? i : ci.date;
     else if (t === 'transaction type' || t === 'type') ci.type = i;
     else if (t === 'num' || t === 'no.' || t === 'doc. no.') ci.num = i;
-    else if (t === 'name') ci.name = i;
+    else if (t === 'name' && ci.name == null) ci.name = i;
     else if (t === 'memo' || t.includes('memo') || t.includes('description')) ci.memo = i;
+    // If QBO includes an explicit "Account" column in detail rows, track it
+    // so we can bucket transactions by the leaf account they actually belong
+    // to — handles the case where a leaf isn't wrapped in its own section.
+    else if (t === 'account' || t === 'account name' || t === 'split') ci.account = i;
     // Explicitly find the "Amount" column — QBO also returns a "Balance" (running total)
     // column which is the LAST money column and would give wildly inflated values.
     // Prefer the column explicitly titled "amount"; fall back to first money column.
@@ -238,10 +249,15 @@ function parsePnLDetail(report) {
     }
   });
 
-  const txnMap = {}; // "Total X" → [transactions]
+  const txnMap = {};
 
   function val(cd, idx) {
     return (idx != null && cd && cd[idx]) ? (cd[idx].value || '') : '';
+  }
+  function bucketPush(key, txn) {
+    if (!key) return;
+    if (!txnMap[key]) txnMap[key] = [];
+    txnMap[key].push(txn);
   }
 
   function walkSection(rows) {
@@ -249,15 +265,27 @@ function parsePnLDetail(report) {
     if (!Array.isArray(rows)) return txns;
     for (const row of rows) {
       if (row.Header && row.Rows && row.Rows.Row) {
-        // Sub-section — recurse
+        // Sub-section — recurse first
         const childTxns = walkSection(row.Rows.Row);
-        // Store under the "Total X" name from Summary
+
+        // Bucket A: Summary "Total X" subtotal name (existing behavior)
         if (row.Summary && row.Summary.ColData) {
           const sumName = ((row.Summary.ColData[0] || {}).value || '').trim();
           if (sumName.startsWith('Total ') && childTxns.length) {
             txnMap[sumName] = (txnMap[sumName] || []).concat(childTxns);
           }
         }
+
+        // Bucket B: Header account/section name (new — enables leaf lookup
+        // by the bare account name like "Cost of Goods Sold - Job Supplies"
+        // or "Subcontractors" without needing to guess the "Total " prefix).
+        if (row.Header.ColData && childTxns.length) {
+          const headName = ((row.Header.ColData[0] || {}).value || '').trim();
+          if (headName) {
+            txnMap[headName] = (txnMap[headName] || []).concat(childTxns);
+          }
+        }
+
         txns.push(...childTxns);
       } else if (row.ColData && row.ColData.length > 2) {
         // Transaction row
@@ -267,14 +295,22 @@ function parsePnLDetail(report) {
         const amount  = parseFloat(amtStr) || 0;
         // Skip rows without a date (subtotals / blanks)
         if (!dateStr || !amount) continue;
-        txns.push({
+        const txn = {
           date: dateStr,
           type: val(cd, ci.type),
           num:  val(cd, ci.num),
           name: val(cd, ci.name),
           memo: val(cd, ci.memo),
           amount
-        });
+        };
+        // Bucket C: per-transaction Account column (new — if QBO flattens
+        // leaf accounts under a parent section without their own header,
+        // each transaction still tells us which leaf it belongs to).
+        if (ci.account != null) {
+          const acctName = val(cd, ci.account).trim();
+          if (acctName) bucketPush(acctName, txn);
+        }
+        txns.push(txn);
       }
     }
     return txns;
