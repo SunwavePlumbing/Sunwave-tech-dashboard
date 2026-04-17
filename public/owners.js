@@ -1403,6 +1403,23 @@ function renderOwners() {
       else if (CATEGORY_LABELS[row.label])rowTier = 'pnl-row--cat';
       else                                 rowTier = 'pnl-row--sub';  // Gross Profit
 
+      // Category type (for color-coded row washes — green tint for the
+      // Revenue section, warm red tint for cost sections). Emitted as a
+      // data attribute so CSS can key off it without mass class growth.
+      var catType = '';
+      if (row.label === 'Revenue')                 catType = 'rev';
+      else if (row.label === 'Cost of Goods Sold') catType = 'cogs';
+      else if (row.label === 'Operating Expenses') catType = 'opex';
+
+      // Margin flag — tiny angled sticky-note in the left margin for
+      // outliers. Fires on leaf rows only, when the percent move is >= 50.
+      // Mustard for wins, terracotta for watches; flat rows never flag.
+      var flagHtml = '';
+      if (rowTier === 'pnl-row--leaf' && !isFlat && Math.abs(pctVal) >= 50) {
+        var flagCls = isGood ? 'pnl-row-flag--good' : 'pnl-row-flag--bad';
+        flagHtml = '<span class="pnl-row-flag ' + flagCls + '" aria-hidden="true"></span>';
+      }
+
       // Label — ALL-CAPS for categories + grand-total (accounting convention)
       var labelText = (rowTier === 'pnl-row--cat' || rowTier === 'pnl-row--total')
         ? row.label.toUpperCase()
@@ -1428,8 +1445,10 @@ function renderOwners() {
           '<span class="pnl-row-delta ' + deltaCls + '">' + deltaHtml + '</span>' +
         '</div>';
 
+      var catAttr = catType ? ' data-cat="' + catType + '"' : '';
       var html =
-        '<div class="pnl-row ' + rowTier + '" data-sign="' + sign + '">' +
+        '<div class="pnl-row ' + rowTier + '" data-sign="' + sign + '"' + catAttr + '>' +
+          flagHtml +
           '<div class="pnl-row-name">' +
             '<span class="pnl-row-label">' + esc(labelText) + '</span>' +
             leaderHtml +

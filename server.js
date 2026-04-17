@@ -1353,6 +1353,150 @@ app.get('/api/qbo-balance', async (req, res) => {
 });
 
 // ────────────────────────────────────────────────────────────────────────────
+// /api/debug/techs — post-migration data audit
+// ────────────────────────────────────────────────────────────────────────────
+// Pulls every completed job in the last N days (default 180), groups by the
+// exact HCP employee record each job is attributed to, and returns:
+//   - `employees`   : every unique tech seen, with id/name/jobs/revenue
+//   - `suspects`    : employees whose name matches Gill/Gil/Thomas/unknown —
+//                     helps spot ServiceTitan-migration duplicates where the
+//                     same person exists under two employee IDs
+//   - `orphanJobs`  : completed jobs with ZERO assigned_employees; these
+//                     are counted in totalJobs but excluded from every
+//                     tech's revenue (the common ST→HCP import gap)
+// Tech attribution in HCP is by employee UUID, not by name — so if a
+// ServiceTitan technician was imported as "Thomas Gill" under employee
+// id A, and later re-created in HCP as "Gill Gill" under employee id B,
+// the two appear as separate rows. Compare raw counts side-by-side here.
+//
+// Query params:
+//   ?days=180   — window size, clamped to [30, 365]
+//   ?q=gill     — substring filter on employee name (case-insensitive)
+// ────────────────────────────────────────────────────────────────────────────
+app.get('/api/debug/techs', async (req, res) => {
+  if (!API_KEY) return res.status(503).json({ error: 'HCP API key not configured' });
+  try {
+    const days    = Math.min(Math.max(parseInt(req.query.days || '180', 10), 30), 365);
+    const needle  = (req.query.q || '').toString().trim().toLowerCase();
+    const headers = hcpHeaders();
+
+    // Wide window: `days` + 90 extra so we capture jobs scheduled long ago
+    // but completed inside the window (same lookback /api/metrics uses).
+    const now   = new Date();
+    const start = new Date(now); start.setDate(start.getDate() - days - 90);
+    const end   = new Date(now); end.setDate(end.getDate() + 1);
+
+    const pageSize = 200;
+    const params = {
+      work_status: ['completed'],
+      scheduled_start_min: start.toISOString(),
+      scheduled_start_max: end.toISOString(),
+      page_size: pageSize
+    };
+    const first = await axios.get(BASE_URL + '/jobs', { headers, params: { ...params, page: 1 } });
+    const jobs  = first.data.jobs || [];
+    const total = first.data.total_pages || 1;
+    if (total > 1) {
+      const pages = [];
+      for (let p = 2; p <= total; p++) {
+        pages.push(axios.get(BASE_URL + '/jobs', { headers, params: { ...params, page: p } }));
+      }
+      const results = await Promise.all(pages);
+      results.forEach(r => jobs.push(...(r.data.jobs || [])));
+    }
+
+    // Keep only jobs with a real completion date inside the window
+    const winStart = new Date(now); winStart.setDate(winStart.getDate() - days);
+    const completed = jobs.filter(j => {
+      const c = j.work_timestamps && j.work_timestamps.completed_at;
+      if (!c) return false;
+      const d = new Date(c);
+      return d >= winStart && d < end;
+    });
+
+    // Aggregate by employee id
+    const byId = {};
+    const orphanJobs = [];
+    completed.forEach(job => {
+      const revenue  = parseFloat(job.total_amount || 0) / 100;
+      const doers    = job.assigned_employees || [];
+      const customer = job.customer
+        ? ((job.customer.first_name || '') + ' ' + (job.customer.last_name || '')).trim()
+        : '';
+      const completedAt = job.work_timestamps && job.work_timestamps.completed_at;
+
+      if (doers.length === 0) {
+        orphanJobs.push({
+          id: job.id,
+          invoice: job.invoice_number || null,
+          customer,
+          completedAt,
+          amount: Math.round(revenue),
+          description: job.description || null
+        });
+        return;
+      }
+
+      // Split revenue evenly across all assigned employees for the audit
+      // (the real /api/metrics uses a seller/doer 1/3-2/3 split; this
+      // endpoint's job is to show attribution, not repeat that math).
+      const share = revenue / doers.length;
+      doers.forEach(emp => {
+        const id = emp.id;
+        if (!byId[id]) {
+          byId[id] = {
+            id,
+            first_name: emp.first_name || '',
+            last_name:  emp.last_name  || '',
+            name: ((emp.first_name || '') + ' ' + (emp.last_name || '')).trim() || '(blank)',
+            jobs: 0,
+            revenue: 0,
+            firstSeen: completedAt,
+            lastSeen:  completedAt
+          };
+        }
+        byId[id].jobs    += 1;
+        byId[id].revenue += share;
+        if (completedAt && completedAt < byId[id].firstSeen) byId[id].firstSeen = completedAt;
+        if (completedAt && completedAt > byId[id].lastSeen)  byId[id].lastSeen  = completedAt;
+      });
+    });
+
+    const employees = Object.values(byId)
+      .map(e => ({ ...e, revenue: Math.round(e.revenue) }))
+      .sort((a, b) => b.jobs - a.jobs);
+
+    // Suspect list: anything that could be the missing Gill records
+    const SUSPECT_RE = /(gill|gil|thomas|unknown|\(blank\))/i;
+    const suspects = employees.filter(e =>
+      SUSPECT_RE.test(e.name) ||
+      SUSPECT_RE.test(e.first_name) ||
+      SUSPECT_RE.test(e.last_name)
+    );
+
+    const filtered = needle
+      ? employees.filter(e => e.name.toLowerCase().includes(needle))
+      : employees;
+
+    res.json({
+      window:  { days, from: winStart.toISOString(), to: end.toISOString() },
+      totals:  {
+        completedJobs:   completed.length,
+        uniqueEmployees: employees.length,
+        orphanJobCount:  orphanJobs.length,
+        orphanJobRevenue: Math.round(orphanJobs.reduce((s, j) => s + j.amount, 0))
+      },
+      suspects,                      // flagged by name heuristic
+      employees: filtered,           // full list (or filtered by ?q=)
+      orphanJobs                     // jobs with no assigned employee
+    });
+  } catch (err) {
+    console.error('[/api/debug/techs]', err.response?.status || '', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────────────
 
 app.listen(PORT, () => {
   const parts = [

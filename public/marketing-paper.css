@@ -668,12 +668,16 @@ body.paper-mode .pnl-row-delta {
   letter-spacing: 0.01em;
   font-variant-numeric: tabular-nums;
 }
+body.paper-mode .pnl-row-delta {
+  border-radius: 6px;       /* spec: confined "highlighter pill" in delta col */
+  padding: 4px 11px;
+}
 body.paper-mode .pnl-row-delta--good {
-  background: rgba(34, 197, 94, 0.16);
+  background: rgba(34, 197, 94, 0.12);
   color: #15803D;
 }
 body.paper-mode .pnl-row-delta--bad {
-  background: rgba(239, 68, 68, 0.16);
+  background: rgba(239, 68, 68, 0.12);
   color: #B91C1C;
 }
 body.paper-mode .pnl-row-delta--flat {
@@ -694,61 +698,72 @@ body.paper-mode .pnl-delta-pct {
 
 /* ── Accounting hierarchy tiers ────────────────────────────────── */
 
-/* LEAF — indented sub-items (Tech Labor, Parts, Rent, etc.) */
+/* LEAF — indented sub-items (Tech Labor, Parts, Rent, etc.)
+   Warm sepia/umber ink rather than cool grey, so the "ink" reads as
+   older + more organic against the paper canvas. */
 body.paper-mode .pnl-row--leaf .pnl-row-label {
-  padding-left: 24px;
+  padding-left: 26px;     /* leaves 24px for label + 2px flag buffer */
   font-weight: 500;
-  color: var(--brand-ink-soft);
+  color: #4A4238;         /* warm sepia ink */
 }
 body.paper-mode .pnl-row--leaf .pnl-row-cur {
   font-weight: 600;
+  color: #3F382F;         /* slightly richer than the label */
 }
 
 /* CATEGORY — Revenue / Cost of Goods Sold / Operating Expenses
-   ALL-CAPS, bold charcoal, warm gray wash across the full row to
-   signal a section break. No leader — the wash fills the gap. */
+   ALL-CAPS, fountain-pen Oxford Blue, and a color-coded row wash
+   keyed by [data-cat] so each section is subconsciously grouped.
+   mix-blend-mode: multiply lets the wash darken the paper grain
+   rather than covering it — stays well under the "drab white" line. */
 body.paper-mode .pnl-row--cat {
-  background: rgba(55, 50, 45, 0.045);
   margin: 6px 0 2px;
   padding-top: 12px;
   padding-bottom: 12px;
   border-radius: 3px;
+  mix-blend-mode: multiply;
 }
+body.paper-mode .pnl-row--cat[data-cat="rev"]  { background: rgba(34, 197, 94, 0.03); }
+body.paper-mode .pnl-row--cat[data-cat="cogs"] { background: rgba(239, 68, 68, 0.02); }
+body.paper-mode .pnl-row--cat[data-cat="opex"] { background: rgba(239, 68, 68, 0.02); }
+/* Fallback for any category not keyed (shouldn't happen in current data) */
+body.paper-mode .pnl-row--cat:not([data-cat])  { background: rgba(55, 50, 45, 0.035); }
 body.paper-mode .pnl-row--cat .pnl-row-label {
   font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.1em;
-  color: #2C2A28;
+  color: var(--riso-oxford);  /* Oxford Blue #002147 */
 }
 body.paper-mode .pnl-row--cat .pnl-row-cur {
   font-size: 18px;
   font-weight: 800;
-  color: #2C2A28;
+  color: var(--riso-oxford);
 }
 
-/* SUBTOTAL — Gross Profit. Single solid rule above the number
-   (accounting convention for "sum line"). Bold label, regular case. */
+/* SUBTOTAL — Gross Profit. Single "ledger blue" rule above the
+   number (classic accounting-pad guideline, not grey). */
 body.paper-mode .pnl-row--sub {
-  border-top: 1px solid rgba(55, 59, 77, 0.35);
+  border-top: 1px solid rgba(74, 107, 140, 0.45);   /* Ledger Blue */
   margin-top: 4px;
   padding-top: 12px;
 }
 body.paper-mode .pnl-row--sub .pnl-row-label {
   font-weight: 800;
   font-size: 14.5px;
-  color: var(--brand-ink);
+  color: var(--riso-oxford);
 }
 body.paper-mode .pnl-row--sub .pnl-row-cur {
   font-size: 19px;
   font-weight: 800;
-  color: var(--brand-ink);
+  color: var(--riso-oxford);
 }
 
-/* TOTAL — Net Operating Income. Double rule above AND below,
-   ALL-CAPS, bold — the bottom line of the statement. */
+/* TOTAL — Net Operating Income. Double ledger-blue rule above AND
+   below (bottom-line convention, but warmed up to accounting-pad
+   colors so the page feels hand-penned rather than grey-on-grey). */
 body.paper-mode .pnl-row--total {
-  border-top: 3px double rgba(55, 59, 77, 0.55);
-  border-bottom: 3px double rgba(55, 59, 77, 0.55);
+  border-top: 3px double rgba(74, 107, 140, 0.6);
+  border-bottom: 3px double rgba(74, 107, 140, 0.6);
   margin-top: 10px;
   padding-top: 14px;
   padding-bottom: 14px;
@@ -757,13 +772,33 @@ body.paper-mode .pnl-row--total .pnl-row-label {
   font-size: 14px;
   font-weight: 800;
   letter-spacing: 0.12em;
-  color: #2C2A28;
+  color: var(--riso-oxford);
 }
 body.paper-mode .pnl-row--total .pnl-row-cur {
   font-size: 22px;
   font-weight: 800;
-  color: #2C2A28;
+  color: var(--riso-oxford);
 }
+
+/* ── Margin flag: sticky-note for outlier variances (>=50%) ────
+   Small angled pennant in the far-left margin of leaf rows whose
+   percent change is >= 50. Mustard for wins, terracotta for watches.
+   Positioned absolutely against the row so it doesn't shift column 1
+   (the row's position:relative is already set in the base .pnl-row
+   rule higher up — no re-declaration needed). */
+body.paper-mode .pnl-row-flag {
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  transform: translateY(-50%) rotate(-8deg);
+  border-radius: 1px 3px 1px 3px;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.08);
+  pointer-events: none;
+}
+body.paper-mode .pnl-row-flag--good { background: #D4A94A; }   /* muted mustard */
+body.paper-mode .pnl-row-flag--bad  { background: #C75A3A; }   /* soft terracotta */
 
 /* ── Watercolor hover state (respects cyan wash rule defined later) ─
    Rows are transparent by default, so a cyan hover pairs nicely with
@@ -1122,32 +1157,13 @@ body.paper-mode .fin-chart-title {
   font-weight: 700;
 }
 
-/* ── 2. Highlighter marker on the leaderboard #1 ─────────────── */
-/* Applied to the span.row-count with class `is-winner` on the top-
-   ranked technician's Revenue cell. Uses a ::before pseudo behind the
-   digits, irregular border-radius for a hand-drawn edge, and skewed
-   + multiply-blended so the yellow stains THROUGH the digits like a
-   real marker. Ignored when the count-up animation is mid-frame
-   (same ::before position tracks the element). */
-body.paper-mode .row-count.is-winner {
-  position: relative;
-  display: inline-block;
-  padding: 0 6px;
-  font-weight: 800;
-  color: #1a2d3a;  /* stays charcoal — highlighter is BEHIND the text */
-  z-index: 0;
-}
-body.paper-mode .row-count.is-winner::before {
-  content: '';
-  position: absolute;
-  inset: 22% -4px 18% -2px;       /* shorter than line-height, offset right */
-  background: var(--wash-yellow);
-  mix-blend-mode: multiply;        /* pigment soaks into the paper */
-  z-index: -1;
-  transform: skew(-3deg) rotate(-0.6deg);
-  border-radius: 3px 7px 2px 5px;  /* irregular hand-drawn corners */
-  pointer-events: none;
-}
+/* ── 2. Leaderboard #1 winner emphasis ───────────────────────────
+   The yellow highlighter previously applied to the top-revenue cell
+   was removed (misapplied per later P&L spec — highlighter washes
+   belong in the Delta column of the Full Picture ledger, not on the
+   Technicians leaderboard). We keep the .is-winner class on the #1
+   row's Revenue span, but intentionally leave it unstyled here so
+   the medal emoji next to the name remains the sole rank cue. */
 
 /* ── 3. Watercolor wash on interactive rows ────────────────────
    Replace the previous flat-grey hover (paper-card-alt / rgba black)
