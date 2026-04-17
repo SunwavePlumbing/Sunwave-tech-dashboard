@@ -122,18 +122,33 @@
       <!-- Revenue over time -->
       <div class="fin-chart-card" id="finRevCard" style="display:none;margin-bottom:1.4rem">
         <div class="fin-chart-title">Revenue Over Time <span id="revSubtitle"></span></div>
-        <div style="font-size:11px;color:#888;margin-top:-8px;margin-bottom:14px">Monthly revenue for the past 15 months. Tap or hover any bar to see how it compares to the same month last year.</div>
-        <div class="fin-chart-wrap fin-chart-wrap--scroll" style="height:240px">
-          <div class="fin-chart-scroll"><div class="fin-chart-inner-wide"><canvas id="revBarChart"></canvas></div></div>
+        <div style="font-size:11px;color:#888;margin-top:-8px;margin-bottom:10px">Monthly revenue for the past 15 months. Tap or scrub any bar to see the month &amp; year-over-year change.</div>
+        <!-- Contextual data header: updates live as the user scrubs bars -->
+        <div class="fin-summary-plate" id="revSummaryPlate">
+          <div class="fin-summary-plate-main">
+            <span class="fin-summary-plate-month" id="revSummaryMonth">&mdash;</span>
+            <span class="fin-summary-plate-value" id="revSummaryValue">&mdash;</span>
+          </div>
+          <div class="fin-summary-plate-delta" id="revSummaryDelta"></div>
+        </div>
+        <div class="fin-chart-wrap fin-chart-wrap--scroll" id="revScrollWrap" style="height:240px">
+          <div class="fin-chart-scroll" id="revScrollEl"><div class="fin-chart-inner-wide"><canvas id="revBarChart"></canvas></div></div>
         </div>
       </div>
 
       <!-- Cash flow over time -->
       <div class="fin-chart-card" id="finCashFlowCard" style="display:none;margin-bottom:1.4rem">
         <div class="fin-chart-title">Cash in the Bank Over Time <span id="cfSubtitle"></span></div>
-        <div style="font-size:11px;color:#888;margin-top:-8px;margin-bottom:14px">End-of-month bank account balance — how much actual cash was sitting in the accounts each month.</div>
-        <div class="fin-chart-wrap fin-chart-wrap--scroll" style="height:240px">
-          <div class="fin-chart-scroll"><div class="fin-chart-inner-wide"><canvas id="cfBarChart"></canvas></div></div>
+        <div style="font-size:11px;color:#888;margin-top:-8px;margin-bottom:10px">End-of-month bank account balance. Tap or scrub any bar to see that month&rsquo;s closing balance.</div>
+        <div class="fin-summary-plate" id="cfSummaryPlate">
+          <div class="fin-summary-plate-main">
+            <span class="fin-summary-plate-month" id="cfSummaryMonth">&mdash;</span>
+            <span class="fin-summary-plate-value" id="cfSummaryValue">&mdash;</span>
+          </div>
+          <div class="fin-summary-plate-delta" id="cfSummaryDelta"></div>
+        </div>
+        <div class="fin-chart-wrap fin-chart-wrap--scroll" id="cfScrollWrap" style="height:240px">
+          <div class="fin-chart-scroll" id="cfScrollEl"><div class="fin-chart-inner-wide"><canvas id="cfBarChart"></canvas></div></div>
         </div>
       </div>
 

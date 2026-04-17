@@ -302,6 +302,27 @@ function fmtDollar(v) {
 
 function fmtPct(v) { return (v >= 0 ? '' : '-') + Math.abs(v).toFixed(1) + '%'; }
 
+/* ── Chart-scroll helper ─────────────────────────────────────────
+   Snaps the horizontal chart container to its far right (most-recent
+   month visible first), then watches scroll position to hide the
+   right-edge fade mask once the user reaches the end. */
+function wireChartScroll(scrollElId, wrapElId) {
+  var el   = document.getElementById(scrollElId);
+  var wrap = document.getElementById(wrapElId);
+  if (!el || !wrap) return;
+  // Defer to next frame so the canvas has laid out its 150% inner width
+  requestAnimationFrame(function() {
+    el.scrollLeft = el.scrollWidth;
+    updateFade();
+  });
+  function updateFade() {
+    var atEnd = (el.scrollLeft + el.clientWidth) >= (el.scrollWidth - 10);
+    wrap.classList.toggle('is-scroll-end', atEnd);
+    wrap.classList.toggle('is-scroll-start', el.scrollLeft <= 10);
+  }
+  el.addEventListener('scroll', updateFade, { passive: true });
+}
+
 /* ── Count-up animation ──────────────────────────────────────────
    Finds every element with [data-countup] inside `root`, ramps its
    numeric display from 0 → target over `duration` ms with an ease-out
@@ -1415,65 +1436,84 @@ function renderOwners() {
 
     // Mobile detection for responsive sizing
     var isMobile = window.innerWidth <= 768;
-    var revLabelFontSize = isMobile ? 12 : 11;  // 12px on mobile for readability without overlap
-
-    // Inline plugin: dollar label above each bar
-    // Shows TARGET values (from _targetData) so labels display correct amounts
-    // even while bars are mid-animation. Labels fade in as animation completes.
-    var revLabelPlugin = {
-      id: 'revBarLabels',
-      afterDatasetsDraw: function(chart) {
-        var ctx2 = chart.ctx, ds = chart.data.datasets[0];
-        var meta = chart.getDatasetMeta(0);
-        // Use target data if animation is active, otherwise current data
-        var targets = chart._targetData || ds.data;
-        // Fade labels in as animation progresses (hidden until 70% through)
-        var scale = chart._animScale != null ? chart._animScale : 1;
-        var labelOpacity = Math.max(0, (scale - 0.7) / 0.3);
-        if (labelOpacity <= 0) return;
-        ctx2.save();
-        ctx2.textAlign = 'center';
-        ctx2.textBaseline = 'bottom';
-        ctx2.globalAlpha = labelOpacity;
-        meta.data.forEach(function(bar, i) {
-          var v = targets[i];
-          if (!v) return;
-          var isLast = (revStart + i) === revEnd;
-          ctx2.font = (isLast ? '700' : '600') + ' ' + revLabelFontSize + 'px "Inter",system-ui,sans-serif';
-          ctx2.fillStyle = isLast ? '#9a3412' : '#64748b';
-          ctx2.fillText(fmtDollar(v), bar.x, bar.y - 5);
-        });
-        ctx2.restore();
-      }
-    };
 
     // With 150% canvas width, we have room for every label — no auto-skip needed
     var xAxisRotation = isMobile ? 45 : 0;
     var xAxisFontSize = isMobile ? 10 : 11;
 
+    // ── Summary Plate helpers ────────────────────────────────────
+    // Updates the contextual data header above the chart with the active
+    // bar's month, revenue, and YoY delta. Null index → default to latest.
+    function setRevSummary(idx) {
+      if (idx == null || idx < 0 || idx >= revData.length) idx = revData.length - 1;
+      var mk    = revMonths[idx];
+      var val   = revData[idx];
+      var prior = revPriorData[idx];
+      document.getElementById('revSummaryMonth').textContent = fmtMkShort(mk);
+      document.getElementById('revSummaryValue').textContent = fmtDollar(val);
+      var deltaEl = document.getElementById('revSummaryDelta');
+      if (prior) {
+        var pct  = Math.round((val - prior) / prior * 100);
+        var sign = pct >= 0 ? '+' : '';
+        var arr  = pct >= 0 ? '\u25b2' : '\u25bc';
+        var cls  = pct >= 0 ? 'up' : 'down';
+        var pyMk = String(parseInt(mk.split('-')[0]) - 1) + '-' + mk.split('-')[1];
+        deltaEl.className = 'fin-summary-plate-delta ' + cls;
+        deltaEl.textContent = arr + ' ' + sign + pct + '% vs ' + fmtMkShort(pyMk);
+      } else {
+        deltaEl.className = 'fin-summary-plate-delta';
+        deltaEl.textContent = '';
+      }
+    }
+
     // Lock Y axis max so the bouncy spring overshoot doesn't cause axis rescaling
     var revMaxVal = Math.max.apply(null, revData.concat(revPriorData.filter(function(v) { return v; })));
     var revYMax = revMaxVal * 1.15;
+
+    // Active-bar highlighting: mutate the dataset background array to
+    // dim non-active bars when hovering/scrubbing without losing the
+    // original palette (stored in revBaseColors for restore).
+    var revBaseColors = revColors.slice();
+    var revHoverIdx = -1;  // -1 means "nothing active; show default colors"
 
     revBarChartInst = new Chart(revCtx, {
       type: 'bar',
       data: {
         labels: revLabels,
-        datasets: [{ data: revData, backgroundColor: revColors, borderRadius: 8, borderSkipped: false, borderWidth: 0 }]
+        datasets: [{ data: revData, backgroundColor: revBaseColors.slice(), borderRadius: 8, borderSkipped: false, borderWidth: 0 }]
       },
-      plugins: [revLabelPlugin],
       options: {
         responsive: true, maintainAspectRatio: false,
         animation: false,
-        layout: { padding: { top: 26, left: 6, right: isMobile ? 12 : 6, bottom: isMobile ? 30 : 0 } },
-        // ── Bar tap: 5% scale pulse + light haptic ──
+        // Reduced top padding — no floating labels to reserve headroom for
+        layout: { padding: { top: 8, left: 6, right: isMobile ? 12 : 6, bottom: isMobile ? 30 : 0 } },
+        // ── Hover / scrub: update Summary Plate + highlight active bar ──
+        onHover: function(evt, elements, chart) {
+          var idx = (elements && elements.length) ? elements[0].index : -1;
+          if (idx === revHoverIdx) return;
+          revHoverIdx = idx;
+          if (idx >= 0) {
+            setRevSummary(idx);
+            // Light haptic as the active bar changes (scrub feel)
+            if (navigator.vibrate) { try { navigator.vibrate(8); } catch(e) {} }
+            // Dim non-active bars; active bar keeps its saturated color
+            chart.data.datasets[0].backgroundColor = revBaseColors.map(function(c, i) {
+              return i === idx ? c : c + '80';  // 50% alpha hex suffix
+            });
+          } else {
+            // No hover — revert to default palette + default Summary
+            setRevSummary(null);
+            chart.data.datasets[0].backgroundColor = revBaseColors.slice();
+          }
+          chart.update('none');
+        },
+        // ── Bar tap: 5% scale pulse + haptic ──
         onClick: function(evt, elements, chart) {
           if (!elements || !elements.length) return;
           var idx = elements[0].index;
-          // Light haptic on supported devices (Android + some desktop browsers)
           if (navigator.vibrate) { try { navigator.vibrate(10); } catch(e) {} }
+          setRevSummary(idx);
           if (!chart._targetData) return;
-          // Cancel any prior pulse so rapid taps don't stack
           if (chart._tapAnimId) cancelAnimationFrame(chart._tapAnimId);
           var orig = chart._targetData[idx];
           var start = null;
@@ -1487,7 +1527,6 @@ function renderOwners() {
               chart._tapAnimId = null;
               return;
             }
-            // Sine pulse: 0 → peak at t=0.5 → 0
             var bump = Math.sin(t * Math.PI) * 0.05;
             chart.data.datasets[0].data[idx] = orig * (1 + bump);
             chart.update('none');
@@ -1497,34 +1536,7 @@ function renderOwners() {
         },
         plugins: {
           legend: { display: false },
-          tooltip: {
-            backgroundColor: '#1a2d3a',
-            titleColor: '#94a3b8',
-            bodyColor: '#fff',
-            footerColor: function(items) {
-              if (!items.length) return '#94a3b8';
-              var prior = revPriorData[items[0].dataIndex];
-              if (!prior) return '#94a3b8';
-              return revData[items[0].dataIndex] >= prior ? '#4ade80' : '#f87171';
-            },
-            padding: 12, cornerRadius: 8, displayColors: false, footerMarginTop: 8,
-            callbacks: {
-              title:  function(items) { return items[0].label; },
-              label:  function(ctx)   { return 'Revenue:  ' + fmtDollar(revBarChartInst._targetData ? revBarChartInst._targetData[ctx.dataIndex] : ctx.parsed.y); },
-              footer: function(items) {
-                var i     = items[0].dataIndex;
-                var prior = revPriorData[i];
-                if (!prior) return null;
-                var cur  = revData[i];
-                var pct  = Math.round((cur - prior) / prior * 100);
-                var sign = pct >= 0 ? '+' : '';
-                var arr  = pct >= 0 ? '▲' : '▼';
-                var mk   = revMonths[i];
-                var pyMk = String(parseInt(mk.split('-')[0]) - 1) + '-' + mk.split('-')[1];
-                return arr + ' ' + sign + pct + '% vs ' + fmtMkShort(pyMk) + ' (' + fmtDollar(prior) + ')';
-              }
-            }
-          }
+          tooltip: { enabled: false }  /* Summary Plate replaces floating tooltip */
         },
         scales: {
           x: {
@@ -1612,6 +1624,13 @@ function renderOwners() {
       revMonths.length > 1
         ? fmtMkShort(revMonths[0]) + '\u2013' + fmtMkShort(revMonths[revMonths.length - 1])
         : '';
+
+    // Initialize Summary Plate to the latest month by default
+    setRevSummary(null);
+
+    // Snap scroll to the far right so the most recent month is visible,
+    // then wire a scroll listener to hide the right-edge fade at end-of-scroll
+    wireChartScroll('revScrollEl', 'revScrollWrap');
   }
 
   // ── Cash in the Bank Over Time ───────────────────────────────
@@ -1642,41 +1661,37 @@ function renderOwners() {
 
     if (cfBarChartInst) cfBarChartInst.destroy();
     var cfCtx = document.getElementById('cfBarChart').getContext('2d');
-
-    // Inline plugin: draw the dollar value above each bar
     var cfMobile = window.innerWidth <= 768;
-    var cfLabelFontSize = cfMobile ? 12 : 11;  // 12px on mobile for readability without overlap
-    var cfLabelPlugin = {
-      id: 'cfBarLabels',
-      afterDatasetsDraw: function(chart) {
-        var ctx2 = chart.ctx;
-        var ds   = chart.data.datasets[0];
-        var meta = chart.getDatasetMeta(0);
-        // Use target data if animation is active, otherwise current data
-        var targets = chart._targetData || ds.data;
-        // Fade labels in as animation progresses (hidden until 70% through)
-        var scale = chart._animScale != null ? chart._animScale : 1;
-        var labelOpacity = Math.max(0, (scale - 0.7) / 0.3);
-        if (labelOpacity <= 0) return;
-        ctx2.save();
-        ctx2.textAlign = 'center';
-        ctx2.textBaseline = 'bottom';
-        ctx2.globalAlpha = labelOpacity;
-        meta.data.forEach(function(bar, i) {
-          var v = targets[i];
-          if (!v) return;
-          var isLast = (bsStart + i) === bsEnd;
-          ctx2.font = (isLast ? '700' : '600') + ' ' + cfLabelFontSize + 'px "Inter",system-ui,sans-serif';
-          ctx2.fillStyle = isLast ? '#1e3a8a' : '#64748b';
-          ctx2.fillText(fmtDollar(v), bar.x, bar.y - 5);
-        });
-        ctx2.restore();
+
+    // Summary-plate updater for Cash Flow — shows month/balance plus
+    // month-over-month change. Null idx → default to latest month.
+    function setCfSummary(idx) {
+      if (idx == null || idx < 0 || idx >= cfBal.length) idx = cfBal.length - 1;
+      var mk   = cfMonths[idx];
+      var val  = cfBal[idx];
+      var prev = idx > 0 ? cfBal[idx - 1] : null;
+      document.getElementById('cfSummaryMonth').textContent = fmtMkShort(mk);
+      document.getElementById('cfSummaryValue').textContent = fmtDollar(val);
+      var deltaEl = document.getElementById('cfSummaryDelta');
+      if (prev != null && prev !== 0) {
+        var pct  = Math.round((val - prev) / Math.abs(prev) * 100);
+        var sign = pct >= 0 ? '+' : '';
+        var arr  = pct >= 0 ? '\u25b2' : '\u25bc';
+        var cls  = pct >= 0 ? 'up' : 'down';
+        deltaEl.className = 'fin-summary-plate-delta ' + cls;
+        deltaEl.textContent = arr + ' ' + sign + pct + '% vs ' + fmtMkShort(cfMonths[idx - 1]);
+      } else {
+        deltaEl.className = 'fin-summary-plate-delta';
+        deltaEl.textContent = '';
       }
-    };
+    }
 
     // Lock Y max so spring overshoot doesn't cause axis rescaling
     var cfMaxVal = Math.max.apply(null, cfBal);
     var cfYMax = cfMaxVal * 1.15;
+
+    var cfBaseColors = cfColors.slice();
+    var cfHoverIdx = -1;
 
     cfBarChartInst = new Chart(cfCtx, {
       type: 'bar',
@@ -1684,22 +1699,38 @@ function renderOwners() {
         labels: cfLabels,
         datasets: [{
           data: cfBal,
-          backgroundColor: cfColors,
+          backgroundColor: cfBaseColors.slice(),
           borderRadius: 8,
           borderSkipped: false,
           borderWidth: 0
         }]
       },
-      plugins: [cfLabelPlugin],
       options: {
         responsive: true, maintainAspectRatio: false,
         animation: false, // driven by RAF spring below
-        layout: { padding: { top: 26, left: 6, right: 6, bottom: cfMobile ? 30 : 0 } },
-        // ── Bar tap: 5% scale pulse + light haptic ──
+        layout: { padding: { top: 8, left: 6, right: 6, bottom: cfMobile ? 30 : 0 } },
+        // ── Hover / scrub: update Summary Plate + highlight active bar ──
+        onHover: function(evt, elements, chart) {
+          var idx = (elements && elements.length) ? elements[0].index : -1;
+          if (idx === cfHoverIdx) return;
+          cfHoverIdx = idx;
+          if (idx >= 0) {
+            setCfSummary(idx);
+            if (navigator.vibrate) { try { navigator.vibrate(8); } catch(e) {} }
+            chart.data.datasets[0].backgroundColor = cfBaseColors.map(function(c, i) {
+              return i === idx ? c : c + '80';  // dim non-active bars
+            });
+          } else {
+            setCfSummary(null);
+            chart.data.datasets[0].backgroundColor = cfBaseColors.slice();
+          }
+          chart.update('none');
+        },
         onClick: function(evt, elements, chart) {
           if (!elements || !elements.length) return;
           var idx = elements[0].index;
           if (navigator.vibrate) { try { navigator.vibrate(10); } catch(e) {} }
+          setCfSummary(idx);
           if (!chart._targetData) return;
           if (chart._tapAnimId) cancelAnimationFrame(chart._tapAnimId);
           var orig = chart._targetData[idx];
@@ -1723,18 +1754,7 @@ function renderOwners() {
         },
         plugins: {
           legend: { display: false },
-          tooltip: {
-            backgroundColor: '#1a2d3a',
-            titleColor: '#94a3b8',
-            bodyColor: '#fff',
-            padding: 10,
-            cornerRadius: 8,
-            displayColors: false,
-            callbacks: {
-              title: function(items) { return items[0].label; },
-              label: function(ctx) { return 'Balance: ' + fmtDollar(cfBarChartInst._targetData ? cfBarChartInst._targetData[ctx.dataIndex] : ctx.parsed.y); }
-            }
-          }
+          tooltip: { enabled: false }  /* Summary Plate replaces floating tooltip */
         },
         scales: {
           x: {
@@ -1817,6 +1837,9 @@ function renderOwners() {
       cfMonths.length > 1
         ? fmtMkShort(cfMonths[0]) + '\u2013' + fmtMkShort(cfMonths[cfMonths.length - 1])
         : (cfMonths.length + ' months');
+
+    setCfSummary(null);
+    wireChartScroll('cfScrollEl', 'cfScrollWrap');
   } else if (cfCard) {
     cfCard.style.display = 'none';
   }
