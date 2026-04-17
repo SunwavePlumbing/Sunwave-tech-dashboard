@@ -8,6 +8,63 @@
 var SKELETON_DELAY_MS = 150;   // don't flash skeleton if cache returns fast
 var _skelTimer = null;
 var _prevSummary = null;       // remembers previous stat values for count-up
+var _cipherId   = null;        // interval for rolling cipher digits
+var _statusId   = null;        // interval for status phrase cycler
+
+/* Short random monospace string of digits + occasional letters */
+function cipherStr(len) {
+  var chars = '0123456789';
+  var out = '';
+  for (var i = 0; i < len; i++) {
+    out += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return out;
+}
+
+/* Loading phases shown above the table while data is in flight. Each
+   one implies a different stage of work so the user experiences
+   "heavy computation" rather than a single repetitive phrase. */
+var STATUS_PHRASES = [
+  'Fetching job records...',
+  'Aggregating completed work...',
+  'Crunching revenue per technician...',
+  'Compiling leaderboard...',
+  'Sorting by performance...'
+];
+
+function startCipherCycle() {
+  stopCipherCycle();
+  _cipherId = setInterval(function() {
+    document.querySelectorAll('.skel-cipher').forEach(function(el) {
+      var len = parseInt(el.dataset.len) || 6;
+      el.textContent = cipherStr(len);
+    });
+  }, 85);  // fast roll — reads as "computing", not as individual digits
+}
+function stopCipherCycle() {
+  if (_cipherId) { clearInterval(_cipherId); _cipherId = null; }
+}
+
+function startStatusCycle() {
+  stopStatusCycle();
+  var idx = 0;
+  var el = document.getElementById('techLoadingStatus');
+  if (!el) return;
+  el.textContent = STATUS_PHRASES[0];
+  _statusId = setInterval(function() {
+    idx = (idx + 1) % STATUS_PHRASES.length;
+    el.classList.add('is-fading');
+    setTimeout(function() {
+      el.textContent = STATUS_PHRASES[idx];
+      el.classList.remove('is-fading');
+    }, 180);
+  }, 1500);
+}
+function stopStatusCycle() {
+  if (_statusId) { clearInterval(_statusId); _statusId = null; }
+  var el = document.getElementById('techLoadingStatus');
+  if (el) el.remove();
+}
 
 /* Build 3 skeleton stat cards matching the real card dimensions */
 function statsSkeletonHtml() {
@@ -19,30 +76,30 @@ function statsSkeletonHtml() {
   return card + card + card;
 }
 
-/* Build N skeleton rows matching the table row layout. Widths vary
-   subtly between rows so the placeholder doesn't look like a repeating
-   barcode. Kept narrow enough to never force horizontal overflow. */
+/* Build N skeleton rows with rolling-cipher monospaced digits. Length
+   varies between rows so it doesn't look like a grid of identical
+   strings. Digits rotate ~12 times/sec via startCipherCycle(). */
 function rowsSkeletonHtml(n) {
   n = n || 6;
-  var nameWidths    = [70, 90, 60, 80, 75, 85];
-  var revenueWidths = [54, 50, 58, 48, 52, 56];
-  var ticketWidths  = [44, 50, 46, 52, 44, 48];
-  var jobsWidths    = [22, 26, 20, 24, 22, 24];
+  var nameLens    = [6, 8, 5, 7, 6, 8];
+  var revenueLens = [5, 5, 6, 4, 5, 6];
+  var ticketLens  = [4, 5, 4, 5, 4, 4];
+  var jobsLens    = [2, 2, 1, 2, 2, 2];
   var html = '';
   for (var i = 0; i < n; i++) {
-    var nw = nameWidths[i % nameWidths.length];
-    var rw = revenueWidths[i % revenueWidths.length];
-    var tw = ticketWidths[i % ticketWidths.length];
-    var jw = jobsWidths[i % jobsWidths.length];
+    var nL = nameLens[i % nameLens.length];
+    var rL = revenueLens[i % revenueLens.length];
+    var tL = ticketLens[i % ticketLens.length];
+    var jL = jobsLens[i % jobsLens.length];
     html +=
       '<tr class="skel-row">' +
         '<td><div class="tech-cell">' +
           '<div class="skel skel-avatar"></div>' +
-          '<div class="skel skel-line" style="width:' + nw + 'px"></div>' +
+          '<span class="skel-cipher" data-len="' + nL + '">' + cipherStr(nL) + '</span>' +
         '</div></td>' +
-        '<td><div class="skel skel-line" style="width:' + rw + 'px;margin-left:auto"></div></td>' +
-        '<td><div class="skel skel-line" style="width:' + tw + 'px;margin-left:auto"></div></td>' +
-        '<td><div class="skel skel-line" style="width:' + jw + 'px;margin-left:auto"></div></td>' +
+        '<td><span class="skel-cipher" data-len="' + rL + '">' + cipherStr(rL) + '</span></td>' +
+        '<td><span class="skel-cipher" data-len="' + tL + '">' + cipherStr(tL) + '</span></td>' +
+        '<td><span class="skel-cipher" data-len="' + jL + '">' + cipherStr(jL) + '</span></td>' +
       '</tr>';
   }
   return html;
@@ -54,6 +111,18 @@ function showTechSkeleton() {
   document.getElementById('leaderboardBody').innerHTML =
     rowsSkeletonHtml(Math.max(prevRows, 6));
   document.getElementById('leaderboardFoot').innerHTML = '';
+  // Toggle container-level "breathing" pulse + status text
+  var wrap = document.getElementById('tableWrapper');
+  if (wrap) wrap.classList.add('is-loading');
+  // Insert status phrase cycler above the table (once)
+  if (!document.getElementById('techLoadingStatus')) {
+    var status = document.createElement('div');
+    status.id = 'techLoadingStatus';
+    status.className = 'skel-status';
+    wrap && wrap.parentNode.insertBefore(status, wrap);
+  }
+  startCipherCycle();
+  startStatusCycle();
 }
 
 async function fetchData() {
@@ -68,6 +137,7 @@ async function fetchData() {
     var data = await response.json();
     if (!response.ok || data.error) {
       clearTimeout(_skelTimer); _skelTimer = null;
+      teardownLoadingUI();
       document.getElementById('leaderboardBody').innerHTML =
         '<tr><td colspan="4"><div class="error-msg">Error: ' + esc(data.error || 'Unknown error') + '</div></td></tr>';
       document.getElementById('leaderboardFoot').innerHTML = '';
@@ -78,11 +148,22 @@ async function fetchData() {
     render();
   } catch (err) {
     clearTimeout(_skelTimer); _skelTimer = null;
+    teardownLoadingUI();
     document.getElementById('leaderboardBody').innerHTML =
       '<tr><td colspan="4"><div class="error-msg">Error loading data. Check API key and server logs.</div></td></tr>';
   } finally {
     isFetching = false;
   }
+}
+
+/* Tear down skeleton-era UI: stops the cipher and status intervals
+   and removes the breathing-pulse class. Called from render() and
+   from error paths. */
+function teardownLoadingUI() {
+  stopCipherCycle();
+  stopStatusCycle();
+  var wrap = document.getElementById('tableWrapper');
+  if (wrap) wrap.classList.remove('is-loading');
 }
 
 /* Animate stat cards: count up from previous values (or 0 on first load)
@@ -151,6 +232,9 @@ function render() {
   var leaderboard = currentData.leaderboard;
   var summary = currentData.summary;
 
+  // Stop cipher/status first so no intervals keep running after reveal
+  teardownLoadingUI();
+
   var periodEl = document.getElementById('period');
   if (periodEl) periodEl.textContent = summary.period;
 
@@ -176,6 +260,9 @@ function render() {
       : tech.averageTicket >= 750 ? 'ticket-amber'
       : 'ticket-red';
     var firstName = esc(tech.name.trim().split(/\s+/)[0]);
+    /* Wrap numeric values in spans tagged with the target value so they
+       can be counted-up after render. Show $0 / 0 initially so the
+       cascade visibly "fills in" each row. */
     return '<tr data-idx="' + idx + '" data-name="' + esc(tech.name) + '">' +
       '<td><div class="tech-cell">' +
         '<div class="avatar" style="background:' + color + '">' + av + '</div>' +
@@ -185,9 +272,9 @@ function render() {
           '<span class="tech-name-short">' + firstName + '</span>' +
         '</span>' +
       '</div></td>' +
-      '<td>' + fmt(tech.monthlyRevenue) + '</td>' +
-      '<td class="' + ticketClass + '">' + fmt(tech.averageTicket) + '</td>' +
-      '<td>' + tech.jobsCompleted + '</td>' +
+      '<td><span class="row-count" data-kind="dollar" data-val="' + tech.monthlyRevenue + '">$0</span></td>' +
+      '<td class="' + ticketClass + '"><span class="row-count" data-kind="dollar" data-val="' + tech.averageTicket + '">$0</span></td>' +
+      '<td><span class="row-count" data-kind="int" data-val="' + tech.jobsCompleted + '">0</span></td>' +
       '</tr>';
   }).join('');
 
@@ -196,6 +283,24 @@ function render() {
 
   // Run FLIP animation on the NEW DOM using the OLD positions
   playFlipReorder(oldRects);
+
+  /* Staggered row count-up: each row starts 50ms after the previous.
+     700ms per row with easeOutCubic via countUpEl. Numbers spin up
+     fast then gracefully settle into final values. */
+  document.querySelectorAll('#leaderboardBody tr[data-idx]').forEach(function(row, rowIdx) {
+    var delay = rowIdx * 50;
+    setTimeout(function() {
+      row.querySelectorAll('.row-count').forEach(function(el) {
+        var target = parseFloat(el.getAttribute('data-val'));
+        if (isNaN(target)) return;
+        var kind = el.getAttribute('data-kind');
+        var formatter = kind === 'dollar'
+          ? function(v) { return '$' + Math.round(v).toLocaleString(); }
+          : function(v) { return Math.round(v).toLocaleString(); };
+        countUpEl(el, 0, target, 700, formatter);
+      });
+    }, delay);
+  });
 
   // Attach click handlers to rows
   var sortedSnapshot = sorted;

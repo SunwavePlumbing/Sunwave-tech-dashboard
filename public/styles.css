@@ -107,9 +107,14 @@ body {
 /* Legacy spinner retired in favor of skeleton shimmer (see .skel below) */
 .spinner { display: none; }
 
-/* ── Skeleton shimmer loaders ──────────────────────────────────
-   Solid base color with a light gradient sweep left→right. Used in
-   stat cards + leaderboard rows while /api/metrics is in flight. */
+/* ── Skeleton loaders ──────────────────────────────────────────
+   Two visual modes:
+     • `.skel` (stat cards)        — light gradient "shimmer" sweep
+     • `.skel-cipher` (table rows) — rolling monospace digits that
+       cycle every ~85ms to read as "heavy computation"
+   The whole `.table-wrapper.is-loading` breathes slowly (opacity
+   pulse over 2.5s), so the visual tempo implies deep work instead
+   of a hurried flash. */
 .skel {
   display: inline-block;
   background: #eef1f5;
@@ -134,6 +139,50 @@ body {
    than the viewport on mobile */
 .skel-row .tech-cell { max-width: 100%; min-width: 0; }
 .skel-row .tech-cell .skel-line { flex: 0 1 auto; }
+
+/* ── Decryption / rolling-cipher placeholders ─────────────────
+   Muted monospace digits that visibly cycle while data is in flight.
+   Font / opacity are deliberately tuned so the text reads as "the
+   system is working" rather than as data the user should try to
+   parse. */
+.skel-cipher {
+  font-family: ui-monospace, 'SF Mono', 'Menlo', 'Consolas', monospace;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  color: #cbd5e1;           /* pale slate — ambient, not authoritative */
+  opacity: 0.55;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Slow, deliberate "breathing" pulse on the whole table while
+   the cipher is rolling. 2.5s cycle implies deep computation,
+   not a stuck spinner. */
+.table-wrapper.is-loading { animation: skel-breathe 2.5s ease-in-out infinite; }
+@keyframes skel-breathe {
+  0%   { opacity: 0.60; }
+  50%  { opacity: 0.92; }
+  100% { opacity: 0.60; }
+}
+
+/* Status phrase cycler above the table: small, flat, monospace.
+   Brief fade-out before each phrase swap so the transition doesn't
+   flash on the eye. */
+.skel-status {
+  font-family: ui-monospace, 'SF Mono', 'Menlo', 'Consolas', monospace;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  color: #94a3b8;
+  margin: 6px 2px 10px;
+  min-height: 18px;
+  opacity: 1;
+  transition: opacity 0.18s ease;
+}
+.skel-status.is-fading { opacity: 0; }
 @keyframes skel-shimmer {
   0%   { background-position: 100% 0; }
   100% { background-position: -100% 0; }
