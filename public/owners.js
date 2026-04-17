@@ -1373,8 +1373,8 @@ function renderOwners() {
       datasets: [{
         data: donutValues,
         backgroundColor: donutColors,
-        borderWidth: 3, borderColor: '#fff',
-        hoverOffset: 8, hoverBorderColor: '#fff'
+        borderWidth: 3, borderColor: '#F9F8F4',          /* matches --paper-card so the ring slices blend into the card */
+        hoverOffset: 8, hoverBorderColor: '#F9F8F4'
       }]
     },
     options: {

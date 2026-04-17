@@ -87,7 +87,9 @@ body.paper-mode .fin-chart-card,
 body.paper-mode .fin-month-picker,
 body.paper-mode #finCards,
 body.paper-mode #finCards > *,
-body.paper-mode #marketingContent > *,
+body.paper-mode .mkt-table-card,
+body.paper-mode .mkt-proj-card,
+body.paper-mode .mkt-chart-card,
 body.paper-mode .exp-sheet,
 body.paper-mode .modal,
 body.paper-mode .date-bs-sheet {
@@ -109,6 +111,28 @@ body.paper-mode tfoot { background-color: var(--paper-card-alt); }
 body.paper-mode th { color: var(--brand-ink-muted); border-bottom-color: var(--paper-border-firm); }
 body.paper-mode td { border-bottom-color: var(--paper-border); }
 body.paper-mode tr:hover td { background-color: var(--paper-card-alt); }
+
+/* Marketing "Monthly History" table — the sticky first column was
+   hardcoded to `background: white` and the current-month row to
+   cream #fffbf5; neither matches the paper canvas. Re-paint both. */
+body.paper-mode .mkt-table thead th:first-child,
+body.paper-mode .mkt-table tbody td:first-child,
+body.paper-mode .mkt-table tfoot td:first-child {
+  background-color: var(--paper-card);
+}
+body.paper-mode .mkt-row-current,
+body.paper-mode .mkt-row-current td:first-child {
+  background-color: var(--brand-orange-tint) !important;
+}
+/* Section title above the card — remove any implicit background so
+   the label reads as a heading, not a floating block. */
+body.paper-mode .section-title {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  color: var(--brand-ink-muted);
+  padding-left: 2px;
+}
 
 /* ── Softened ink typography ──────────────────────────────────── */
 body.paper-mode h1,
@@ -228,6 +252,55 @@ body.paper-mode .fin-pnl-head,
 body.paper-mode .tab-btn {
   border-color: var(--paper-border);
 }
+
+/* ── Kill hardcoded white dividers throughout the app ──────────
+   Several legacy rules use `#fff` / `white` as the "cut" between
+   stacked bar segments, the sticky first column of the Full Picture
+   grid, halo rings on gauges, etc. In paper mode all of those would
+   show as harsh bright lines over the off-white canvas. Re-paint
+   them to the paper-card tone so they read as gentle creases. */
+body.paper-mode .mf-split-bar > *:not(:last-child) {
+  box-shadow: inset -1px 0 0 var(--paper-card) !important;
+}
+body.paper-mode .mf-gp-revbar-cogs {
+  border-right-color: var(--paper-card) !important;
+}
+body.paper-mode .mf-noi-gauge-needle {
+  border-color: var(--paper-card) !important;
+}
+body.paper-mode .mf-noi-gauge-now::after {
+  border-top-color: var(--paper-card) !important;
+}
+/* Full Picture grid — sticky first column was `background: #fff` */
+body.paper-mode .pnl-grid th:first-child,
+body.paper-mode .pnl-grid td:first-child,
+body.paper-mode .pnl2-th-lbl,
+body.paper-mode .pnl2-td-lbl {
+  background-color: var(--paper-card) !important;
+}
+/* Modal table sticky header — was `background: white` */
+body.paper-mode .modal-table thead th {
+  background-color: var(--paper-card) !important;
+  border-bottom-color: var(--paper-border) !important;
+}
+/* Edge-fade masks on Revenue / Cash-in-the-Bank scroll charts were
+   fading to pure white; fade to the paper-card color instead so the
+   soft gradient blends into the card surface rather than flashing. */
+body.paper-mode .fin-chart-wrap--scroll::before {
+  background: linear-gradient(to left, rgba(249, 248, 244, 0), rgba(249, 248, 244, 0.98)) !important;
+}
+body.paper-mode .fin-chart-wrap--scroll::after {
+  background: linear-gradient(to right, rgba(249, 248, 244, 0), rgba(249, 248, 244, 0.98)) !important;
+}
+/* Sort / date pills — unchecked state was pure white */
+body.paper-mode .sort-btn:not(.active),
+body.paper-mode .date-btn:not(.active) {
+  background: var(--paper-card);
+  border-color: var(--paper-border-firm);
+  color: var(--brand-ink-soft);
+}
+body.paper-mode .fin-toggle button { background: var(--paper-card); color: var(--brand-ink-muted); }
+/* Legacy mkt-table also had white first-column (handled above) */
 
 /* ── Respect reduced-motion preferences ──────────────────────── */
 @media (prefers-reduced-motion: reduce) {
