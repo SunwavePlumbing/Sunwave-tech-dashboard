@@ -1935,7 +1935,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   content: '';
   position: absolute;
   top: 0; bottom: 0;
-  width: 48px;
+  width: 16px;
   pointer-events: none;
   z-index: 2;
   opacity: 1;
