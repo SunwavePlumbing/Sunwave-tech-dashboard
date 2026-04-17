@@ -11,12 +11,24 @@ var _prevSummary = null;       // remembers previous stat values for count-up
 var _cipherId   = null;        // interval for rolling cipher digits
 var _statusId   = null;        // interval for status phrase cycler
 
-/* Short random monospace string of digits + occasional letters */
+/* Short random monospace string of digits (used for revenue / ticket /
+   jobs columns — those are numeric so digits read correctly). */
 function cipherStr(len) {
   var chars = '0123456789';
   var out = '';
   for (var i = 0; i < len; i++) {
     out += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return out;
+}
+
+/* Random uppercase-letter string used to seed the name-column
+   typewriter effect. */
+function letterStr(len) {
+  var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  var out = '';
+  for (var i = 0; i < len; i++) {
+    out += chars.charAt(Math.floor(Math.random() * 26));
   }
   return out;
 }
@@ -35,11 +47,46 @@ var STATUS_PHRASES = [
 function startCipherCycle() {
   stopCipherCycle();
   _cipherId = setInterval(function() {
-    document.querySelectorAll('.skel-cipher').forEach(function(el) {
+    // Numeric columns — all digits re-randomize at once (rolling feel).
+    document.querySelectorAll('.skel-cipher:not(.skel-typewriter)').forEach(function(el) {
       var len = parseInt(el.dataset.len) || 6;
       el.textContent = cipherStr(len);
     });
-  }, 85);  // fast roll — reads as "computing", not as individual digits
+    // Name column — military-style typewriter: reveal one letter at a
+    // time, hold the full string briefly, then wipe and start a new
+    // random word. Each row drifts on its own schedule because its
+    // initial progress is randomized at render time.
+    document.querySelectorAll('.skel-typewriter').forEach(function(el) {
+      var len     = parseInt(el.dataset.len) || 6;
+      var target  = el.dataset.target || '';
+      var progress = parseInt(el.dataset.progress) || 0;
+      var hold     = parseInt(el.dataset.hold) || 0;
+      if (!target || target.length !== len) {
+        target = letterStr(len);
+        el.dataset.target   = target;
+        el.dataset.progress = '0';
+        el.dataset.hold     = '0';
+        el.textContent      = '';
+        return;
+      }
+      if (progress < target.length) {
+        // Type the next letter
+        progress++;
+        el.dataset.progress = String(progress);
+        el.textContent      = target.substring(0, progress);
+      } else if (hold < 10) {
+        // Hold the full word for ~10 ticks (~800ms) so the eye can catch it
+        el.dataset.hold = String(hold + 1);
+      } else {
+        // Reset — pick a fresh word, wipe screen
+        target = letterStr(len);
+        el.dataset.target   = target;
+        el.dataset.progress = '0';
+        el.dataset.hold     = '0';
+        el.textContent      = '';
+      }
+    });
+  }, 80);
 }
 function stopCipherCycle() {
   if (_cipherId) { clearInterval(_cipherId); _cipherId = null; }
@@ -91,11 +138,17 @@ function rowsSkeletonHtml(n) {
     var rL = revenueLens[i % revenueLens.length];
     var tL = ticketLens[i % ticketLens.length];
     var jL = jobsLens[i % jobsLens.length];
+    // Seed each name cell with its own random target + progress offset
+    // so rows don't all type in lockstep.
+    var nameTarget   = letterStr(nL);
+    var nameProgress = Math.floor(Math.random() * (nL + 1));
     html +=
       '<tr class="skel-row">' +
         '<td><div class="tech-cell">' +
           '<div class="skel skel-avatar"></div>' +
-          '<span class="skel-cipher" data-len="' + nL + '">' + cipherStr(nL) + '</span>' +
+          '<span class="skel-cipher skel-typewriter" data-len="' + nL + '"' +
+          ' data-target="' + nameTarget + '" data-progress="' + nameProgress + '" data-hold="0">' +
+          nameTarget.substring(0, nameProgress) + '</span>' +
         '</div></td>' +
         '<td><span class="skel-cipher" data-len="' + rL + '">' + cipherStr(rL) + '</span></td>' +
         '<td><span class="skel-cipher" data-len="' + tL + '">' + cipherStr(tL) + '</span></td>' +

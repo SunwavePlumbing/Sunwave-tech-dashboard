@@ -1127,10 +1127,17 @@ function renderOwners() {
     var priIdx2 = curIdx;
     var priRev  = revenue[priIdx2] || 0;
 
-    // Default compare to prior month when not set / same as selected / not in data
+    // Default compare = SAME MONTH prior year (YoY). Falls back to
+    // prior month if the YoY month isn't in the dataset.
     if (!pnlCompareMonth || pnlCompareMonth === finMonth || months.indexOf(pnlCompareMonth) < 0) {
-      var defPi = priIdx2 - 1;
-      pnlCompareMonth = defPi >= 0 ? months[defPi] : null;
+      var parts = finMonth.split('-');
+      var yoyKey = (parseInt(parts[0]) - 1) + '-' + parts[1];
+      if (months.indexOf(yoyKey) >= 0) {
+        pnlCompareMonth = yoyKey;
+      } else {
+        var defPi = priIdx2 - 1;
+        pnlCompareMonth = defPi >= 0 ? months[defPi] : null;
+      }
     }
     var cmpIdx2 = pnlCompareMonth ? months.indexOf(pnlCompareMonth) : -1;
     var cmpRev  = cmpIdx2 >= 0 ? (revenue[cmpIdx2] || 0) : 0;
@@ -1168,12 +1175,28 @@ function renderOwners() {
       return '<td class="pnl2-delta' + cls + '"><span class="pnl2-pill">' + sign + fmtDollar(diff) + pctStr + '</span></td>';
     }
 
-    // Comparison chip picker — all months except current, most-recent first
-    var chipHtml = months.slice().reverse().filter(function(m) { return m !== finMonth; }).map(function(m) {
-      var act = m === pnlCompareMonth ? ' act' : '';
-      return '<button class="pnl-cmp-chip' + act + '" onclick="setPnlCompare(\'' + m + '\')">' + fmtMkShort(m) + '</button>';
+    // Comparison chip picker — YoY chip pinned first (most useful default),
+    // then prior month, then the rest of history most-recent-first.
+    var parts2  = finMonth.split('-');
+    var yoyKey2 = (parseInt(parts2[0]) - 1) + '-' + parts2[1];
+    var priorMonthKey = priIdx2 > 0 ? months[priIdx2 - 1] : null;
+    var pinned = [];
+    if (months.indexOf(yoyKey2) >= 0) pinned.push({ key: yoyKey2, tag: 'YoY' });
+    if (priorMonthKey && priorMonthKey !== yoyKey2) pinned.push({ key: priorMonthKey, tag: 'Prior' });
+    var pinnedKeys = pinned.map(function(p) { return p.key; });
+    var chipList = pinned.concat(
+      months.slice().reverse()
+        .filter(function(m) { return m !== finMonth && pinnedKeys.indexOf(m) < 0; })
+        .map(function(m) { return { key: m, tag: null }; })
+    );
+    var chipHtml = chipList.map(function(c) {
+      var act = c.key === pnlCompareMonth ? ' act' : '';
+      var tag = c.tag ? '<span class="pnl-cmp-chip-tag">' + c.tag + '</span>' : '';
+      return '<button class="pnl-cmp-chip' + act + '" onclick="setPnlCompare(\'' + c.key + '\')">' +
+             fmtMkShort(c.key) + tag + '</button>';
     }).join('');
-    var pickerHtml = '<div class="pnl-cmp-row"><span class="pnl-cmp-lbl">Comparing against</span>' +
+    var pickerHtml = '<div class="pnl-cmp-row">' +
+      '<span class="pnl-cmp-lbl">Compare to</span>' +
       '<div class="pnl-cmp-chips">' + chipHtml + '</div></div>';
 
     var priHead = fmtMkShort(finMonth);
@@ -1200,7 +1223,7 @@ function renderOwners() {
     document.getElementById('finPnlGrid').innerHTML =
       pickerHtml +
       '<table class="pnl-grid pnl-grid--2col"><thead>' + pnlHead + '</thead><tbody>' + pnlBody + '</tbody></table>';
-    document.getElementById('finPnlSubtitle').textContent = priHead;
+    document.getElementById('finPnlSubtitle').textContent = fmtMkFull(finMonth);
   }
 
   // ── Cost breakdown donut (selected month) ────────────────────
@@ -1619,10 +1642,11 @@ function renderOwners() {
       }
     });
 
-    // ── Scroll-triggered RAF spring animation ────────────────────
-    // 300ms spring with bounciness 0.4 — bars rise flat → target with a
-    // subtle overshoot (~4%) that settles. Uses update('none') to skip
-    // Chart.js's own animation pipeline (avoids color-interp artifacts).
+    // ── Scroll-triggered, staged left-to-right RAF spring animation ─
+    // Each bar runs its own 420ms spring, staggered 60ms apart, so the
+    // wave reads from oldest → newest instead of all bars rising at once.
+    // A settle delay (300ms) after intersection ensures the chart is
+    // fully on-screen before the sequence starts.
     (function() {
       revBarChartInst._targetData = revData.slice();
       revBarChartInst._animScale = 0;
@@ -1630,8 +1654,6 @@ function renderOwners() {
       revBarChartInst.update('none');
 
       // Spring easing: back-style overshoot tuned for "bounciness 0.4"
-      //   Standard easeOutBack uses c1 = 1.70158 (strong bounce)
-      //   c1 = 1.0 gives ~4% overshoot — subtle and satisfying
       function springEase(t) {
         var c1 = 1.0, c3 = c1 + 1;
         return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
@@ -1640,21 +1662,22 @@ function renderOwners() {
       function runRevAnim() {
         if (!revBarChartInst) return;
         if (window._revAnimId) cancelAnimationFrame(window._revAnimId);
+        var N = revBarChartInst._targetData.length;
+        var PER_BAR = 420;             // spring duration per bar
+        var STAGGER = 60;              // ms between each bar's start
+        var TOTAL   = PER_BAR + (N - 1) * STAGGER;
         var start = null;
-        var DURATION = 300;
         function step(ts) {
           if (!start) start = ts;
-          var t = Math.min((ts - start) / DURATION, 1);
-          var eased = springEase(t);
-          revBarChartInst._animScale = eased;
-          revBarChartInst.data.datasets[0].data = revBarChartInst._targetData.map(function(v) {
-            return v * eased;
+          var tGlobal = ts - start;
+          revBarChartInst.data.datasets[0].data = revBarChartInst._targetData.map(function(v, i) {
+            var barT = Math.max(0, Math.min((tGlobal - i * STAGGER) / PER_BAR, 1));
+            return v * springEase(barT);
           });
           revBarChartInst.update('none');
-          if (t < 1) {
+          if (tGlobal < TOTAL) {
             window._revAnimId = requestAnimationFrame(step);
           } else {
-            // Snap to exact target values so labels match bars perfectly
             revBarChartInst._animScale = 1;
             revBarChartInst.data.datasets[0].data = revBarChartInst._targetData.slice();
             revBarChartInst.update('none');
@@ -1666,11 +1689,16 @@ function renderOwners() {
 
       if (window.IntersectionObserver) {
         var revObs = new IntersectionObserver(function(entries) {
-          if (entries[0].isIntersecting) { runRevAnim(); revObs.disconnect(); }
-        }, { threshold: 0.2 });
+          // Require ≥50% visibility + 300ms settle so the chart doesn't
+          // animate mid-scroll and flash at the edge of the viewport.
+          if (entries[0].isIntersecting && entries[0].intersectionRatio >= 0.5) {
+            revObs.disconnect();
+            setTimeout(runRevAnim, 300);
+          }
+        }, { threshold: [0.5] });
         revObs.observe(revCard);
       } else {
-        runRevAnim();
+        setTimeout(runRevAnim, 300);
       }
     })();
 
@@ -1838,7 +1866,10 @@ function renderOwners() {
       }
     });
 
-    // ── Scroll-triggered RAF spring animation (300ms, bounciness 0.4) ───
+    // ── Scroll-triggered, staged left-to-right RAF spring animation ─
+    // Same staging as the Revenue bar chart: per-bar spring (420ms) with
+    // 60ms stagger, a 300ms settle delay after the card reaches ≥50%
+    // visibility so it never flashes mid-scroll.
     (function() {
       var card = document.getElementById('finCashFlowCard');
       cfBarChartInst._targetData = cfBal.slice();
@@ -1854,18 +1885,20 @@ function renderOwners() {
       function runAnim() {
         if (!cfBarChartInst) return;
         if (window._cfAnimId) cancelAnimationFrame(window._cfAnimId);
+        var N = cfBarChartInst._targetData.length;
+        var PER_BAR = 420;
+        var STAGGER = 60;
+        var TOTAL   = PER_BAR + (N - 1) * STAGGER;
         var start = null;
-        var DURATION = 300;
         function step(ts) {
           if (!start) start = ts;
-          var t = Math.min((ts - start) / DURATION, 1);
-          var eased = springEase(t);
-          cfBarChartInst._animScale = eased;
-          cfBarChartInst.data.datasets[0].data = cfBarChartInst._targetData.map(function(v) {
-            return v * eased;
+          var tGlobal = ts - start;
+          cfBarChartInst.data.datasets[0].data = cfBarChartInst._targetData.map(function(v, i) {
+            var barT = Math.max(0, Math.min((tGlobal - i * STAGGER) / PER_BAR, 1));
+            return v * springEase(barT);
           });
           cfBarChartInst.update('none');
-          if (t < 1) {
+          if (tGlobal < TOTAL) {
             window._cfAnimId = requestAnimationFrame(step);
           } else {
             cfBarChartInst._animScale = 1;
@@ -1879,11 +1912,14 @@ function renderOwners() {
 
       if (window.IntersectionObserver) {
         var obs = new IntersectionObserver(function(entries) {
-          if (entries[0].isIntersecting) { runAnim(); obs.disconnect(); }
-        }, { threshold: 0.2 });
+          if (entries[0].isIntersecting && entries[0].intersectionRatio >= 0.5) {
+            obs.disconnect();
+            setTimeout(runAnim, 300);
+          }
+        }, { threshold: [0.5] });
         obs.observe(card);
       } else {
-        runAnim();
+        setTimeout(runAnim, 300);
       }
     })();
 

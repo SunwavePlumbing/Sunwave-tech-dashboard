@@ -158,6 +158,28 @@ body {
   -webkit-user-select: none;
 }
 
+/* Military-style typewriter for the name column — shows a blinking
+   caret right after the last typed character for a "cursor" vibe. */
+.skel-typewriter {
+  min-width: 1ch;
+  display: inline-block;
+  position: relative;
+}
+.skel-typewriter::after {
+  content: '';
+  display: inline-block;
+  width: 1px;
+  height: 11px;
+  background: #94a3b8;
+  margin-left: 2px;
+  vertical-align: -1px;
+  animation: skel-caret-blink 1s step-end infinite;
+}
+@keyframes skel-caret-blink {
+  0%, 55%  { opacity: 1; }
+  56%, 100% { opacity: 0; }
+}
+
 /* Slow, deliberate "breathing" pulse on the whole table while
    the cipher is rolling. 2.5s cycle implies deep computation,
    not a stuck spinner. */
@@ -858,19 +880,40 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   font-size: 11px; font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.7px; color: #64748b; white-space: nowrap; flex-shrink: 0;
 }
-/* Primary (base) month badge on the card title — makes the "base vs.
-   comparison" model unmistakable at a glance. */
-.fin-pnl-head #finPnlSubtitle {
+/* Title block: eyebrow label + BIG selected-month headline. The month
+   dominates so "which month am I looking at?" is never in doubt. */
+.fin-pnl-title-block { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.fin-pnl-overline {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.1px;
+  color: #94a3b8;
+}
+.fin-pnl-month {
+  font-size: 22px;
+  font-weight: 800;
+  color: #1a2d3a;
+  letter-spacing: -0.3px;
+  line-height: 1.15;
+}
+/* Pinned "YoY" / "Prior" tag inside the first couple chips */
+.pnl-cmp-chip-tag {
   display: inline-block;
-  padding: 3px 10px;
-  margin-left: 8px;
-  background: #1a2d3a;
-  color: white !important;
-  font-size: 12px !important;
-  font-weight: 700 !important;
-  border-radius: 6px;
-  letter-spacing: 0.3px;
-  vertical-align: middle;
+  margin-left: 6px;
+  padding: 1px 5px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  border-radius: 4px;
+  background: #f1f5f9;
+  color: #64748b;
+  vertical-align: 1px;
+}
+.pnl-cmp-chip.act .pnl-cmp-chip-tag {
+  background: rgba(255,255,255,0.22);
+  color: #fff;
 }
 .pnl-cmp-chips {
   display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px;

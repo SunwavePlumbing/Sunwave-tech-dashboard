@@ -157,7 +157,10 @@
       <!-- Monthly P&L grid (moved to bottom) -->
       <div class="fin-chart-card" id="finPnlCard" style="display:none;margin-bottom:1.4rem">
         <div class="fin-pnl-head">
-          <div class="fin-chart-title" style="margin-bottom:0">Full Picture &mdash; Month by Month <span id="finPnlSubtitle"></span></div>
+          <div class="fin-pnl-title-block">
+            <div class="fin-pnl-overline">Full picture &mdash; line by line</div>
+            <div class="fin-pnl-month" id="finPnlSubtitle">&mdash;</div>
+          </div>
           <div class="fin-toggle" aria-label="Show dollars or percent of revenue">
             <button id="finModeDollar" class="active" onclick="setFinMode('dollar')">$</button>
             <button id="finModePct" onclick="setFinMode('pct')">% Rev</button>
