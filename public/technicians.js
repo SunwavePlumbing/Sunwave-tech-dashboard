@@ -190,43 +190,49 @@ async function fetchData() {
 }
 
 /* Scramble-then-lock reveal for a technician's name. For each character
-   position (left → right): flash one random A–Z letter, then lock in
-   the real character. Previously-locked chars stay fixed. When all
-   positions are locked, swap in the final display HTML (properly-cased
-   name with the responsive nested spans).
+   position (left → right): flash one random letter (matched to the
+   FINAL character's case — so "John" scrambles as "J"→letter→"o"→
+   letter→…, never flips uppercase→lowercase at the end). Then lock
+   the real character. Once all positions are locked, swap in the
+   final display HTML (with the responsive nested spans).
      el         — the <span> being animated
-     finalName  — plain text full name
+     finalName  — plain text full name (properly cased)
      finalHtml  — HTML to install once reveal completes
      opts       — { flashMs, stepMs } */
 function revealName(el, finalName, finalHtml, opts) {
   opts = opts || {};
   var FLASH = opts.flashMs || 55;       // ms random letter stays visible
   var STEP  = opts.stepMs  || 90;       // ms between successive positions
-  var CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  var upper = (finalName || '').toUpperCase().replace(/[^A-Z]/g, function(c) {
-    // Keep spaces and common separators; strip everything else to letters
-    return /\s/.test(c) ? ' ' : (c === '-' || c === "'" ? c : '');
-  });
-  var len   = upper.length;
+  var UPPER = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  var LOWER = 'abcdefghijklmnopqrstuvwxyz';
+  // Build the target string preserving case; non-letter chars that
+  // aren't spaces / hyphens / apostrophes are dropped.
+  var target = (finalName || '').replace(/[^A-Za-z\s\-']/g, '');
+  var len    = target.length;
   if (!len) { el.innerHTML = finalHtml; return; }
   var locked = '';
-  function rand1() { return CHARS.charAt(Math.floor(Math.random() * 26)); }
+  // Return a random letter whose case matches the given target char
+  function randLike(ch) {
+    var isUpper = ch >= 'A' && ch <= 'Z';
+    var pool = isUpper ? UPPER : LOWER;
+    return pool.charAt(Math.floor(Math.random() * 26));
+  }
   function stepChar(i) {
     if (i >= len) {
       el.innerHTML = finalHtml;
       return;
     }
-    var realChar = upper.charAt(i);
+    var realChar = target.charAt(i);
     // For non-letter chars (space, dash, apostrophe) skip the flash and
-    // lock immediately — random A–Z there would look weird.
-    if (!/[A-Z]/.test(realChar)) {
+    // lock immediately — a random letter there would look weird.
+    if (!/[A-Za-z]/.test(realChar)) {
       locked += realChar;
       el.textContent = locked;
       setTimeout(function() { stepChar(i + 1); }, Math.max(0, STEP - FLASH));
       return;
     }
-    // Flash a random letter at this position
-    el.textContent = locked + rand1();
+    // Flash a random letter at this position, case-matched to the real char
+    el.textContent = locked + randLike(realChar);
     setTimeout(function() {
       // Lock the real character and pause before advancing to the next slot
       locked += realChar;
