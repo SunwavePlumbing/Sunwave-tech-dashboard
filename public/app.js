@@ -34,6 +34,31 @@ function initials(name) {
   return name.slice(0, 2).toUpperCase();
 }
 function fmt(n) { return '$' + Math.round(n).toLocaleString(); }
+
+/* ── Generic number count-up animation ────────────────────────
+   Animates an element's text from its previous displayed numeric
+   value to `targetVal` over `duration` ms using easeOutCubic.
+   `formatter(v)` returns the formatted string for each frame. */
+function countUpEl(el, fromVal, targetVal, duration, formatter) {
+  duration = duration || 400;
+  formatter = formatter || function(v) { return Math.round(v).toLocaleString(); };
+  if (el._countRaf) cancelAnimationFrame(el._countRaf);
+  var start = null;
+  function step(ts) {
+    if (!start) start = ts;
+    var t = Math.min(1, (ts - start) / duration);
+    var eased = 1 - Math.pow(1 - t, 3);
+    var v = fromVal + (targetVal - fromVal) * eased;
+    el.textContent = formatter(v);
+    if (t < 1) {
+      el._countRaf = requestAnimationFrame(step);
+    } else {
+      el.textContent = formatter(targetVal);
+      el._countRaf = null;
+    }
+  }
+  el._countRaf = requestAnimationFrame(step);
+}
 function fmtDate(iso) {
   if (!iso) return '\u2014';
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -90,8 +115,49 @@ function buildDateSheet() {
   sheet.addEventListener('click', function(e) { e.stopPropagation(); });
 
   sheet.innerHTML =
-    '<div class="date-bs-handle"></div>' +
+    '<div class="date-bs-grabber"><div class="date-bs-handle"></div></div>' +
     '<div class="date-bs-title">Select Date Range</div>';
+
+  /* ── Drag-to-dismiss on the grabber/title area ─────────────────
+     Tracks finger Y while dragging the top of the sheet. Released
+     after 80+ px or with strong downward velocity → close. Otherwise
+     springs back to resting position. Drag is only active on the
+     header strip so the scrollable list underneath still scrolls. */
+  var dragStartY = null, dragDy = 0, dragStartT = 0;
+  var grabArea = sheet.querySelector('.date-bs-grabber');
+  function onDragMove(ev) {
+    var y = ev.touches ? ev.touches[0].clientY : ev.clientY;
+    dragDy = Math.max(0, y - dragStartY);  // only allow downward
+    sheet.style.transition = 'none';
+    sheet.style.transform  = 'translateY(' + dragDy + 'px)';
+    if (ev.cancelable) ev.preventDefault();
+  }
+  function onDragEnd() {
+    var dt = Date.now() - dragStartT;
+    var velocity = dragDy / Math.max(dt, 1);   // px/ms
+    sheet.style.transition = '';               // restore default transition
+    sheet.style.transform  = '';               // clear inline so CSS class wins
+    if (dragDy > 80 || velocity > 0.5) {
+      closeDateSheet();
+    }
+    // else it just springs back via the default CSS transition
+    window.removeEventListener('touchmove',  onDragMove, { passive: false });
+    window.removeEventListener('touchend',   onDragEnd);
+    window.removeEventListener('pointermove', onDragMove);
+    window.removeEventListener('pointerup',   onDragEnd);
+    dragStartY = null; dragDy = 0;
+  }
+  function onDragStart(ev) {
+    dragStartY = ev.touches ? ev.touches[0].clientY : ev.clientY;
+    dragStartT = Date.now();
+    dragDy = 0;
+    window.addEventListener('touchmove',  onDragMove, { passive: false });
+    window.addEventListener('touchend',   onDragEnd);
+    window.addEventListener('pointermove', onDragMove);
+    window.addEventListener('pointerup',   onDragEnd);
+  }
+  grabArea.addEventListener('touchstart',  onDragStart, { passive: true });
+  grabArea.addEventListener('pointerdown', onDragStart);
 
   var list = document.createElement('div');
   list.className = 'date-bs-list';
@@ -356,6 +422,11 @@ window.addEventListener('hashchange', function() {
 function init() {
   var tab = window.location.hash.replace('#', '') || DEFAULT_TAB;
   activateTab(tab); // indicator snaps on first paint (no stale position to animate from)
+  // One-shot staggered entrance on first paint. Remove the class once
+  // all animations complete so subsequent renders (filter changes, tab
+  // switches) don't retrigger the fade-in.
+  document.body.classList.add('anim-entrance');
+  setTimeout(function() { document.body.classList.remove('anim-entrance'); }, 1200);
   fetchData();
   setInterval(fetchData, 5 * 60 * 1000);
 }

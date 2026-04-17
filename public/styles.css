@@ -104,10 +104,64 @@ body {
 #leaderboardBody.sorting { opacity: 0.3; }
 
 .table-wrapper { position: relative; background: white; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden; }
-.table-wrapper.loading::after { content: ''; position: absolute; inset: 0; background: rgba(255,255,255,0.65); z-index: 10; }
-.spinner { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); z-index: 11; width: 36px; height: 36px; border: 3px solid #eee; border-top-color: #FF9500; border-radius: 50%; animation: spin 0.7s linear infinite; }
-.table-wrapper.loading .spinner { display: block; }
-@keyframes spin { to { transform: translate(-50%,-50%) rotate(360deg); } }
+/* Legacy spinner retired in favor of skeleton shimmer (see .skel below) */
+.spinner { display: none; }
+
+/* ── Skeleton shimmer loaders ──────────────────────────────────
+   Solid base color with a light gradient sweep left→right. Used in
+   stat cards + leaderboard rows while /api/metrics is in flight. */
+.skel {
+  display: inline-block;
+  background: #eef1f5;
+  background-image: linear-gradient(90deg, #eef1f5 0%, #f8fafc 50%, #eef1f5 100%);
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: skel-shimmer 1.3s linear infinite;
+  border-radius: 6px;
+}
+.skel-line     { height: 12px; display: block; }
+.skel-line--sm { height: 10px; }
+.skel-line--xl { height: 24px; border-radius: 8px; }
+.skel-avatar   { width: 36px; height: 36px; border-radius: 8px; flex-shrink: 0; }
+.skel-row td   { border-bottom: 1px solid #f7f7f7; padding: 14px 16px; }
+@keyframes skel-shimmer {
+  0%   { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+/* ── Staggered entrance on first paint ─────────────────────────
+   Each major row of the Technicians view fades + slides up in
+   sequence, so the page resolves top-down instead of flashing in
+   all at once. One-shot: keyframes run once per page load. */
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0);     }
+}
+body.anim-entrance .header,
+body.anim-entrance .tab-nav,
+body.anim-entrance #techView > .sidebar,
+body.anim-entrance #techView > .stats,
+body.anim-entrance #techView > .sort-section,
+body.anim-entrance #techView > .table-wrapper {
+  opacity: 0;
+  animation: fadeSlideUp 0.5s cubic-bezier(0.2, 0.65, 0.3, 1) both;
+}
+body.anim-entrance .header                    { animation-delay: 0ms;   }
+body.anim-entrance .tab-nav                   { animation-delay: 80ms;  }
+body.anim-entrance #techView > .sidebar       { animation-delay: 160ms; }
+body.anim-entrance #techView > .stats         { animation-delay: 240ms; }
+body.anim-entrance #techView > .sort-section  { animation-delay: 320ms; }
+body.anim-entrance #techView > .table-wrapper { animation-delay: 400ms; }
+
+/* Micro-interaction: press-compress on tappable pills. A quick scale
+   dip + spring-back confirms the tap before the API even starts. */
+.tab-btn:active,
+.sort-btn:active {
+  transform: scale(0.96);
+  transition: transform 0.08s ease-out;
+}
+.tab-btn  { transition: color 0.15s ease, transform 0.15s cubic-bezier(0.5,1.8,0.5,1); }
+.sort-btn { transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.15s cubic-bezier(0.5,1.8,0.5,1); }
 
 table { width: 100%; border-collapse: collapse; }
 thead th { padding: 12px 16px; text-align: left; font-size: 12px; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1px solid #f0f0f0; }
@@ -333,12 +387,23 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
     box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
   }
   .date-bs-backdrop.open .date-bs-sheet { transform: translateY(0); }
+  /* Grabber: generous invisible hit area around the visible handle so
+     the drag gesture is easy to catch with a thumb. */
+  .date-bs-grabber {
+    width: 100%;
+    padding: 10px 0 8px;
+    display: flex;
+    justify-content: center;
+    cursor: grab;
+    touch-action: none;  /* we handle vertical panning ourselves */
+    flex-shrink: 0;
+  }
+  .date-bs-grabber:active { cursor: grabbing; }
   .date-bs-handle {
     width: 38px; height: 4px;
     background: #cbd5e1;
     border-radius: 2px;
-    margin: 2px auto 10px;
-    flex-shrink: 0;
+    pointer-events: none;  /* let events land on the grabber */
   }
   .date-bs-title {
     font-size: 16px; font-weight: 700;
