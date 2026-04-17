@@ -1565,10 +1565,8 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   /* ── RESPONSIVE CHART HEIGHTS & SCROLLING ──────────────────────────────── */
   .fin-chart-wrap { height: 200px !important; }  /* trend, revenue, cashflow — increased from 180px for better label spacing */
   #finTrendCard  .fin-chart-wrap { height: 200px; }
-  #finRevCard    .fin-chart-wrap { height: 200px; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
-  #finRevCard canvas { min-width: 600px; height: auto !important; }
-  #finCashFlowCard .fin-chart-wrap { height: 200px; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
-  #finCashFlowCard canvas { min-width: 600px; height: auto !important; }
+  #finRevCard    .fin-chart-wrap { height: 200px; }
+  #finCashFlowCard .fin-chart-wrap { height: 200px; }
   #finRow2       .fin-chart-wrap { height: 420px; }  /* donut chart — MUCH larger (was 280px) to accommodate legend and improve visibility */
 
   /* ── FONT SIZES: WCAG AA compliant (16px body, 14px labels, 12px small) */
