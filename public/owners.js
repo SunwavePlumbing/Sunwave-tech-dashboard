@@ -1335,6 +1335,14 @@ function renderOwners() {
     // prioritizes the CHANGE (delta) over the raw totals. Returns:
     //   { html, sign: 'pos'|'neg'|'flat', absDiff, absPct }
     // so the caller can sort/group by performance direction.
+    // Category rows (ALL-CAPS section headers with warm gray wash).
+    // Everything else is leaf / subtotal / grand-total. Gross Profit and
+    // Net Operating Income are subtotals (single rule above / double
+    // rule around respectively).
+    var CATEGORY_LABELS = {
+      'Revenue': 1, 'Cost of Goods Sold': 1, 'Operating Expenses': 1
+    };
+
     function buildLedgerRow(row, pi, ci, priRev, cmpRev) {
       var pv   = row.arr[pi] || 0;
       var cv   = ci >= 0 ? (row.arr[ci] || 0) : 0;
@@ -1346,8 +1354,7 @@ function renderOwners() {
       var isGood  = !isFlat && (row.good === 'up' ? diff > 0 : diff < 0);
       var sign    = isFlat ? 'flat' : (isGood ? 'pos' : 'neg');
 
-      // Percent change vs compare base — used for spark-bar width
-      // AND for the "(+25%)" secondary text in the delta badge.
+      // Percent change vs compare base
       var pctVal = 0, pctTxt = '';
       if (!isFlat) {
         if (Math.abs(cv) > 1) {
@@ -1355,65 +1362,80 @@ function renderOwners() {
           var absP = Math.abs(pctVal);
           pctTxt = (absP > 999 ? '>999' : Math.round(pctVal)) + '%';
         } else if (pv !== 0) {
-          // New category this period — no prior base to compare against
-          pctVal = 100; // max spark bar
+          pctVal = 100;
           pctTxt = 'new';
         }
       }
 
-      // Spark-bar width: percent change clamped to 0–100 of the max
-      // width. "new" categories peg to 100. Flat rows get no bar.
-      var sparkW = isFlat ? 0 : Math.min(Math.abs(pctVal), 100);
+      // Directional arrow — ▲ positive $ change, ▼ negative $ change,
+      // — for flat. Colors itself via the parent delta wrapper's
+      // good/bad class so semantics stay accurate (a ▲ on a cost row
+      // is still a "watch" event, not a win).
+      var arrowGlyph = isFlat ? '\u2013' : (diff > 0 ? '\u25B2' : '\u25BC');
 
-      // Delta badge text: "+$55K (+25%)" — sign prefix only for non-flat
-      var deltaTxt;
+      // Delta text: $ amount + (%) + directional arrow
+      var deltaHtml;
       if (isFlat) {
-        deltaTxt = ci < 0 ? '—' : 'no change';
+        deltaHtml =
+          '<span class="pnl-delta-arrow">' + arrowGlyph + '</span>' +
+          '<span class="pnl-delta-text">' + (ci < 0 ? '\u2014' : 'no change') + '</span>';
       } else {
         var sgn = diff > 0 ? '+' : '';
+        var pctPrefix = diff > 0 ? '+' : '';
         var pctChunk = pctTxt
-          ? ' <span class="pnl-delta-pct">(' + (diff > 0 ? '+' : '') + (pctTxt === 'new' ? 'new' : pctTxt) + ')</span>'
+          ? '<span class="pnl-delta-pct">(' + pctPrefix + (pctTxt === 'new' ? 'new' : pctTxt) + ')</span>'
           : '';
-        deltaTxt = sgn + fmtDollar(diff) + pctChunk;
+        deltaHtml =
+          '<span class="pnl-delta-arrow">' + arrowGlyph + '</span>' +
+          '<span class="pnl-delta-text">' + sgn + fmtDollar(diff) + '</span>' +
+          pctChunk;
       }
 
-      // Highlighter classes (vibrant palette — kelly green / coral)
+      // Highlighter classes — confined strictly to the delta pill in col 3
       var deltaCls = isFlat ? 'pnl-row-delta--flat'
                    : isGood ? 'pnl-row-delta--good'
                    :          'pnl-row-delta--bad';
-      var sparkCls = isGood ? 'pnl-spark--good' : 'pnl-spark--bad';
 
-      // Category vs leaf vs subtotal vs grand-total — typography tiers
-      var rowTier = row.cls === 'indent'  ? 'pnl-row--indent'
-                  : row.cls === 'total'   ? 'pnl-row--total'
-                  : row.cls === 'subtotal'? 'pnl-row--sub'
-                  :                         'pnl-row--cat';
+      // Accounting hierarchy tier
+      var rowTier;
+      if (row.cls === 'indent')           rowTier = 'pnl-row--leaf';
+      else if (row.cls === 'total')       rowTier = 'pnl-row--total';
+      else if (CATEGORY_LABELS[row.label])rowTier = 'pnl-row--cat';
+      else                                 rowTier = 'pnl-row--sub';  // Gross Profit
 
-      // Right side: current value + faded "was $X" below
-      var curHtml  = '<div class="pnl-row-cur">' + fmtDollar(pv) + '</div>';
-      var prevHtml = ci < 0
-        ? '<div class="pnl-row-prev">&mdash;</div>'
-        : '<div class="pnl-row-prev">was ' + fmtDollar(cv) + '</div>';
+      // Label — ALL-CAPS for categories + grand-total (accounting convention)
+      var labelText = (rowTier === 'pnl-row--cat' || rowTier === 'pnl-row--total')
+        ? row.label.toUpperCase()
+        : row.label;
 
-      // Delta badge + spark bar stacked as one inline group on the left.
-      // Flat rows omit the spark for calm typography.
-      var sparkHtml = isFlat ? '' :
-        '<span class="pnl-spark ' + sparkCls + '" style="--w:' + sparkW + '%"></span>';
-      var deltaHtml =
-        '<div class="pnl-row-delta ' + deltaCls + '">' +
-          '<span class="pnl-delta-text">' + deltaTxt + '</span>' +
-          sparkHtml +
+      // Leader (dotted line) only on leaf rows — categories get a row
+      // wash so a leader would fight the background. Subtotals / totals
+      // are bold enough that their label + values read as a unit.
+      var leaderHtml = (rowTier === 'pnl-row--leaf')
+        ? '<span class="pnl-row-leader" aria-hidden="true"></span>'
+        : '';
+
+      var valuesHtml =
+        '<div class="pnl-row-values">' +
+          '<div class="pnl-row-cur">' + fmtDollar(pv) + '</div>' +
+          (ci < 0
+            ? '<div class="pnl-row-prev">&mdash;</div>'
+            : '<div class="pnl-row-prev">was ' + fmtDollar(cv) + '</div>') +
+        '</div>';
+
+      var deltaCellHtml =
+        '<div class="pnl-row-delta-cell">' +
+          '<span class="pnl-row-delta ' + deltaCls + '">' + deltaHtml + '</span>' +
         '</div>';
 
       var html =
         '<div class="pnl-row ' + rowTier + '" data-sign="' + sign + '">' +
-          '<div class="pnl-row-left">' +
-            '<div class="pnl-row-label">' + esc(row.label) + '</div>' +
-            deltaHtml +
+          '<div class="pnl-row-name">' +
+            '<span class="pnl-row-label">' + esc(labelText) + '</span>' +
+            leaderHtml +
           '</div>' +
-          '<div class="pnl-row-right">' +
-            curHtml + prevHtml +
-          '</div>' +
+          valuesHtml +
+          deltaCellHtml +
         '</div>';
 
       return { html: html, sign: sign, absDiff: Math.abs(diff), absPct: Math.abs(pctVal), row: row };

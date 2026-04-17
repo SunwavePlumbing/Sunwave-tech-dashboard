@@ -323,6 +323,14 @@ body.paper-mode .tab-btn {
 body.paper-mode .mf-split-bar > *:not(:last-child) {
   box-shadow: inset -1px 0 0 var(--paper-card) !important;
 }
+/* Kill the outer drop shadow on stacked bars. The base rule applies
+   `box-shadow: 0 2px 6px rgba(0,0,0,0.04)` to .mf-split-bar, which on
+   a uniform paper canvas renders as a faint darker strip directly
+   beneath each bar — reads as a "dividing line" or "highlight" that
+   doesn't match the background. Paper doesn't cast shadows. */
+body.paper-mode .mf-split-bar {
+  box-shadow: none !important;
+}
 /* Unify "Profit formula" section backgrounds. Before: .mf-op used
    #f7f8f9 and .mf-step--gp/noi each had their own tinted fills, so
    the 1px paper-card cuts between stacked-bar segments looked off-
@@ -547,136 +555,125 @@ body.paper-mode .pnl-grid--2col tr.total .pnl2-td-lbl {
 }
 
 /* ════════════════════════════════════════════════════════════════
-   "Performance Impact" Ledger (replaces the 3-column 2col table)
+   "Modern Paper P&L" Ledger — strict 3-column tabular layout
    ────────────────────────────────────────────────────────────────
-   Stacked flex row: label + delta badge on the left, current $ +
-   faded "was $X" on the right. Grouped into Wins / Watchlist so
-   the UI diagnoses performance instead of forcing a scan.
+     Col 1: Line Item Name + dotted leader (fills empty space)
+     Col 2: Current period $ (hero) + italic "was $X" below
+     Col 3: Delta badge with directional arrow, confined strictly
+            to this column — the rest of the row reads clean B&W.
+   Hierarchy via ALL-CAPS + gray wash (categories), indentation
+   (leaves), single-rule top (subtotal), double-rule (grand total).
+   Wins / Watchlist grouping is retained as the outer structure.
    ════════════════════════════════════════════════════════════════ */
 
 body.paper-mode .pnl-ledger {
-  padding: 4px 0 2px;
+  padding: 4px 0 6px;
+  font-variant-numeric: tabular-nums;  /* every digit same width */
 }
 
+/* Section grouping (Growth & Improvements / Areas for Attention) */
 body.paper-mode .pnl-group { display: block; }
 body.paper-mode .pnl-group-title {
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--brand-ink-muted);
-  padding: 18px 10px 8px;
+  padding: 18px 12px 10px;
 }
 body.paper-mode .pnl-group--wins .pnl-group-title  { color: #15803D; }
 body.paper-mode .pnl-group--watch .pnl-group-title { color: #B91C1C; }
-
-/* Wavy/dashed pencil divider between Wins and Watchlist */
 body.paper-mode .pnl-divider {
   height: 1px;
-  margin: 10px 10px 0;
+  margin: 12px 12px 2px;
   border-bottom: 1px dashed rgba(55, 59, 77, 0.22);
 }
 
-/* Row — flex, no hard borders, subtle tactile hover */
+/* ── The tabular row ──────────────────────────────────────────── */
+/* 3-col grid: name(+leader fills) | values(auto) | delta(auto).
+   Column 1 is the only flexible column — it absorbs all available
+   width so the leader can stretch between the label and the values. */
 body.paper-mode .pnl-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  padding: 12px 10px;
-  border-radius: 10px;
-  transition: background 150ms ease, transform 150ms ease;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  column-gap: 18px;
+  padding: 9px 14px;
+  position: relative;
+  font-variant-numeric: tabular-nums;
 }
-body.paper-mode .pnl-row:hover  { background: rgba(0, 0, 0, 0.035); }
-body.paper-mode .pnl-row:active { background: rgba(0, 0, 0, 0.05); transform: scale(0.99); }
 
-body.paper-mode .pnl-row-left {
-  flex: 1;
+/* Column 1 — label + dotted leader */
+body.paper-mode .pnl-row-name {
+  display: flex;
+  align-items: baseline;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  align-items: flex-start;
+  gap: 8px;
 }
-body.paper-mode .pnl-row-right {
-  text-align: right;
-  min-width: 96px;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  align-items: flex-end;
-  flex-shrink: 0;
-}
-
-/* Typography tiers — leaves vs categories vs subtotals vs grand-total */
 body.paper-mode .pnl-row-label {
+  flex-shrink: 0;
+  white-space: nowrap;
   font-size: 14px;
-  font-weight: 600;
-  color: var(--brand-ink);
-  line-height: 1.25;
-}
-body.paper-mode .pnl-row--indent .pnl-row-label {
   font-weight: 500;
   color: var(--brand-ink-soft);
-  padding-left: 14px;
-  font-size: 13.5px;
+  line-height: 1.3;
+  letter-spacing: 0.01em;
 }
-body.paper-mode .pnl-row--cat .pnl-row-label {
-  font-weight: 700;
-  font-size: 15.5px;
-}
-body.paper-mode .pnl-row--sub .pnl-row-label {
-  font-weight: 800;
-  font-size: 15.5px;
-  color: var(--brand-ink);
-}
-body.paper-mode .pnl-row--total .pnl-row-label {
-  font-weight: 800;
-  font-size: 16px;
-  color: var(--brand-ink);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+/* Dotted ledger leader — the classic accounting "...." that tracks
+   from the label over to the numbers. Flex-grow takes all remaining
+   horizontal space; border-bottom draws the dots on the baseline;
+   transform nudges it up to sit under the x-height. */
+body.paper-mode .pnl-row-leader {
+  flex: 1 1 auto;
+  min-width: 18px;
+  height: 1px;
+  border-bottom: 1.5px dotted rgba(55, 59, 77, 0.22);
+  transform: translateY(-5px);
 }
 
-/* Right column — current $ (hero) stacked over faded "was $X" */
+/* Column 2 — current value (hero) stacked over italic "was $X" */
+body.paper-mode .pnl-row-values {
+  text-align: right;
+  min-width: 96px;
+}
 body.paper-mode .pnl-row-cur {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--brand-ink);
-  font-variant-numeric: tabular-nums;
   line-height: 1.15;
 }
-body.paper-mode .pnl-row--cat  .pnl-row-cur { font-size: 19px; }
-body.paper-mode .pnl-row--sub  .pnl-row-cur { font-size: 20px; font-weight: 800; }
-body.paper-mode .pnl-row--total .pnl-row-cur { font-size: 22px; font-weight: 800; }
-body.paper-mode .pnl-row--indent .pnl-row-cur { font-size: 15px; font-weight: 600; }
 body.paper-mode .pnl-row-prev {
-  font-size: 12px;
+  font-size: 11.5px;
   font-style: italic;
   color: var(--brand-ink-muted);
-  opacity: 0.75;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.1;
+  opacity: 0.78;
+  line-height: 1.15;
+  margin-top: 2px;
 }
 
-/* Delta "highlighter" badge — vibrant wash, saturated ink, spark-bar */
+/* Column 3 — delta pill, STRICTLY confined to this column */
+body.paper-mode .pnl-row-delta-cell {
+  min-width: 158px;
+  text-align: right;
+}
 body.paper-mode .pnl-row-delta {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 7px;
   padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 13px;
+  border-radius: 5px;
+  font-size: 12.5px;
   font-weight: 700;
-  font-variant-numeric: tabular-nums;
   line-height: 1.2;
-  max-width: 100%;
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
 }
 body.paper-mode .pnl-row-delta--good {
-  background: rgba(34, 197, 94, 0.15);
+  background: rgba(34, 197, 94, 0.16);
   color: #15803D;
 }
 body.paper-mode .pnl-row-delta--bad {
-  background: rgba(239, 68, 68, 0.15);
+  background: rgba(239, 68, 68, 0.16);
   color: #B91C1C;
 }
 body.paper-mode .pnl-row-delta--flat {
@@ -684,41 +681,119 @@ body.paper-mode .pnl-row-delta--flat {
   color: var(--brand-ink-muted);
   font-weight: 600;
 }
-body.paper-mode .pnl-delta-pct { opacity: 0.78; font-weight: 600; }
-
-/* Spark-bar — pre-attentive magnitude cue inside the delta badge */
-body.paper-mode .pnl-spark {
-  display: inline-block;
-  height: 4px;
-  width: var(--w, 0%);
-  max-width: 64px;
-  min-width: 10px;
-  border-radius: 2px;
-  flex-shrink: 0;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35) inset;
+body.paper-mode .pnl-delta-arrow {
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 900;
+  letter-spacing: 0;
 }
-body.paper-mode .pnl-spark--good { background: #22C55E; }
-body.paper-mode .pnl-spark--bad  { background: #EF4444; }
+body.paper-mode .pnl-delta-pct {
+  opacity: 0.78;
+  font-weight: 600;
+}
 
-/* Mobile — tighter padding, smaller typography, shorter spark */
+/* ── Accounting hierarchy tiers ────────────────────────────────── */
+
+/* LEAF — indented sub-items (Tech Labor, Parts, Rent, etc.) */
+body.paper-mode .pnl-row--leaf .pnl-row-label {
+  padding-left: 24px;
+  font-weight: 500;
+  color: var(--brand-ink-soft);
+}
+body.paper-mode .pnl-row--leaf .pnl-row-cur {
+  font-weight: 600;
+}
+
+/* CATEGORY — Revenue / Cost of Goods Sold / Operating Expenses
+   ALL-CAPS, bold charcoal, warm gray wash across the full row to
+   signal a section break. No leader — the wash fills the gap. */
+body.paper-mode .pnl-row--cat {
+  background: rgba(55, 50, 45, 0.045);
+  margin: 6px 0 2px;
+  padding-top: 12px;
+  padding-bottom: 12px;
+  border-radius: 3px;
+}
+body.paper-mode .pnl-row--cat .pnl-row-label {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #2C2A28;
+}
+body.paper-mode .pnl-row--cat .pnl-row-cur {
+  font-size: 18px;
+  font-weight: 800;
+  color: #2C2A28;
+}
+
+/* SUBTOTAL — Gross Profit. Single solid rule above the number
+   (accounting convention for "sum line"). Bold label, regular case. */
+body.paper-mode .pnl-row--sub {
+  border-top: 1px solid rgba(55, 59, 77, 0.35);
+  margin-top: 4px;
+  padding-top: 12px;
+}
+body.paper-mode .pnl-row--sub .pnl-row-label {
+  font-weight: 800;
+  font-size: 14.5px;
+  color: var(--brand-ink);
+}
+body.paper-mode .pnl-row--sub .pnl-row-cur {
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--brand-ink);
+}
+
+/* TOTAL — Net Operating Income. Double rule above AND below,
+   ALL-CAPS, bold — the bottom line of the statement. */
+body.paper-mode .pnl-row--total {
+  border-top: 3px double rgba(55, 59, 77, 0.55);
+  border-bottom: 3px double rgba(55, 59, 77, 0.55);
+  margin-top: 10px;
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+body.paper-mode .pnl-row--total .pnl-row-label {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: #2C2A28;
+}
+body.paper-mode .pnl-row--total .pnl-row-cur {
+  font-size: 22px;
+  font-weight: 800;
+  color: #2C2A28;
+}
+
+/* ── Watercolor hover state (respects cyan wash rule defined later) ─
+   Rows are transparent by default, so a cyan hover pairs nicely with
+   the dotted leader + b&w values. */
+body.paper-mode .pnl-row:not(.pnl-row--cat):not(.pnl-row--total):hover {
+  background: var(--wash-cyan);
+}
+
+/* ── Mobile — tighter padding, smaller labels, narrower delta col ── */
 @media (max-width: 768px) {
-  body.paper-mode .pnl-row { padding: 11px 6px; gap: 10px; }
-  body.paper-mode .pnl-row-right { min-width: 82px; }
-  body.paper-mode .pnl-row-label           { font-size: 13px; }
-  body.paper-mode .pnl-row--indent .pnl-row-label { font-size: 12.5px; padding-left: 10px; }
-  body.paper-mode .pnl-row--cat .pnl-row-label    { font-size: 14px; }
-  body.paper-mode .pnl-row--sub .pnl-row-label    { font-size: 14px; }
-  body.paper-mode .pnl-row--total .pnl-row-label  { font-size: 14.5px; }
-  body.paper-mode .pnl-row-cur             { font-size: 15px; }
-  body.paper-mode .pnl-row--cat .pnl-row-cur      { font-size: 16.5px; }
-  body.paper-mode .pnl-row--sub .pnl-row-cur      { font-size: 17px; }
-  body.paper-mode .pnl-row--total .pnl-row-cur    { font-size: 18px; }
-  body.paper-mode .pnl-row--indent .pnl-row-cur   { font-size: 14px; }
-  body.paper-mode .pnl-row-prev            { font-size: 11px; }
-  body.paper-mode .pnl-row-delta           { font-size: 12px; padding: 3px 8px; gap: 8px; }
-  body.paper-mode .pnl-spark               { max-width: 42px; min-width: 8px; }
-  body.paper-mode .pnl-group-title         { padding: 14px 6px 6px; font-size: 10.5px; }
-  body.paper-mode .pnl-divider             { margin: 8px 6px 0; }
+  body.paper-mode .pnl-row {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    column-gap: 10px;
+    padding: 9px 8px;
+  }
+  body.paper-mode .pnl-row-label           { font-size: 12.5px; }
+  body.paper-mode .pnl-row--leaf .pnl-row-label { padding-left: 14px; }
+  body.paper-mode .pnl-row--cat .pnl-row-label  { font-size: 11.5px; letter-spacing: 0.08em; }
+  body.paper-mode .pnl-row--sub .pnl-row-label  { font-size: 13px; }
+  body.paper-mode .pnl-row--total .pnl-row-label{ font-size: 12.5px; letter-spacing: 0.1em; }
+  body.paper-mode .pnl-row-values          { min-width: 72px; }
+  body.paper-mode .pnl-row-cur             { font-size: 14px; }
+  body.paper-mode .pnl-row--cat  .pnl-row-cur { font-size: 15.5px; }
+  body.paper-mode .pnl-row--sub  .pnl-row-cur { font-size: 16px; }
+  body.paper-mode .pnl-row--total .pnl-row-cur{ font-size: 18px; }
+  body.paper-mode .pnl-row-prev            { font-size: 10.5px; }
+  body.paper-mode .pnl-row-delta-cell      { min-width: 126px; }
+  body.paper-mode .pnl-row-delta           { font-size: 11px; padding: 3px 7px; gap: 5px; }
+  body.paper-mode .pnl-delta-arrow         { font-size: 9px; }
+  body.paper-mode .pnl-row-leader          { min-width: 10px; border-bottom-width: 1px; }
 }
 
 /* ── Compare-month sheet / modal ────────────────────────────── */
@@ -1082,10 +1157,11 @@ body.paper-mode .row-count.is-winner::before {
 body.paper-mode tr:hover td {
   background-color: var(--wash-cyan) !important;
 }
-body.paper-mode .pnl-row:hover {
-  background: var(--wash-cyan);
-}
-body.paper-mode .pnl-row:active {
+/* Scoped to leaf/subtotal rows only — categories carry a persistent
+   warm-gray wash and the grand-total carries double-rule borders, so
+   neither should flip to cyan on hover (would fight the section
+   chrome). Matches the :hover rule higher up in the ledger block. */
+body.paper-mode .pnl-row:not(.pnl-row--cat):not(.pnl-row--total):active {
   background: var(--wash-cyan-firm);
   transform: scale(0.99);
 }
@@ -1118,8 +1194,68 @@ body.paper-mode #cfBarChart {
    Profit", "Net Operating Income") pick up the fountain-pen blue so
    they read as anchor lines of a hand-kept ledger. Leaves + the big
    grand-total row stay in the brand ink for contrast. */
-body.paper-mode .pnl-row--cat .pnl-row-label,
+/* Gross Profit (subtotal) label picks up the fountain-pen Oxford Blue
+   to feel like a hand-penned anchor line. Categories stay charcoal
+   (#2C2A28) per the "Modern Paper P&L" spec — the warm gray wash is
+   enough hierarchy, adding color would muddy the ALL-CAPS treatment. */
 body.paper-mode .pnl-row--sub .pnl-row-label { color: var(--riso-oxford); }
+
+/* ════════════════════════════════════════════════════════════════
+   "Paper Watermark" skeleton loader
+   ────────────────────────────────────────────────────────────────
+   Replaces the default cool-grey blocks (#eef1f5 → #f8fafc shimmer)
+   with a transparent warm-charcoal wash that multiplies into the
+   paper grain beneath. The shimmer wave darkens rather than
+   brightens, so it reads like a shadow rolling across damp paper
+   instead of a glossy sheen. Every block also gets a tiny inner
+   shadow so it looks stamped / debossed into the page.
+   ════════════════════════════════════════════════════════════════ */
+
+body.paper-mode .skel {
+  /* Base "wet paper" wash — transparent warm charcoal, so the paper
+     grain and canvas tone show through instead of being blocked. */
+  background-color: rgba(44, 42, 40, 0.04);
+  /* Rolling wave: fully transparent → faint warm ink peak → transparent.
+     Animation remains the same @keyframes skel-shimmer from styles.css
+     (swept via background-position), only the colors change here. */
+  background-image: linear-gradient(
+    90deg,
+    rgba(70, 65, 60, 0.00) 0%,
+    rgba(70, 65, 60, 0.08) 50%,
+    rgba(70, 65, 60, 0.00) 100%
+  );
+  background-size: 200% 100%;
+  /* Makes the block interact with the global SVG noise texture —
+     the grain darkens THROUGH the skeleton shape instead of the block
+     sitting on top like a plastic overlay. */
+  mix-blend-mode: multiply;
+  /* Micro inner shadow — the block looks pressed into the paper fibers
+     while it waits for the real ink (data) to fill it in. */
+  box-shadow: inset 0 1px 3px rgba(70, 65, 60, 0.04);
+}
+
+/* Row divider in the loading-state table was a cool pale grey — swap
+   to the shared paper-border so rows separate on warm paper. */
+body.paper-mode .skel-row td {
+  border-bottom-color: var(--paper-border);
+}
+
+/* Cipher text / status line were cool slate — warm them to muted
+   pencil ink so they read like faintly penciled placeholders, not
+   LCD subpixels. */
+body.paper-mode .skel-cipher {
+  color: rgba(44, 42, 40, 0.28);
+  opacity: 0.7;
+}
+body.paper-mode .skel-status {
+  color: rgba(44, 42, 40, 0.5);
+}
+/* Name scramble tone during reveal — match the warm muted ink used
+   elsewhere in the loader so the transition into the final name
+   stays on-palette. Final color is set by the non-loading rule. */
+body.paper-mode .tech-name-label.is-revealing {
+  color: rgba(44, 42, 40, 0.5);
+}
 
 /* ── Respect reduced-motion preferences ──────────────────────── */
 @media (prefers-reduced-motion: reduce) {
@@ -1132,4 +1268,6 @@ body.paper-mode .pnl-row--sub .pnl-row-label { color: var(--riso-oxford); }
   body.paper-mode .tt-cursor { animation: none; opacity: 1; }
   body.paper-mode .tt-line { animation: none; }
   body.paper-mode #marketingContent.mkt-mount-in > * { animation: none; }
+  /* Skeleton shimmer also stops — block stays at base tone. */
+  body.paper-mode .skel { animation: none; background-image: none; }
 }
