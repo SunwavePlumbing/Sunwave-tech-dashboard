@@ -421,8 +421,8 @@ app.get('/api/metrics', async (req, res) => {
         headers,
         params: {
           work_status: ['completed'],
-          scheduled_start_min: periodStart.toISOString(),
-          scheduled_start_max: periodEnd.toISOString(),
+          completed_start_min: periodStart.toISOString(),
+          completed_start_max: periodEnd.toISOString(),
           page,
           page_size: pageSize
         }
@@ -623,8 +623,8 @@ app.get('/api/marketing', async (req, res) => {
           headers,
           params: {
             work_status: ['completed'],
-            scheduled_start_min: bucket.start.toISOString(),
-            scheduled_start_max: bucket.end.toISOString(),
+            completed_start_min: bucket.start.toISOString(),
+            completed_start_max: bucket.end.toISOString(),
             page,
             page_size: 200
           }
