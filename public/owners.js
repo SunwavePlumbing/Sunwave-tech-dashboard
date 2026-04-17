@@ -1287,17 +1287,20 @@ function renderOwners() {
     }
   }
 
+  // ── ANIMATION RESTART (exposed globally so it can be called on data changes) ────────────────────
+  function restartTrendAnim() {
+    if (!trendChartInst) return;
+    // Reset and restart the reveal animation
+    if (window._trendAnimId) cancelAnimationFrame(window._trendAnimId);
+    _tRev.v = 0;
+    _tStart = null;
+    window._trendAnimId = requestAnimationFrame(_tAnimLoop);
+  }
+  window.restartTrendAnim = restartTrendAnim; // Expose globally for period changes
+
   // Scroll-triggered animation: restart reveal when card enters viewport
   (function() {
     var trendCard = document.getElementById('finTrendCard');
-    function restartTrendAnim() {
-      if (!trendChartInst) return;
-      // Reset and restart the reveal animation
-      if (window._trendAnimId) cancelAnimationFrame(window._trendAnimId);
-      _tRev.v = 0;
-      _tStart = null;
-      window._trendAnimId = requestAnimationFrame(_tAnimLoop);
-    }
     // Desktop (>768px): Scroll animation enabled for smooth reveal
     if (window.innerWidth > 768 && window.IntersectionObserver) {
       var trendObs = new IntersectionObserver(function(entries) {
@@ -1312,6 +1315,10 @@ function renderOwners() {
 
   // Build the 2-item overlay legend (active series + target if it exists)
   buildTrendLegend(TREND_SERIES, curIdx);
+
+  // Restart animation immediately when chart data changes (period selection, tab switching, etc.)
+  // This ensures the smooth center-out reveal plays every time the chart is rendered
+  restartTrendAnim();
 
   // ── Revenue Over Time ─────────────────────────────────────────
   var revCard = document.getElementById('finRevCard');
