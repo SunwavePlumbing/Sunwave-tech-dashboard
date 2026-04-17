@@ -47,46 +47,14 @@ var STATUS_PHRASES = [
 function startCipherCycle() {
   stopCipherCycle();
   _cipherId = setInterval(function() {
-    // Numeric columns — all digits re-randomize at once (rolling feel).
-    document.querySelectorAll('.skel-cipher:not(.skel-typewriter)').forEach(function(el) {
+    // Each cipher cell randomizes on every tick. Name cells roll A–Z,
+    // numeric cells roll 0–9. Reads as "the system is computing."
+    document.querySelectorAll('.skel-cipher').forEach(function(el) {
       var len = parseInt(el.dataset.len) || 6;
-      el.textContent = cipherStr(len);
+      var isLetters = el.classList.contains('skel-cipher--letters');
+      el.textContent = isLetters ? letterStr(len) : cipherStr(len);
     });
-    // Name column — military-style typewriter: reveal one letter at a
-    // time, hold the full string briefly, then wipe and start a new
-    // random word. Each row drifts on its own schedule because its
-    // initial progress is randomized at render time.
-    document.querySelectorAll('.skel-typewriter').forEach(function(el) {
-      var len     = parseInt(el.dataset.len) || 6;
-      var target  = el.dataset.target || '';
-      var progress = parseInt(el.dataset.progress) || 0;
-      var hold     = parseInt(el.dataset.hold) || 0;
-      if (!target || target.length !== len) {
-        target = letterStr(len);
-        el.dataset.target   = target;
-        el.dataset.progress = '0';
-        el.dataset.hold     = '0';
-        el.textContent      = '';
-        return;
-      }
-      if (progress < target.length) {
-        // Type the next letter
-        progress++;
-        el.dataset.progress = String(progress);
-        el.textContent      = target.substring(0, progress);
-      } else if (hold < 10) {
-        // Hold the full word for ~10 ticks (~800ms) so the eye can catch it
-        el.dataset.hold = String(hold + 1);
-      } else {
-        // Reset — pick a fresh word, wipe screen
-        target = letterStr(len);
-        el.dataset.target   = target;
-        el.dataset.progress = '0';
-        el.dataset.hold     = '0';
-        el.textContent      = '';
-      }
-    });
-  }, 80);
+  }, 85);
 }
 function stopCipherCycle() {
   if (_cipherId) { clearInterval(_cipherId); _cipherId = null; }
@@ -138,17 +106,11 @@ function rowsSkeletonHtml(n) {
     var rL = revenueLens[i % revenueLens.length];
     var tL = ticketLens[i % ticketLens.length];
     var jL = jobsLens[i % jobsLens.length];
-    // Seed each name cell with its own random target + progress offset
-    // so rows don't all type in lockstep.
-    var nameTarget   = letterStr(nL);
-    var nameProgress = Math.floor(Math.random() * (nL + 1));
     html +=
       '<tr class="skel-row">' +
         '<td><div class="tech-cell">' +
           '<div class="skel skel-avatar"></div>' +
-          '<span class="skel-cipher skel-typewriter" data-len="' + nL + '"' +
-          ' data-target="' + nameTarget + '" data-progress="' + nameProgress + '" data-hold="0">' +
-          nameTarget.substring(0, nameProgress) + '</span>' +
+          '<span class="skel-cipher skel-cipher--letters" data-len="' + nL + '">' + letterStr(nL) + '</span>' +
         '</div></td>' +
         '<td><span class="skel-cipher" data-len="' + rL + '">' + cipherStr(rL) + '</span></td>' +
         '<td><span class="skel-cipher" data-len="' + tL + '">' + cipherStr(tL) + '</span></td>' +
@@ -207,6 +169,54 @@ async function fetchData() {
   } finally {
     isFetching = false;
   }
+}
+
+/* Scramble-then-lock reveal for a technician's name. For each character
+   position (left → right): flash one random A–Z letter, then lock in
+   the real character. Previously-locked chars stay fixed. When all
+   positions are locked, swap in the final display HTML (properly-cased
+   name with the responsive nested spans).
+     el         — the <span> being animated
+     finalName  — plain text full name
+     finalHtml  — HTML to install once reveal completes
+     opts       — { flashMs, stepMs } */
+function revealName(el, finalName, finalHtml, opts) {
+  opts = opts || {};
+  var FLASH = opts.flashMs || 55;       // ms random letter stays visible
+  var STEP  = opts.stepMs  || 90;       // ms between successive positions
+  var CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  var upper = (finalName || '').toUpperCase().replace(/[^A-Z]/g, function(c) {
+    // Keep spaces and common separators; strip everything else to letters
+    return /\s/.test(c) ? ' ' : (c === '-' || c === "'" ? c : '');
+  });
+  var len   = upper.length;
+  if (!len) { el.innerHTML = finalHtml; return; }
+  var locked = '';
+  function rand1() { return CHARS.charAt(Math.floor(Math.random() * 26)); }
+  function stepChar(i) {
+    if (i >= len) {
+      el.innerHTML = finalHtml;
+      return;
+    }
+    var realChar = upper.charAt(i);
+    // For non-letter chars (space, dash, apostrophe) skip the flash and
+    // lock immediately — random A–Z there would look weird.
+    if (!/[A-Z]/.test(realChar)) {
+      locked += realChar;
+      el.textContent = locked;
+      setTimeout(function() { stepChar(i + 1); }, Math.max(0, STEP - FLASH));
+      return;
+    }
+    // Flash a random letter at this position
+    el.textContent = locked + rand1();
+    setTimeout(function() {
+      // Lock the real character and pause before advancing to the next slot
+      locked += realChar;
+      el.textContent = locked;
+      setTimeout(function() { stepChar(i + 1); }, Math.max(0, STEP - FLASH));
+    }, FLASH);
+  }
+  stepChar(0);
 }
 
 /* Tear down skeleton-era UI: stops the cipher and status intervals
@@ -316,14 +326,19 @@ function render() {
     /* Wrap numeric values in spans tagged with the target value so they
        can be counted-up after render. Show $0 / 0 initially so the
        cascade visibly "fills in" each row. */
+    // Name starts blank so revealName() can scramble-and-lock each
+    // character left-to-right, then swap in the proper nested
+    // responsive spans once the final char resolves.
+    var finalNameHtml =
+      '<span class="tech-name-full">' + esc(tech.name) + '</span>' +
+      '<span class="tech-name-short">' + firstName + '</span>';
     return '<tr data-idx="' + idx + '" data-name="' + esc(tech.name) + '">' +
       '<td><div class="tech-cell">' +
         '<div class="avatar" style="background:' + color + '">' + av + '</div>' +
         rankHtml +
-        '<span class="tech-name-label">' +
-          '<span class="tech-name-full">' + esc(tech.name) + '</span>' +
-          '<span class="tech-name-short">' + firstName + '</span>' +
-        '</span>' +
+        '<span class="tech-name-label"' +
+          ' data-reveal-name="' + esc(tech.name) + '"' +
+          ' data-reveal-html="' + esc(finalNameHtml) + '"></span>' +
       '</div></td>' +
       '<td><span class="row-count" data-kind="dollar" data-val="' + tech.monthlyRevenue + '">$0</span></td>' +
       '<td class="' + ticketClass + '"><span class="row-count" data-kind="dollar" data-val="' + tech.averageTicket + '">$0</span></td>' +
@@ -337,12 +352,32 @@ function render() {
   // Run FLIP animation on the NEW DOM using the OLD positions
   playFlipReorder(oldRects);
 
-  /* Staggered row count-up: each row starts 50ms after the previous.
-     700ms per row with easeOutCubic via countUpEl. Numbers spin up
-     fast then gracefully settle into final values. */
+  /* Staggered row reveal: each row starts 50ms after the previous.
+     Runs TWO animations in parallel per row —
+       (1) Name scramble-and-lock: flash a random A–Z at each slot,
+           then lock the real character. Visually continues the cipher.
+       (2) Numeric count-up: 700ms per cell with easeOutCubic. */
   document.querySelectorAll('#leaderboardBody tr[data-idx]').forEach(function(row, rowIdx) {
     var delay = rowIdx * 50;
     setTimeout(function() {
+      // Name reveal — the label span itself is the animation target.
+      // During scramble its textContent is overwritten directly; once
+      // the final char locks, innerHTML is replaced with the proper
+      // nested responsive spans (tech-name-full + tech-name-short).
+      var lbl = row.querySelector('.tech-name-label');
+      if (lbl) {
+        var nm  = lbl.getAttribute('data-reveal-name') || '';
+        var htm = lbl.getAttribute('data-reveal-html') || nm;
+        // Apply cipher-style monospace ON the label during reveal,
+        // removed at completion via innerHTML replace (nested spans
+        // don't carry the reveal class so the style drops off).
+        lbl.classList.add('is-revealing');
+        revealName(lbl, nm, htm);
+        // Strip the reveal styling once the swap completes
+        var totalMs = (nm.length + 1) * 90 + 60;
+        setTimeout(function() { lbl.classList.remove('is-revealing'); }, totalMs);
+      }
+      // Numeric count-up
       row.querySelectorAll('.row-count').forEach(function(el) {
         var target = parseFloat(el.getAttribute('data-val'));
         if (isNaN(target)) return;

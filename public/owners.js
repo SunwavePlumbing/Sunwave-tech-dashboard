@@ -3,6 +3,7 @@ var ownersData = null;
 var finMode        = 'dollar';            // 'dollar' | 'pct'
 var finMonth       = null;               // YYYY-MM currently selected
 var finGranularity = 'month';            // 'month' | 'quarter'
+var _finPickerTab  = 'month';             // 'quick' | 'month' | 'quarter' — picker UI tab
 var finQuarter     = null;               // 'YYYY-Q#' e.g. '2026-Q1'
 var finCompare     = 'prior_year_month'; // prior_month | prior_year_month | prior_year_avg | none
 var pnlCompareMonth = null;              // month key shown in the comparison column of the Full Picture grid
@@ -178,17 +179,43 @@ function fmtMkFull(mk) {
   return full + ' ' + p[0];
 }
 
-// Month picker open/close
+// Month picker open/close. Uses a class-driven open state rather than
+// the `hidden` attribute so CSS can drive fade/slide/translate
+// animations. The `hidden` attribute only stays in place while the
+// picker is fully closed — we strip it during the transition.
 function toggleMonthPicker() {
-  var picker = document.getElementById('finMonthPicker');
-  var hdr    = document.getElementById('finMonthHeader');
-  var isOpen = !picker.hidden;
-  picker.hidden = isOpen;
-  hdr.classList.toggle('is-open', !isOpen);
+  var picker   = document.getElementById('finMonthPicker');
+  var hdr      = document.getElementById('finMonthHeader');
+  var backdrop = document.getElementById('finMonthBackdrop');
+  var isOpen = picker.classList.contains('is-open');
+  if (isOpen) { closMonthPicker(); return; }
+  // Opening — remove `hidden` so the transition can run, then add class
+  picker.removeAttribute('hidden');
+  if (backdrop) backdrop.removeAttribute('hidden');
+  requestAnimationFrame(function() {
+    requestAnimationFrame(function() {
+      picker.classList.add('is-open');
+      hdr.classList.add('is-open');
+      if (backdrop) backdrop.classList.add('is-open');
+    });
+  });
 }
 function closMonthPicker() {
-  document.getElementById('finMonthPicker').hidden = true;
-  document.getElementById('finMonthHeader').classList.remove('is-open');
+  var picker   = document.getElementById('finMonthPicker');
+  var hdr      = document.getElementById('finMonthHeader');
+  var backdrop = document.getElementById('finMonthBackdrop');
+  if (!picker) return;
+  picker.classList.remove('is-open');
+  hdr && hdr.classList.remove('is-open');
+  if (backdrop) backdrop.classList.remove('is-open');
+  // After the slide/fade completes, re-apply `hidden` so nothing is
+  // focusable or takes pointer events while the picker is dormant.
+  setTimeout(function() {
+    if (!picker.classList.contains('is-open')) {
+      picker.setAttribute('hidden', '');
+      if (backdrop) backdrop.setAttribute('hidden', '');
+    }
+  }, 320);
 }
 
 // Select a month from the custom list
@@ -215,11 +242,12 @@ function setFinCompare(v) {
   if (ownersData && ownersData.connected) renderOwners();
 }
 
-// Close picker when clicking outside
+// Close picker when clicking outside (desktop). On mobile the backdrop
+// handles this with its own onclick handler.
 document.addEventListener('click', function(e) {
   var hdr    = document.getElementById('finMonthHeader');
   var picker = document.getElementById('finMonthPicker');
-  if (!picker || picker.hidden) return;
+  if (!picker || !picker.classList.contains('is-open')) return;
   if (!hdr.contains(e.target) && !picker.contains(e.target)) {
     closMonthPicker();
   }
@@ -416,8 +444,18 @@ function availableQuarters(months) {
   return result; // already in chronological order (months is sorted oldest-first)
 }
 
-// Switch between monthly and quarterly granularity
+// Switch between Quick Select / Monthly / Quarterly tabs. "quick" is a
+// UI-only mode that renders presets; underlying finGranularity stays on
+// 'month' or 'quarter' after a preset picks a specific anchor period.
 function setFinGranularity(g) {
+  // "quick" doesn't change the rendering granularity — it just swaps
+  // the list to the preset chooser. We track the active tab separately.
+  if (g === 'quick') {
+    _finPickerTab = 'quick';
+    if (ownersData && ownersData.connected) renderOwners();
+    return;
+  }
+  _finPickerTab = g;
   finGranularity = g;
   if (g === 'quarter') {
     // Jump to the quarter containing the currently selected month
@@ -432,6 +470,40 @@ function setFinGranularity(g) {
       if (last) finMonth = last;
     }
   }
+  if (ownersData && ownersData.connected) renderOwners();
+}
+
+// Preset shortcut from the "Quick Select" tab. Presets map to an
+// appropriate anchor month (monthly granularity) so the rest of the
+// dashboard — trends, rev bars, cash flow — frames the right window.
+function pickFinPreset(preset) {
+  var months = (ownersData && ownersData.months) || [];
+  if (!months.length) { closMonthPicker(); return; }
+  var latest = months[months.length - 1];             // "2026-03"
+  var latestParts = latest.split('-');
+  var latestYear  = parseInt(latestParts[0]);
+  var earliest    = months[0];
+  var target = latest;
+  if (preset === 'ytd' || preset === 'last12') {
+    target = latest;                                  // latest anchor
+  } else if (preset === 'lastYear') {
+    // December of previous calendar year, else latest month of that year
+    var ly = (latestYear - 1) + '-12';
+    target = months.indexOf(ly) >= 0 ? ly : months.filter(function(m) {
+      return m.indexOf((latestYear - 1) + '-') === 0;
+    }).pop() || latest;
+  } else if (preset === 'last2') {
+    var ly2 = (latestYear - 2) + '-12';
+    target = months.indexOf(ly2) >= 0 ? ly2 : months.filter(function(m) {
+      return m.indexOf((latestYear - 2) + '-') === 0;
+    }).pop() || latest;
+  } else if (preset === 'all') {
+    target = earliest;
+  }
+  finMonth = target;
+  finGranularity = 'month';
+  _finPickerTab = 'month';
+  closMonthPicker();
   if (ownersData && ownersData.connected) renderOwners();
 }
 
@@ -479,20 +551,41 @@ function renderOwners() {
     finQuarter = quarters[quarters.length - 1];
   }
 
-  // Sync tab active states
-  var tabM = document.getElementById('finTabMonth');
-  var tabQ = document.getElementById('finTabQuarter');
-  if (tabM) tabM.classList.toggle('active', finGranularity === 'month');
-  if (tabQ) tabQ.classList.toggle('active', finGranularity === 'quarter');
+  // Sync tab active states — picker UI uses _finPickerTab which may be
+  // 'quick' (preset mode) while the underlying granularity stays month.
+  if (_finPickerTab !== 'quick') _finPickerTab = finGranularity;
+  var tabQck = document.getElementById('finTabQuick');
+  var tabM   = document.getElementById('finTabMonth');
+  var tabQ   = document.getElementById('finTabQuarter');
+  if (tabQck) tabQck.classList.toggle('active', _finPickerTab === 'quick');
+  if (tabM)   tabM.classList.toggle('active',   _finPickerTab === 'month');
+  if (tabQ)   tabQ.classList.toggle('active',   _finPickerTab === 'quarter');
 
   // Update picker header title
   var titleEl = document.getElementById('finMonthTitle');
   if (titleEl) titleEl.textContent = finGranularity === 'quarter' ? fmtQk(finQuarter) : fmtMkFull(finMonth);
 
-  // Rebuild list for current granularity
+  // Rebuild list for current picker tab
   var listEl = document.getElementById('finMonthList');
   if (listEl) {
-    if (finGranularity === 'quarter') {
+    if (_finPickerTab === 'quick') {
+      // Broad preset shortcuts — each anchors the dashboard to a
+      // representative period. Descriptions give one-line context.
+      var latestYr = parseInt((months[months.length - 1] || '').split('-')[0]) || new Date().getFullYear();
+      var presets = [
+        { key: 'ytd',      label: 'Year to Date',     desc: fmtMkShort(months[months.length-1]) + ' anchor' },
+        { key: 'last12',   label: 'Last 12 Months',   desc: 'Rolling trailing window' },
+        { key: 'lastYear', label: 'Last Year (' + (latestYr - 1) + ')', desc: 'End of previous year' },
+        { key: 'last2',    label: 'Last 2 Years',     desc: 'Two years back' },
+        { key: 'all',      label: 'All Time',         desc: 'From ' + fmtMkShort(months[0]) }
+      ];
+      listEl.innerHTML = presets.map(function(p) {
+        return '<div class="fin-month-item fin-month-item--preset" onclick="pickFinPreset(\'' + p.key + '\')">' +
+          '<span class="fin-month-item-label">' + p.label + '</span>' +
+          '<span class="fin-month-item-sub">' + p.desc + '</span>' +
+        '</div>';
+      }).join('');
+    } else if (_finPickerTab === 'quarter') {
       listEl.innerHTML = quarters.slice().reverse().map(function(qk) {
         var active = qk === finQuarter ? ' active' : '';
         return '<div class="fin-month-item' + active + '" onclick="pickFinQuarter(\'' + qk + '\')">' + fmtQk(qk) + '</div>';

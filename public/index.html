@@ -74,18 +74,27 @@
 
     <!-- Location Owners view -->
     <div class="view-panel" id="ownersView">
-      <!-- Month header / picker -->
+      <!-- Period header — elevated to read as the page's primary title.
+           Eyebrow gives context, the bold month is the tap target. -->
       <div class="fin-month-header" id="finMonthHeader" onclick="toggleMonthPicker()">
-        <span class="fin-month-title" id="finMonthTitle">Loading&hellip;</span>
-        <svg class="fin-month-chev" id="finMonthChev" viewBox="0 0 12 7" width="18" height="11">
+        <div class="fin-month-header-inner">
+          <span class="fin-month-eyebrow">Period</span>
+          <span class="fin-month-title" id="finMonthTitle">Loading&hellip;</span>
+        </div>
+        <svg class="fin-month-chev" id="finMonthChev" viewBox="0 0 12 7" width="22" height="14">
           <path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </div>
-      <!-- Hidden month/quarter picker dropdown -->
+      <!-- Backdrop for mobile bottom sheet — dimmed overlay behind the picker -->
+      <div class="fin-month-backdrop" id="finMonthBackdrop" hidden onclick="closMonthPicker()"></div>
+      <!-- Month / Quarter / Quick-Select picker -->
       <div class="fin-month-picker" id="finMonthPicker" hidden>
+        <!-- Mobile grabber — visual affordance for the bottom sheet -->
+        <div class="fin-month-grabber"></div>
         <div class="fin-period-tabs">
-          <button class="fin-period-tab" id="finTabMonth"   onclick="setFinGranularity('month')">Month</button>
-          <button class="fin-period-tab" id="finTabQuarter" onclick="setFinGranularity('quarter')">Quarter</button>
+          <button class="fin-period-tab" id="finTabQuick"   onclick="setFinGranularity('quick')">Quick Select</button>
+          <button class="fin-period-tab" id="finTabMonth"   onclick="setFinGranularity('month')">By Month</button>
+          <button class="fin-period-tab" id="finTabQuarter" onclick="setFinGranularity('quarter')">By Quarter</button>
         </div>
         <select id="finMonthSel" class="fin-month-sel-native" onchange="setFinMonth(this.value);closMonthPicker()" size="1"></select>
         <div class="fin-month-list" id="finMonthList"></div>

@@ -158,26 +158,15 @@ body {
   -webkit-user-select: none;
 }
 
-/* Military-style typewriter for the name column — shows a blinking
-   caret right after the last typed character for a "cursor" vibe. */
-.skel-typewriter {
-  min-width: 1ch;
-  display: inline-block;
-  position: relative;
-}
-.skel-typewriter::after {
-  content: '';
-  display: inline-block;
-  width: 1px;
-  height: 11px;
-  background: #94a3b8;
-  margin-left: 2px;
-  vertical-align: -1px;
-  animation: skel-caret-blink 1s step-end infinite;
-}
-@keyframes skel-caret-blink {
-  0%, 55%  { opacity: 1; }
-  56%, 100% { opacity: 0; }
+/* Name-reveal scramble: while the label is mid-reveal it inherits the
+   cipher's muted monospace look. Once the final char locks, the class
+   is stripped and the label reverts to normal typography. */
+.tech-name-label.is-revealing {
+  font-family: ui-monospace, 'SF Mono', 'Menlo', 'Consolas', monospace;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: #475569;
 }
 
 /* Slow, deliberate "breathing" pulse on the whole table while
@@ -737,57 +726,91 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .fin-connect-banner { background:#fff8f0;border:1px solid #FFE0B2;border-radius:10px;padding:20px 24px;text-align:center;margin:2rem 0; }
 .fin-connect-banner p { font-size:14px;color:#888;margin-bottom:12px; }
 
-/* ── Month header — big clickable title ──────────────────────── */
+/* ── Period header — reads as the page's primary title ──────────
+   No chip background on desktop; the eyebrow ("Period") + large bold
+   month combination gives it the weight of a page headline rather
+   than a secondary pill control. */
 .fin-month-header {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   cursor: pointer;
   margin-bottom: 1.2rem;
   user-select: none;
   -webkit-user-select: none;
-  /* Tappable button aesthetic — subtle tinted pill */
-  padding: 10px 16px 10px 18px;
-  background: rgba(0, 0, 0, 0.045);
-  border-radius: 14px;
+  padding: 4px 6px;
+  background: transparent;
+  border-radius: 10px;
   transition: background 0.15s ease, transform 0.1s ease;
 }
-.fin-month-header:hover  { background: rgba(0, 0, 0, 0.07); }
-.fin-month-header:active { background: rgba(0, 0, 0, 0.10); transform: scale(0.98); }
-.fin-month-header.is-open { background: rgba(0, 0, 0, 0.08); }
-.fin-month-title {
-  font-size: 26px;
+.fin-month-header-inner { display: flex; flex-direction: column; gap: 2px; }
+.fin-month-eyebrow {
+  font-size: 10px;
   font-weight: 700;
-  color: #1a2d3a;
-  letter-spacing: -0.5px;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: #94a3b8;
   line-height: 1;
+}
+.fin-month-header:hover  { background: rgba(0, 0, 0, 0.035); }
+.fin-month-header:active { background: rgba(0, 0, 0, 0.06); transform: scale(0.985); }
+.fin-month-header.is-open { background: rgba(0, 0, 0, 0.04); }
+.fin-month-title {
+  font-size: 28px;
+  font-weight: 800;
+  color: #1a2d3a;
+  letter-spacing: -0.6px;
+  line-height: 1.05;
 }
 .fin-month-chev {
   color: #1a2d3a;
-  opacity: 0.55;
+  opacity: 0.45;
   flex-shrink: 0;
-  transition: transform 0.2s, opacity 0.2s;
-  margin-top: 2px;
+  transition: transform 0.22s ease, opacity 0.2s;
+  margin-top: 10px;  /* aligns with the big title visually */
 }
 .fin-month-header.is-open .fin-month-chev {
   transform: rotate(180deg);
   opacity: 0.8;
 }
-.fin-month-header:hover .fin-month-chev { opacity: 0.8; }
+.fin-month-header:hover .fin-month-chev { opacity: 0.7; }
 
-/* ── Month / Quarter period tabs inside picker ───────────────── */
-.fin-period-tabs { display:flex; border-bottom:1px solid #eee; }
-.fin-period-tab  { flex:1; padding:12px 0; font-size:13px; font-weight:600; color:#aaa; background:none; border:none; border-bottom:2px solid transparent; margin-bottom:-1px; cursor:pointer; transition:color 0.15s, border-color 0.15s; }
-.fin-period-tab.active { color:#1a2d3a; border-bottom-color:#FF9500; }
+/* ── Three-pill segmented tabs (Quick / Month / Quarter) ───────── */
+.fin-period-tabs { display:flex; border-bottom:1px solid #eef0f3; }
+.fin-period-tab  {
+  flex: 1; padding: 12px 4px; font-size: 12px; font-weight: 700;
+  color: #94a3b8; background: none; border: none;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+  cursor: pointer; transition: color 0.15s, border-color 0.15s;
+  letter-spacing: 0.2px;
+}
+.fin-period-tab:hover { color: #64748b; }
+.fin-period-tab.active { color: #1a2d3a; border-bottom-color: #FF9500; }
 
-/* ── Month picker dropdown ───────────────────────────────────── */
+/* ── Dropdown popover (desktop) ────────────────────────────────── */
+.fin-month-grabber { display: none; }          /* shown only on mobile */
+.fin-month-backdrop { display: none; }          /* shown only on mobile */
+/* Preserve `hidden` attribute semantics even when CSS tries to display it */
+.fin-month-picker[hidden],
+.fin-month-backdrop[hidden] { display: none !important; }
 .fin-month-picker {
+  position: relative;
   background: white;
   border-radius: 14px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12), 0 2px 6px rgba(15,23,42,0.04);
   overflow: hidden;
   margin-bottom: 1.2rem;
-  margin-top: -0.6rem;
+  margin-top: -0.4rem;
+  /* Entrance animation: fade + subtle slide-down from the trigger */
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity 0.15s ease-out, transform 0.15s ease-out;
+  pointer-events: none;
+}
+.fin-month-picker.is-open {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
 }
 /* Hide the native select — we use a custom list */
 .fin-month-sel-native { display: none; }
@@ -795,26 +818,53 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .fin-month-list {
   display: flex;
   flex-direction: column;
-  max-height: 280px;
+  max-height: 320px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  /* Minimal custom scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
 }
+.fin-month-list::-webkit-scrollbar { width: 6px; }
+.fin-month-list::-webkit-scrollbar-track { background: transparent; }
+.fin-month-list::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+.fin-month-list::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* Flat row with left accent on active — premium, modern list aesthetic */
 .fin-month-item {
-  padding: 13px 20px;
+  position: relative;
+  padding: 13px 20px 13px 22px;
   font-size: 16px;
   font-weight: 500;
   color: #1a2d3a;
   cursor: pointer;
   border-bottom: 1px solid #f0f0f0;
-  transition: background 0.1s;
+  transition: background 0.12s ease;
 }
 .fin-month-item:last-child { border-bottom: none; }
-.fin-month-item:hover { background: #f7f7f7; }
+.fin-month-item:hover,
+.fin-month-item:focus-visible { background: #f3f4f6; outline: none; }
+.fin-month-item:active { background: #e5e7eb; }
 .fin-month-item.active {
-  background: #fff8ed;
-  color: #FF9500;
+  background: rgba(255, 149, 0, 0.08);   /* pale orange fill */
+  color: #1a2d3a;                        /* keep text dark + bold */
   font-weight: 700;
 }
+.fin-month-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+  background: #FF9500;
+  border-radius: 0 2px 2px 0;
+}
+/* Preset items — label + muted sub-description */
+.fin-month-item--preset { display: flex; flex-direction: column; gap: 3px; padding: 14px 20px 14px 22px; }
+.fin-month-item-label { font-size: 16px; font-weight: 600; color: #1a2d3a; }
+.fin-month-item-sub   { font-size: 11px; color: #94a3b8; letter-spacing: 0.2px; }
 
 /* Legacy .fin-filter-label still used by compare selector */
 .fin-filter-label {
@@ -2395,17 +2445,59 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
     font-size: 13px;
   }
 
-  /* ── MONTH PICKER: Bottom sheet modal styling ────────────────────── */
+  /* ── MONTH PICKER: real bottom-sheet modal ─────────────────────────
+     Slides up from the bottom edge, overlays a dimmed backdrop. Uses a
+     snappy cubic-bezier for a tactile spring-like feel. */
+  .fin-month-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0);
+    z-index: 998;
+    pointer-events: none;
+    transition: background 0.28s ease;
+  }
+  .fin-month-backdrop.is-open {
+    background: rgba(15, 23, 42, 0.45);
+    pointer-events: auto;
+  }
   .fin-month-picker {
-    max-height: 75vh;        /* was 280px; now uses viewport */
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    top: auto;
+    margin: 0;
+    max-height: 78vh;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    border-radius: 16px 16px 0 0;
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -8px 30px rgba(15, 23, 42, 0.18);
+    z-index: 999;
+    padding-bottom: env(safe-area-inset-bottom);
+    /* Override desktop fade — mobile uses translateY slide-up */
+    transform: translateY(100%);
+    opacity: 1;
+    transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  .fin-month-picker.is-open {
+    transform: translateY(0);
+  }
+  /* Grabber at the top of the sheet — visual affordance for drag */
+  .fin-month-grabber {
+    display: block;
+    width: 40px;
+    height: 4px;
+    margin: 10px auto 4px;
+    background: #d1d5db;
+    border-radius: 2px;
   }
 
   .fin-period-tabs {
-    padding: 12px 0;
+    padding: 6px 0 0;
     border-bottom: 2px solid #eee;
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 1;
   }
 
   .fin-period-tab {
