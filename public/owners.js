@@ -1146,17 +1146,19 @@ function renderOwners() {
     var cmpIdx2 = pnlCompareMonth ? months.indexOf(pnlCompareMonth) : -1;
     var cmpRev  = cmpIdx2 >= 0 ? (revenue[cmpIdx2] || 0) : 0;
 
-    // Data cell: stacked $ amount + % of revenue
-    function pCell2(arr, idx, rev) {
-      if (idx < 0) return '<td class="pnl2-cell pnl2-empty">—</td>';
+    // Data cell: stacked $ amount + % of revenue. `which` is 'pri' or 'cmp'
+    // for mobile-stacked layout targeting.
+    function pCell2(arr, idx, rev, which) {
+      if (idx < 0) return '<td class="pnl2-cell pnl2-cell--' + which + ' pnl2-empty">—</td>';
       var v   = arr[idx] || 0;
       var pct = rev > 0 ? (v / rev * 100).toFixed(1) + '%' : '—';
       var cls = v < 0 ? ' pnl2-neg' : '';
-      return '<td class="pnl2-cell' + cls + '"><div class="pnl2-dollar">' + fmtDollar(v) + '</div>' +
+      return '<td class="pnl2-cell pnl2-cell--' + which + cls + '"><div class="pnl2-dollar">' + fmtDollar(v) + '</div>' +
              '<div class="pnl2-pct-sub">' + pct + '</div></td>';
     }
 
-    // Delta cell: change from compare → primary, direction-aware green/red
+    // Delta cell: change from compare → primary, direction-aware green/red.
+    // Now shows both $ delta and % delta, e.g. "+$72K (+36%)".
     function dCell2(arr, pi, ci, good) {
       if (ci < 0) return '<td class="pnl2-delta"><span class="pnl2-pill">—</span></td>';
       var pv   = arr[pi] || 0;
@@ -1166,7 +1168,15 @@ function renderOwners() {
       var sign   = diff > 0 ? '+' : '';
       var isGood = good === 'up' ? diff > 0 : diff < 0;
       var cls    = isGood ? ' pnl2-good' : ' pnl2-bad';
-      return '<td class="pnl2-delta' + cls + '"><span class="pnl2-pill">' + sign + fmtDollar(diff) + '</span></td>';
+      // Percent delta — only if base is non-zero and meaningful
+      var pctStr = '';
+      if (cv !== 0 && Math.abs(cv) > 1) {
+        var pctVal = (diff / Math.abs(cv)) * 100;
+        // Clamp huge swings so the pill stays readable
+        var pctTxt = (Math.abs(pctVal) > 999 ? '>999' : Math.round(pctVal)) + '%';
+        pctStr = ' <span class="pnl2-pill-pct">(' + sign + pctTxt + ')</span>';
+      }
+      return '<td class="pnl2-delta' + cls + '"><span class="pnl2-pill">' + sign + fmtDollar(diff) + pctStr + '</span></td>';
     }
 
     // Comparison chip picker — all months except current, most-recent first
@@ -1174,7 +1184,7 @@ function renderOwners() {
       var act = m === pnlCompareMonth ? ' act' : '';
       return '<button class="pnl-cmp-chip' + act + '" onclick="setPnlCompare(\'' + m + '\')">' + fmtMkShort(m) + '</button>';
     }).join('');
-    var pickerHtml = '<div class="pnl-cmp-row"><span class="pnl-cmp-lbl">Compare to</span>' +
+    var pickerHtml = '<div class="pnl-cmp-row"><span class="pnl-cmp-lbl">Comparing against</span>' +
       '<div class="pnl-cmp-chips">' + chipHtml + '</div></div>';
 
     var priHead = fmtMkShort(finMonth);
@@ -1186,10 +1196,14 @@ function renderOwners() {
       '<th class="pnl2-th-delta">&Delta; Change</th>' +
       '</tr>';
     var pnlBody = pnlRows.map(function(row) {
-      return '<tr class="' + row.cls + '">' +
+      // A "category" is a non-indent, non-total row — Revenue, COGS,
+      // Gross Profit, Operating Expenses. Used for visual hierarchy.
+      var isCat = row.cls !== 'indent' && row.cls !== 'total';
+      var catCls = isCat ? ' category' : '';
+      return '<tr class="' + row.cls + catCls + '">' +
         '<td class="pnl2-td-lbl">' + esc(row.label) + '</td>' +
-        pCell2(row.arr, priIdx2, priRev) +
-        pCell2(row.arr, cmpIdx2, cmpRev) +
+        pCell2(row.arr, priIdx2, priRev, 'pri') +
+        pCell2(row.arr, cmpIdx2, cmpRev, 'cmp') +
         dCell2(row.arr, priIdx2, cmpIdx2, row.good) +
         '</tr>';
     }).join('');
