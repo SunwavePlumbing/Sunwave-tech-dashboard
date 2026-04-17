@@ -442,9 +442,17 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   margin-bottom: 1.2rem;
   user-select: none;
   -webkit-user-select: none;
+  /* Tappable button aesthetic — subtle tinted pill */
+  padding: 10px 16px 10px 18px;
+  background: rgba(0, 0, 0, 0.045);
+  border-radius: 14px;
+  transition: background 0.15s ease, transform 0.1s ease;
 }
+.fin-month-header:hover  { background: rgba(0, 0, 0, 0.07); }
+.fin-month-header:active { background: rgba(0, 0, 0, 0.10); transform: scale(0.98); }
+.fin-month-header.is-open { background: rgba(0, 0, 0, 0.08); }
 .fin-month-title {
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 700;
   color: #1a2d3a;
   letter-spacing: -0.5px;
@@ -452,16 +460,16 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 }
 .fin-month-chev {
   color: #1a2d3a;
-  opacity: 0.45;
+  opacity: 0.55;
   flex-shrink: 0;
   transition: transform 0.2s, opacity 0.2s;
   margin-top: 2px;
 }
 .fin-month-header.is-open .fin-month-chev {
   transform: rotate(180deg);
-  opacity: 0.7;
+  opacity: 0.8;
 }
-.fin-month-header:hover .fin-month-chev { opacity: 0.7; }
+.fin-month-header:hover .fin-month-chev { opacity: 0.8; }
 
 /* ── Month / Quarter period tabs inside picker ───────────────── */
 .fin-period-tabs { display:flex; border-bottom:1px solid #eee; }
@@ -959,37 +967,48 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   position: relative;
   margin: 12px 0 4px;
 }
+/* Solid "needle" marker that pierces the bar — replaces the old dashed line.
+   The tick climbs up with negative `top` so it overlaps the bar above, then
+   extends a few pixels below. Pill badge label sits under the tick. */
 .fin-target-mark {
   --tx: 50%;
   position: relative;
-  height: 18px;
-  margin-top: 4px;
+  height: 26px;
+  margin-top: 2px;
   pointer-events: none;
+  overflow: visible;
 }
 .fin-target-tick {
   position: absolute;
-  top: -10px;                    /* pierces slightly INTO the bar above */
+  top: -32px;                    /* 2px above the 26px bar */
   left: var(--tx);
-  width: 0;
-  height: 14px;
-  border-left: 1px dashed rgba(0, 0, 0, 0.3);
+  width: 2px;
+  height: 34px;                  /* bar (26) + 2 above + 4 below */
+  background: #6b7280;
   transform: translateX(-50%);
+  border-radius: 2px;
+  z-index: 10;
 }
 .fin-target-lbl {
   position: absolute;
-  top: 5px;
+  top: 6px;
   left: var(--tx);
   transform: translateX(-50%);
-  font-size: 10px; font-weight: 600;
-  letter-spacing: 0.7px; text-transform: uppercase;
-  color: #9ca3af;
+  padding: 3px 9px;
+  font-size: 9px; font-weight: 700;
+  letter-spacing: 0.8px; text-transform: uppercase;
+  color: white;
+  background: #6b7280;
+  border-radius: 10px;
   white-space: nowrap;
+  z-index: 11;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
-/* Section-accent colors for the tick + label */
-.fin-target-mark--red .fin-target-tick   { border-left-color: rgba(239, 68, 68, 0.5); }
-.fin-target-mark--red .fin-target-lbl    { color: rgba(239, 68, 68, 0.75); }
-.fin-target-mark--green .fin-target-tick { border-left-color: rgba(22, 163, 74, 0.5); }
-.fin-target-mark--green .fin-target-lbl  { color: rgba(22, 163, 74, 0.8); }
+/* Section-accent colors for the tick + pill */
+.fin-target-mark--red .fin-target-tick   { background: #ef4444; }
+.fin-target-mark--red .fin-target-lbl    { background: #ef4444; color: #fff; }
+.fin-target-mark--green .fin-target-tick { background: #16a34a; }
+.fin-target-mark--green .fin-target-lbl  { background: #16a34a; color: #fff; }
 
 
 /* ── GP reversed competition bar ───────────────────────────── */
@@ -1166,48 +1185,54 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   display: flex; height: 26px;
   border-radius: 7px;
   overflow: hidden; gap: 0;
-  /* Soft "floating paper" shadow replaces hard borders */
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  /* Subtle outer shadow only — internal segments are flat */
+  box-shadow: 0 2px 6px rgba(0,0,0,0.04);
 }
 
-/* Segments — widths set inline via JS, gradients give premium depth */
+/* Segments — flat solid HEX colors with 1px white dividers between them.
+   The `:not(:last-child)` border creates a clean "cut" look without using
+   gradients for faux depth. */
 .mf-sb-prior {
-  background: linear-gradient(to bottom, #fed7d7, #fecaca);  /* light red: COGS reference */
+  background: #fecaca;   /* light red: COGS reference */
   flex-shrink: 0; position: relative;
 }
 .mf-sb-cogs  {
-  background: linear-gradient(to bottom, #fb8a8a, #f87171);  /* red: cost of goods sold */
+  background: #f87171;   /* red: cost of goods sold */
   flex-shrink: 0; position: relative;
 }
 .mf-sb-gp    {
-  background: linear-gradient(to bottom, #cfe3fe, #bfdbfe);  /* pale blue: gross profit */
+  background: #bfdbfe;   /* pale blue: gross profit */
   flex: 1; min-width: 2px; position: relative;
 }
 .mf-sb-ovhd  {
-  background: linear-gradient(to bottom, #fb923c, #f97316);  /* orange: overhead */
+  background: #f97316;   /* orange: overhead */
   flex-shrink: 0; position: relative;
 }
 .mf-sb-pass  {
-  background: linear-gradient(to bottom, #ccf2d6, #bbf7d0);  /* pale green: operating profit */
+  background: #bbf7d0;   /* pale green: operating profit */
   flex: 1; min-width: 2px; position: relative;
 }
 
 /* ── Profit bar "ghost" segments ─────────────────────────────
-   Match the COGS and Overhead colors above but at ~40% intensity so
-   the green Profit segment pops as the most important info in the row.
+   Reduced-intensity solid colors so the green Profit segment pops.
    Using diluted colors (not opacity) keeps hover/tap feedback clean. */
 .mf-sb-ghost-cogs {
-  background: linear-gradient(to bottom, #fdeaea, #fbdede);  /* softer pale red */
+  background: #fbdede;   /* softer pale red */
   flex-shrink: 0; position: relative;
 }
 .mf-sb-ghost-ovhd {
-  background: linear-gradient(to bottom, #ffeadb, #ffe0cc);  /* softer pale orange */
+  background: #ffe0cc;   /* softer pale orange */
   flex-shrink: 0; position: relative;
 }
 /* Active profit segment — vibrant, commands attention */
 .mf-sb-profit {
-  background: linear-gradient(to bottom, #34d399, #22c55e);
+  background: #22c55e;
   flex: 1; min-width: 2px; position: relative;
+}
+
+/* Clean 1px "cut" between every segment in every stacked bar */
+.mf-split-bar > *:not(:last-child) {
+  box-shadow: inset -1px 0 0 #ffffff;
 }
 /* Ghost-segment labels hidden by default; show on hover like mf-sb-prior/pass */
 .mf-sb-ghost-cogs .mf-bar-label,
@@ -1634,13 +1659,13 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 
   /* ── TOUCH TARGETS: Ensure 44x44px minimum ──────────────────────── */
   .fin-month-header {
-    padding: 14px 8px;    /* was implicitly small; now 44px+ touchable */
+    padding: 12px 16px 12px 18px;    /* tappable button look, 44px+ touchable */
     min-height: 44px;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 12px;
   }
-  .fin-month-title { font-size: 24px; }  /* down from 28px for mobile spacing */
+  .fin-month-title { font-size: 22px; }  /* fits button padding on mobile */
   .fin-month-chev { width: 24px; height: 14px; }  /* was 18x11; now more visible */
 
   .fin-trend-btn {

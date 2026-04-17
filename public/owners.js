@@ -303,6 +303,30 @@ function fmtDollar(v) {
 
 function fmtPct(v) { return (v >= 0 ? '' : '-') + Math.abs(v).toFixed(1) + '%'; }
 
+/* ── Count-up animation ──────────────────────────────────────────
+   Finds every element with [data-countup] inside `root`, ramps its
+   numeric display from 0 → target over `duration` ms with an ease-out
+   curve, formatting via fmtDollar each frame. Gives the dollar totals
+   that satisfying "ticker" feel when the month changes. */
+function animateCountUps(root, duration) {
+  duration = duration || 400;
+  var nodes = (root || document).querySelectorAll('[data-countup]');
+  nodes.forEach(function(el) {
+    var target = parseFloat(el.getAttribute('data-countup'));
+    if (isNaN(target)) return;
+    var start = performance.now();
+    function step(now) {
+      var t = Math.min(1, (now - start) / duration);
+      var eased = 1 - Math.pow(1 - t, 3);  /* easeOutCubic */
+      el.textContent = fmtDollar(target * eased);
+      if (t < 1) requestAnimationFrame(step);
+      else el.textContent = fmtDollar(target);
+    }
+    el.textContent = fmtDollar(0);
+    requestAnimationFrame(step);
+  });
+}
+
 function colorClass(metric, val) {
   var t = {
     gm:    { g: 50, y: 43 },
@@ -772,7 +796,7 @@ function renderOwners() {
       // ── Revenue ───────────────────────────────────────────────
       '<div class="mf-step">' +
         '<div class="mf-step-label">Revenue</div>' +
-        '<div class="mf-step-num">' + fmtDollar(curRev) + '</div>' +
+        '<div class="mf-step-num"><span data-countup="' + curRev + '">' + fmtDollar(curRev) + '</span></div>' +
         '<div class="mf-step-desc">Total money collected from completed jobs</div>' +
         '<div class="mf-rev-bar"></div>' +
       '</div>' +
@@ -783,7 +807,7 @@ function renderOwners() {
         '<div class="mf-op-head-click" onclick="mfToggle(\'mfCogsDetail\',this)">' +
           '<div class="mf-op-head-text">' +
             '<div class="mf-op-label">Cost of Goods Sold</div>' +
-            '<div class="mf-op-total"><span class="mf-op-neg">\u2212</span>' + fmtDollar(curCOGS) + '<span class="mf-op-pct">' + fmtPct(cogsPct) + '</span></div>' +
+            '<div class="mf-op-total"><span class="mf-op-neg">\u2212</span><span data-countup="' + curCOGS + '">' + fmtDollar(curCOGS) + '</span><span class="mf-op-pct">' + fmtPct(cogsPct) + '</span></div>' +
           '</div>' +
           '<div class="mf-op-head-chev">' + MF_CHEV + '</div>' +
         '</div>' +
@@ -813,7 +837,7 @@ function renderOwners() {
       // ── = Gross Profit ────────────────────────────────────────
       '<div class="mf-step mf-step--gp" id="mfGpSection" hidden>' +
         '<div class="mf-step-label"><span class="mf-step-eq">=</span> Gross Profit</div>' +
-        '<div class="mf-step-num">' + fmtDollar(curGP) + '</div>' +
+        '<div class="mf-step-num"><span data-countup="' + curGP + '">' + fmtDollar(curGP) + '</span></div>' +
         gpDetailHtml +
       '</div>' +
 
@@ -823,7 +847,7 @@ function renderOwners() {
         '<div class="mf-op-head-click" onclick="mfToggle(\'mfOvhdDetail\',this)">' +
           '<div class="mf-op-head-text">' +
             '<div class="mf-op-label">Overhead</div>' +
-            '<div class="mf-op-total mf-op-total--orange"><span class="mf-op-neg">\u2212</span>' + fmtDollar(curOvhd) + '<span class="mf-op-pct">' + fmtPct(ovhdPct) + '</span></div>' +
+            '<div class="mf-op-total mf-op-total--orange"><span class="mf-op-neg">\u2212</span><span data-countup="' + curOvhd + '">' + fmtDollar(curOvhd) + '</span><span class="mf-op-pct">' + fmtPct(ovhdPct) + '</span></div>' +
           '</div>' +
           '<div class="mf-op-head-chev mf-op-head-chev--orange">' + MF_CHEV + '</div>' +
         '</div>' +
@@ -943,7 +967,7 @@ function renderOwners() {
             '<div class="mf-op-head-click" onclick="mfToggleNoi(this)">' +
               '<div class="mf-op-head-text">' +
                 '<div class="mf-step-label">Profit</div>' +
-                '<div class="mf-step-num"><span class="mf-op-neg">=</span>' + fmtDollar(curNOI) + '<span class="mf-op-pct">' + fmtPct(noiPct) + '</span></div>' +
+                '<div class="mf-step-num"><span class="mf-op-neg">=</span><span data-countup="' + curNOI + '">' + fmtDollar(curNOI) + '</span><span class="mf-op-pct">' + fmtPct(noiPct) + '</span></div>' +
               '</div>' +
               '<div class="mf-op-head-chev mf-op-head-chev--green">' + MF_CHEV + '</div>' +
             '</div>' +
@@ -980,6 +1004,9 @@ function renderOwners() {
 
   document.getElementById('finCards').innerHTML = formulaHtml;
   requestAnimationFrame(mfFixNarrowLabels);
+  /* Ticker animation on the big dollar totals — fires on every render
+     (including month changes) for that "data refreshed" satisfaction. */
+  animateCountUps(document.getElementById('finCards'), 400);
 
   // ── Show structural elements ─────────────────────────────────
   var multiMonth = months.length > 1;
