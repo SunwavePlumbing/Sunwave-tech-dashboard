@@ -115,16 +115,17 @@ function buildDateSheet() {
   sheet.addEventListener('click', function(e) { e.stopPropagation(); });
 
   sheet.innerHTML =
-    '<div class="date-bs-grabber"><div class="date-bs-handle"></div></div>' +
-    '<div class="date-bs-title">Select Date Range</div>';
+    '<div class="date-bs-drag">' +
+      '<div class="date-bs-handle"></div>' +
+      '<div class="date-bs-title">Select Date Range</div>' +
+    '</div>';
 
-  /* ── Drag-to-dismiss on the grabber/title area ─────────────────
-     Tracks finger Y while dragging the top of the sheet. Released
-     after 80+ px or with strong downward velocity → close. Otherwise
-     springs back to resting position. Drag is only active on the
-     header strip so the scrollable list underneath still scrolls. */
+  /* ── Drag-to-dismiss on the full header strip ──────────────────
+     The entire handle + "Select Date Range" title acts as a single
+     drag zone so the user can't miss it with a thumb. The scrollable
+     list underneath stays separate so swiping options still scrolls. */
   var dragStartY = null, dragDy = 0, dragStartT = 0;
-  var grabArea = sheet.querySelector('.date-bs-grabber');
+  var grabArea = sheet.querySelector('.date-bs-drag');
   function onDragMove(ev) {
     var y = ev.touches ? ev.touches[0].clientY : ev.clientY;
     dragDy = Math.max(0, y - dragStartY);  // only allow downward

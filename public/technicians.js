@@ -19,20 +19,30 @@ function statsSkeletonHtml() {
   return card + card + card;
 }
 
-/* Build N skeleton rows matching the table row layout */
+/* Build N skeleton rows matching the table row layout. Widths vary
+   subtly between rows so the placeholder doesn't look like a repeating
+   barcode. Kept narrow enough to never force horizontal overflow. */
 function rowsSkeletonHtml(n) {
   n = n || 6;
+  var nameWidths    = [70, 90, 60, 80, 75, 85];
+  var revenueWidths = [54, 50, 58, 48, 52, 56];
+  var ticketWidths  = [44, 50, 46, 52, 44, 48];
+  var jobsWidths    = [22, 26, 20, 24, 22, 24];
   var html = '';
   for (var i = 0; i < n; i++) {
+    var nw = nameWidths[i % nameWidths.length];
+    var rw = revenueWidths[i % revenueWidths.length];
+    var tw = ticketWidths[i % ticketWidths.length];
+    var jw = jobsWidths[i % jobsWidths.length];
     html +=
       '<tr class="skel-row">' +
         '<td><div class="tech-cell">' +
           '<div class="skel skel-avatar"></div>' +
-          '<div class="skel skel-line" style="width:110px;height:13px"></div>' +
+          '<div class="skel skel-line" style="width:' + nw + 'px"></div>' +
         '</div></td>' +
-        '<td><div class="skel skel-line" style="width:60px;height:13px;margin-left:auto"></div></td>' +
-        '<td><div class="skel skel-line" style="width:60px;height:13px;margin-left:auto"></div></td>' +
-        '<td><div class="skel skel-line" style="width:30px;height:13px;margin-left:auto"></div></td>' +
+        '<td><div class="skel skel-line" style="width:' + rw + 'px;margin-left:auto"></div></td>' +
+        '<td><div class="skel skel-line" style="width:' + tw + 'px;margin-left:auto"></div></td>' +
+        '<td><div class="skel skel-line" style="width:' + jw + 'px;margin-left:auto"></div></td>' +
       '</tr>';
   }
   return html;

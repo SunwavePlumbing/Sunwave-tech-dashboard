@@ -1221,37 +1221,48 @@ function renderOwners() {
 
   if (donutChartInst) donutChartInst.destroy();
   var dCtx = document.getElementById('donutChart').getContext('2d');
-  // Detect mobile for responsive chart legend sizing
-  var isMobile = window.innerWidth <= 768;
-  var isUltraSmall = window.innerWidth <= 413;
-  var legendFontSize = isUltraSmall ? 12 : (isMobile ? 14 : 11);  // 12 for ultra-small, 14 for regular mobile
-  var legendBoxWidth = isMobile ? 18 : 12;  // increased from 16 for more spacing
-  var legendPadding = isMobile ? 14 : 8;    // increased from 12 for breathing room
+
+  var donutLabels = ['Tech Labor','Parts','Subcontractors','Admin Payroll','Marketing','Rent','Vehicle','Office','Merchant','Insurance','Benefits','Utilities','Other'];
+  var donutColors = ['#FF6B35','#E5484D','#f59e0b','#64748b','#14b8a6','#8b5cf6','#FF9500','#3b82f6','#a855f7','#6366f1','#22c55e','#06b6d4','#9ca3af'];
+  var donutValues = [dTechLabor,dParts,dSubs,dAdmin,dMkt,dRent,dVehicle,dOffice,dMerch,dInsure,dBenefits,dUtil,dOther];
 
   donutChartInst = new Chart(dCtx, {
     type: 'doughnut',
     data: {
-      labels: ['Tech Labor','Parts','Subcontractors','Admin Payroll','Marketing','Rent','Vehicle','Office','Merchant','Insurance','Benefits','Utilities','Other'],
+      labels: donutLabels,
       datasets: [{
-        data: [dTechLabor,dParts,dSubs,dAdmin,dMkt,dRent,dVehicle,dOffice,dMerch,dInsure,dBenefits,dUtil,dOther],
-        backgroundColor: ['#FF6B35','#E5484D','#f59e0b','#64748b','#14b8a6','#8b5cf6','#FF9500','#3b82f6','#a855f7','#6366f1','#22c55e','#06b6d4','#9ca3af'],
-        borderWidth: 2, borderColor: '#fff', hoverOffset: 6
+        data: donutValues,
+        backgroundColor: donutColors,
+        borderWidth: 3, borderColor: '#fff',
+        hoverOffset: 8, hoverBorderColor: '#fff'
       }]
     },
     options: {
-      responsive: true, maintainAspectRatio: false, cutout: '60%',
+      responsive: true, maintainAspectRatio: false,
+      cutout: '54%',              /* thicker ring — more visual weight */
+      layout: { padding: 4 },
       plugins: {
-        legend: { position: 'bottom', labels: { font: { size: legendFontSize, weight: '600' }, padding: legendPadding, boxWidth: legendBoxWidth } },
-        tooltip: { callbacks: {
-          label: function(ctx) {
-            var v = ctx.parsed;
-            var pct = dAllCosts > 0 ? (v/dAllCosts*100).toFixed(1) + '%' : '';
-            return ctx.label + ': ' + fmtDollar(v) + (pct ? ' (' + pct + ')' : '');
+        legend: { display: false },  /* replaced by custom pill legend below */
+        tooltip: {
+          backgroundColor: 'rgba(15,23,42,0.94)',
+          padding: 12, cornerRadius: 10,
+          titleFont: { size: 13, weight: '700' },
+          bodyFont:  { size: 13, weight: '500' },
+          displayColors: false,
+          callbacks: {
+            label: function(ctx) {
+              var v = ctx.parsed;
+              var pct = dAllCosts > 0 ? (v/dAllCosts*100).toFixed(1) + '%' : '';
+              return ctx.label + ': ' + fmtDollar(v) + (pct ? ' (' + pct + ')' : '');
+            }
           }
-        }}
+        }
       }
     }
   });
+
+  // ── Custom interactive legend pills ──────────────────────────
+  buildDonutLegend(donutLabels, donutColors, donutValues);
 
   // ── Trend lines ──────────────────────────────────────────────
   var TREND_SERIES = [
@@ -1310,20 +1321,19 @@ function renderOwners() {
     });
   });
 
-  // ── Clip-reveal plugin ────────────────────────────────────────
-  // Expands from the horizontal center outward in both directions so
-  // the line and its fill always grow in perfect sync (no Chart.js mismatch).
+  // ── Left-to-right clip-reveal plugin ─────────────────────────
+  // Sweeps a clipping rectangle from the chart's left edge rightward
+  // so the line "draws itself" following the time axis. Mimics an
+  // SVG stroke-dashoffset animation with canvas geometry.
   var _tRev = { v: 0 };
   var tRevealPlugin = {
     id: 'trendReveal',
     beforeDatasetsDraw: function(chart) {
-      var ca   = chart.chartArea;
-      var cw   = ca.right - ca.left;
-      var cx   = ca.left + cw / 2;          // horizontal centre of plot area
-      var half = cw / 2 * _tRev.v;          // how far left/right we've revealed
+      var ca    = chart.chartArea;
+      var width = (ca.right - ca.left) * _tRev.v;
       chart.ctx.save();
       chart.ctx.beginPath();
-      chart.ctx.rect(cx - half, ca.top - 4, half * 2, ca.bottom - ca.top + 8);
+      chart.ctx.rect(ca.left, ca.top - 4, width, ca.bottom - ca.top + 8);
       chart.ctx.clip();
     },
     afterDatasetsDraw: function(chart) { chart.ctx.restore(); }
@@ -1339,16 +1349,28 @@ function renderOwners() {
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: false },
+        /* Custom white tooltip card — soft shadow, color-matched value,
+           anchored above the data point so thumbs don't obscure it. */
         tooltip: {
-          filter: function(ctx) { return !/target$/.test(ctx.dataset.label); },
-          callbacks: {
-            label: function(ctx) { return ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(1) + '%'; }
-          }
+          enabled: false,
+          external: renderTrendTooltip,
+          filter: function(ctx) { return !/target$/.test(ctx.dataset.label); }
         }
       },
       scales: {
-        x: { grid: { color: '#f5f5f5' }, ticks: { font: { size: 10 } } },
-        y: { ticks: { callback: function(v) { return v.toFixed(0) + '%'; }, font: { size: 10 } }, grid: { color: '#f0f0f0' } }
+        x: {
+          grid: { color: 'rgba(148,163,184,0.12)', drawTicks: false },
+          border: { display: false },
+          ticks: { font: { size: 12, weight: '500' }, color: '#64748b', padding: 6 }
+        },
+        y: {
+          grid: { color: 'rgba(148,163,184,0.10)', drawTicks: false },
+          border: { display: false },
+          ticks: {
+            callback: function(v) { return v.toFixed(0) + '%'; },
+            font: { size: 12, weight: '500' }, color: '#64748b', padding: 8
+          }
+        }
       }
     }
   });
@@ -1847,6 +1869,84 @@ function renderOwners() {
 
 }
 
+/* ── Donut interactive legend ───────────────────────────────────
+   Builds soft-tinted pill buttons for each slice. Tapping a pill
+   hides the slice in the donut and dims the pill (strikethrough
+   label + 50% opacity). Much clearer than the static Chart.js
+   legend — pills look tappable and give stronger hit targets. */
+function buildDonutLegend(labels, colors, values) {
+  var el = document.getElementById('donutLegend');
+  if (!el) return;
+  var html = labels.map(function(label, i) {
+    // Skip slices with $0 — nothing to toggle
+    if (!values[i]) return '';
+    var color = colors[i];
+    return '<button class="fin-donut-chip" data-idx="' + i +
+      '" style="--chip-c:' + color + '" onclick="toggleDonutSlice(this)">' +
+      '<span class="fin-donut-chip-dot" style="background:' + color + '"></span>' +
+      '<span class="fin-donut-chip-label">' + esc(label) + '</span>' +
+      '</button>';
+  }).join('');
+  el.innerHTML = html;
+}
+
+/* Toggle a donut slice visibility by index, driven by the pill click. */
+function toggleDonutSlice(btn) {
+  if (!donutChartInst) return;
+  var idx = parseInt(btn.dataset.idx);
+  var meta = donutChartInst.getDatasetMeta(0);
+  var wasVisible = donutChartInst.getDataVisibility(idx);
+  // Chart.js v4 exposes toggleDataVisibility
+  donutChartInst.toggleDataVisibility(idx);
+  donutChartInst.update();
+  btn.classList.toggle('is-off', wasVisible);
+  if (navigator.vibrate) { try { navigator.vibrate(6); } catch(e) {} }
+}
+
+/* ── Custom white tooltip card for the trend chart ───────────────
+   Replaces Chart.js's default dark rectangle with a premium floating
+   card: date on top in small gray, metric + value below in larger
+   bold text tinted to the active series color. Anchored above the
+   hovered point so a thumb on the screen never blocks it. */
+function renderTrendTooltip(context) {
+  var el = document.getElementById('trendTooltip');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'trendTooltip';
+    el.className = 'fin-trend-tooltip';
+    document.body.appendChild(el);
+  }
+  var tt = context.tooltip;
+  if (!tt || tt.opacity === 0 || !tt.dataPoints || !tt.dataPoints.length) {
+    el.classList.remove('is-visible');
+    return;
+  }
+  // Filter out the "... target" pseudo-datasets; use the real metric
+  var pt = tt.dataPoints.find(function(d) { return !/target$/.test(d.dataset.label); });
+  if (!pt) { el.classList.remove('is-visible'); return; }
+  var color = pt.dataset.borderColor || '#1a2d3a';
+  var val   = pt.parsed.y.toFixed(1) + '%';
+  el.innerHTML =
+    '<div class="fin-trend-tooltip-date">' + esc(pt.label) + '</div>' +
+    '<div class="fin-trend-tooltip-row">' +
+      '<span class="fin-trend-tooltip-swatch" style="background:' + color + '"></span>' +
+      '<span class="fin-trend-tooltip-label">' + esc(pt.dataset.label) + '</span>' +
+    '</div>' +
+    '<div class="fin-trend-tooltip-value" style="color:' + color + '">' + val + '</div>';
+  el.classList.add('is-visible');
+  // Position the card ABOVE the data point so a pressing thumb doesn't cover it
+  var canvas = context.chart.canvas;
+  var rect   = canvas.getBoundingClientRect();
+  var x = rect.left + window.scrollX + tt.caretX;
+  var y = rect.top  + window.scrollY + tt.caretY;
+  // Let it fully render before reading width (for centering)
+  requestAnimationFrame(function() {
+    var w = el.offsetWidth;
+    el.style.left = (x - w / 2) + 'px';
+    el.style.top  = (y - el.offsetHeight - 14) + 'px';  // 14px gap above dot
+  });
+}
+
 // Build the 2-item overlay legend inside the chart (active series + gold target)
 function buildTrendLegend(series, curIdx) {
   var el = document.getElementById('trendLegendOverlay');
@@ -1861,17 +1961,17 @@ function buildTrendLegend(series, curIdx) {
       '<span class="tcl-val" style="color:' + active.color + '">' + curVal + '</span>' +
     '</div>';
   if (active.goal != null) {
-    var dirBadge = '';
-    if (active.dir === 'above') {
-      dirBadge = '<span class="tcl-dir tcl-dir--above">↑ aim above</span>';
-    } else if (active.dir === 'below') {
-      dirBadge = '<span class="tcl-dir tcl-dir--below">↓ stay below</span>';
-    }
+    // Neutral, non-judgmental framing — "≤ 25%" / "≥ 50%" reads as a
+    // benchmark, not a warning. No red, no aggressive arrows.
+    var targetText = active.dir === 'below'
+      ? 'Target: \u2264 ' + active.goal + '%'
+      : active.dir === 'above'
+      ? 'Target: \u2265 ' + active.goal + '%'
+      : 'Target: ' + active.goal + '%';
     html +=
       '<div class="tcl-item">' +
         '<span class="tcl-swatch tcl-swatch--target"></span>' +
-        '<span class="tcl-label" style="color:#94a3b8">Target ' + active.goal + '%</span>' +
-        dirBadge +
+        '<span class="tcl-target-pill">' + targetText + '</span>' +
       '</div>';
   }
   el.innerHTML = html;

@@ -118,12 +118,22 @@ body {
   background-repeat: no-repeat;
   animation: skel-shimmer 1.3s linear infinite;
   border-radius: 6px;
+  max-width: 100%;        /* never overflow its cell */
+  vertical-align: middle;
 }
-.skel-line     { height: 12px; display: block; }
+/* Lines are block-level inside stat cards, but must stay inline-block
+   inside flex containers (the table's .tech-cell) so pixel widths are
+   honored instead of being stretched. */
+.skel-line     { height: 12px; }
+.stat-card .skel-line { display: block; }
 .skel-line--sm { height: 10px; }
 .skel-line--xl { height: 24px; border-radius: 8px; }
 .skel-avatar   { width: 36px; height: 36px; border-radius: 8px; flex-shrink: 0; }
 .skel-row td   { border-bottom: 1px solid #f7f7f7; padding: 14px 16px; }
+/* Prevent the name column's skeleton from forcing the table wider
+   than the viewport on mobile */
+.skel-row .tech-cell { max-width: 100%; min-width: 0; }
+.skel-row .tech-cell .skel-line { flex: 0 1 auto; }
 @keyframes skel-shimmer {
   0%   { background-position: 100% 0; }
   100% { background-position: -100% 0; }
@@ -387,31 +397,32 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
     box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
   }
   .date-bs-backdrop.open .date-bs-sheet { transform: translateY(0); }
-  /* Grabber: generous invisible hit area around the visible handle so
-     the drag gesture is easy to catch with a thumb. */
-  .date-bs-grabber {
-    width: 100%;
-    padding: 10px 0 8px;
-    display: flex;
-    justify-content: center;
+  /* Unified drag zone covering both the handle indicator AND the
+     "Select Date Range" title. A user thumbing the title accidentally
+     now gets the exact same drag behavior as grabbing the tiny strip. */
+  .date-bs-drag {
     cursor: grab;
-    touch-action: none;  /* we handle vertical panning ourselves */
+    touch-action: none;         /* we handle vertical panning ourselves */
     flex-shrink: 0;
+    padding: 10px 0 0;
+    border-bottom: 1px solid #f1f5f9;
+    user-select: none;
+    -webkit-user-select: none;
   }
-  .date-bs-grabber:active { cursor: grabbing; }
+  .date-bs-drag:active { cursor: grabbing; }
   .date-bs-handle {
     width: 38px; height: 4px;
     background: #cbd5e1;
     border-radius: 2px;
-    pointer-events: none;  /* let events land on the grabber */
+    margin: 0 auto 8px;
+    pointer-events: none;       /* let events fall through to the zone */
   }
   .date-bs-title {
     font-size: 16px; font-weight: 700;
     color: #0f172a;
     text-align: center;
     padding: 4px 20px 14px;
-    border-bottom: 1px solid #f1f5f9;
-    flex-shrink: 0;
+    pointer-events: none;       /* prevent text-selection stealing the drag */
   }
   .date-bs-list {
     display: flex; flex-direction: column;
@@ -1937,6 +1948,124 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .tcl-dir { font-size:10px; font-weight:600; padding:1px 6px; border-radius:10px; margin-left:4px; }
 .tcl-dir--above { background:#dcfce7; color:#15803d; }
 .tcl-dir--below { background:#fee2e2; color:#b91c1c; }
+
+/* ── Neutral "Target ≤ 25%" pill (replaces the old red "stay below") */
+.tcl-target-pill {
+  display: inline-block;
+  font-size: 11px; font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 10px;
+  background: #f1f5f9;       /* pale slate — reads as info, not warning */
+  color: #475569;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+
+/* ── Custom trend-chart tooltip card ──────────────────────────
+   Floating white card with soft shadow and colored value.
+   Positioned in JS above the data point so thumbs don't hide it. */
+.fin-trend-tooltip {
+  position: absolute;
+  z-index: 1000;
+  pointer-events: none;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
+  padding: 8px 12px 10px;
+  min-width: 140px;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+  font-family: inherit;
+}
+.fin-trend-tooltip.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.fin-trend-tooltip-date {
+  font-size: 11px; font-weight: 500;
+  color: #94a3b8;
+  letter-spacing: 0.3px;
+  margin-bottom: 4px;
+}
+.fin-trend-tooltip-row {
+  display: flex; align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+.fin-trend-tooltip-swatch {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+}
+.fin-trend-tooltip-label {
+  font-size: 11px; font-weight: 600;
+  color: #64748b;
+}
+.fin-trend-tooltip-value {
+  font-size: 20px; font-weight: 800;
+  letter-spacing: -0.3px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Larger donut wrap + custom pill legend ───────────────── */
+.fin-donut-wrap {
+  position: relative;
+  width: 100%;
+  height: 340px;              /* bigger than the old 300px */
+  margin: 0 auto;
+  padding: 0;
+}
+.fin-donut-wrap canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+.fin-donut-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 16px;
+  padding: 4px 2px 0;
+}
+.fin-donut-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--chip-c) 12%, #ffffff);
+  color: #334155;
+  font-size: 12px; font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s, transform 0.08s, opacity 0.15s;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.fin-donut-chip:hover  { background: color-mix(in srgb, var(--chip-c) 20%, #ffffff); }
+.fin-donut-chip:active { transform: scale(0.95); }
+.fin-donut-chip-dot {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.fin-donut-chip.is-off {
+  background: #f1f5f9;
+  opacity: 0.5;
+}
+.fin-donut-chip.is-off .fin-donut-chip-label { text-decoration: line-through; }
+.fin-donut-chip.is-off .fin-donut-chip-dot   { background: #cbd5e1 !important; }
+
+@media (max-width: 768px) {
+  .fin-donut-wrap { height: 320px; }
+}
+@media (max-width: 480px) {
+  .fin-donut-wrap { height: 290px; }
+  .fin-donut-chip { font-size: 11px; padding: 5px 10px; }
+  .fin-donut-legend { gap: 6px; }
+}
 
 /* Cash cards */
 .cash-row { display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px; }
