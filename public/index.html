@@ -207,12 +207,13 @@
 <!-- Expense drill-down sheet (overhead / COGS sub-account detail) -->
 <div class="exp-backdrop" id="expBackdrop" onclick="closeExpModal()">
   <div class="exp-sheet" onclick="event.stopPropagation()">
-    <div class="exp-sheet-header">
-      <div>
+    <!-- Drag zone: swipe down to dismiss. Replaces the old X button. -->
+    <div class="exp-sheet-drag" id="expSheetDrag">
+      <div class="exp-sheet-grabber"></div>
+      <div class="exp-sheet-header">
         <div class="exp-sheet-title" id="expSheetTitle"></div>
         <div class="exp-sheet-sub"   id="expSheetSub"></div>
       </div>
-      <button class="exp-sheet-close" onclick="closeExpModal()">&times;</button>
     </div>
     <div class="exp-sheet-body" id="expSheetBody"></div>
     <div class="exp-sheet-footer" id="expSheetFooter"></div>

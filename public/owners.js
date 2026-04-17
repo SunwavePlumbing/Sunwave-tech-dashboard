@@ -1225,6 +1225,27 @@ function renderOwners() {
   var donutLabels = ['Tech Labor','Parts','Subcontractors','Admin Payroll','Marketing','Rent','Vehicle','Office','Merchant','Insurance','Benefits','Utilities','Other'];
   var donutColors = ['#FF6B35','#E5484D','#f59e0b','#64748b','#14b8a6','#8b5cf6','#FF9500','#3b82f6','#a855f7','#6366f1','#22c55e','#06b6d4','#9ca3af'];
   var donutValues = [dTechLabor,dParts,dSubs,dAdmin,dMkt,dRent,dVehicle,dOffice,dMerch,dInsure,dBenefits,dUtil,dOther];
+  /* Map each donut category to the QBO account key mfDrillDown wants.
+     "Other" is the gap between dAllCosts and the accounted categories
+     and has no single underlying account, so it's intentionally null. */
+  var donutAccts = [
+    'Total Cost of Goods Sold - Labor',   // Tech Labor
+    'Cost of Goods Sold - Job Supplies',  // Parts
+    'Subcontractors',                     // Subcontractors
+    'Total Salaried & Admin Payroll Expense', // Admin Payroll
+    'Total Advertising & marketing',      // Marketing
+    'Total Rent',                         // Rent
+    'Total Vehicle Expenses',             // Vehicle
+    'Total Office expenses',              // Office
+    'Total Merchant account fees',        // Merchant
+    'Insurance',                          // Insurance
+    'Total Employee benefits',            // Benefits
+    'Total Utilities',                    // Utilities
+    null                                  // Other — no single account
+  ];
+  // Cache arrays globally so toggleDonutSlice can read them
+  window._donutLabels = donutLabels;
+  window._donutAccts  = donutAccts;
 
   donutChartInst = new Chart(dCtx, {
     type: 'doughnut',
@@ -1241,6 +1262,15 @@ function renderOwners() {
       responsive: true, maintainAspectRatio: false,
       cutout: '54%',              /* thicker ring — more visual weight */
       layout: { padding: 4 },
+      /* Tap a slice → same drill-down sheet as the COGS/Overhead bars */
+      onClick: function(evt, elements) {
+        if (!elements || !elements.length) return;
+        var idx = elements[0].index;
+        openDonutDrillDown(idx);
+      },
+      onHover: function(evt, elements) {
+        evt.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+      },
       plugins: {
         legend: { display: false },  /* replaced by custom pill legend below */
         tooltip: {
@@ -1871,18 +1901,24 @@ function renderOwners() {
 
 /* ── Donut interactive legend ───────────────────────────────────
    Builds soft-tinted pill buttons for each slice. Tapping a pill
-   hides the slice in the donut and dims the pill (strikethrough
-   label + 50% opacity). Much clearer than the static Chart.js
-   legend — pills look tappable and give stronger hit targets. */
+   opens the expense drill-down sheet for that category — same sheet
+   used when tapping a slice of the donut itself. */
 function buildDonutLegend(labels, colors, values) {
   var el = document.getElementById('donutLegend');
   if (!el) return;
   var html = labels.map(function(label, i) {
-    // Skip slices with $0 — nothing to toggle
+    // Skip slices with $0 — nothing to drill into
     if (!values[i]) return '';
     var color = colors[i];
-    return '<button class="fin-donut-chip" data-idx="' + i +
-      '" style="--chip-c:' + color + '" onclick="toggleDonutSlice(this)">' +
+    // "Other" has no single underlying account, so don't pretend it's clickable
+    var acct = (window._donutAccts || [])[i];
+    var clickable = !!acct;
+    var onClickAttr = clickable
+      ? ' onclick="openDonutDrillDown(' + i + ')"'
+      : '';
+    var extraCls = clickable ? '' : ' fin-donut-chip--static';
+    return '<button class="fin-donut-chip' + extraCls + '" data-idx="' + i +
+      '" style="--chip-c:' + color + '"' + onClickAttr + '>' +
       '<span class="fin-donut-chip-dot" style="background:' + color + '"></span>' +
       '<span class="fin-donut-chip-label">' + esc(label) + '</span>' +
       '</button>';
@@ -1890,17 +1926,18 @@ function buildDonutLegend(labels, colors, values) {
   el.innerHTML = html;
 }
 
-/* Toggle a donut slice visibility by index, driven by the pill click. */
-function toggleDonutSlice(btn) {
-  if (!donutChartInst) return;
-  var idx = parseInt(btn.dataset.idx);
-  var meta = donutChartInst.getDatasetMeta(0);
-  var wasVisible = donutChartInst.getDataVisibility(idx);
-  // Chart.js v4 exposes toggleDataVisibility
-  donutChartInst.toggleDataVisibility(idx);
-  donutChartInst.update();
-  btn.classList.toggle('is-off', wasVisible);
-  if (navigator.vibrate) { try { navigator.vibrate(6); } catch(e) {} }
+/* Open the expense drill-down sheet for a donut category by index.
+   Reuses the exact same mfDrillDown() path that the COGS and Overhead
+   bar legends use, so the modal, transactions, and styling are
+   identical across the three entry points. */
+function openDonutDrillDown(idx) {
+  var labels = window._donutLabels || [];
+  var accts  = window._donutAccts  || [];
+  var label  = labels[idx];
+  var acct   = accts[idx];
+  if (!label || !acct) return;   // "Other" or missing mapping — no-op
+  if (navigator.vibrate) { try { navigator.vibrate(8); } catch(e) {} }
+  mfDrillDown(label, acct);
 }
 
 /* ── Custom white tooltip card for the trend chart ───────────────
@@ -2200,6 +2237,58 @@ function closeExpModal() {
   // Remove from layout after the slide-down transition finishes
   setTimeout(function() { backdrop.style.display = 'none'; }, 280);
 }
+
+/* ── Drag-to-dismiss on the expense sheet ─────────────────────────
+   Replicates the date-range sheet gesture. Drag starts anywhere on
+   the grabber + title + subtitle strip. Release past 80px OR with
+   velocity > 0.5 px/ms closes the sheet; otherwise springs back. */
+(function wireExpSheetDrag() {
+  var sheet, drag;
+  var dragStartY = null, dragDy = 0, dragStartT = 0;
+  function onMove(ev) {
+    var y = ev.touches ? ev.touches[0].clientY : ev.clientY;
+    dragDy = Math.max(0, y - dragStartY);
+    sheet.style.transition = 'none';
+    sheet.style.transform  = 'translateY(' + dragDy + 'px)';
+    if (ev.cancelable) ev.preventDefault();
+  }
+  function onEnd() {
+    var dt = Date.now() - dragStartT;
+    var velocity = dragDy / Math.max(dt, 1);
+    sheet.style.transition = '';
+    sheet.style.transform  = '';
+    if (dragDy > 80 || velocity > 0.5) {
+      closeExpModal();
+    }
+    window.removeEventListener('touchmove',  onMove, { passive: false });
+    window.removeEventListener('touchend',   onEnd);
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup',   onEnd);
+    dragStartY = null; dragDy = 0;
+  }
+  function onStart(ev) {
+    sheet = document.querySelector('#expBackdrop .exp-sheet');
+    if (!sheet) return;
+    dragStartY = ev.touches ? ev.touches[0].clientY : ev.clientY;
+    dragStartT = Date.now();
+    dragDy = 0;
+    window.addEventListener('touchmove',  onMove, { passive: false });
+    window.addEventListener('touchend',   onEnd);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup',   onEnd);
+  }
+  function init() {
+    drag = document.getElementById('expSheetDrag');
+    if (!drag) return;
+    drag.addEventListener('touchstart',  onStart, { passive: true });
+    drag.addEventListener('pointerdown', onStart);
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
 
 // ── Narrow-bar label guard ────────────────────────────────────
 // Called after every money-flow render and on window resize.

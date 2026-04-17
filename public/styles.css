@@ -283,8 +283,9 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   background: white;
   width: 100%; max-width: 480px;
   border-radius: 16px 16px 0 0;
-  max-height: 80vh;
+  max-height: 85vh;
   display: flex; flex-direction: column;
+  overflow: hidden;                       /* never scroll sideways */
   box-shadow: 0 -4px 24px rgba(0,0,0,0.14);
   transform: translateY(100%);
   transition: transform 0.26s cubic-bezier(0.32,0,0.14,1);
@@ -294,27 +295,51 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 }
 .exp-backdrop.exp-open .exp-sheet { transform: translateY(0); }
 
-.exp-sheet-header {
-  padding: 16px 18px 12px;
+/* Unified drag zone (grabber + title + sub). Users can swipe anywhere
+   on this strip to dismiss; no more missing a tiny close button. */
+.exp-sheet-drag {
+  flex-shrink: 0;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
   border-bottom: 1px solid #f0f0f0;
-  display: flex; align-items: flex-start; justify-content: space-between; flex-shrink: 0;
+}
+.exp-sheet-drag:active { cursor: grabbing; }
+.exp-sheet-grabber {
+  width: 38px; height: 4px;
+  background: #cbd5e1;
+  border-radius: 2px;
+  margin: 10px auto 2px;
+  pointer-events: none;
+}
+.exp-sheet-header {
+  padding: 8px 18px 14px;
+  pointer-events: none;                   /* let events fall through to drag zone */
 }
 .exp-sheet-title { font-size: 17px; font-weight: 800; letter-spacing: -0.3px; }
 .exp-sheet-sub   { font-size: 12px; color: #aaa; font-weight: 500; margin-top: 2px; }
-.exp-sheet-close {
-  background: none; border: none; font-size: 22px; color: #bbb;
-  cursor: pointer; line-height: 1; padding: 0 2px; flex-shrink: 0; margin-left: 12px;
-}
-.exp-sheet-close:hover { color: #555; }
 
-.exp-sheet-body { overflow-y: auto; flex: 1; padding: 8px 0; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.exp-sheet-body {
+  overflow-y: auto; overflow-x: hidden;   /* no sideways scroll */
+  flex: 1;
+  padding: 8px 0;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  min-height: 0;
+}
 
 .exp-row { padding: 10px 18px; }
 .exp-row-top {
   display: flex; align-items: baseline; justify-content: space-between;
   gap: 8px; margin-bottom: 5px;
 }
-.exp-row-name { font-size: 13px; color: #444; flex: 1; line-height: 1.3; }
+.exp-row-name {
+  font-size: 13px; color: #444; flex: 1; line-height: 1.3;
+  min-width: 0;                          /* allow shrink in flex row */
+  overflow-wrap: anywhere;               /* break long descriptions cleanly */
+  word-break: break-word;
+}
 .exp-row-val  { font-size: 14px; font-weight: 700; color: #1a2d3a;
                 font-variant-numeric: tabular-nums; white-space: nowrap; }
 .exp-bar-track {
@@ -341,9 +366,14 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 }
 
 .exp-sheet-footer {
-  padding: 12px 18px; border-top: 1px solid #f0f0f0;
+  padding: 12px 18px;
+  /* Add iOS home-indicator clearance so "45 TRANSACTIONS" / "$40K"
+     aren't cut off by the curved bottom corners of the phone. */
+  padding-bottom: max(14px, env(safe-area-inset-bottom));
+  border-top: 1px solid #f0f0f0;
   display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
-  background: #fafafa; border-radius: 0 0 14px 14px;
+  background: #fafafa;
+  border-radius: 0;                        /* sheet has overflow:hidden, no need here */
 }
 .exp-foot-label { font-size: 12px; font-weight: 700; text-transform: uppercase;
                   letter-spacing: 0.6px; color: #aaa; }
@@ -2107,6 +2137,15 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .fin-donut-chip.is-off .fin-donut-chip-label { text-decoration: line-through; }
 .fin-donut-chip.is-off .fin-donut-chip-dot   { background: #cbd5e1 !important; }
 
+/* "Other" pill: visible for context, but not tappable since there's
+   no underlying QBO account to drill into. */
+.fin-donut-chip--static {
+  cursor: default;
+  opacity: 0.7;
+}
+.fin-donut-chip--static:hover { background: color-mix(in srgb, var(--chip-c) 12%, #ffffff); }
+.fin-donut-chip--static:active { transform: none; }
+
 @media (max-width: 768px) {
   .fin-donut-wrap { height: 320px; }
 }
@@ -2495,15 +2534,10 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   .modal-table th { font-size: 11px; padding: 10px 8px; }
   .modal-table td { font-size: 13px; padding: 10px 8px; }
 
-  /* ── EXPENSE DETAIL SHEET: Mobile improvements ────────────────────── */
-  .exp-sheet {
-    border-radius: 16px 16px 0 0;
-    max-height: 90vh;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .exp-sheet-header { padding: 20px 18px; }
+  /* ── EXPENSE DETAIL SHEET: Mobile improvements ──────────────────────
+     (Sheet-level overflow is set at the base rule now — `overflow:
+     hidden` on the sheet so children scroll independently.) */
+  .exp-sheet-header { padding: 8px 18px 16px; }
   .exp-sheet-title { font-size: 16px; font-weight: 700; }
   .exp-sheet-sub { font-size: 13px; color: #888; }
   .exp-sheet-body { padding: 16px 18px; }
