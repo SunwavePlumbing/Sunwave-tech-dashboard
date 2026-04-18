@@ -505,14 +505,26 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 
   /* Right-edge fade hints that there's more content to scroll to.
      Pinned to the pill-row area via absolute positioning on #techView
-     so it stays put while the pills scroll underneath it. */
+     so it stays put while the pills scroll underneath it.
+       • right: -1.2rem extends the element THROUGH .content's 1.2rem
+         right padding (see `.content` rule in the mobile @media block)
+         so the solid-color portion of the gradient reaches the actual
+         viewport edge — no "thread" of paper visible past the fade.
+       • Gradient compressed to 0→1 opacity across only 40% of element
+         width, so the visible fade band is tight (~14px). The
+         remaining 60% holds solid paper color, which the -1.2rem
+         offset uses to paint over the content padding cleanly.
+       • Color matches --paper-bg (#F4F3EF) so there's no cool-gray
+         seam against the warm paper canvas. */
   #techView { position: relative; }
   #techView::after {
     content: '';
     position: absolute;
-    top: 0; right: 0;
-    width: 32px; height: 46px;
-    background: linear-gradient(to right, rgba(245,245,245,0), rgba(245,245,245,0.95));
+    top: 0; right: -1.2rem;
+    width: 36px; height: 46px;
+    background: linear-gradient(to right,
+      rgba(244, 243, 239, 0) 0%,
+      rgba(244, 243, 239, 1) 40%);
     pointer-events: none;
     z-index: 2;
   }
