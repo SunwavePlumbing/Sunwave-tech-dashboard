@@ -1482,9 +1482,19 @@ function renderOwners() {
         '</button>' +
       '</div>';
 
-    // ── Build ledger rows, group by performance, sort by magnitude ──
-    // Skip indent rows where both months are zero (no signal). Always
-    // keep subtotals/grand-totals/categories as orientation anchors.
+    // ── Build ledger rows in natural P&L statement order ─────────────
+    // The data source (pnlRows) is already sequenced as a proper P&L:
+    //   Revenue → COGS header → COGS leaves → Gross Profit → OpEx header
+    //   → OpEx leaves → Net Operating Income
+    // We render rows in that exact order so the card reads like an
+    // accounting statement (not a wins/watchlist dashboard). Each row
+    // still carries its own green/red delta pill, directional arrow,
+    // category wash, and outlier flag — the semantics are preserved
+    // per-row; only the top-level grouping changes.
+    //
+    // Indent (leaf) rows with zero in both months are dropped — they're
+    // dead weight in a P&L. Subtotals / grand totals / category headers
+    // always render as orientation anchors.
     var ledgerItems = pnlRows.map(function(row) {
       return buildLedgerRow(row, priIdx2, cmpIdx2, priRev, cmpRev);
     }).filter(function(it) {
@@ -1496,42 +1506,15 @@ function renderOwners() {
       return true;
     });
 
-    // Group into Wins / Watchlist / Flat. Within each group sort by
-    // absolute dollar impact descending — biggest swings surface first.
-    var wins = [], watch = [], flat = [];
-    ledgerItems.forEach(function(it) {
-      (it.sign === 'pos' ? wins : it.sign === 'neg' ? watch : flat).push(it);
-    });
-    wins.sort(function(a, b)  { return b.absDiff - a.absDiff; });
-    watch.sort(function(a, b) { return b.absDiff - a.absDiff; });
-    // Flat rows stay in their original financial order so subtotals
-    // still read top-to-bottom (Revenue → GP → NOI) when nothing moved.
-
-    function renderGroup(title, items, modifier) {
-      if (!items.length) return '';
-      return '<div class="pnl-group pnl-group--' + modifier + '">' +
-        '<div class="pnl-group-title">' + esc(title) + '</div>' +
-        items.map(function(it) { return it.html; }).join('') +
+    // Single ordered statement — no win/watch regrouping. Wrapped in a
+    // `.pnl-group` without a title so existing spacing / padding rules
+    // apply uniformly to the list.
+    var ledgerHtml =
+      '<div class="pnl-ledger">' +
+        '<div class="pnl-group pnl-group--statement">' +
+          ledgerItems.map(function(it) { return it.html; }).join('') +
+        '</div>' +
       '</div>';
-    }
-
-    var ledgerHtml;
-    if (cmpIdx2 < 0) {
-      // No compare month available — render a single flat list
-      ledgerHtml =
-        '<div class="pnl-ledger">' +
-          renderGroup('Current Period', ledgerItems, 'single') +
-        '</div>';
-    } else {
-      ledgerHtml =
-        '<div class="pnl-ledger">' +
-          renderGroup('Growth & Improvements', wins, 'wins') +
-          (wins.length && (watch.length || flat.length) ? '<div class="pnl-divider" aria-hidden="true"></div>' : '') +
-          renderGroup('Areas for Attention', watch, 'watch') +
-          (watch.length && flat.length ? '<div class="pnl-divider" aria-hidden="true"></div>' : '') +
-          renderGroup('Unchanged', flat, 'flat') +
-        '</div>';
-    }
 
     document.getElementById('finPnlGrid').innerHTML = pickerHtml + ledgerHtml;
     document.getElementById('finPnlSubtitle').textContent = fmtMkFull(finMonth);
@@ -1739,6 +1722,7 @@ function renderOwners() {
     //   dir:'above' (higher is better) → green above goal, red below
     //   dir:'below' (lower is better)  → green below goal, red above
     var fillCfg = false;
+    var bgColor = 'transparent';
     if (s.goal != null && s.dir) {
       var goodColor = 'rgba(34,197,94,0.07)';   // lighter green
       var badColor  = 'rgba(239,68,68,0.06)';   // lighter red
@@ -1747,10 +1731,30 @@ function renderOwners() {
         above:  s.dir === 'above' ? goodColor : badColor,
         below:  s.dir === 'above' ? badColor  : goodColor
       };
+    } else if (s.isRevenue) {
+      // Revenue has no ratio target — instead, paint a green "growth
+      // hill" wash from the line down to the x-axis. Gradient is
+      // punchiest at the top (just under the line) and fades to fully
+      // transparent at the axis, so tall peaks feel more satisfying
+      // without the troughs looking artificially stained. mix-blend-mode:
+      // multiply on the canvas lets this green soak into the paper tone.
+      fillCfg = 'origin';
+      bgColor = function(ctx) {
+        var chart = ctx.chart;
+        var area  = chart.chartArea;
+        // On first paint chartArea may not be ready yet — fall back
+        // to a flat tint so the chart still renders something sensible.
+        if (!area) return 'rgba(34, 197, 94, 0.14)';
+        var g = chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
+        g.addColorStop(0,    'rgba(34, 197, 94, 0.32)');  // punchy at the line
+        g.addColorStop(0.55, 'rgba(34, 197, 94, 0.12)');  // mid-fall
+        g.addColorStop(1,    'rgba(34, 197, 94, 0)');     // dissolve at axis
+        return g;
+      };
     }
     tDatasets.push({
       label: s.label, data: s.data, borderColor: s.color,
-      backgroundColor: 'transparent',
+      backgroundColor: bgColor,
       borderWidth: 2, pointRadius: 3, pointHoverRadius: 5,
       tension: 0.3, hidden: trendActive !== s.key,
       fill: fillCfg

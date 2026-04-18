@@ -166,16 +166,25 @@ body.paper-mode .section-title {
   padding-left: 2px;
 }
 
-/* "# JOBS" cell: three-column mini-grid (number / delta / PROJ) with
-   fixed-width slots so numbers align vertically across every row
-   regardless of whether the delta and PROJ badges are present. */
+/* "# JOBS" cell: three-column mini-grid (number / delta / PROJ).
+   CRITICAL: must be `display: grid` (NOT inline-grid) so the grid
+   fills the td's full width. Previously inline-grid combined with the
+   td's text-align:right meant shorter grids (rows missing a delta or
+   PROJ badge) dockedthemselves further right, which pushed the number
+   column to a different x on every row.
+   Columns:
+     1. `1fr` for the number — right-aligned text inside, so its digits
+        end at the same x regardless of how many digits (handles 1–4).
+     2. Fixed `5.5ch` delta slot (widest real delta is "-100%" = 5 chars).
+     3. Fixed `4.5ch` PROJ slot ("PROJ" = 4 chars).
+   Both badge slots are reserved even when empty so col 1's right edge
+   is at a constant x across every row, including the footer total. */
 body.paper-mode .mkt-jobs-grid {
-  display: inline-grid;
-  grid-template-columns: 3.5ch 4.5ch auto;
+  display: grid;
+  grid-template-columns: 1fr 5.5ch 4.5ch;
   align-items: baseline;
   gap: 6px;
-  /* Cell is right-aligned by default (.mkt-table td:not(:first-child));
-     inline-grid respects that so the whole group is anchored right. */
+  width: 100%;
 }
 body.paper-mode .mkt-jobs-num {
   text-align: right;

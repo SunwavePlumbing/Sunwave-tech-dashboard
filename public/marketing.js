@@ -382,7 +382,17 @@ function renderMarketing() {
     '<div class="mkt-table-card"><div class="mkt-table-scroll"><table class="mkt-table">' +
       '<thead><tr><th>Month</th><th># Jobs</th><th>Revenue</th>' + qboHeaderCols + '</tr></thead>' +
       '<tbody>' + tableRows + '</tbody>' +
-      '<tfoot><tr><td>12-Month Total</td><td>' + totalHistJobs + '</td><td>' + fmt(totalHistRev) + '</td><td>' + footSpend + '</td><td>' + footCost + '</td></tr></tfoot>' +
+      // Footer total is wrapped in the SAME mkt-jobs-grid as the body rows
+      // so the number column lands at the same x as rows above — otherwise
+      // the plain-text td would right-align at the td edge while body rows
+      // right-align at (td edge − delta slot − PROJ slot).
+      '<tfoot><tr><td>12-Month Total</td>' +
+        '<td><div class="mkt-jobs-grid">' +
+          '<span class="mkt-jobs-num">' + totalHistJobs + '</span>' +
+          '<span class="mkt-jobs-delta-slot"></span>' +
+          '<span class="mkt-jobs-proj-slot"></span>' +
+        '</div></td>' +
+        '<td>' + fmt(totalHistRev) + '</td><td>' + footSpend + '</td><td>' + footCost + '</td></tr></tfoot>' +
     '</table></div></div>';
 
   document.getElementById('marketingContent').innerHTML = qboBanner + projHTML + chartHTML + tableHTML;
