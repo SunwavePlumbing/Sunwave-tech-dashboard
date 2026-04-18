@@ -1814,29 +1814,15 @@ body.paper-mode .tech-name-label.is-revealing::after {
    ::before long-fiber layer to create a two-frequency paper surface.
    ═══════════════════════════════════════════════════════════════════ */
 
-/* 1. Tab-level secondary fiber layer ─────────────────────────────── */
-/* Coarse long-fiber texture on top of the global fine grain. Uses a
-   non-uniform baseFrequency (0.012 horizontal × 0.6 vertical) so the
-   turbulence stretches into visible streaks, reading as cotton-press
-   paper fibers rather than fine speckle noise. */
+/* 1. Tab-level fiber layer ───────────────────────────────────────── */
+/* Previous revision layered a coarse horizontal-streak fiber grain
+   here (baseFrequency 0.012 × 0.6). It read as literal side-to-side
+   lines rather than paper fiber and was removed. The global fine
+   noise from body.paper-mode::before already carries enough paper
+   feel across the tab; the per-card grain + foxing below do the
+   rest without creating banding. */
 body.paper-mode #marketingView {
   position: relative;
-}
-body.paper-mode #marketingView::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  opacity: 0.09;
-  mix-blend-mode: multiply;
-  background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Cfilter id='mkfib'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.012 0.6' numOctaves='2' seed='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.26  0 0 0 0 0.22  0 0 0 0 0.16  0 0 0 0.65 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23mkfib)'/%3E%3C/svg%3E");
-  background-size: 400px 400px;
-}
-/* Make sure the tab's own content paints above the fiber layer */
-body.paper-mode #marketingView > * {
-  position: relative;
-  z-index: 1;
 }
 
 /* 2. Per-card paper texture + foxing + pencil border ────────────── */
@@ -1851,17 +1837,22 @@ body.paper-mode #marketingView .progress-wrap {
   position: relative;
   isolation: isolate;
   /* Warmer sepia shadow — feels like paper resting on a warm desk
-     instead of a card floating in a cool digital space */
+     instead of a card floating in a cool digital space. Intentionally
+     subtle: the texture pseudos carry the paper feel, the shadow just
+     grounds the card against the canvas. */
   box-shadow:
-    0 1px 2px  rgba(90, 70, 40, 0.06),
-    0 8px 22px rgba(90, 70, 40, 0.07),
-    inset 0 1px 0 rgba(255, 252, 240, 0.55);
-  /* Hand-drawn graphite outline replaces the cool digital hairline */
-  border: 1px solid rgba(120, 100, 70, 0.20);
+    0 1px 2px  rgba(90, 70, 40, 0.05),
+    0 6px 18px rgba(90, 70, 40, 0.05),
+    inset 0 1px 0 rgba(255, 252, 240, 0.5);
+  /* Soft graphite outline — warmer than pure gray so it matches the
+     paper palette, lower alpha than the prior revision so it reads
+     as a thin pencil line rather than a firm rule */
+  border: 1px solid rgba(120, 100, 70, 0.14);
 }
 /* Fiber grain pseudo — sits above the card background, below the content.
-   Higher opacity than the global noise so the card reads as a distinct
-   sheet of paper with its own fiber structure. */
+   Opacity dialed down from the prior 0.11 → 0.06 per user feedback
+   ("a little bit less"). Still visible as paper fiber but no longer
+   competes with the data inside the card. */
 body.paper-mode #marketingView .mkt-table-card::before,
 body.paper-mode #marketingView .bar-chart-card::before,
 body.paper-mode #marketingView .proj-card::before,
@@ -1872,14 +1863,16 @@ body.paper-mode #marketingView .progress-wrap::before {
   pointer-events: none;
   z-index: 0;
   border-radius: inherit;
-  opacity: 0.11;
+  opacity: 0.06;
   mix-blend-mode: multiply;
   background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 220'%3E%3Cfilter id='cardfib'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='9' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.22  0 0 0 0 0.18  0 0 0 0 0.12  0 0 0 0.9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23cardfib)'/%3E%3C/svg%3E");
   background-size: 220px 220px;
 }
-/* Corner foxing + bottom pencil-hatch strip — only on the two LARGE
-   cards (bar chart + table). Proj-cards are too small and would look
-   dirty if stained. */
+/* Corner foxing — soft aged-paper stains at opposing corners of the
+   two LARGE cards. Dialed back from the prior revision: opacities
+   0.07 → 0.045, 0.055 → 0.03. The diagonal pencil-hatch band at the
+   bottom was removed entirely — it was redundant with the per-card
+   fiber grain and added visual weight the user didn't want. */
 body.paper-mode #marketingView .mkt-table-card::after,
 body.paper-mode #marketingView .bar-chart-card::after {
   content: '';
@@ -1889,18 +1882,10 @@ body.paper-mode #marketingView .bar-chart-card::after {
   z-index: 0;
   border-radius: inherit;
   background:
-    /* Top-left foxing — soft aged-paper stain */
     radial-gradient(ellipse 42% 26% at 6% 3%,
-      rgba(168, 128, 70, 0.07), transparent 62%),
-    /* Bottom-right foxing — smaller, to imply hand-picked-up corner */
+      rgba(168, 128, 70, 0.045), transparent 62%),
     radial-gradient(ellipse 36% 22% at 97% 97%,
-      rgba(168, 128, 70, 0.055), transparent 62%),
-    /* Very faint diagonal pencil-hatch band near the bottom — just
-       the last 60px or so — reinforces the paper's fiber direction */
-    linear-gradient(to bottom,
-      transparent 0%,
-      transparent calc(100% - 60px),
-      rgba(120, 100, 70, 0.03) 100%);
+      rgba(168, 128, 70, 0.03), transparent 62%);
 }
 /* Card children must render above the texture pseudos */
 body.paper-mode #marketingView .mkt-table-card > *,
@@ -1914,11 +1899,14 @@ body.paper-mode #marketingView .progress-wrap > * {
 /* 3. Section titles — soft ink-bleed shadow ──────────────────────── */
 /* Tight shadow makes the section heading look like ink that soaked a
    fraction of a millimeter into the paper fibers before drying. Used
-   on the "Jobs Per Month" / "Monthly History" headings only. */
+   on the "Jobs Per Month" / "Monthly History" headings only. Dialed
+   back per user feedback — the outer halo was reduced from 1.3px /
+   0.18 alpha to 1.0px / 0.10 alpha so the effect is a whisper not a
+   bloom. */
 body.paper-mode #marketingView .section-title {
   text-shadow:
-    0 0 0.4px rgba(55, 59, 77, 0.55),
-    0 0 1.3px rgba(55, 59, 77, 0.18);
+    0 0 0.4px rgba(55, 59, 77, 0.40),
+    0 0 1.0px rgba(55, 59, 77, 0.10);
   letter-spacing: 0.005em;
 }
 
@@ -1949,17 +1937,58 @@ body.paper-mode #marketingView .mkt-table thead th {
    the section-title treatment — ties the chart card together with the
    rest of the tab's typography. */
 body.paper-mode #marketingView .bar-lbl {
-  text-shadow: 0 0 0.4px rgba(55, 59, 77, 0.35);
+  text-shadow: 0 0 0.4px rgba(55, 59, 77, 0.30);
 }
 
-/* 6. Reduced-motion / texture-sensitivity override ───────────────── */
+/* 6. Paper-fiber texture INSIDE the orange bars ──────────────────── */
+/* Per user feedback — the orange blocks (bar graph + progress bar)
+   should carry the SAME paper grain as the rest of the tab, so they
+   read as "orange ink soaked into paper" instead of a solid digital
+   fill.
+
+   Technique: keep the solid orange as the base background-color, then
+   layer the same fractal-noise SVG used on the card ::before as a
+   background-image, and blend the two with `background-blend-mode:
+   multiply`. Where the noise is darker, the orange darkens; where
+   it's lighter, the orange stays vibrant. Result: the orange surface
+   inherits the paper's fiber pattern.
+
+   Scale is smaller (90px tile vs 220px on cards) so the grain reads
+   at the bars' narrow width. Excludes .bar.is-current (the projected
+   month) — that bar keeps its "pencil sketch" dashed-outline treatment
+   and shouldn't get a solid fill. */
+body.paper-mode #marketingView .bar:not(.is-current) {
+  background-color: #FF9500;
+  background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 90 90'%3E%3Cfilter id='barfib'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' seed='11' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.18  0 0 0 0 0.14  0 0 0 0 0.10  0 0 0 0.85 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23barfib)'/%3E%3C/svg%3E");
+  background-blend-mode: multiply;
+  background-size: 90px 90px, auto;
+}
+
+/* Progress bar fill — same paper-grain treatment. The base gradient
+   from brand-orange-soft → brand-orange stays intact; the noise is
+   layered on top and multiply-blended. Background-size needs explicit
+   values for each layer since gradients don't have an intrinsic size. */
+body.paper-mode #marketingView .progress-bar-fill {
+  background-image:
+    url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 90 90'%3E%3Cfilter id='barfib2'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' seed='13' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.18  0 0 0 0 0.14  0 0 0 0 0.10  0 0 0 0.85 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23barfib2)'/%3E%3C/svg%3E"),
+    linear-gradient(90deg, var(--brand-orange-soft), var(--brand-orange));
+  background-size: 60px 100%, 100% 100%;
+  background-blend-mode: multiply, normal;
+}
+
+/* 7. Reduced-motion / texture-sensitivity override ───────────────── */
 /* Users with `prefers-reduced-motion` often also prefer reduced visual
-   noise. Drop the opacity of the tab-level fiber layer + per-card
-   grain so the effect becomes a whisper rather than a statement. */
+   noise. Drop the per-card grain and bar fiber to near-zero so the
+   effect becomes a whisper rather than a statement. */
 @media (prefers-reduced-motion: reduce) {
-  body.paper-mode #marketingView::before { opacity: 0.04; }
   body.paper-mode #marketingView .mkt-table-card::before,
   body.paper-mode #marketingView .bar-chart-card::before,
   body.paper-mode #marketingView .proj-card::before,
-  body.paper-mode #marketingView .progress-wrap::before { opacity: 0.05; }
+  body.paper-mode #marketingView .progress-wrap::before { opacity: 0.035; }
+  /* Bars drop the grain entirely — solid orange is fine in reduced-
+     motion context since there's no animation context to preserve. */
+  body.paper-mode #marketingView .bar:not(.is-current) { background-image: none; }
+  body.paper-mode #marketingView .progress-bar-fill {
+    background-image: linear-gradient(90deg, var(--brand-orange-soft), var(--brand-orange));
+  }
 }
