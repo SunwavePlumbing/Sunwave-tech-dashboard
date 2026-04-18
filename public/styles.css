@@ -157,14 +157,34 @@ body {
   -webkit-user-select: none;
 }
 
-/* Name-reveal scramble: matches the final name typography exactly so
-   there's zero flicker at the moment of reveal. Only the text color is
-   slightly muted during scramble to hint "still computing." */
+/* Name-reveal scramble: matches the final name typography AND color
+   exactly so there's zero color shift at the moment of reveal. The
+   typewriter cursor below is what communicates "still computing." */
 .tech-name-label.is-revealing {
   /* Inherit font-family, size, weight, and letter-spacing from the
      base .tech-name-label rule (no overrides here) so the font stays
      identical before AND after the reveal completes. */
-  color: #475569;
+  color: inherit;  /* keeps the final .tech-name-label color — no fade-in shift */
+  position: relative;
+}
+/* Typewriter caret: a short horizontal dash that sits right after the
+   currently-typed character. Because revealName() overwrites textContent
+   character-by-character and the label has its min-width locked, the
+   ::after pseudo naturally flows at the end of the typed portion —
+   effectively tracking the cursor as the name "types itself in". */
+.tech-name-label.is-revealing::after {
+  content: '';
+  display: inline-block;
+  width: 0.55em;
+  height: 2px;
+  margin-left: 3px;
+  vertical-align: baseline;
+  background: currentColor;
+  opacity: 0.7;
+  animation: tech-name-caret-blink 0.55s steps(2, jump-none) infinite;
+}
+@keyframes tech-name-caret-blink {
+  50% { opacity: 0.25; }
 }
 
 /* Slow, deliberate "breathing" pulse on the whole table while

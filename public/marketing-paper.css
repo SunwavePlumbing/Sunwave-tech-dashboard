@@ -1475,11 +1475,20 @@ body.paper-mode .skel-cipher {
 body.paper-mode .skel-status {
   color: rgba(44, 42, 40, 0.5);
 }
-/* Name scramble tone during reveal — match the warm muted ink used
-   elsewhere in the loader so the transition into the final name
-   stays on-palette. Final color is set by the non-loading rule. */
+/* Name scramble tone during reveal — keep the FULL brand-ink color
+   (same as the settled state) so there's no lighter→darker shift when
+   the caret finishes. The typewriter dash cursor (defined in styles.css
+   via ::after) signals the "still typing" state instead of a color fade.
+   We do slightly soften the caret itself so it reads as fountain-pen
+   rather than a hard digital cursor. */
 body.paper-mode .tech-name-label.is-revealing {
-  color: rgba(44, 42, 40, 0.5);
+  color: var(--brand-ink);
+}
+body.paper-mode .tech-name-label.is-revealing::after {
+  background: var(--riso-oxford);  /* Oxford-blue nib for the cursor */
+  opacity: 0.55;
+  height: 2px;
+  border-radius: 1px;
 }
 
 /* ── Respect reduced-motion preferences ──────────────────────── */
