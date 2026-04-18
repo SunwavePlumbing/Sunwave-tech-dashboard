@@ -13,14 +13,21 @@ async function fetchQBOMarketing() {
   if (marketingData) renderMarketing();
 }
 
-/* ── "Living Ledger" loading state ──────────────────────────────
-   A dynamic processing engine that visualizes high-velocity data
-   reconciliation. Two vertical data streams (raw marketing fragments
-   on the left, refined ledger entries on the right) scroll with a
-   stutter-scroll cadence behind the central "Reconciling Marketing
-   Ledger…" ink-soak tagline + infinite tally. The counter flashes a
-   sunflower-yellow highlighter every 1,000 units; on mobile, every
-   5,000-unit milestone triggers a haptic vibration.
+/* ── "Kinetic Ledger" loading state ─────────────────────────────
+   Tactile paper-ledger aesthetic — every effect is physical, not
+   digital. The hero tagline absorbs ink letter-by-letter (L→R wave
+   of weight + blur settle, like fresh ink drying). The dots bleed
+   outward in concentric rings like a fountain pen resting on paper.
+   Behind the tagline, three low-opacity graphite columns of raw
+   fragments, formulas, and refined ledger entries stutter-scroll —
+   with occasional red-pencil strike-throughs and Oxford-blue circle
+   annotations, telling a story of the system "checking and correcting"
+   its own work. The tally ticks with tabular-nums; every 500-line
+   milestone fires a sunflower-yellow marker stroke painted with
+   mix-blend-mode: multiply behind the number so paper texture and
+   glyph both show through. The scrolling-scribe log keeps the last
+   three instructions visible above the current one, each progressively
+   fainter + blurrier — a visual audit trail of completed work.
      .destroy()    — tear down all timers (used on error paths)
      .finalize(cb) — unblur + fade out, fire `cb` when safe to mount */
 function startLedgerLoader(container) {
@@ -34,19 +41,35 @@ function startLedgerLoader(container) {
   var rawFragments = [
     'utm_source=google_ads', 'click_id=mk_9f2a3c21',
     '{"spend":428.51,"imp":12840}', 'gclid=CjwKCAjw_9f2',
-    'campaign=retarget_winter', 'referrer=fb.com/ads',
-    'ad_set_id=AS-4412-B', '{"ctr":0.048,"cpc":1.82}',
-    'utm_medium=cpc', 'conv_value=$642.00',
+    'HTTP/2 200 · auth_ok', 'campaign=retarget_winter',
+    'referrer=fb.com/ads', 'ad_set_id=AS-4412-B',
+    '{"ctr":0.048,"cpc":1.82}', 'utm_medium=cpc',
+    'x-rate-limit: 118/200', 'conv_value=$642.00',
     'tracking_id=mk_tr_9a71bf', 'fbclid=IwAR3xq',
     '{"roi":3.24,"roas":4.18}', 'utm_campaign=spring_promo',
     'impression_id=imp_7721', '{"spend":188.04,"conv":6}',
-    'adwords_id=AW-882941', 'source=organic_search',
-    'campaign_id=CMP-2026-0412', '{"cpm":14.20,"reach":82104}',
-    'utm_term=plumber+near+me', 'ref=nextdoor',
-    'pixel_id=pix_0xff41', '{"spend":612.88,"imp":19204}',
-    'click_id=mk_88fc91', 'utm_source=yelp',
-    '{"leads":14,"cpl":41.92}', 'tracking=angi_lead_gen',
+    'HTTP/2 429 · retry=3', 'adwords_id=AW-882941',
+    'source=organic_search', 'campaign_id=CMP-2026-0412',
+    '{"cpm":14.20,"reach":82104}', 'utm_term=plumber+near+me',
+    'ref=nextdoor', 'pixel_id=pix_0xff41',
+    '{"spend":612.88,"imp":19204}', 'click_id=mk_88fc91',
+    'utm_source=yelp', '{"leads":14,"cpl":41.92}',
+    'HTTP/2 204 · no-content', 'tracking=angi_lead_gen',
     'gclid=CjwKBh93Mxl', '{"spend":974.22,"conv":22}'
+  ];
+  // Formulas + accounting identities (middle stream, desktop only).
+  // Uses mathematical glyphs to feel like margin scribbles — the
+  // "mental math" layer behind the reconciliation.
+  var formulaFragments = [
+    'ΣROAS = Σrev ÷ Σspend', 'CAC = spend ÷ new_cust',
+    'CPL = spend ÷ leads', 'LTV × 3 > CAC',
+    'attr_model: last_click', 'lookback = 28d',
+    'μ(ticket) = $1,842', 'σ² = 184,221',
+    'GP% = (rev − COGS) ÷ rev', 'NOI = GP − OpEx',
+    'Δrev = $142,804 MoM', 'conv_lag = 3.4d median',
+    'χ² = 12.7, p < 0.01', '∫(spend)dt ≈ $48.2k',
+    '∂ROAS/∂spend → 0⁺', 'E[LTV|ch=paid] = $3,184',
+    'err_bound = ±$0.04', 'batch_sz = 200 rows'
   ];
   // Refined ledger entries (right stream): formatted accounting
   // rows — the "processed" side. Date | Ledger ID | Balance.
@@ -67,32 +90,51 @@ function startLedgerLoader(container) {
     }
     return out;
   }
-  var ledgerEntries = genLedger(30);
+  var ledgerEntries = genLedger(isMobile ? 18 : 30);
 
   // Build a stream column — duplicate content so the infinite scroll
   // loop is seamless (translating -50% lands on an identical phrase).
-  function buildStream(items, cls) {
+  // `seed` offsets the struck/circled pattern so each column has
+  // corrections in different spots (avoids a visible vertical stripe
+  // of marks across all three columns).
+  function buildStream(items, cls, seed) {
+    seed = seed || 0;
     var doubled = items.concat(items);
-    var lines = doubled.map(function(t) {
-      return '<div class="ll-stream-line">' + esc(t) + '</div>';
+    var lines = doubled.map(function(t, i) {
+      var extra = '';
+      // ~1 in 9 lines: red-pencil strike-through
+      if ((i + seed) % 9 === 0) extra = ' ll-stream-line--struck';
+      // ~1 in 11 lines (offset): Oxford-blue circle annotation
+      else if ((i + seed + 4) % 11 === 0) extra = ' ll-stream-line--circled';
+      return '<div class="ll-stream-line' + extra + '">' + esc(t) + '</div>';
     }).join('');
     return '<div class="ll-stream ' + cls + '" aria-hidden="true">' +
              '<div class="ll-stream-track">' + lines + '</div>' +
            '</div>';
   }
 
-  // Desktop: left raw + right refined. Mobile: single narrower raw
-  // stream in the center (right stream hidden for visual clarity).
+  // Desktop: three columns (raw | formulas | refined). Mobile: a
+  // single narrower raw stream in the center (extra columns hidden
+  // for visual clarity + performance).
   var streamsHtml;
   if (isMobile) {
-    // Mobile uses ~40% fewer entries per stream to keep FPS high on
-    // lower-end devices (spec §5 "reduce background data lines by 60%").
     var mobileRaw = rawFragments.slice(0, Math.ceil(rawFragments.length * 0.4));
-    streamsHtml = buildStream(mobileRaw, 'll-stream--center');
+    streamsHtml = buildStream(mobileRaw, 'll-stream--center', 0);
   } else {
-    streamsHtml = buildStream(rawFragments, 'll-stream--left') +
-                  buildStream(ledgerEntries,  'll-stream--right');
+    streamsHtml = buildStream(rawFragments,     'll-stream--left',   0) +
+                  buildStream(formulaFragments, 'll-stream--middle', 3) +
+                  buildStream(ledgerEntries,    'll-stream--right',  5);
   }
+
+  // Title: split every letter into its own span so the ink-soak
+  // animation can stagger per-character (creating an L→R wave of
+  // weight + blur settling, like wet ink drying across the word).
+  var titleText = 'Reconciling Marketing Ledger';
+  var titleHtml = titleText.split('').map(function(ch, i) {
+    var safe = ch === ' ' ? '&nbsp;' : esc(ch);
+    var delay = (i * 45) + 'ms'; // ~45ms stagger per character
+    return '<span class="ll-letter" style="animation-delay:' + delay + '">' + safe + '</span>';
+  }).join('');
 
   container.innerHTML =
     '<div class="ledger-loader" id="ttLoader">' +
@@ -100,7 +142,7 @@ function startLedgerLoader(container) {
       '<div class="ll-vignette" aria-hidden="true"></div>' +
       '<div class="ll-overlay">' +
         '<div class="ll-title">' +
-          '<span class="ll-title-text">Reconciling Marketing Ledger</span>' +
+          '<span class="ll-title-text">' + titleHtml + '</span>' +
           '<span class="ll-dots" aria-hidden="true">' +
             '<span class="ll-dot"></span>' +
             '<span class="ll-dot"></span>' +
@@ -109,24 +151,25 @@ function startLedgerLoader(container) {
         '</div>' +
         '<div class="ll-tally">' +
           '<span class="ll-tally-num" id="llTallyNum">0</span>' +
-          '<span class="ll-tally-label" id="llTallyLabel">accounts aggregated</span>' +
+          '<span class="ll-tally-unit">ledger entries</span>' +
         '</div>' +
+        '<div class="ll-log" id="llLog"></div>' +
       '</div>' +
     '</div>';
 
   var rootEl  = container.querySelector('#ttLoader');
   var tallyEl = container.querySelector('#llTallyNum');
-  var labelEl = container.querySelector('#llTallyLabel');
+  var logEl   = container.querySelector('#llLog');
 
   // ── Infinite tally: continuously ticking up ─────────────────────
   // Sinusoidal rate (~120–220/sec) so the counter feels organic, not
-  // linear. Detects 1,000-unit crossings to flash a yellow highlighter,
+  // linear. Detects 500-unit crossings to paint a yellow marker stroke,
   // and 5,000-unit crossings to fire a haptic pulse on mobile.
   var startTs       = performance.now();
   var destroyed     = false;
   var rafId         = null;
   var lastValue     = 0;
-  var lastMilestone = 0;   // tracks last 1,000-mark we flashed
+  var lastMilestone = 0;   // tracks last 500-mark we painted
   var lastHaptic    = 0;   // tracks last 5,000-mark we vibrated on
   var hapticSupported = isMobile && typeof navigator !== 'undefined'
                         && typeof navigator.vibrate === 'function';
@@ -146,10 +189,10 @@ function startLedgerLoader(container) {
     var value   = Math.floor(elapsed / 1000 * rate);
     if (value !== lastValue && tallyEl) {
       tallyEl.textContent = value.toLocaleString();
-      // 1,000-unit milestone highlighter flash
-      var thousand = Math.floor(value / 1000);
-      if (thousand > lastMilestone) {
-        lastMilestone = thousand;
+      // 500-unit milestone highlighter stroke (per spec: every 500)
+      var fiveHundred = Math.floor(value / 500);
+      if (fiveHundred > lastMilestone) {
+        lastMilestone = fiveHundred;
         flashMilestone();
       }
       // 5,000-unit haptic pulse (mobile only, Web Vibration API)
@@ -164,46 +207,83 @@ function startLedgerLoader(container) {
   }
   rafId = requestAnimationFrame(tickTally);
 
-  // ── Label rotation: typewriter-scrape transition ────────────────
-  // Old phrase wipes out via clip-path (reads as a hand swiping the
-  // ledger clean), new phrase wipes in from the opposite direction.
-  // Feels like the ledger is being updated in real time.
-  var labels = [
-    'accounts aggregated',
-    'invoices cross-checked',
-    'ledger lines reconciled',
-    'normalizing spend',
-    'validating API keys',
-    'entries balanced'
+  // ── Scrolling Scribe log: fading audit trail ────────────────────
+  // New instruction appears at the BOTTOM (flex column-reverse) with
+  // an ink-soak enter (blur → 0, fade → 1, translate up a few px).
+  // Previous entries remain above it, each one aged one step fainter
+  // + blurrier. After 4 entries are visible, the oldest fades out
+  // into the paper texture above. Creates a visual history of
+  // complex work already completed.
+  var phrases = [
+    'Verifying attribution windows…',
+    'Calculating ROAS by campaign…',
+    'Normalizing spend currency…',
+    'Cross-checking invoices with HCP…',
+    'Reconciling duplicate click IDs…',
+    'Rolling up ad-set performance…',
+    'Tagging organic vs paid leads…',
+    'Balancing GL-8041 → GL-8042…',
+    'Flushing stale pixel events…',
+    'Merging UTM fingerprints…',
+    'Scanning for ghost conversions…',
+    'Indexing attribution by channel…'
   ];
-  var labelIdx = 0;
-  var labelTimer = setInterval(function() {
-    if (!labelEl || destroyed) return;
-    labelIdx = (labelIdx + 1) % labels.length;
-    labelEl.classList.remove('is-entering');
-    labelEl.classList.add('is-fading');
-    setTimeout(function() {
-      if (destroyed || !labelEl) return;
-      labelEl.textContent = labels[labelIdx];
-      labelEl.classList.remove('is-fading');
-      // Kick in the entering animation on the next frame
-      requestAnimationFrame(function() {
-        if (!destroyed && labelEl) labelEl.classList.add('is-entering');
-      });
-    }, 220);
+  var phraseIdx = 0;
+  // Newest-first array; DOM uses column-reverse so logStack[0] sits
+  // visually at the bottom of the stack and older entries rise above.
+  var logStack = [];
+
+  function pushLog(text) {
+    if (destroyed || !logEl) return;
+    var el = document.createElement('div');
+    el.className = 'll-log-entry';
+    el.textContent = text;
+    // Insert at firstChild; column-reverse places firstChild at the
+    // visual bottom, so this IS the "newest at the bottom" position.
+    logEl.insertBefore(el, logEl.firstChild);
+    logStack.unshift(el);
+    // Age every entry based on its position in the stack
+    logStack.forEach(function(node, idx) {
+      node.classList.remove('ll-log-entry--current',
+                            'll-log-entry--1',
+                            'll-log-entry--2',
+                            'll-log-entry--3');
+      if      (idx === 0) node.classList.add('ll-log-entry--current');
+      else if (idx === 1) node.classList.add('ll-log-entry--1');
+      else if (idx === 2) node.classList.add('ll-log-entry--2');
+      else if (idx === 3) node.classList.add('ll-log-entry--3');
+    });
+    // Retire anything past 4 entries — fade into paper, then remove
+    while (logStack.length > 4) {
+      var stale = logStack.pop();
+      stale.classList.add('is-leaving');
+      (function(node) {
+        setTimeout(function() {
+          if (node && node.parentNode) node.parentNode.removeChild(node);
+        }, 500);
+      })(stale);
+    }
+  }
+  // Seed the first entry immediately so the log area isn't empty
+  pushLog(phrases[phraseIdx]);
+
+  var logTimer = setInterval(function() {
+    if (destroyed) return;
+    phraseIdx = (phraseIdx + 1) % phrases.length;
+    pushLog(phrases[phraseIdx]);
   }, 2200);
 
   return {
     destroy: function() {
       destroyed = true;
       if (rafId) cancelAnimationFrame(rafId);
-      clearInterval(labelTimer);
+      clearInterval(logTimer);
     },
     finalize: function(onComplete) {
       if (destroyed) { if (onComplete) onComplete(); return; }
       destroyed = true;
       if (rafId) cancelAnimationFrame(rafId);
-      clearInterval(labelTimer);
+      clearInterval(logTimer);
 
       // Streams fade + text snaps to focus, then the whole loader
       // cross-fades out so the real dashboard underneath can mount.
