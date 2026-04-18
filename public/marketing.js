@@ -42,16 +42,16 @@ function startLedgerLoader(container) {
     { n:  1, name: 'Drafting Pencil Circle Trace (kept)', svg: lgSvg_1()  },
     { n:  2, name: 'Isometric Bar Chart Ripple (kept)',   svg: lgSvg_2()  },
     { n:  3, name: 'Terra Cotta Curing Bar (kept)',       svg: lgSvg_3()  },
-    { n:  4, name: 'Tabular Engine',                       svg: lgSvg_4()  },
-    { n:  5, name: 'Drafting Dimension',                   svg: lgSvg_5()  },
-    { n:  6, name: 'Formula Extrusion',                    svg: lgSvg_6()  },
-    { n:  7, name: 'Origami Pop-Up',                       svg: lgSvg_7()  },
-    { n:  8, name: 'Vellum Layer Push',                    svg: lgSvg_8()  },
-    { n:  9, name: 'Ledger Stack',                         svg: lgSvg_9()  },
-    { n: 10, name: 'Variance Shift',                       svg: lgSvg_10() },
-    { n: 11, name: 'Market Topography',                    svg: lgSvg_11() },
-    { n: 12, name: 'Calendar Matrix',                      svg: lgSvg_12() },
-    { n: 13, name: 'Time-Slot Cascade',                    svg: lgSvg_13() }
+    { n:  4, name: 'Isometric Extrusion & Segment',        svg: lgSvg_4()  },
+    { n:  5, name: 'Slide-Rule Timeline',                  svg: lgSvg_5()  },
+    { n:  6, name: 'Blueprint Area Tracker',               svg: lgSvg_6()  },
+    { n:  7, name: 'Expanding Ledger Node',                svg: lgSvg_7()  },
+    { n:  8, name: 'Receipt Roll Matrix',                  svg: lgSvg_8()  },
+    { n:  9, name: 'Shifting Topography',                  svg: lgSvg_9()  },
+    { n: 10, name: 'Dial & Notch Tracker',                 svg: lgSvg_10() },
+    { n: 11, name: 'Balance-Scale Blocks',                 svg: lgSvg_11() },
+    { n: 12, name: 'Connected Flow-Chart',                 svg: lgSvg_12() },
+    { n: 13, name: 'Waterfall Stack',                      svg: lgSvg_13() }
   ];
 
   var gridHtml = cells.map(function(c) {
@@ -188,537 +188,622 @@ function lgSvg_3() {
   return '<div class="lg3-wrap"><div class="lg3-fill"></div></div>';
 }
 
-/* 4 — The Tabular Engine
-   5×3 grid of charcoal isometric bars. Each bar flaunts a yellow
-   tabular number on its top face that "odometers" through 3 states
-   during the rise, snapping to its final value at peak. Diagonal
-   wave sweeps front-left → back-right. Monospace digits lock the
-   columns so the tickers read as calculation output. */
+/* ──────────────────────────────────────────────────────────────
+   VARIANTS 4–13 — New "Calendar → Finance" gallery
+   Palette is strict on purpose so the set reads as one family:
+     • Paper:    #FAF9F6 (bg inherits the card)
+     • Charcoal: #2C2A28 (structure / revenue)
+     • Terracotta: #B85F2A / #D17036 / #E88140 (expense)
+     • Green:    #3CA04A / #5DBF69 (profit)
+     • Graphite: #7A7571 (guides, faint lines)
+   Every variant loops seamlessly; easings are chosen to feel
+   physical (gravity / spring / cushion) rather than mechanical.
+   ────────────────────────────────────────────────────────────── */
+
+/* 4 — Isometric Extrusion & Segment
+   4×3 isometric calendar grid. Diagonal ripple sweeps front-left
+   → back-right. Each day extrudes from flat square into a 3D block
+   whose front face splits: short terracotta band (expense) bottom,
+   taller green (profit) stacked on top. A yellow monospace revenue
+   figure ticks up during rise, snapping to final at peak. */
 function lgSvg_4() {
-  var COLS = 5, ROWS = 3, CELL = 16, STEP = 0.07;
+  var COLS = 4, ROWS = 3, CELLW = 18, CELLH = 12, STEP = 0.08;
+  var topOff = 4;
   var bars = '';
-  // Pre-generated "calculation outputs" per cell — final value shown
-  // after the ticker settles. Mixed K / % / plain to feel financial.
-  var finals = [
-    '42K', '8.1', '220', '67%', '1.2K',
-    '$94', '37', '152', '4.8',  '81%',
-    '612', '$7', '29',  '90%', '3.5K'
+  // Predetermined per-cell revenue & split (expense/profit pixels)
+  var vals = [
+    '$1,240', '$860', '$2,100', '$540',
+    '$1,820', '$1,120', '$760', '$2,480',
+    '$940', '$1,660', '$1,380', '$2,020'
   ];
-  var intermediates = ['···', '...', '— —'];
   for (var r = 0; r < ROWS; r++) {
     for (var c = 0; c < COLS; c++) {
-      var x = 16 + c * CELL + r * 5;
-      var y = 108 - r * 8;
-      var h = 28 + ((c + r) % 3) * 6;
+      var x = 18 + c * CELLW + r * 5;
+      var y = 108 - r * CELLH;
+      var h = 32 + ((c + r * 2) % 4) * 6;
+      var expenseH = Math.round(h * 0.28);   // terracotta band
+      var profitH  = h - expenseH;            // green block
       var delay = (c + r) * STEP;
-      var x1 = x, y1 = y;
-      var x2 = x + 11, y2 = y - 3;
+      var x1 = x, y1 = y, x2 = x + CELLW - 4, y2 = y - topOff;
+      var splitYFront = y - expenseH;
+      var splitYBack  = y - topOff - expenseH;
       var idx = r * COLS + c;
-      var finalVal = finals[idx];
-      var midVal = intermediates[idx % 3];
-      // Use SMIL on text via switching opacity on two <text> nodes
       bars +=
-        '<g class="lg4-bar" style="animation-delay:' + delay + 's;transform-origin:' + x1 + 'px ' + y1 + 'px">' +
-          // Front face (dark charcoal)
+        '<g class="lg4-cell" style="animation-delay:' + delay + 's;transform-origin:' + x1 + 'px ' + y1 + 'px">' +
+          // Expense band (terracotta) — bottom of front face
           '<polygon points="' +
             x1 + ',' + y1 + ' ' + x2 + ',' + y2 + ' ' +
-            x2 + ',' + (y2 - h) + ' ' + x1 + ',' + (y1 - h) +
-          '" fill="#2C2A28" stroke="#000" stroke-width="0.3"/>' +
-          // Right side face
+            x2 + ',' + splitYBack + ' ' + x1 + ',' + splitYFront +
+          '" fill="#D17036" stroke="#2C2A28" stroke-width="0.4"/>' +
+          // Profit block (green) — top of front face
           '<polygon points="' +
-            x2 + ',' + y2 + ' ' + (x2 + 3) + ',' + (y2 - 2) + ' ' +
-            (x2 + 3) + ',' + (y2 - h - 2) + ' ' + x2 + ',' + (y2 - h) +
-          '" fill="#1A1918" stroke="#000" stroke-width="0.3"/>' +
-          // Top face — tinted slightly so the yellow digit pops
+            x1 + ',' + splitYFront + ' ' + x2 + ',' + splitYBack + ' ' +
+            x2 + ',' + (y2 - h) + ' ' + x1 + ',' + (y1 - h) +
+          '" fill="#3CA04A" stroke="#2C2A28" stroke-width="0.4"/>' +
+          // Top face (lighter green)
           '<polygon points="' +
             x1 + ',' + (y1 - h) + ' ' + x2 + ',' + (y2 - h) + ' ' +
             (x2 + 3) + ',' + (y2 - h - 2) + ' ' + (x1 + 3) + ',' + (y1 - h - 2) +
-          '" fill="#3A3834" stroke="#000" stroke-width="0.3"/>' +
+          '" fill="#5DBF69" stroke="#2C2A28" stroke-width="0.4"/>' +
+          // Right side (darker — depth)
+          '<polygon points="' +
+            x2 + ',' + y2 + ' ' + (x2 + 3) + ',' + (y2 - 2) + ' ' +
+            (x2 + 3) + ',' + (y2 - h - 2) + ' ' + x2 + ',' + (y2 - h) +
+          '" fill="#1F5C28" stroke="#2C2A28" stroke-width="0.4"/>' +
         '</g>' +
-        // Number on top face — monospace yellow "odometer"
-        '<g class="lg4-num" style="animation-delay:' + delay + 's">' +
-          '<text class="lg4-num-mid" x="' + (x1 + 5.5) + '" y="' + (y1 - h + 0.5) + '" ' +
-                'fill="#FFD700" font-size="3.5" font-family="ui-monospace, monospace" ' +
-                'font-weight="700" text-anchor="middle" style="animation-delay:' + delay + 's">' +
-            esc(midVal) +
-          '</text>' +
-          '<text class="lg4-num-final" x="' + (x1 + 5.5) + '" y="' + (y1 - h + 0.5) + '" ' +
-                'fill="#FFD700" font-size="3.8" font-family="ui-monospace, monospace" ' +
-                'font-weight="700" text-anchor="middle" style="animation-delay:' + delay + 's">' +
-            esc(finalVal) +
-          '</text>' +
-        '</g>';
+        // Floating revenue label
+        '<text class="lg4-tick" x="' + (x1 + 6) + '" y="' + (y1 - h - 4) + '" ' +
+              'fill="#2C2A28" font-size="4.2" font-family="ui-monospace, monospace" ' +
+              'font-weight="700" text-anchor="middle" style="animation-delay:' + delay + 's">' +
+          esc(vals[idx]) +
+        '</text>';
     }
   }
   return '<svg class="lg-svg" viewBox="0 0 140 140">' + bars + '</svg>';
 }
 
-/* 5 — The Drafting Dimension
-   3 hero bars centered on a warm canvas, flanked by faint dashed
-   pencil axis guides (X / Y / Z). As each bar rises, a dimension
-   line with arrows stretches out from its side, bearing a fractional
-   math readout that "locks in" to the final height. Precision ease. */
+/* 5 — Slide-Rule Timeline
+   Horizontal technical timeline with evenly-spaced day notches.
+   A charcoal indicator traverses left→right. At each booked day
+   three elements fire in sync: a short terracotta dip below, a
+   tall charcoal spike above (revenue), and between them a soft
+   green wash (profit). A digit ticker rolls in the top corner. */
 function lgSvg_5() {
-  var bars = [
-    { x: 36, h: 58, label: '5 ⅞"' },
-    { x: 64, h: 74, label: '7 ¼"' },
-    { x: 92, h: 46, label: '4 ⅜"' }
-  ];
-  var floor = 108, barW = 12;
-  var svg = '';
-  bars.forEach(function(b, i) {
-    var delay = i * 0.18;
-    var x1 = b.x, x2 = b.x + barW;
-    var topY = floor - b.h;
-    var topOff = 3;   // isometric top offset
-    svg +=
-      // Bar group (scales from base)
-      '<g class="lg5-bar" style="animation-delay:' + delay + 's;transform-origin:' + x1 + 'px ' + floor + 'px">' +
-        // Front face
-        '<polygon points="' +
-          x1 + ',' + floor + ' ' + x2 + ',' + (floor - topOff) + ' ' +
-          x2 + ',' + (topY - topOff) + ' ' + x1 + ',' + topY +
-        '" fill="#E88140" stroke="#2C2A28" stroke-width="0.5"/>' +
-        // Top face
-        '<polygon points="' +
-          x1 + ',' + topY + ' ' + x2 + ',' + (topY - topOff) + ' ' +
-          (x2 + 3) + ',' + (topY - topOff - 2) + ' ' + (x1 + 3) + ',' + (topY - 2) +
-        '" fill="#F3A268" stroke="#2C2A28" stroke-width="0.5"/>' +
-        // Right side
-        '<polygon points="' +
-          x2 + ',' + (floor - topOff) + ' ' + (x2 + 3) + ',' + (floor - topOff - 2) + ' ' +
-          (x2 + 3) + ',' + (topY - topOff - 2) + ' ' + x2 + ',' + (topY - topOff) +
-        '" fill="#B85F2A" stroke="#2C2A28" stroke-width="0.5"/>' +
-      '</g>' +
-      // Dimension line — extends from the top of the bar, yellow technical
-      '<g class="lg5-dim" style="animation-delay:' + (delay + 0.55) + 's">' +
-        '<line x1="' + (x2 + 4) + '" y1="' + topY + '" x2="' + (x2 + 16) + '" y2="' + topY + '" ' +
-              'stroke="#B09000" stroke-width="0.5"/>' +
-        '<line x1="' + (x2 + 15) + '" y1="' + (topY - 2) + '" x2="' + (x2 + 17) + '" y2="' + topY + '" ' +
-              'stroke="#B09000" stroke-width="0.5"/>' +
-        '<line x1="' + (x2 + 15) + '" y1="' + (topY + 2) + '" x2="' + (x2 + 17) + '" y2="' + topY + '" ' +
-              'stroke="#B09000" stroke-width="0.5"/>' +
-        '<text x="' + (x2 + 19) + '" y="' + (topY + 1.8) + '" fill="#6B5600" ' +
-              'font-size="4.2" font-family="ui-monospace, monospace">' + esc(b.label) + '</text>' +
-      '</g>';
+  var baseline = 88;
+  var notches = 12;
+  var dx = 108 / (notches - 1);
+  var start = 16;
+  var booked = [1, 3, 4, 6, 8, 9, 11];   // indices that fire
+  var spikeHeights = { 1: 22, 3: 30, 4: 18, 6: 34, 8: 26, 9: 20, 11: 32 };
+  var dipHeights   = { 1:  6, 3:  8, 4:  5, 6: 10, 8:  7, 9:  5, 11:  9 };
+  // Static notches on the ruler
+  var tickMarks = '';
+  for (var i = 0; i < notches; i++) {
+    var xN = start + i * dx;
+    tickMarks += '<line x1="' + xN + '" y1="' + (baseline - 3) + '" x2="' + xN + '" y2="' + (baseline + 3) + '" ' +
+                 'stroke="#7A7571" stroke-width="0.5"/>';
+  }
+  // Animated elements per booked slot
+  var events = '';
+  booked.forEach(function(i, idx) {
+    var xB = start + i * dx;
+    var delay = idx * 0.24;
+    var spike = spikeHeights[i];
+    var dip = dipHeights[i];
+    events +=
+      // Green profit wash — appears between dip and spike
+      '<rect class="lg5-wash" x="' + (xB - 3.5) + '" y="' + (baseline - spike) + '" ' +
+            'width="7" height="' + spike + '" fill="#3CA04A" opacity="0.22" rx="1" ' +
+            'style="animation-delay:' + delay + 's"/>' +
+      // Expense dip (terracotta, short line below baseline)
+      '<line class="lg5-dip" x1="' + xB + '" y1="' + baseline + '" x2="' + xB + '" y2="' + (baseline + dip) + '" ' +
+            'stroke="#D17036" stroke-width="1.6" stroke-linecap="round" ' +
+            'style="animation-delay:' + delay + 's"/>' +
+      // Revenue spike (charcoal, tall line above baseline)
+      '<line class="lg5-spike" x1="' + xB + '" y1="' + baseline + '" x2="' + xB + '" y2="' + (baseline - spike) + '" ' +
+            'stroke="#2C2A28" stroke-width="1.6" stroke-linecap="round" ' +
+            'style="animation-delay:' + delay + 's"/>';
   });
   return '<svg class="lg-svg" viewBox="0 0 140 140">' +
-    // Pencil axis guides (static, faint)
-    '<g stroke="#B5A98E" stroke-width="0.4" stroke-dasharray="1.5 2" fill="none">' +
-      '<line x1="20" y1="108" x2="124" y2="108"/>' +   // X baseline
-      '<line x1="26" y1="16"  x2="26"  y2="114"/>' +    // Y
-      '<line x1="20" y1="108" x2="14"  y2="120"/>' +    // Z (isometric diagonal)
+    // Ruler baseline
+    '<line x1="' + start + '" y1="' + baseline + '" x2="' + (start + (notches - 1) * dx) + '" y2="' + baseline + '" ' +
+          'stroke="#2C2A28" stroke-width="0.8"/>' +
+    tickMarks +
+    // Running total "display" at top — like a mechanical calculator readout
+    '<g class="lg5-readout">' +
+      '<rect x="44" y="22" width="52" height="16" rx="2" fill="#FAF0D5" stroke="#5C5448" stroke-width="0.5"/>' +
+      '<text class="lg5-readout-num" x="70" y="33" fill="#2C2A28" font-size="8" ' +
+            'font-family="ui-monospace, monospace" font-weight="700" text-anchor="middle" ' +
+            'style="font-variant-numeric: tabular-nums">$17,420</text>' +
     '</g>' +
-    svg +
+    events +
+    // Indicator (traverses the timeline)
+    '<line class="lg5-indicator" x1="' + start + '" y1="' + (baseline - 14) + '" ' +
+          'x2="' + start + '" y2="' + (baseline + 14) + '" ' +
+          'stroke="#2C2A28" stroke-width="1.5" stroke-linecap="round"/>' +
   '</svg>';
 }
 
-/* 6 — The Formula Extrusion
-   Starts flat: an equation "7 × 8 + 4" rendered in charcoal ink.
-   The digits + operators each extrude upward into an isometric
-   block, ripple in a sine wave, glow kelly-green at peak, then
-   compress back down into the final solved number "60". */
+/* 6 — Blueprint Area Tracker
+   Top-down floor plan. 5×3 grid of rooms. Each cell fills with a
+   diagonal charcoal crosshatch (stroke-dashoffset draw). Technical
+   dimension lines on right + bottom "measure" Cost and Revenue.
+   A clean ledger-sans label reads the running totals. */
 function lgSvg_6() {
-  // Six glyph columns — chars become extruding blocks
-  var glyphs = [
-    { ch: '7', x: 18  },
-    { ch: '×', x: 36  },
-    { ch: '8', x: 54  },
-    { ch: '+', x: 72  },
-    { ch: '4', x: 90  },
-    { ch: '=', x: 108 }
-  ];
-  var floor = 90, blockW = 12;
-  var blocks = glyphs.map(function(g, i) {
-    var delay = i * 0.07;
-    var x1 = g.x, x2 = g.x + blockW;
-    return '<g class="lg6-block" style="animation-delay:' + delay + 's;transform-origin:' + x1 + 'px ' + floor + 'px">' +
-      // Front face (charcoal extrusion)
-      '<polygon points="' +
-        x1 + ',' + floor + ' ' + x2 + ',' + (floor - 3) + ' ' +
-        x2 + ',' + (floor - 30) + ' ' + x1 + ',' + (floor - 27) +
-      '" fill="#2C2A28" stroke="#000" stroke-width="0.4"/>' +
-      // Top face
-      '<polygon points="' +
-        x1 + ',' + (floor - 27) + ' ' + x2 + ',' + (floor - 30) + ' ' +
-        (x2 + 3) + ',' + (floor - 32) + ' ' + (x1 + 3) + ',' + (floor - 29) +
-      '" fill="#3A3834" stroke="#000" stroke-width="0.4"/>' +
-      // Right side
-      '<polygon points="' +
-        x2 + ',' + (floor - 3) + ' ' + (x2 + 3) + ',' + (floor - 5) + ' ' +
-        (x2 + 3) + ',' + (floor - 32) + ' ' + x2 + ',' + (floor - 30) +
-      '" fill="#1A1918" stroke="#000" stroke-width="0.4"/>' +
-      // Glyph on front face
-      '<text x="' + (x1 + 6) + '" y="' + (floor - 12) + '" fill="#FAF9F6" ' +
-            'font-size="8" font-family="ui-monospace, monospace" font-weight="700" ' +
-            'text-anchor="middle">' + esc(g.ch) + '</text>' +
-    '</g>';
-  }).join('');
-  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
-    // Flat equation that fades out as blocks extrude
-    '<g class="lg6-flat">' +
-      glyphs.map(function(g) {
-        return '<text x="' + (g.x + 6) + '" y="' + (floor - 2) + '" fill="#2C2A28" ' +
-               'font-size="10" font-family="ui-monospace, monospace" font-weight="700" ' +
-               'text-anchor="middle">' + esc(g.ch) + '</text>';
-      }).join('') +
-    '</g>' +
-    // Extruded blocks (grow up, then compress back to flat)
-    blocks +
-    // Final solved answer that reveals at the end
-    '<text class="lg6-answer" x="70" y="118" fill="#2E7D32" ' +
-          'font-size="14" font-family="ui-monospace, monospace" font-weight="800" ' +
-          'text-anchor="middle">= 60</text>' +
-  '</svg>';
-}
-
-/* 7 — The Origami Pop-Up
-   4 isometric bars presented as hollow folded cardstock (no top lid,
-   visible interior shadow). Bars fold out of the flat canvas with
-   a stiff, rigid frame-by-frame snap (steps(4, end)). As they peak
-   they cast sharp deep shadows onto the paper behind. */
-function lgSvg_7() {
-  var bars = [{ x: 32 }, { x: 58 }, { x: 84 }, { x: 110 }];
-  var floor = 108, barW = 14, heights = [42, 58, 36, 50];
-  var svg = '';
-  bars.forEach(function(b, i) {
+  var COLS = 5, ROWS = 3, CELLW = 18, CELLH = 18;
+  var originX = 22, originY = 34;
+  // Grid rectangles
+  var grid = '';
+  for (var r = 0; r < ROWS; r++) {
+    for (var c = 0; c < COLS; c++) {
+      var x = originX + c * CELLW;
+      var y = originY + r * CELLH;
+      grid += '<rect x="' + x + '" y="' + y + '" width="' + CELLW + '" height="' + CELLH + '" ' +
+              'fill="none" stroke="#7A7571" stroke-width="0.4"/>';
+    }
+  }
+  // Crosshatched fills (staggered stroke reveal)
+  var hatches = '';
+  var fillOrder = [0, 3, 7, 4, 10, 12, 1, 8, 13, 2];
+  fillOrder.forEach(function(cellIdx, i) {
+    var r = Math.floor(cellIdx / COLS);
+    var c = cellIdx % COLS;
+    var x = originX + c * CELLW;
+    var y = originY + r * CELLH;
     var delay = i * 0.22;
-    var h = heights[i];
-    var x1 = b.x, x2 = b.x + barW;
-    var topY = floor - h;
-    var topOff = 3.5;
-    svg +=
-      '<g class="lg7-fold" style="animation-delay:' + delay + 's;transform-origin:' + x1 + 'px ' + floor + 'px">' +
-        // Shadow cast behind (drops right and down as bar extends)
-        '<polygon points="' +
-          (x1 + 5) + ',' + (floor + 3) + ' ' +
-          (x2 + 8) + ',' + (floor + 1) + ' ' +
-          (x2 + 8) + ',' + (topY - 1) + ' ' +
-          (x1 + 5) + ',' + (topY + 1) +
-        '" fill="#2C2A28" opacity="0.18"/>' +
-        // Hollow interior (visible from top since no lid) — darker
-        '<polygon points="' +
-          x1 + ',' + topY + ' ' + x2 + ',' + (topY - topOff) + ' ' +
-          (x2 - 2) + ',' + (topY - topOff + 1.5) + ' ' + (x1 + 2) + ',' + (topY + 1.5) +
-        '" fill="#2C2A28" opacity="0.55"/>' +
-        // Front face (cardstock tan)
-        '<polygon points="' +
-          x1 + ',' + floor + ' ' + x2 + ',' + (floor - topOff) + ' ' +
-          x2 + ',' + (topY - topOff) + ' ' + x1 + ',' + topY +
-        '" fill="#E8D9B8" stroke="#5C5448" stroke-width="0.6"/>' +
-        // Right side (darker cardstock fold)
-        '<polygon points="' +
-          x2 + ',' + (floor - topOff) + ' ' + (x2 + 3) + ',' + (floor - topOff - 2) + ' ' +
-          (x2 + 3) + ',' + (topY - topOff - 2) + ' ' + x2 + ',' + (topY - topOff) +
-        '" fill="#C4A878" stroke="#5C5448" stroke-width="0.6"/>' +
-        // Top edge (the rim of the hollow top)
-        '<polygon points="' +
-          x1 + ',' + topY + ' ' + x2 + ',' + (topY - topOff) + ' ' +
-          (x2 + 3) + ',' + (topY - topOff - 2) + ' ' + (x1 + 3) + ',' + (topY - 2) +
-        '" fill="#FAF0D5" stroke="#5C5448" stroke-width="0.6"/>' +
+    // Six diagonal lines per cell
+    var lines = '';
+    for (var k = -2; k <= 5; k++) {
+      var x1 = x + k * 4;
+      var y1 = y;
+      var x2 = x + k * 4 + CELLH;
+      var y2 = y + CELLH;
+      // clip visually via drawing — the rect above will cover spill
+      lines += '<line x1="' + Math.max(x, x1) + '" y1="' + (y1 + Math.max(0, x - x1)) + '" ' +
+                     'x2="' + Math.min(x + CELLW, x2) + '" y2="' + (y2 - Math.max(0, x2 - (x + CELLW))) + '" ' +
+                     'stroke="#2C2A28" stroke-width="0.6" stroke-linecap="round"/>';
+    }
+    hatches +=
+      '<g class="lg6-hatch" style="animation-delay:' + delay + 's">' +
+        '<clipPath id="lg6-clip-' + cellIdx + '"><rect x="' + x + '" y="' + y + '" width="' + CELLW + '" height="' + CELLH + '"/></clipPath>' +
+        '<g clip-path="url(#lg6-clip-' + cellIdx + ')">' + lines + '</g>' +
       '</g>';
   });
-  return '<svg class="lg-svg" viewBox="0 0 140 140">' + svg + '</svg>';
-}
-
-/* 8 — The Vellum Layer Push
-   Isometric bars sit UNDER a frosted vellum sheet. Initially they
-   read as blurred dark shapes. As the ripple hits, each bar pushes
-   up hard enough that its top plane becomes briefly sharp + in-focus
-   through the "vellum" (filter blur animates 4px → 0 → 4px). */
-function lgSvg_8() {
-  var COLS = 4, ROWS = 2, CELL = 22, STEP = 0.12;
-  var bars = '';
-  for (var r = 0; r < ROWS; r++) {
-    for (var c = 0; c < COLS; c++) {
-      var x = 22 + c * CELL + r * 6;
-      var y = 104 - r * 10;
-      var h = 30 + ((c + r * 3) % 4) * 8;
-      var delay = (c + r) * STEP;
-      var x1 = x, y1 = y;
-      var x2 = x + 14, y2 = y - 4;
-      bars +=
-        '<g class="lg8-bar" style="animation-delay:' + delay + 's;transform-origin:' + x1 + 'px ' + y1 + 'px">' +
-          '<polygon points="' +
-            x1 + ',' + y1 + ' ' + x2 + ',' + y2 + ' ' +
-            x2 + ',' + (y2 - h) + ' ' + x1 + ',' + (y1 - h) +
-          '" fill="#5C5448" stroke="#2C2A28" stroke-width="0.3"/>' +
-          '<polygon points="' +
-            x1 + ',' + (y1 - h) + ' ' + x2 + ',' + (y2 - h) + ' ' +
-            (x2 + 4) + ',' + (y2 - h - 3) + ' ' + (x1 + 4) + ',' + (y1 - h - 3) +
-          '" fill="#7A7571" stroke="#2C2A28" stroke-width="0.3"/>' +
-          '<polygon points="' +
-            x2 + ',' + y2 + ' ' + (x2 + 4) + ',' + (y2 - 3) + ' ' +
-            (x2 + 4) + ',' + (y2 - h - 3) + ' ' + x2 + ',' + (y2 - h) +
-          '" fill="#3A3834" stroke="#2C2A28" stroke-width="0.3"/>' +
-        '</g>';
-    }
-  }
   return '<svg class="lg-svg" viewBox="0 0 140 140">' +
-    '<defs>' +
-      // Paper grain for the vellum sheet
-      '<filter id="lg8-vellum">' +
-        '<feTurbulence baseFrequency="2.2" numOctaves="2" seed="9" stitchTiles="stitch"/>' +
-        '<feColorMatrix values="0 0 0 0 0.85  0 0 0 0 0.82  0 0 0 0 0.74  0 0 0 0.55 0"/>' +
-      '</filter>' +
-    '</defs>' +
-    bars +
-    // Vellum overlay — translucent warm paper with grain
-    '<rect x="0" y="0" width="140" height="140" fill="rgba(250, 249, 246, 0.42)" ' +
-          'pointer-events="none"/>' +
-    '<rect x="0" y="0" width="140" height="140" fill="transparent" filter="url(#lg8-vellum)" ' +
-          'opacity="0.6" pointer-events="none"/>' +
-  '</svg>';
-}
-
-/* 9 — The Ledger Stack
-   Bars built from 4 discrete "poker chip" ledger segments that fall
-   from above with a staccato cascading ease, slamming into place.
-   Once a full stack lands, a risograph kelly-green wash bleeds out
-   from the base signalling booked revenue. */
-function lgSvg_9() {
-  var cols = [{ x: 30 }, { x: 60 }, { x: 90 }];
-  var floor = 108, chipH = 8, chipW = 20;
-  var segs = '';
-  var washes = '';
-  cols.forEach(function(col, ci) {
-    var colDelay = ci * 0.35;
-    for (var s = 0; s < 4; s++) {
-      // chips fall top → bottom of their stack (first chip lands at floor)
-      var y = floor - (s + 1) * chipH;
-      var delay = colDelay + s * 0.09;
-      var tint = ['#2C2A28', '#5C5448', '#8A7C64', '#E88140'][s];
-      var topTint = ['#3A3834', '#6F6654', '#9B8B70', '#F3A268'][s];
-      segs +=
-        '<g class="lg9-chip" style="animation-delay:' + delay + 's;transform-origin:' + col.x + 'px ' + y + 'px">' +
-          // Chip front
-          '<polygon points="' +
-            col.x + ',' + (y + chipH) + ' ' + (col.x + chipW) + ',' + (y + chipH - 2) + ' ' +
-            (col.x + chipW) + ',' + (y - 2) + ' ' + col.x + ',' + y +
-          '" fill="' + tint + '" stroke="#1A1918" stroke-width="0.4"/>' +
-          // Chip top
-          '<polygon points="' +
-            col.x + ',' + y + ' ' + (col.x + chipW) + ',' + (y - 2) + ' ' +
-            (col.x + chipW + 3) + ',' + (y - 4) + ' ' + (col.x + 3) + ',' + (y - 2) +
-          '" fill="' + topTint + '" stroke="#1A1918" stroke-width="0.4"/>' +
-          // Chip right side
-          '<polygon points="' +
-            (col.x + chipW) + ',' + (y + chipH - 2) + ' ' + (col.x + chipW + 3) + ',' + (y + chipH - 4) + ' ' +
-            (col.x + chipW + 3) + ',' + (y - 4) + ' ' + (col.x + chipW) + ',' + (y - 2) +
-          '" fill="#1A1918" stroke="#000" stroke-width="0.3"/>' +
-        '</g>';
-    }
-    // Revenue wash — kelly-green radial bleed out from base
-    washes +=
-      '<ellipse class="lg9-wash" cx="' + (col.x + chipW / 2) + '" cy="' + (floor + 2) + '" ' +
-               'rx="18" ry="6" fill="#2E7D32" opacity="0" ' +
-               'style="animation-delay:' + (colDelay + 0.5) + 's"/>';
-  });
-  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
-    // Baseline
-    '<line x1="16" y1="108" x2="124" y2="108" stroke="#5C5448" stroke-width="0.6"/>' +
-    washes +
-    segs +
-  '</svg>';
-}
-
-/* 10 — The Variance Shift
-   Two thick side-by-side bars — the left drawn as a dashed pencil
-   "projected" bar, the right as a solid charcoal "actual" bar. Both
-   ripple up together; the solid bar shoots past the dashed one, and
-   the exact overshoot region fills with a bright coral wash. */
-function lgSvg_10() {
-  var floor = 112, barW = 28;
-  var projH = 58, actH = 78;          // actual exceeds projected by 20
-  var p = { x: 40 }, a = { x: 80 };
-  var topOff = 5;
-  var pTop = floor - projH;
-  var aTop = floor - actH;
-  var overshootTop = aTop;
-  var overshootBot = pTop;
-  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
-    // Baseline
-    '<line x1="24" y1="112" x2="124" y2="112" stroke="#7A7571" stroke-width="0.6"/>' +
-    // Labels
-    '<text x="54" y="124" fill="#7A7571" font-size="5.5" font-family="ui-monospace, monospace" text-anchor="middle">PROJ</text>' +
-    '<text x="94" y="124" fill="#2C2A28" font-size="5.5" font-family="ui-monospace, monospace" font-weight="700" text-anchor="middle">ACT</text>' +
-    // Projected bar (dashed pencil outline)
-    '<g class="lg10-proj" style="transform-origin:' + p.x + 'px ' + floor + 'px">' +
-      '<polygon points="' +
-        p.x + ',' + floor + ' ' + (p.x + barW) + ',' + (floor - topOff) + ' ' +
-        (p.x + barW) + ',' + (pTop - topOff) + ' ' + p.x + ',' + pTop +
-      '" fill="none" stroke="#7A7571" stroke-width="0.9" stroke-dasharray="3 2"/>' +
-      '<polygon points="' +
-        p.x + ',' + pTop + ' ' + (p.x + barW) + ',' + (pTop - topOff) + ' ' +
-        (p.x + barW + 4) + ',' + (pTop - topOff - 3) + ' ' + (p.x + 4) + ',' + (pTop - 3) +
-      '" fill="none" stroke="#7A7571" stroke-width="0.9" stroke-dasharray="3 2"/>' +
+    grid +
+    hatches +
+    // Top dimension line with arrows — "Revenue"
+    '<g stroke="#2C2A28" fill="#2C2A28" stroke-width="0.5">' +
+      '<line x1="' + originX + '" y1="24" x2="' + (originX + COLS * CELLW) + '" y2="24"/>' +
+      '<line x1="' + originX + '" y1="22" x2="' + originX + '" y2="26"/>' +
+      '<line x1="' + (originX + COLS * CELLW) + '" y1="22" x2="' + (originX + COLS * CELLW) + '" y2="26"/>' +
     '</g>' +
-    // Actual bar — solid charcoal, overshoots past projected
-    '<g class="lg10-act" style="transform-origin:' + a.x + 'px ' + floor + 'px">' +
-      // Front face (charcoal — lower portion up to projected peak)
-      '<polygon points="' +
-        a.x + ',' + floor + ' ' + (a.x + barW) + ',' + (floor - topOff) + ' ' +
-        (a.x + barW) + ',' + (pTop - topOff) + ' ' + a.x + ',' + pTop +
-      '" fill="#2C2A28" stroke="#1A1918" stroke-width="0.4"/>' +
-      // Coral overshoot region
-      '<polygon class="lg10-coral" points="' +
-        a.x + ',' + pTop + ' ' + (a.x + barW) + ',' + (pTop - topOff) + ' ' +
-        (a.x + barW) + ',' + (aTop - topOff) + ' ' + a.x + ',' + aTop +
-      '" fill="#FF6B5C" stroke="#B8483C" stroke-width="0.4"/>' +
-      // Right side — full bar
-      '<polygon points="' +
-        (a.x + barW) + ',' + (floor - topOff) + ' ' + (a.x + barW + 4) + ',' + (floor - topOff - 3) + ' ' +
-        (a.x + barW + 4) + ',' + (aTop - topOff - 3) + ' ' + (a.x + barW) + ',' + (aTop - topOff) +
-      '" fill="#1A1918" stroke="#000" stroke-width="0.4"/>' +
-      // Top face
-      '<polygon points="' +
-        a.x + ',' + aTop + ' ' + (a.x + barW) + ',' + (aTop - topOff) + ' ' +
-        (a.x + barW + 4) + ',' + (aTop - topOff - 3) + ' ' + (a.x + 4) + ',' + (aTop - 3) +
-      '" fill="#FF8A7D" stroke="#B8483C" stroke-width="0.4"/>' +
+    '<text x="70" y="20" fill="#2C2A28" font-size="5.5" font-family="ui-monospace, monospace" ' +
+          'font-weight="700" text-anchor="middle">REVENUE</text>' +
+    '<text class="lg6-revenue-num" x="70" y="30" fill="#2C2A28" font-size="5" ' +
+          'font-family="ui-monospace, monospace" text-anchor="middle" ' +
+          'style="font-variant-numeric: tabular-nums">$8,420</text>' +
+    // Right dimension line — "Cost"
+    '<g stroke="#D17036" fill="#D17036" stroke-width="0.5">' +
+      '<line x1="120" y1="' + originY + '" x2="120" y2="' + (originY + ROWS * CELLH) + '"/>' +
+      '<line x1="118" y1="' + originY + '" x2="122" y2="' + originY + '"/>' +
+      '<line x1="118" y1="' + (originY + ROWS * CELLH) + '" x2="122" y2="' + (originY + ROWS * CELLH) + '"/>' +
     '</g>' +
-    // "+20" delta callout that appears after overshoot
-    '<text class="lg10-delta" x="94" y="' + (overshootTop + (overshootBot - overshootTop) / 2 + 2) + '" ' +
-          'fill="#FAF9F6" font-size="5" font-family="ui-monospace, monospace" ' +
-          'font-weight="700" text-anchor="middle">+20</text>' +
+    '<text x="128" y="' + (originY + ROWS * CELLH / 2 - 3) + '" fill="#B85F2A" font-size="5" ' +
+          'font-family="ui-monospace, monospace" font-weight="700">COST</text>' +
+    '<text class="lg6-cost-num" x="128" y="' + (originY + ROWS * CELLH / 2 + 4) + '" fill="#B85F2A" ' +
+          'font-size="5" font-family="ui-monospace, monospace" ' +
+          'style="font-variant-numeric: tabular-nums">$2,180</text>' +
   '</svg>';
 }
 
-/* 11 — The Market Topography
-   A dense 12×6 field of thin isometric needles forming a topographic
-   grid. A slow, heavy diagonal wave sweeps back-left → front-right
-   across the whole field (duration ~6s — deliberately unhurried to
-   sell "processing thousands of data points"). */
-function lgSvg_11() {
-  var COLS = 12, ROWS = 6, CELLW = 9, CELLH = 6, STEP = 0.035;
-  var needles = '';
-  for (var r = 0; r < ROWS; r++) {
-    for (var c = 0; c < COLS; c++) {
-      var x = 14 + c * CELLW + r * 4;
-      var y = 112 - r * CELLH;
-      // Height varies pseudo-randomly for topography feel
-      var h = 10 + (((c * 7 + r * 11) % 9) * 2.8);
-      var delay = (c + r) * STEP;
-      var x1 = x, y1 = y;
-      var x2 = x + 4, y2 = y - 1.5;
-      needles +=
-        '<g class="lg11-needle" style="animation-delay:' + delay + 's;transform-origin:' + x1 + 'px ' + y1 + 'px">' +
-          // Thin front face
-          '<polygon points="' +
-            x1 + ',' + y1 + ' ' + x2 + ',' + y2 + ' ' +
-            x2 + ',' + (y2 - h) + ' ' + x1 + ',' + (y1 - h) +
-          '" fill="#5C5448" stroke="none"/>' +
-          // Thin top
-          '<polygon points="' +
-            x1 + ',' + (y1 - h) + ' ' + x2 + ',' + (y2 - h) + ' ' +
-            (x2 + 1.2) + ',' + (y2 - h - 0.8) + ' ' + (x1 + 1.2) + ',' + (y1 - h - 0.8) +
-          '" fill="#8A7C64" stroke="none"/>' +
-        '</g>';
-    }
-  }
-  return '<svg class="lg-svg" viewBox="0 0 140 140">' + needles + '</svg>';
-}
-
-/* 12 — The Calendar Matrix
-   7-col × 4-row grid of debossed calendar squares pressed into paper.
-   A ripple sweeps across the "month" — selected cells pop up from
-   indented → elevated with a sharp yellow top edge flagging a booked
-   appointment. Unbooked cells remain indented. */
-function lgSvg_12() {
-  var COLS = 7, ROWS = 4, CELLW = 13, CELLH = 14, STEP = 0.055;
-  // Booked pattern — some cells stay flat, others pop up
-  var booked = {
-    '1-2': 1, '2-0': 1, '2-4': 1, '3-1': 1, '3-5': 1,
-    '1-6': 1, '2-6': 1, '0-3': 1, '3-3': 1, '1-1': 1, '2-2': 1
-  };
-  var cells = '';
-  for (var r = 0; r < ROWS; r++) {
-    for (var c = 0; c < COLS; c++) {
-      var x = 16 + c * CELLW;
-      var y = 30 + r * CELLH;
-      var delay = (c + r) * STEP;
-      var isBooked = booked[r + '-' + c];
-      if (isBooked) {
-        cells +=
-          '<g class="lg12-cell lg12-cell--booked" ' +
-             'style="animation-delay:' + delay + 's;transform-origin:' + (x + CELLW/2) + 'px ' + (y + CELLH/2) + 'px">' +
-            // Front
-            '<rect x="' + x + '" y="' + y + '" width="' + (CELLW - 1.5) + '" height="' + (CELLH - 1.5) + '" ' +
-                  'fill="#2C2A28" stroke="#1A1918" stroke-width="0.3"/>' +
-            // Yellow top highlight edge
-            '<rect class="lg12-top" x="' + x + '" y="' + (y - 1.5) + '" width="' + (CELLW - 1.5) + '" height="1.8" ' +
-                  'fill="#FFD700"/>' +
-          '</g>';
-      } else {
-        // Debossed empty slot
-        cells +=
-          '<rect x="' + x + '" y="' + y + '" width="' + (CELLW - 1.5) + '" height="' + (CELLH - 1.5) + '" ' +
-                'fill="#E8E0CF" stroke="#C4BAA0" stroke-width="0.4" rx="0.5"/>';
-      }
-    }
-  }
-  // Day-of-week header row
-  var dows = ['S','M','T','W','T','F','S'];
-  var header = dows.map(function(d, i) {
-    return '<text x="' + (16 + i * CELLW + (CELLW - 1.5)/2) + '" y="24" ' +
-           'fill="#7A7571" font-size="6" font-family="ui-monospace, monospace" ' +
-           'text-anchor="middle">' + d + '</text>';
+/* 7 — Expanding Ledger Node
+   Network of circular nodes connected by faint pencil lines.
+   Each node inflates (ink-drop scale) revealing a micro-donut:
+   terracotta slice (expense) sweeps first, then a larger green
+   slice (profit). A pulse fires along the connecting line to a
+   central hub, which displays a scaling "Total Profit" number. */
+function lgSvg_7() {
+  var hub = { x: 70, y: 70 };
+  var nodes = [
+    { x: 30, y: 30 }, { x: 110, y: 30 },
+    { x: 22, y: 70 }, { x: 118, y: 70 },
+    { x: 30, y: 110 }, { x: 110, y: 110 }
+  ];
+  // Connecting lines (hub → each node)
+  var connects = nodes.map(function(n, i) {
+    return '<line x1="' + hub.x + '" y1="' + hub.y + '" x2="' + n.x + '" y2="' + n.y + '" ' +
+           'stroke="#C4BAA0" stroke-width="0.4" stroke-dasharray="2 2"/>';
+  }).join('');
+  // Animated pulse dots that travel hub→node
+  var pulses = nodes.map(function(n, i) {
+    var delay = i * 0.28 + 0.4;
+    return '<circle class="lg7-pulse lg7-pulse--' + i + '" cx="' + hub.x + '" cy="' + hub.y + '" ' +
+           'r="1.8" fill="#3CA04A" opacity="0" style="animation-delay:' + delay + 's">' +
+             '<animate attributeName="cx" dur="4.5s" begin="' + delay + 's" repeatCount="indefinite" ' +
+                      'values="' + hub.x + ';' + n.x + ';' + n.x + '" keyTimes="0;0.22;1"/>' +
+             '<animate attributeName="cy" dur="4.5s" begin="' + delay + 's" repeatCount="indefinite" ' +
+                      'values="' + hub.y + ';' + n.y + ';' + n.y + '" keyTimes="0;0.22;1"/>' +
+           '</circle>';
+  }).join('');
+  // Nodes: outer ring + donut arcs. Donut is two stroked circles, each ~60deg & ~300deg segments,
+  // animated via dash offset.
+  var svgNodes = nodes.map(function(n, i) {
+    var delay = i * 0.28;
+    var r = 10;
+    // For a circle of radius 8, circumference = 2π·8 ≈ 50.27
+    // Expense slice ≈ 18%, profit ≈ 82%
+    return '<g class="lg7-node" style="animation-delay:' + delay + 's;transform-origin:' + n.x + 'px ' + n.y + 'px">' +
+             '<circle cx="' + n.x + '" cy="' + n.y + '" r="' + r + '" fill="#FAF9F6" stroke="#2C2A28" stroke-width="0.6"/>' +
+             // Expense slice (terracotta)
+             '<circle class="lg7-expense" cx="' + n.x + '" cy="' + n.y + '" r="7" ' +
+                     'fill="none" stroke="#D17036" stroke-width="3" ' +
+                     'stroke-dasharray="8 36" stroke-dashoffset="11" ' +
+                     'transform="rotate(-90 ' + n.x + ' ' + n.y + ')" ' +
+                     'style="animation-delay:' + delay + 's"/>' +
+             // Profit slice (green, swept after expense)
+             '<circle class="lg7-profit" cx="' + n.x + '" cy="' + n.y + '" r="7" ' +
+                     'fill="none" stroke="#3CA04A" stroke-width="3" ' +
+                     'stroke-dasharray="36 8" stroke-dashoffset="-8" ' +
+                     'transform="rotate(-90 ' + n.x + ' ' + n.y + ')" ' +
+                     'style="animation-delay:' + (delay + 0.12) + 's"/>' +
+           '</g>';
   }).join('');
   return '<svg class="lg-svg" viewBox="0 0 140 140">' +
-    header +
-    cells +
+    connects +
+    svgNodes +
+    pulses +
+    // Central hub
+    '<circle cx="' + hub.x + '" cy="' + hub.y + '" r="14" fill="#FAF9F6" stroke="#2C2A28" stroke-width="0.8"/>' +
+    '<text x="70" y="66" fill="#7A7571" font-size="4" font-family="ui-monospace, monospace" ' +
+          'text-anchor="middle">PROFIT</text>' +
+    '<text class="lg7-hub-num" x="70" y="74" fill="#2C2A28" font-size="6" ' +
+          'font-family="ui-monospace, monospace" font-weight="700" text-anchor="middle" ' +
+          'style="font-variant-numeric: tabular-nums">$6,240</text>' +
   '</svg>';
 }
 
-/* 13 — The Time-Slot Cascade
-   4 tall bars; each bar is broken into 5 horizontal time-slice
-   slabs. As the ripple hits a bar, each slab spins 180° around the
-   bar's vertical axis in sequence (like a briefcase-lock combo),
-   snapping into its final alignment with a heavy drop. */
-function lgSvg_13() {
-  var bars = [{ x: 28 }, { x: 54 }, { x: 80 }, { x: 106 }];
-  var floor = 116, barW = 18, slabH = 14, slabCount = 5;
-  var topOff = 4;
-  var svg = '';
-  bars.forEach(function(b, bi) {
-    var colDelay = bi * 0.26;
-    for (var s = 0; s < slabCount; s++) {
-      var y = floor - (s + 1) * slabH;
-      var delay = colDelay + s * 0.09;
-      // Alternating slab tints — schedule-block feel
-      var tint = (s % 2 === 0) ? '#E88140' : '#B85F2A';
-      var topTint = (s % 2 === 0) ? '#F3A268' : '#D17036';
-      var x1 = b.x, x2 = b.x + barW;
-      svg +=
-        '<g class="lg13-slab" style="animation-delay:' + delay + 's;transform-origin:' + (b.x + barW/2) + 'px ' + (y + slabH/2) + 'px">' +
-          // Front face
-          '<polygon points="' +
-            x1 + ',' + (y + slabH) + ' ' + x2 + ',' + (y + slabH - 3) + ' ' +
-            x2 + ',' + (y - 3) + ' ' + x1 + ',' + y +
-          '" fill="' + tint + '" stroke="#2C2A28" stroke-width="0.4"/>' +
-          // Top
-          '<polygon points="' +
-            x1 + ',' + y + ' ' + x2 + ',' + (y - 3) + ' ' +
-            (x2 + 3) + ',' + (y - 5) + ' ' + (x1 + 3) + ',' + (y - 2) +
-          '" fill="' + topTint + '" stroke="#2C2A28" stroke-width="0.4"/>' +
-          // Side
-          '<polygon points="' +
-            x2 + ',' + (y + slabH - 3) + ' ' + (x2 + 3) + ',' + (y + slabH - 5) + ' ' +
-            (x2 + 3) + ',' + (y - 5) + ' ' + x2 + ',' + (y - 3) +
-          '" fill="#7A3F1A" stroke="#2C2A28" stroke-width="0.4"/>' +
-          // Hour label on side of slab
-          '<text x="' + (x1 + 3) + '" y="' + (y + slabH - 4) + '" fill="#FAF9F6" ' +
-                'font-size="3.5" font-family="ui-monospace, monospace" font-weight="700">' +
-            (9 + s) + ':00</text>' +
-        '</g>';
-    }
-  });
+/* 8 — Receipt Roll Matrix
+   A heavy-stock receipt rolls upward. Appointment blocks stamp on
+   (scale + ink blot). Next to each, three numbers fade in in sequence:
+   Revenue, −Spend, =Profit. A running total at the bottom rolls its
+   digits over to update the month's profit. */
+function lgSvg_8() {
+  var entries = [
+    { rev: '$420', sp: '$96',  pr: '$324' },
+    { rev: '$580', sp: '$140', pr: '$440' },
+    { rev: '$310', sp: '$72',  pr: '$238' },
+    { rev: '$680', sp: '$182', pr: '$498' }
+  ];
+  var itemH = 22;
+  var topStart = 22;
+  var lines = entries.map(function(e, i) {
+    var y = topStart + i * itemH;
+    var delay = i * 0.6;
+    return '<g class="lg8-row" style="animation-delay:' + delay + 's">' +
+             // Stamp block (appointment)
+             '<rect class="lg8-stamp" x="14" y="' + y + '" width="14" height="14" ' +
+                   'fill="#2C2A28" rx="1" ' +
+                   'style="animation-delay:' + delay + 's;transform-origin:21px ' + (y + 7) + 'px"/>' +
+             // Revenue
+             '<text class="lg8-rev" x="34" y="' + (y + 6) + '" fill="#2C2A28" ' +
+                   'font-size="5" font-family="ui-monospace, monospace" font-weight="700" ' +
+                   'style="font-variant-numeric: tabular-nums;animation-delay:' + (delay + 0.15) + 's">' +
+               'REV  ' + esc(e.rev) + '</text>' +
+             // Spend
+             '<text class="lg8-sp" x="34" y="' + (y + 11.5) + '" fill="#B85F2A" ' +
+                   'font-size="5" font-family="ui-monospace, monospace" ' +
+                   'style="font-variant-numeric: tabular-nums;animation-delay:' + (delay + 0.3) + 's">' +
+               '\u2212' + '  ' + esc(e.sp) + '</text>' +
+             // Profit
+             '<text class="lg8-pr" x="34" y="' + (y + 17) + '" fill="#3CA04A" ' +
+                   'font-size="5" font-family="ui-monospace, monospace" font-weight="700" ' +
+                   'style="font-variant-numeric: tabular-nums;animation-delay:' + (delay + 0.45) + 's">' +
+               '\u003D ' + esc(e.pr) + '</text>' +
+           '</g>';
+  }).join('');
   return '<svg class="lg-svg" viewBox="0 0 140 140">' +
-    // Baseline
-    '<line x1="18" y1="' + floor + '" x2="124" y2="' + floor + '" ' +
-          'stroke="#5C5448" stroke-width="0.6"/>' +
-    svg +
+    // Receipt paper (slightly warmer panel)
+    '<rect x="10" y="14" width="100" height="106" fill="#FAF0D5" stroke="#5C5448" stroke-width="0.5"/>' +
+    // Perforated top edge
+    '<g stroke="#5C5448" stroke-width="0.5" stroke-dasharray="2 2">' +
+      '<line x1="10" y1="14" x2="110" y2="14"/>' +
+    '</g>' +
+    // Rolling scroll group — animated translateY
+    '<g class="lg8-scroll">' + lines + '</g>' +
+    // Running total band at bottom
+    '<rect x="10" y="120" width="100" height="14" fill="#2C2A28"/>' +
+    '<text x="16" y="130" fill="#FAF0D5" font-size="4.5" font-family="ui-monospace, monospace">TOTAL</text>' +
+    '<text class="lg8-total" x="104" y="130" fill="#5DBF69" font-size="7" ' +
+          'font-family="ui-monospace, monospace" font-weight="700" text-anchor="end" ' +
+          'style="font-variant-numeric: tabular-nums">$1,500</text>' +
   '</svg>';
 }
+
+/* 9 — Shifting Topography
+   4×3 isometric grid starts flat. A wave fills cells — instead of
+   rising, they push DOWNWARD into indentations (cost). Green liquid
+   then rises out of each pit, overflows, and stacks higher than the
+   original plain — profit surpassing cost. Heavy physical easing. */
+function lgSvg_9() {
+  var COLS = 4, ROWS = 3, CELLW = 22, CELLH = 11, STEP = 0.12;
+  var topOff = 4;
+  var cells = '';
+  var liquids = '';
+  for (var r = 0; r < ROWS; r++) {
+    for (var c = 0; c < COLS; c++) {
+      var x = 22 + c * CELLW + r * 6;
+      var y = 80 - r * CELLH;
+      var delay = (c + r) * STEP;
+      var x1 = x, y1 = y, x2 = x + CELLW - 4, y2 = y - topOff;
+      // Indentation — cell pushes down 10px into cost pit
+      cells +=
+        '<g class="lg9-pit" style="animation-delay:' + delay + 's;transform-origin:' + x1 + 'px ' + y1 + 'px">' +
+          // Front rim
+          '<polygon points="' +
+            x1 + ',' + y1 + ' ' + x2 + ',' + y2 + ' ' +
+            x2 + ',' + (y2 - 2) + ' ' + x1 + ',' + (y1 - 2) +
+          '" fill="#E8E0CF" stroke="#2C2A28" stroke-width="0.4"/>' +
+          // Pit bottom (terracotta — cost)
+          '<polygon points="' +
+            x1 + ',' + (y1 + 8) + ' ' + x2 + ',' + (y2 + 8) + ' ' +
+            x2 + ',' + (y2 + 10) + ' ' + x1 + ',' + (y1 + 10) +
+          '" fill="#D17036" stroke="#2C2A28" stroke-width="0.4"/>' +
+          // Side wall
+          '<polygon points="' +
+            x1 + ',' + y1 + ' ' + x1 + ',' + (y1 + 10) + ' ' +
+            x2 + ',' + (y2 + 10) + ' ' + x2 + ',' + y2 +
+          '" fill="#8A5A3A" stroke="#2C2A28" stroke-width="0.3" opacity="0.4"/>' +
+        '</g>';
+      // Green profit liquid rising up and overflowing
+      liquids +=
+        '<g class="lg9-liquid" style="animation-delay:' + (delay + 0.25) + 's;transform-origin:' + x1 + 'px ' + (y1 + 10) + 'px">' +
+          '<polygon points="' +
+            x1 + ',' + (y1 + 10) + ' ' + x2 + ',' + (y2 + 10) + ' ' +
+            x2 + ',' + (y2 - 6) + ' ' + x1 + ',' + (y1 - 6) +
+          '" fill="#3CA04A" stroke="#236E2E" stroke-width="0.4"/>' +
+          // Glossy top
+          '<polygon points="' +
+            x1 + ',' + (y1 - 6) + ' ' + x2 + ',' + (y2 - 6) + ' ' +
+            (x2 + 3) + ',' + (y2 - 8) + ' ' + (x1 + 3) + ',' + (y1 - 8) +
+          '" fill="#5DBF69" stroke="#236E2E" stroke-width="0.4"/>' +
+        '</g>';
+    }
+  }
+  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
+    cells +
+    liquids +
+    // Side panel tally
+    '<text x="128" y="102" fill="#7A7571" font-size="4.5" font-family="ui-monospace, monospace" ' +
+          'text-anchor="end">PROFIT</text>' +
+    '<text class="lg9-tally" x="128" y="112" fill="#3CA04A" font-size="7" ' +
+          'font-family="ui-monospace, monospace" font-weight="700" text-anchor="end" ' +
+          'style="font-variant-numeric: tabular-nums">$9,840</text>' +
+  '</svg>';
+}
+
+/* 10 — Dial & Notch Tracker
+   A circular dial — tick marks around the perimeter draw themselves
+   as booked slots fill. An inner terracotta ring pulses inward
+   (expense), while a green ring sweeps the perimeter (revenue). A
+   central profit-margin number blurs briefly during calculation
+   then locks in. Dashes use stroke-dashoffset; eases are sinusoidal. */
+function lgSvg_10() {
+  var cx = 70, cy = 72, rOuter = 44, rRing = 36, rInner = 26;
+  // Circumference of the ring for dash math
+  var circRing = 2 * Math.PI * rRing;
+  var dashLen = circRing / 24;
+  // 24 tick marks around the outer edge
+  var ticks = '';
+  for (var i = 0; i < 24; i++) {
+    var angle = (i / 24) * Math.PI * 2 - Math.PI / 2;
+    var x1 = cx + Math.cos(angle) * (rOuter - 4);
+    var y1 = cy + Math.sin(angle) * (rOuter - 4);
+    var x2 = cx + Math.cos(angle) * rOuter;
+    var y2 = cy + Math.sin(angle) * rOuter;
+    var delay = i * 0.07;
+    ticks += '<line class="lg10-tick" x1="' + x1.toFixed(1) + '" y1="' + y1.toFixed(1) + '" ' +
+                  'x2="' + x2.toFixed(1) + '" y2="' + y2.toFixed(1) + '" ' +
+                  'stroke="#2C2A28" stroke-width="1" stroke-linecap="round" ' +
+                  'style="animation-delay:' + delay.toFixed(2) + 's"/>';
+  }
+  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
+    // Faint face
+    '<circle cx="' + cx + '" cy="' + cy + '" r="' + rOuter + '" fill="#FAF0D5" stroke="#7A7571" stroke-width="0.4"/>' +
+    ticks +
+    // Terracotta ring (pulsing inward)
+    '<circle class="lg10-expense" cx="' + cx + '" cy="' + cy + '" r="' + rInner + '" ' +
+            'fill="none" stroke="#D17036" stroke-width="2" opacity="0.55"/>' +
+    // Green revenue arc — drawn with stroke-dashoffset around the perimeter
+    '<circle class="lg10-revenue" cx="' + cx + '" cy="' + cy + '" r="' + rRing + '" ' +
+            'fill="none" stroke="#3CA04A" stroke-width="3" stroke-linecap="round" ' +
+            'stroke-dasharray="' + circRing.toFixed(2) + '" stroke-dashoffset="' + circRing.toFixed(2) + '" ' +
+            'transform="rotate(-90 ' + cx + ' ' + cy + ')"/>' +
+    // Center label
+    '<text x="' + cx + '" y="' + (cy - 2) + '" fill="#7A7571" font-size="4.5" ' +
+          'font-family="ui-monospace, monospace" text-anchor="middle">MARGIN</text>' +
+    '<text class="lg10-margin" x="' + cx + '" y="' + (cy + 8) + '" fill="#2C2A28" font-size="10" ' +
+          'font-family="ui-monospace, monospace" font-weight="700" text-anchor="middle" ' +
+          'style="font-variant-numeric: tabular-nums">38%</text>' +
+  '</svg>';
+}
+
+/* 11 — Balance-Scale Blocks
+   Side-profile of a balance scale. Terracotta (expense) drops onto
+   the left cup, tilting the beam down slightly. Milliseconds later a
+   larger charcoal block (revenue) drops onto the right, pivoting
+   the beam into a favorable tilt. The resulting angle translates
+   into a profit-margin percentage that slides up from the pivot. */
+function lgSvg_11() {
+  var pivot = { x: 70, y: 76 };
+  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
+    // Pivot column + triangle base
+    '<polygon points="' + (pivot.x - 14) + ',120 ' + (pivot.x + 14) + ',120 ' + pivot.x + ',' + (pivot.y + 6) + '" ' +
+             'fill="#5C5448" stroke="#2C2A28" stroke-width="0.5"/>' +
+    '<circle cx="' + pivot.x + '" cy="' + pivot.y + '" r="3" fill="#2C2A28"/>' +
+    // Rotating beam + cups (rotates around pivot)
+    '<g class="lg11-beam" style="transform-origin:' + pivot.x + 'px ' + pivot.y + 'px">' +
+      // Beam
+      '<line x1="' + (pivot.x - 46) + '" y1="' + pivot.y + '" x2="' + (pivot.x + 46) + '" y2="' + pivot.y + '" ' +
+            'stroke="#2C2A28" stroke-width="2" stroke-linecap="round"/>' +
+      // Left cup (holds expense block)
+      '<line x1="' + (pivot.x - 46) + '" y1="' + pivot.y + '" x2="' + (pivot.x - 46) + '" y2="' + (pivot.y + 10) + '" ' +
+            'stroke="#2C2A28" stroke-width="0.6"/>' +
+      '<path d="M' + (pivot.x - 56) + ',' + (pivot.y + 10) + ' Q' + (pivot.x - 46) + ',' + (pivot.y + 16) + ' ' +
+                      (pivot.x - 36) + ',' + (pivot.y + 10) + '" fill="none" stroke="#2C2A28" stroke-width="0.6"/>' +
+      // Right cup (holds revenue block)
+      '<line x1="' + (pivot.x + 46) + '" y1="' + pivot.y + '" x2="' + (pivot.x + 46) + '" y2="' + (pivot.y + 10) + '" ' +
+            'stroke="#2C2A28" stroke-width="0.6"/>' +
+      '<path d="M' + (pivot.x + 36) + ',' + (pivot.y + 10) + ' Q' + (pivot.x + 46) + ',' + (pivot.y + 16) + ' ' +
+                      (pivot.x + 56) + ',' + (pivot.y + 10) + '" fill="none" stroke="#2C2A28" stroke-width="0.6"/>' +
+      // Expense block (terracotta, small)
+      '<rect class="lg11-expense" x="' + (pivot.x - 54) + '" y="' + (pivot.y + 3) + '" width="16" height="8" ' +
+            'fill="#D17036" stroke="#2C2A28" stroke-width="0.5" rx="1" ' +
+            'style="transform-origin:' + (pivot.x - 46) + 'px ' + (pivot.y + 7) + 'px"/>' +
+      // Revenue block (charcoal, larger)
+      '<rect class="lg11-revenue" x="' + (pivot.x + 34) + '" y="' + (pivot.y - 6) + '" width="24" height="16" ' +
+            'fill="#2C2A28" stroke="#1A1918" stroke-width="0.5" rx="1" ' +
+            'style="transform-origin:' + (pivot.x + 46) + 'px ' + (pivot.y + 10) + 'px"/>' +
+    '</g>' +
+    // Margin percentage sliding up from pivot
+    '<text class="lg11-margin" x="' + pivot.x + '" y="104" fill="#3CA04A" font-size="10" ' +
+          'font-family="ui-monospace, monospace" font-weight="700" text-anchor="middle" ' +
+          'style="font-variant-numeric: tabular-nums">+42%</text>' +
+    '<text x="' + pivot.x + '" y="113" fill="#7A7571" font-size="4.5" ' +
+          'font-family="ui-monospace, monospace" text-anchor="middle">PROFIT MARGIN</text>' +
+  '</svg>';
+}
+
+/* 12 — Connected Flow-Chart
+   A horizontal masonry grid of 6 booked slots. A charcoal line
+   draws through them (stroke-dashoffset). As the line crosses each
+   block, the block splits into two colored halves — bottom terracotta
+   (expense), top green (profit). A large bold profit total reveals
+   at the end of the line. */
+function lgSvg_12() {
+  var blocks = [
+    { x: 16, y: 56, w: 14, h: 24 },
+    { x: 36, y: 48, w: 14, h: 32 },
+    { x: 56, y: 58, w: 14, h: 22 },
+    { x: 76, y: 42, w: 14, h: 38 },
+    { x: 96, y: 52, w: 14, h: 28 }
+  ];
+  // Draw line path — zig-zags through centers of each block
+  var pathD = 'M10,80 ';
+  blocks.forEach(function(b) {
+    pathD += 'L' + (b.x + b.w / 2) + ',' + (b.y + b.h / 2) + ' ';
+  });
+  pathD += 'L128,60';
+  var rects = blocks.map(function(b, i) {
+    var delay = 0.4 + i * 0.28;
+    var splitY = b.y + b.h * 0.4;  // lower 40% = expense, upper 60% = profit
+    return '<g class="lg12-block lg12-block--' + i + '" style="animation-delay:' + delay + 's">' +
+             // Expense half (terracotta, below split)
+             '<rect x="' + b.x + '" y="' + splitY + '" width="' + b.w + '" height="' + (b.y + b.h - splitY) + '" ' +
+                   'fill="#D17036" stroke="#2C2A28" stroke-width="0.4"/>' +
+             // Profit half (green, above split)
+             '<rect x="' + b.x + '" y="' + b.y + '" width="' + b.w + '" height="' + (splitY - b.y) + '" ' +
+                   'fill="#3CA04A" stroke="#2C2A28" stroke-width="0.4"/>' +
+           '</g>';
+  }).join('');
+  // Shell rectangles (charcoal, covering the splits before the line hits)
+  var shells = blocks.map(function(b, i) {
+    var delay = 0.4 + i * 0.28;
+    return '<rect class="lg12-shell lg12-shell--' + i + '" x="' + b.x + '" y="' + b.y + '" ' +
+                 'width="' + b.w + '" height="' + b.h + '" ' +
+                 'fill="#2C2A28" stroke="#1A1918" stroke-width="0.4" ' +
+                 'style="animation-delay:' + delay + 's"/>';
+  }).join('');
+  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
+    shells +
+    rects +
+    // Connecting line — drawn via stroke-dashoffset
+    '<path class="lg12-line" d="' + pathD + '" fill="none" stroke="#2C2A28" ' +
+          'stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>' +
+    // Final profit total at end of line
+    '<text class="lg12-total" x="128" y="38" fill="#3CA04A" font-size="11" ' +
+          'font-family="ui-monospace, monospace" font-weight="800" text-anchor="end" ' +
+          'style="font-variant-numeric: tabular-nums">$12,840</text>' +
+    '<text x="128" y="46" fill="#7A7571" font-size="4.5" ' +
+          'font-family="ui-monospace, monospace" text-anchor="end">TOTAL PROFIT</text>' +
+  '</svg>';
+}
+
+/* 13 — Waterfall Stack
+   4 flat shelves. A charcoal Revenue block slides onto each shelf
+   from the left. An expense slice peels off + fades away. The
+   remaining green Profit block persists; the cumulative green stack
+   on the right grows, topped by a running ticker. */
+function lgSvg_13() {
+  var shelves = [
+    { y: 30, rev: 620, exp: 140, pr: 480 },
+    { y: 52, rev: 840, exp: 210, pr: 630 },
+    { y: 74, rev: 460, exp: 120, pr: 340 },
+    { y: 96, rev: 720, exp: 180, pr: 540 }
+  ];
+  var shelfStart = 16, shelfEnd = 88, shelfH = 12;
+  var rightBarX = 108, rightBarW = 16;
+  var rightBarBottom = 112;
+  var totalProfit = shelves.reduce(function(s, sh) { return s + sh.pr; }, 0);
+  // Right side cumulative bar — split into segments
+  var cumulative = 0;
+  var segments = '';
+  shelves.forEach(function(sh, i) {
+    cumulative += sh.pr;
+    var segH = sh.pr / totalProfit * 72;
+    var segY = rightBarBottom - (cumulative / totalProfit) * 72;
+    var delay = 0.6 + i * 0.55;
+    segments +=
+      '<rect class="lg13-seg lg13-seg--' + i + '" x="' + rightBarX + '" y="' + segY + '" ' +
+            'width="' + rightBarW + '" height="' + segH + '" ' +
+            'fill="#3CA04A" stroke="#236E2E" stroke-width="0.4" ' +
+            'style="animation-delay:' + delay + 's"/>';
+  });
+  var shelfGroups = shelves.map(function(sh, i) {
+    var delay = i * 0.55;
+    var shelfLen = shelfEnd - shelfStart;
+    var expW = Math.round(sh.exp / sh.rev * shelfLen);
+    var prW = shelfLen - expW;
+    return '<g class="lg13-row" style="animation-delay:' + delay + 's">' +
+             // Shelf base line
+             '<line x1="' + shelfStart + '" y1="' + (sh.y + shelfH) + '" ' +
+                   'x2="' + shelfEnd + '" y2="' + (sh.y + shelfH) + '" ' +
+                   'stroke="#7A7571" stroke-width="0.4"/>' +
+             // Sliding charcoal Revenue block
+             '<g class="lg13-slide" style="animation-delay:' + delay + 's">' +
+               // Expense slice (terracotta — peels off)
+               '<rect class="lg13-expense lg13-expense--' + i + '" x="' + shelfStart + '" y="' + sh.y + '" ' +
+                     'width="' + expW + '" height="' + shelfH + '" ' +
+                     'fill="#D17036" stroke="#2C2A28" stroke-width="0.4" ' +
+                     'style="transform-origin:' + (shelfStart + expW/2) + 'px ' + (sh.y + shelfH/2) + 'px;' +
+                     'animation-delay:' + (delay + 0.3) + 's"/>' +
+               // Profit block (green, remains)
+               '<rect class="lg13-profit lg13-profit--' + i + '" x="' + (shelfStart + expW) + '" y="' + sh.y + '" ' +
+                     'width="' + prW + '" height="' + shelfH + '" ' +
+                     'fill="#3CA04A" stroke="#2C2A28" stroke-width="0.4" ' +
+                     'style="animation-delay:' + (delay + 0.3) + 's"/>' +
+               // Charcoal cover that retracts to reveal colored segments
+               '<rect class="lg13-cover lg13-cover--' + i + '" x="' + shelfStart + '" y="' + sh.y + '" ' +
+                     'width="' + shelfLen + '" height="' + shelfH + '" ' +
+                     'fill="#2C2A28" stroke="#1A1918" stroke-width="0.4" ' +
+                     'style="transform-origin:' + (shelfStart + shelfLen/2) + 'px ' + (sh.y + shelfH/2) + 'px;' +
+                     'animation-delay:' + delay + 's"/>' +
+             '</g>' +
+           '</g>';
+  }).join('');
+  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
+    shelfGroups +
+    // Cumulative profit bar
+    '<line x1="' + rightBarX + '" y1="' + rightBarBottom + '" x2="' + (rightBarX + rightBarW) + '" y2="' + rightBarBottom + '" ' +
+          'stroke="#2C2A28" stroke-width="0.6"/>' +
+    segments +
+    // Ticker
+    '<text class="lg13-ticker" x="' + (rightBarX + rightBarW / 2) + '" y="26" fill="#3CA04A" font-size="7" ' +
+          'font-family="ui-monospace, monospace" font-weight="700" text-anchor="middle" ' +
+          'style="font-variant-numeric: tabular-nums">$' + totalProfit.toLocaleString() + '</text>' +
+  '</svg>';
+}
+
 async function fetchMarketing() {
   var container = document.getElementById('marketingContent');
   _ttLoader = startLedgerLoader(container);
