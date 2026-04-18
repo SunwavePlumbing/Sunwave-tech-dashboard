@@ -183,43 +183,91 @@ body.paper-mode .section-title {
    column to zero and visually shifting the number rightward, which is
    what made the projected row's number appear to land where PROJ sits
    underneath. Stacking eliminates the horizontal-fit problem entirely. */
+/* Horizontal flex row — number | delta | PROJ, baseline-aligned so
+   glyph bottoms sit on the same invisible line regardless of font
+   size. The delta wrapper has a fixed min-width so its slot is
+   reserved even on rows with no % change (column geometry stays
+   identical — numbers align vertically down the column). */
 body.paper-mode .mkt-jobs-cell {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;   /* right-align both lines */
-  gap: 2px;
-  line-height: 1.15;
-}
-body.paper-mode .mkt-jobs-num {
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;  /* digits same width → column aligns */
-}
-body.paper-mode .mkt-jobs-meta {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 10.5px;
-  font-variant-numeric: tabular-nums;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: flex-end;     /* anchor at the right edge of the td */
+  gap: 0;
+  line-height: 1.2;
   white-space: nowrap;
 }
-/* Reset margin on the delta chip when it lives inside the stacked meta */
-body.paper-mode .mkt-jobs-meta .delta { margin-left: 0; }
-/* PROJ badge — small, orange, sits next to the delta in the meta line */
-body.paper-mode .mkt-jobs-proj {
-  font-size: 9.5px;
+/* The number itself — always tabular-nums, always right-aligned to
+   a fixed min-width slot so every row's number lands at the same x */
+body.paper-mode .mkt-jobs-num {
   font-weight: 700;
-  letter-spacing: 0.05em;
-  color: var(--brand-orange);
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: var(--brand-orange-tint);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  min-width: 3.5ch;
+  text-align: right;
+  color: #2C2A28;                /* Dark Charcoal — historical fact */
+  position: relative;            /* for the PROJ highlighter pseudo */
+}
+/* Projected row: graphite italic + hand-dragged sunflower highlighter
+   behind the digits. Italic + graphite color differentiate the
+   estimate from historical fact without requiring a separate slot. */
+body.paper-mode .mkt-jobs-num--proj {
+  color: #7A7571;                /* Graphite Pencil */
+  font-style: italic;
+  isolation: isolate;            /* scope the multiply-blend pseudo */
+}
+body.paper-mode .mkt-jobs-num--proj::before {
+  content: '';
+  position: absolute;
+  inset: 8% -3px 14% -3px;
+  background: #FFD700;           /* Sunflower Yellow */
+  opacity: 0.4;
+  mix-blend-mode: multiply;
+  border-radius: 2px 4px 3px 1px;   /* irregular — human-drawn */
+  transform: rotate(-2deg);         /* hand-swipe marker angle */
+  z-index: -1;
+  filter: blur(0.3px);              /* slight pigment bleed */
+  pointer-events: none;
+}
+/* Delta wrapper ALWAYS renders (empty on rows with no % change).
+   Reserving the slot keeps every row's number at the same x even
+   when the % is absent (see spec: "the empty space is mathematically
+   important"). Left margin gives the number breathing room. */
+body.paper-mode .mkt-jobs-delta {
+  display: inline-block;
+  min-width: 5.5ch;
+  margin-left: 0.6rem;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+  font-size: 11.5px;
+  font-weight: 600;
   line-height: 1;
+}
+body.paper-mode .mkt-jobs-delta .delta { margin-left: 0; font-size: inherit; }
+/* PROJ badge — no background pill. Just vibrant Oxford Blue text
+   placed to the right of the delta. Uppercase + spaced tracking
+   preserves the ledger-stamp feel. */
+body.paper-mode .mkt-jobs-proj {
+  margin-left: 0.5rem;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--riso-oxford);     /* Oxford Blue #002147 */
+  background: transparent;
+  padding: 0;
+  line-height: 1;
+  text-transform: uppercase;
 }
 /* Ensure tfoot total gets the same tabular digit widths as body rows
    so "2516" right-aligns to exactly the same x as "222", "248", etc. */
 body.paper-mode .mkt-table tfoot td {
   font-variant-numeric: tabular-nums;
 }
+/* ── Vibrant delta ink — brighter, more saturated Kelly Green /
+   Coral Crimson per spec §4 "Enhancing Color & Life". Scoped to
+   paper-mode so the default dashboard keeps its muted teal/red. */
+body.paper-mode .delta-up   { color: #4CBB17; }   /* Kelly Green */
+body.paper-mode .delta-down { color: #E34234; }   /* Coral Crimson */
 
 /* ── Softened ink typography ──────────────────────────────────── */
 body.paper-mode h1,
@@ -1569,11 +1617,26 @@ body.paper-mode tbody tr {
 body.paper-mode tbody tr:hover td {
   background-color: rgba(70, 65, 60, 0.04);
 }
-/* Marketing "Monthly History" sticky first column — keep the warm
-   gray aligned with the rest of the row on hover. */
-body.paper-mode .mkt-table tbody tr:hover td:first-child {
-  background-color: rgba(70, 65, 60, 0.04);
+/* Marketing "Monthly History" hover — intentionally the simplest
+   possible interaction: an ultra-faint single-tone darkening of the
+   row background, with a fast 0.1s transition and NO text-color
+   shifts. Multi-tone hover chains are what caused the rendering
+   glitches the spec §3 called out. Also scope transitions explicitly
+   to background-color so nothing else animates on hover. */
+body.paper-mode .mkt-table tbody td {
+  transition: background-color 0.1s ease;
 }
+body.paper-mode .mkt-table tbody tr:hover td,
+body.paper-mode .mkt-table tbody tr:hover td:first-child {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+/* Hold the number / delta / PROJ ink colors steady on hover — no
+   fades, no shifts. The row just darkens its paper, nothing else. */
+body.paper-mode .mkt-table tbody tr:hover .mkt-jobs-num        { color: #2C2A28; }
+body.paper-mode .mkt-table tbody tr:hover .mkt-jobs-num--proj  { color: #7A7571; }
+body.paper-mode .mkt-table tbody tr:hover .mkt-jobs-proj       { color: var(--riso-oxford); }
+body.paper-mode .mkt-table tbody tr:hover .delta-up            { color: #4CBB17; }
+body.paper-mode .mkt-table tbody tr:hover .delta-down          { color: #E34234; }
 /* Full Picture 2-col legacy table — same warm gray, beats the base
    styles.css `#eef2f7` hover on specificity via paper-mode prefix. */
 body.paper-mode .pnl-grid--2col tbody tr:hover:not(.total) td,
