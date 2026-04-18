@@ -13,64 +13,132 @@ async function fetchQBOMarketing() {
   if (marketingData) renderMarketing();
 }
 
-/* ── "Architect's Draft" loading state ──────────────────────────
-   Minimalist paper-drafting aesthetic. No scrolling streams, no
-   digital noise — just an SVG geometric drafting figure (concentric
-   rings + crosshair + rotating diagonal spokes) drawn in graphite
-   pencil over a warm radial vignette, a single centered tagline
-   with a hand-dragged sunflower highlighter behind "Marketing
-   Ledger", and a clean "N / target accounts" tally that cross-fades
-   on each update. The entire composition is quiet by design —
-   complexity is implied through precision geometry, not visual
-   clutter.
-     .destroy()    — tear down all timers (used on error paths)
-     .finalize(cb) — fade out + fire `cb` when safe to mount */
+/* ── "Kinetic Drafting Table" loading state ─────────────────────
+   Layered paper-drafting composition. Four pieces orchestrated:
+
+     Layer 1 — Background: two vertical data-stream columns (raw
+               marketing fragments on the left, refined ledger lines
+               on the right) scrolling in graphite at ~6% opacity
+               with a radial-gradient mask so they fade toward the
+               edges. Implies "technical reconciliation happening".
+
+     Layer 2 — Centerpiece: SVG geometric figure (4 concentric
+               rings + crosshair + rotating diagonal spokes + 4
+               cardinal registration dots). Rings alternate
+               graphite and Oxford Blue ink, each drawn in via
+               stroke-dashoffset. Slow breathing scale + spoke
+               rotation persist through the load.
+
+     Layer 3 — Typography: "Reconciling Marketing Ledger" with a
+               per-letter L→R ink-soak wave (variable font-weight
+               300 → 700 + blur settle). Sunflower-yellow multiply-
+               blend highlighter behind "Marketing Ledger". Three
+               pen-drip dots after.
+
+     Layer 4 — Tally: "N / target accounts aggregated" in graphite,
+               tabular-nums. Every 1,000 counts triggers a 0.3s
+               yellow highlighter flash behind the number; every
+               5,000 counts fires a haptic pulse on mobile.
+
+     Finalize — The whole loader momentarily blooms via filter:
+                blur(8px) contrast(1.2), then settles back to blur(0)
+                while fading opacity → 0 over 1.5s. Reads as "the
+                dashboard dries and settles" on the paper surface.
+
+     .destroy()    — tear down timers (used on error paths)
+     .finalize(cb) — run the blur-dry exit + fire `cb` when mounted */
 function startLedgerLoader(container) {
   if (_ttLoader) _ttLoader.destroy();
 
   var isMobile = window.innerWidth <= 768;
 
-  // Plausible account-count ceiling that the tally climbs toward.
-  // Random within 28k–40k so the UI feels specific to this run;
-  // climb rate (~170/sec) keeps the "current / total" ratio visible
-  // in the 5–25% band during typical load windows.
+  // Plausible account-count ceiling (random 28–40k per run) so the
+  // "current / total" ratio visibly sits in the 5–25% band during
+  // typical load windows at the ~170/sec climb rate.
   var totalTarget = 28000 + Math.floor(Math.random() * 12000);
   var totalStr    = totalTarget.toLocaleString();
 
-  // ── SVG drafting figure ───────────────────────────────────────
-  // viewBox 0 0 220 220, centered at (110, 110). Four concentric
-  // rings (r = 95 / 70 / 45 / 22) intersected by a horizontal +
-  // vertical crosshair and two diagonal spokes that rotate as a
-  // group. Cardinal "registration" dots anchor the four compass
-  // points of the outer ring.
-  //
-  // Each stroke element is drawn in via stroke-dashoffset keyframes
-  // (see llDraw* in marketing-paper.css). After draw-in completes,
-  // the whole figure breathes (scale 1 → 1.03 → 1 on a 7s cycle)
-  // and the spokes rotate at a slow, independent cadence.
-  //
-  // Mobile: rings 1 & 3 are hidden via CSS media query (keeps the
-  // paper's negative space visible — a denser figure reads as
-  // "mechanical noise" on a 375px-wide viewport). The whole SVG
-  // also scales down ~30% through its container width. */
+  // ── Background stream content ─────────────────────────────────
+  // Raw marketing fragments (left column): UTM params, click IDs,
+  // JSON blobs, API status codes, formulas — the unprocessed side.
+  var rawFragments = [
+    'utm_source=google_ads',       'click_id=mk_9f2a3c21',
+    '{"spend":428.51,"imp":12840}','gclid=CjwKCAjw_9f2',
+    'HTTP/2 200 · auth_ok',        'campaign=retarget_winter',
+    'referrer=fb.com/ads',         'ad_set_id=AS-4412-B',
+    '{"ctr":0.048,"cpc":1.82}',    'utm_medium=cpc',
+    'ΣROAS = Σrev ÷ Σspend',       'x-rate-limit: 118/200',
+    'tracking_id=mk_tr_9a71bf',    'fbclid=IwAR3xq',
+    '{"roi":3.24,"roas":4.18}',    'CAC = spend ÷ new_cust',
+    'impression_id=imp_7721',      '{"spend":188.04,"conv":6}',
+    'HTTP/2 429 · retry=3',        'adwords_id=AW-882941',
+    'source=organic_search',       'CPL = spend ÷ leads',
+    '{"cpm":14.20,"reach":82104}', 'utm_term=plumber+near+me',
+    'pixel_id=pix_0xff41',         '{"spend":612.88,"imp":19204}',
+    'attr_model: last_click',      'lookback = 28d',
+    '{"leads":14,"cpl":41.92}',    'HTTP/2 204 · no-content'
+  ];
+  // Refined ledger entries (right column): formatted date | id | amt.
+  function genLedger(n) {
+    var out = [], today = new Date();
+    for (var i = 0; i < n; i++) {
+      var d = new Date(today);
+      d.setDate(d.getDate() - (i % 30));
+      var mm = String(d.getMonth() + 1).padStart(2, '0');
+      var dd = String(d.getDate()).padStart(2, '0');
+      var id = 'L-' + (8800 + i);
+      var amt = (Math.random() * 1800 + 60).toFixed(2);
+      var formatted = '$' + Number(amt).toLocaleString(undefined, {
+        minimumFractionDigits: 2, maximumFractionDigits: 2
+      });
+      out.push(d.getFullYear() + '-' + mm + '-' + dd + '  #' + id + '  ' + formatted);
+    }
+    return out;
+  }
+  var ledgerEntries = genLedger(isMobile ? 18 : 30);
+
+  // Stream builder — duplicates content so the -50% translate loop
+  // is seamless (landing on an identical phrase each cycle).
+  function buildStream(items, cls) {
+    var doubled = items.concat(items);
+    var lines = doubled.map(function(t) {
+      return '<div class="ll-stream-line">' + esc(t) + '</div>';
+    }).join('');
+    return '<div class="ll-stream ' + cls + '" aria-hidden="true">' +
+             '<div class="ll-stream-track">' + lines + '</div>' +
+           '</div>';
+  }
+  // Desktop: both columns. Mobile: one narrower center column only
+  // (the right column's monospace ledger entries would be unreadable
+  // in the ~90px available, and two columns on a phone read as clutter).
+  var streamsHtml;
+  if (isMobile) {
+    var mobileRaw = rawFragments.slice(0, Math.ceil(rawFragments.length * 0.5));
+    streamsHtml = buildStream(mobileRaw, 'll-stream--center');
+  } else {
+    streamsHtml = buildStream(rawFragments,  'll-stream--left') +
+                  buildStream(ledgerEntries, 'll-stream--right');
+  }
+
+  // ── SVG geometric figure ───────────────────────────────────────
+  // Same viewBox (0 0 220 220), same 4-ring + crosshair + spokes
+  // structure as before. Colors now alternate per ring: rings 1 & 3
+  // graphite (#7A7571), rings 2 & 4 Oxford Blue (#002147). The CSS
+  // handles stroke color via modifier classes (see ll-draft-ring--Nk
+  // / --Nb in marketing-paper.css).
   var svgHtml =
     '<svg class="ll-draft" viewBox="0 0 220 220" aria-hidden="true" focusable="false">' +
       '<g class="ll-draft-figure">' +
-        // Concentric rings — drawn from outside in
-        '<circle class="ll-draft-ring ll-draft-ring--1" cx="110" cy="110" r="95"/>' +
-        '<circle class="ll-draft-ring ll-draft-ring--2" cx="110" cy="110" r="70"/>' +
-        '<circle class="ll-draft-ring ll-draft-ring--3" cx="110" cy="110" r="45"/>' +
-        '<circle class="ll-draft-ring ll-draft-ring--4" cx="110" cy="110" r="22"/>' +
-        // Static crosshair through center
-        '<line class="ll-draft-line ll-draft-line--h" x1="15"  y1="110" x2="205" y2="110"/>' +
-        '<line class="ll-draft-line ll-draft-line--v" x1="110" y1="15"  x2="110" y2="205"/>' +
-        // Rotating diagonal spokes — transform-origin: center, the
-        // group spins continuously after the draw-in completes
+        '<circle class="ll-draft-ring ll-draft-ring--1 ll-draft-ring--k" cx="110" cy="110" r="95"/>' +
+        '<circle class="ll-draft-ring ll-draft-ring--2 ll-draft-ring--b" cx="110" cy="110" r="70"/>' +
+        '<circle class="ll-draft-ring ll-draft-ring--3 ll-draft-ring--k" cx="110" cy="110" r="45"/>' +
+        '<circle class="ll-draft-ring ll-draft-ring--4 ll-draft-ring--b" cx="110" cy="110" r="22"/>' +
+        '<line class="ll-draft-line ll-draft-line--h ll-draft-line--k" x1="15"  y1="110" x2="205" y2="110"/>' +
+        '<line class="ll-draft-line ll-draft-line--v ll-draft-line--k" x1="110" y1="15"  x2="110" y2="205"/>' +
         '<g class="ll-draft-spokes">' +
-          '<line class="ll-draft-line ll-draft-line--d1" x1="45"  y1="45"  x2="175" y2="175"/>' +
-          '<line class="ll-draft-line ll-draft-line--d2" x1="175" y1="45"  x2="45"  y2="175"/>' +
+          '<line class="ll-draft-line ll-draft-line--d1 ll-draft-line--b" x1="45"  y1="45"  x2="175" y2="175"/>' +
+          '<line class="ll-draft-line ll-draft-line--d2 ll-draft-line--b" x1="175" y1="45"  x2="45"  y2="175"/>' +
         '</g>' +
-        // Cardinal registration dots on outer ring
         '<circle class="ll-draft-tick" cx="110" cy="15"  r="2"/>' +
         '<circle class="ll-draft-tick" cx="205" cy="110" r="2"/>' +
         '<circle class="ll-draft-tick" cx="110" cy="205" r="2"/>' +
@@ -78,20 +146,46 @@ function startLedgerLoader(container) {
       '</g>' +
     '</svg>';
 
+  // ── Per-letter title split ─────────────────────────────────────
+  // Splits "Reconciling" + " " + "Marketing Ledger" into individual
+  // .ll-letter spans, each with a staggered animation-delay. The
+  // llInkFlow keyframes (CSS) cycle each letter's font-weight +
+  // filter: blur so the wave of "fresh ink settling" sweeps L→R.
+  // Letter index is continuous across both phrases so the wave
+  // doesn't "restart" at the highlight boundary.
+  function splitLetters(text, startIdx, perMs) {
+    return text.split('').map(function(ch, j) {
+      var safe  = ch === ' ' ? '&nbsp;' : esc(ch);
+      var delay = ((startIdx + j) * perMs) + 'ms';
+      return '<span class="ll-letter" style="animation-delay:' + delay + '">' + safe + '</span>';
+    }).join('');
+  }
+  var pre  = 'Reconciling ';
+  var post = 'Marketing Ledger';
+  var PER  = 40;   // ms per character — L→R wave speed
+  var preHtml  = splitLetters(pre,  0,          PER);
+  var postHtml = splitLetters(post, pre.length, PER);
+
   container.innerHTML =
     '<div class="ledger-loader ledger-loader--draft" id="ttLoader">' +
+      '<div class="ll-streams" aria-hidden="true">' + streamsHtml + '</div>' +
       '<div class="ll-vignette" aria-hidden="true"></div>' +
       '<div class="ll-overlay">' +
         svgHtml +
         '<div class="ll-title">' +
-          'Reconciling ' +
-          '<span class="ll-highlight">Marketing Ledger</span>' +
+          '<span class="ll-title-phrase">' + preHtml + '</span>' +
+          '<span class="ll-highlight">' + postHtml + '</span>' +
+          '<span class="ll-dots" aria-hidden="true">' +
+            '<span class="ll-dot"></span>' +
+            '<span class="ll-dot"></span>' +
+            '<span class="ll-dot"></span>' +
+          '</span>' +
         '</div>' +
         '<div class="ll-tally">' +
           '<span class="ll-tally-num" id="llTallyNum">0</span>' +
           '<span class="ll-tally-sep">/</span>' +
           '<span class="ll-tally-total">' + totalStr + '</span>' +
-          '<span class="ll-tally-unit">accounts</span>' +
+          '<span class="ll-tally-unit">accounts aggregated</span>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -99,34 +193,55 @@ function startLedgerLoader(container) {
   var rootEl  = container.querySelector('#ttLoader');
   var tallyEl = container.querySelector('#llTallyNum');
 
-  // ── Tally with cross-fade ──────────────────────────────────────
-  // A 150ms opacity transition on the num element, combined with a
-  // ~220ms update cadence (throttled, not per-RAF), gives a smooth
-  // "cross-fade on each update" feel without the DOM churn of
-  // layering two number nodes. Rate is ~170/sec so numbers visibly
-  // advance; tabular-nums keeps column widths locked.
-  var startTs        = performance.now();
-  var lastPaintedTs  = 0;
-  var destroyed      = false;
-  var rafId          = null;
-  var lastValue      = 0;
-  var UPDATE_MS      = 220; // cadence that plays nicely with 150ms fade
+  // ── Tally with cross-fade + milestones + haptics ──────────────
+  // Cadence: update DOM at most every 220ms so the 150ms opacity
+  // transition on .ll-tally-num has headroom to complete its
+  // "cross-fade on each tick". Rate climbs sinusoidally (~120–220/s)
+  // so the counter feels organic rather than perfectly linear.
+  // Milestones:
+  //   • 1,000-unit crossing → briefly add .is-milestone (CSS paints
+  //     a sunflower-yellow highlight behind the number + 300ms fade)
+  //   • 5,000-unit crossing → navigator.vibrate(12) on mobile
+  var startTs       = performance.now();
+  var lastPaintedTs = 0;
+  var destroyed     = false;
+  var rafId         = null;
+  var lastValue     = 0;
+  var lastThousand  = 0;
+  var lastFiveK     = 0;
+  var UPDATE_MS     = 220;
+  var hapticOK = isMobile && typeof navigator !== 'undefined'
+                 && typeof navigator.vibrate === 'function';
+
+  function flashMilestone() {
+    if (!tallyEl) return;
+    tallyEl.classList.remove('is-milestone');
+    // Force reflow so re-adding the class restarts the CSS animation
+    void tallyEl.offsetWidth;
+    tallyEl.classList.add('is-milestone');
+  }
 
   function tickTally(ts) {
     if (destroyed) return;
     var elapsed = ts - startTs;
-    var rate    = 170 + Math.sin(elapsed / 850) * 50;  // ~120–220/sec
+    var rate    = 170 + Math.sin(elapsed / 850) * 50;   // ~120–220/sec
     var value   = Math.min(totalTarget - 1, Math.floor(elapsed / 1000 * rate));
     if (ts - lastPaintedTs >= UPDATE_MS && value !== lastValue && tallyEl) {
       lastPaintedTs = ts;
-      // Brief dip → update → restore. The CSS transition on opacity
-      // (150ms) interpolates the fade; the rAF on the way back
-      // guarantees the class toggle ticks across separate frames.
       tallyEl.classList.add('is-ticking');
       tallyEl.textContent = value.toLocaleString();
       requestAnimationFrame(function() {
         if (!destroyed && tallyEl) tallyEl.classList.remove('is-ticking');
       });
+      // 1,000-count highlighter flash
+      var k1 = Math.floor(value / 1000);
+      if (k1 > lastThousand) { lastThousand = k1; flashMilestone(); }
+      // 5,000-count haptic pulse
+      var k5 = Math.floor(value / 5000);
+      if (k5 > lastFiveK && hapticOK) {
+        lastFiveK = k5;
+        try { navigator.vibrate(12); } catch (_) {}
+      }
       lastValue = value;
     }
     rafId = requestAnimationFrame(tickTally);
@@ -143,15 +258,24 @@ function startLedgerLoader(container) {
       destroyed = true;
       if (rafId) cancelAnimationFrame(rafId);
 
-      // Overlay fades + whole loader cross-fades out so the real
-      // dashboard underneath can mount.
-      rootEl.classList.add('ll-focusing');
+      // Blur-dry exit: CSS animation llDrying (1.5s) applies
+      // filter: blur(8px) contrast(1.2) at the peak, then settles
+      // back to blur(0) while opacity fades → 0. The dashboard
+      // mounts beneath on a staggered mkt-mount-in animation, so
+      // the visual handoff is "ink blooms, then dries into crisp
+      // final layout".
+      rootEl.classList.add('ll-drying');
+      // Fire onComplete a touch before the full 1500ms so the real
+      // dashboard appears under the dissipating blur rather than
+      // after a black gap. 1100ms puts the mount at ~73% through
+      // the dry-out, which lines up with the blur returning to ~2px.
       setTimeout(function() {
-        rootEl.classList.add('ll-done');
-        setTimeout(function() {
-          if (onComplete) onComplete();
-        }, 180);
-      }, 360);
+        if (onComplete) onComplete();
+      }, 1100);
+      // Ensure the node is fully invisible + out of layout for cleanup
+      setTimeout(function() {
+        if (rootEl) rootEl.classList.add('ll-done');
+      }, 1500);
     }
   };
 }
