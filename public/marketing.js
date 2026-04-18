@@ -13,287 +13,145 @@ async function fetchQBOMarketing() {
   if (marketingData) renderMarketing();
 }
 
-/* ── "Kinetic Ledger" loading state ─────────────────────────────
-   Tactile paper-ledger aesthetic — every effect is physical, not
-   digital. The hero tagline absorbs ink letter-by-letter (L→R wave
-   of weight + blur settle, like fresh ink drying). The dots bleed
-   outward in concentric rings like a fountain pen resting on paper.
-   Behind the tagline, three low-opacity graphite columns of raw
-   fragments, formulas, and refined ledger entries stutter-scroll —
-   with occasional red-pencil strike-throughs and Oxford-blue circle
-   annotations, telling a story of the system "checking and correcting"
-   its own work. The tally ticks with tabular-nums; every 500-line
-   milestone fires a sunflower-yellow marker stroke painted with
-   mix-blend-mode: multiply behind the number so paper texture and
-   glyph both show through. The scrolling-scribe log keeps the last
-   three instructions visible above the current one, each progressively
-   fainter + blurrier — a visual audit trail of completed work.
+/* ── "Architect's Draft" loading state ──────────────────────────
+   Minimalist paper-drafting aesthetic. No scrolling streams, no
+   digital noise — just an SVG geometric drafting figure (concentric
+   rings + crosshair + rotating diagonal spokes) drawn in graphite
+   pencil over a warm radial vignette, a single centered tagline
+   with a hand-dragged sunflower highlighter behind "Marketing
+   Ledger", and a clean "N / target accounts" tally that cross-fades
+   on each update. The entire composition is quiet by design —
+   complexity is implied through precision geometry, not visual
+   clutter.
      .destroy()    — tear down all timers (used on error paths)
-     .finalize(cb) — unblur + fade out, fire `cb` when safe to mount */
+     .finalize(cb) — fade out + fire `cb` when safe to mount */
 function startLedgerLoader(container) {
   if (_ttLoader) _ttLoader.destroy();
 
   var isMobile = window.innerWidth <= 768;
 
-  // ── Stream source content ──────────────────────────────────────
-  // Raw marketing fragments (left stream): utm params, JSON blobs,
-  // ad IDs — the "unprocessed" side of the ingest pipeline.
-  var rawFragments = [
-    'utm_source=google_ads', 'click_id=mk_9f2a3c21',
-    '{"spend":428.51,"imp":12840}', 'gclid=CjwKCAjw_9f2',
-    'HTTP/2 200 · auth_ok', 'campaign=retarget_winter',
-    'referrer=fb.com/ads', 'ad_set_id=AS-4412-B',
-    '{"ctr":0.048,"cpc":1.82}', 'utm_medium=cpc',
-    'x-rate-limit: 118/200', 'conv_value=$642.00',
-    'tracking_id=mk_tr_9a71bf', 'fbclid=IwAR3xq',
-    '{"roi":3.24,"roas":4.18}', 'utm_campaign=spring_promo',
-    'impression_id=imp_7721', '{"spend":188.04,"conv":6}',
-    'HTTP/2 429 · retry=3', 'adwords_id=AW-882941',
-    'source=organic_search', 'campaign_id=CMP-2026-0412',
-    '{"cpm":14.20,"reach":82104}', 'utm_term=plumber+near+me',
-    'ref=nextdoor', 'pixel_id=pix_0xff41',
-    '{"spend":612.88,"imp":19204}', 'click_id=mk_88fc91',
-    'utm_source=yelp', '{"leads":14,"cpl":41.92}',
-    'HTTP/2 204 · no-content', 'tracking=angi_lead_gen',
-    'gclid=CjwKBh93Mxl', '{"spend":974.22,"conv":22}'
-  ];
-  // Formulas + accounting identities (middle stream, desktop only).
-  // Uses mathematical glyphs to feel like margin scribbles — the
-  // "mental math" layer behind the reconciliation.
-  var formulaFragments = [
-    'ΣROAS = Σrev ÷ Σspend', 'CAC = spend ÷ new_cust',
-    'CPL = spend ÷ leads', 'LTV × 3 > CAC',
-    'attr_model: last_click', 'lookback = 28d',
-    'μ(ticket) = $1,842', 'σ² = 184,221',
-    'GP% = (rev − COGS) ÷ rev', 'NOI = GP − OpEx',
-    'Δrev = $142,804 MoM', 'conv_lag = 3.4d median',
-    'χ² = 12.7, p < 0.01', '∫(spend)dt ≈ $48.2k',
-    '∂ROAS/∂spend → 0⁺', 'E[LTV|ch=paid] = $3,184',
-    'err_bound = ±$0.04', 'batch_sz = 200 rows'
-  ];
-  // Refined ledger entries (right stream): formatted accounting
-  // rows — the "processed" side. Date | Ledger ID | Balance.
-  function genLedger(n) {
-    var out = [];
-    var today = new Date();
-    for (var i = 0; i < n; i++) {
-      var d = new Date(today);
-      d.setDate(d.getDate() - (i % 30));
-      var mm = String(d.getMonth() + 1).padStart(2, '0');
-      var dd = String(d.getDate()).padStart(2, '0');
-      var id = 'L-' + (8800 + i);
-      var amt = (Math.random() * 1800 + 60).toFixed(2);
-      var formatted = '$' + Number(amt).toLocaleString(undefined, {
-        minimumFractionDigits: 2, maximumFractionDigits: 2
-      });
-      out.push(d.getFullYear() + '-' + mm + '-' + dd + '  #' + id + '  ' + formatted);
-    }
-    return out;
-  }
-  var ledgerEntries = genLedger(isMobile ? 18 : 30);
+  // Plausible account-count ceiling that the tally climbs toward.
+  // Random within 28k–40k so the UI feels specific to this run;
+  // climb rate (~170/sec) keeps the "current / total" ratio visible
+  // in the 5–25% band during typical load windows.
+  var totalTarget = 28000 + Math.floor(Math.random() * 12000);
+  var totalStr    = totalTarget.toLocaleString();
 
-  // Build a stream column — duplicate content so the infinite scroll
-  // loop is seamless (translating -50% lands on an identical phrase).
-  // `seed` offsets the struck/circled pattern so each column has
-  // corrections in different spots (avoids a visible vertical stripe
-  // of marks across all three columns).
-  function buildStream(items, cls, seed) {
-    seed = seed || 0;
-    var doubled = items.concat(items);
-    var lines = doubled.map(function(t, i) {
-      var extra = '';
-      // ~1 in 9 lines: red-pencil strike-through
-      if ((i + seed) % 9 === 0) extra = ' ll-stream-line--struck';
-      // ~1 in 11 lines (offset): Oxford-blue circle annotation
-      else if ((i + seed + 4) % 11 === 0) extra = ' ll-stream-line--circled';
-      return '<div class="ll-stream-line' + extra + '">' + esc(t) + '</div>';
-    }).join('');
-    return '<div class="ll-stream ' + cls + '" aria-hidden="true">' +
-             '<div class="ll-stream-track">' + lines + '</div>' +
-           '</div>';
-  }
-
-  // Desktop: three columns (raw | formulas | refined). Mobile: a
-  // single narrower raw stream in the center (extra columns hidden
-  // for visual clarity + performance).
-  var streamsHtml;
-  if (isMobile) {
-    var mobileRaw = rawFragments.slice(0, Math.ceil(rawFragments.length * 0.4));
-    streamsHtml = buildStream(mobileRaw, 'll-stream--center', 0);
-  } else {
-    streamsHtml = buildStream(rawFragments,     'll-stream--left',   0) +
-                  buildStream(formulaFragments, 'll-stream--middle', 3) +
-                  buildStream(ledgerEntries,    'll-stream--right',  5);
-  }
-
-  // Title: split every letter into its own span so the ink-soak
-  // animation can stagger per-character (creating an L→R wave of
-  // weight + blur settling, like wet ink drying across the word).
-  var titleText = 'Reconciling Marketing Ledger';
-  var titleHtml = titleText.split('').map(function(ch, i) {
-    var safe = ch === ' ' ? '&nbsp;' : esc(ch);
-    var delay = (i * 45) + 'ms'; // ~45ms stagger per character
-    return '<span class="ll-letter" style="animation-delay:' + delay + '">' + safe + '</span>';
-  }).join('');
+  // ── SVG drafting figure ───────────────────────────────────────
+  // viewBox 0 0 220 220, centered at (110, 110). Four concentric
+  // rings (r = 95 / 70 / 45 / 22) intersected by a horizontal +
+  // vertical crosshair and two diagonal spokes that rotate as a
+  // group. Cardinal "registration" dots anchor the four compass
+  // points of the outer ring.
+  //
+  // Each stroke element is drawn in via stroke-dashoffset keyframes
+  // (see llDraw* in marketing-paper.css). After draw-in completes,
+  // the whole figure breathes (scale 1 → 1.03 → 1 on a 7s cycle)
+  // and the spokes rotate at a slow, independent cadence.
+  //
+  // Mobile: rings 1 & 3 are hidden via CSS media query (keeps the
+  // paper's negative space visible — a denser figure reads as
+  // "mechanical noise" on a 375px-wide viewport). The whole SVG
+  // also scales down ~30% through its container width. */
+  var svgHtml =
+    '<svg class="ll-draft" viewBox="0 0 220 220" aria-hidden="true" focusable="false">' +
+      '<g class="ll-draft-figure">' +
+        // Concentric rings — drawn from outside in
+        '<circle class="ll-draft-ring ll-draft-ring--1" cx="110" cy="110" r="95"/>' +
+        '<circle class="ll-draft-ring ll-draft-ring--2" cx="110" cy="110" r="70"/>' +
+        '<circle class="ll-draft-ring ll-draft-ring--3" cx="110" cy="110" r="45"/>' +
+        '<circle class="ll-draft-ring ll-draft-ring--4" cx="110" cy="110" r="22"/>' +
+        // Static crosshair through center
+        '<line class="ll-draft-line ll-draft-line--h" x1="15"  y1="110" x2="205" y2="110"/>' +
+        '<line class="ll-draft-line ll-draft-line--v" x1="110" y1="15"  x2="110" y2="205"/>' +
+        // Rotating diagonal spokes — transform-origin: center, the
+        // group spins continuously after the draw-in completes
+        '<g class="ll-draft-spokes">' +
+          '<line class="ll-draft-line ll-draft-line--d1" x1="45"  y1="45"  x2="175" y2="175"/>' +
+          '<line class="ll-draft-line ll-draft-line--d2" x1="175" y1="45"  x2="45"  y2="175"/>' +
+        '</g>' +
+        // Cardinal registration dots on outer ring
+        '<circle class="ll-draft-tick" cx="110" cy="15"  r="2"/>' +
+        '<circle class="ll-draft-tick" cx="205" cy="110" r="2"/>' +
+        '<circle class="ll-draft-tick" cx="110" cy="205" r="2"/>' +
+        '<circle class="ll-draft-tick" cx="15"  cy="110" r="2"/>' +
+      '</g>' +
+    '</svg>';
 
   container.innerHTML =
-    '<div class="ledger-loader" id="ttLoader">' +
-      '<div class="ll-streams" aria-hidden="true">' + streamsHtml + '</div>' +
+    '<div class="ledger-loader ledger-loader--draft" id="ttLoader">' +
       '<div class="ll-vignette" aria-hidden="true"></div>' +
       '<div class="ll-overlay">' +
+        svgHtml +
         '<div class="ll-title">' +
-          '<span class="ll-title-text">' + titleHtml + '</span>' +
-          '<span class="ll-dots" aria-hidden="true">' +
-            '<span class="ll-dot"></span>' +
-            '<span class="ll-dot"></span>' +
-            '<span class="ll-dot"></span>' +
-          '</span>' +
+          'Reconciling ' +
+          '<span class="ll-highlight">Marketing Ledger</span>' +
         '</div>' +
         '<div class="ll-tally">' +
           '<span class="ll-tally-num" id="llTallyNum">0</span>' +
-          '<span class="ll-tally-unit">ledger entries</span>' +
+          '<span class="ll-tally-sep">/</span>' +
+          '<span class="ll-tally-total">' + totalStr + '</span>' +
+          '<span class="ll-tally-unit">accounts</span>' +
         '</div>' +
-        '<div class="ll-log" id="llLog"></div>' +
       '</div>' +
     '</div>';
 
   var rootEl  = container.querySelector('#ttLoader');
   var tallyEl = container.querySelector('#llTallyNum');
-  var logEl   = container.querySelector('#llLog');
 
-  // ── Infinite tally: continuously ticking up ─────────────────────
-  // Sinusoidal rate (~120–220/sec) so the counter feels organic, not
-  // linear. Detects 500-unit crossings to paint a yellow marker stroke,
-  // and 5,000-unit crossings to fire a haptic pulse on mobile.
-  var startTs       = performance.now();
-  var destroyed     = false;
-  var rafId         = null;
-  var lastValue     = 0;
-  var lastMilestone = 0;   // tracks last 500-mark we painted
-  var lastHaptic    = 0;   // tracks last 5,000-mark we vibrated on
-  var hapticSupported = isMobile && typeof navigator !== 'undefined'
-                        && typeof navigator.vibrate === 'function';
-
-  function flashMilestone() {
-    if (!tallyEl) return;
-    tallyEl.classList.remove('is-milestone');
-    // Force reflow so re-adding the class restarts the animation
-    void tallyEl.offsetWidth;
-    tallyEl.classList.add('is-milestone');
-  }
+  // ── Tally with cross-fade ──────────────────────────────────────
+  // A 150ms opacity transition on the num element, combined with a
+  // ~220ms update cadence (throttled, not per-RAF), gives a smooth
+  // "cross-fade on each update" feel without the DOM churn of
+  // layering two number nodes. Rate is ~170/sec so numbers visibly
+  // advance; tabular-nums keeps column widths locked.
+  var startTs        = performance.now();
+  var lastPaintedTs  = 0;
+  var destroyed      = false;
+  var rafId          = null;
+  var lastValue      = 0;
+  var UPDATE_MS      = 220; // cadence that plays nicely with 150ms fade
 
   function tickTally(ts) {
     if (destroyed) return;
     var elapsed = ts - startTs;
     var rate    = 170 + Math.sin(elapsed / 850) * 50;  // ~120–220/sec
-    var value   = Math.floor(elapsed / 1000 * rate);
-    if (value !== lastValue && tallyEl) {
+    var value   = Math.min(totalTarget - 1, Math.floor(elapsed / 1000 * rate));
+    if (ts - lastPaintedTs >= UPDATE_MS && value !== lastValue && tallyEl) {
+      lastPaintedTs = ts;
+      // Brief dip → update → restore. The CSS transition on opacity
+      // (150ms) interpolates the fade; the rAF on the way back
+      // guarantees the class toggle ticks across separate frames.
+      tallyEl.classList.add('is-ticking');
       tallyEl.textContent = value.toLocaleString();
-      // 500-unit milestone highlighter stroke (per spec: every 500)
-      var fiveHundred = Math.floor(value / 500);
-      if (fiveHundred > lastMilestone) {
-        lastMilestone = fiveHundred;
-        flashMilestone();
-      }
-      // 5,000-unit haptic pulse (mobile only, Web Vibration API)
-      var fiveK = Math.floor(value / 5000);
-      if (fiveK > lastHaptic && hapticSupported) {
-        lastHaptic = fiveK;
-        try { navigator.vibrate(12); } catch (_) {}
-      }
+      requestAnimationFrame(function() {
+        if (!destroyed && tallyEl) tallyEl.classList.remove('is-ticking');
+      });
       lastValue = value;
     }
     rafId = requestAnimationFrame(tickTally);
   }
   rafId = requestAnimationFrame(tickTally);
 
-  // ── Scrolling Scribe log: fading audit trail ────────────────────
-  // New instruction appears at the BOTTOM (flex column-reverse) with
-  // an ink-soak enter (blur → 0, fade → 1, translate up a few px).
-  // Previous entries remain above it, each one aged one step fainter
-  // + blurrier. After 4 entries are visible, the oldest fades out
-  // into the paper texture above. Creates a visual history of
-  // complex work already completed.
-  var phrases = [
-    'Verifying attribution windows…',
-    'Calculating ROAS by campaign…',
-    'Normalizing spend currency…',
-    'Cross-checking invoices with HCP…',
-    'Reconciling duplicate click IDs…',
-    'Rolling up ad-set performance…',
-    'Tagging organic vs paid leads…',
-    'Balancing GL-8041 → GL-8042…',
-    'Flushing stale pixel events…',
-    'Merging UTM fingerprints…',
-    'Scanning for ghost conversions…',
-    'Indexing attribution by channel…'
-  ];
-  var phraseIdx = 0;
-  // Newest-first array; DOM uses column-reverse so logStack[0] sits
-  // visually at the bottom of the stack and older entries rise above.
-  var logStack = [];
-
-  function pushLog(text) {
-    if (destroyed || !logEl) return;
-    var el = document.createElement('div');
-    el.className = 'll-log-entry';
-    el.textContent = text;
-    // Insert at firstChild; column-reverse places firstChild at the
-    // visual bottom, so this IS the "newest at the bottom" position.
-    logEl.insertBefore(el, logEl.firstChild);
-    logStack.unshift(el);
-    // Age every entry based on its position in the stack
-    logStack.forEach(function(node, idx) {
-      node.classList.remove('ll-log-entry--current',
-                            'll-log-entry--1',
-                            'll-log-entry--2',
-                            'll-log-entry--3');
-      if      (idx === 0) node.classList.add('ll-log-entry--current');
-      else if (idx === 1) node.classList.add('ll-log-entry--1');
-      else if (idx === 2) node.classList.add('ll-log-entry--2');
-      else if (idx === 3) node.classList.add('ll-log-entry--3');
-    });
-    // Retire anything past 4 entries — fade into paper, then remove
-    while (logStack.length > 4) {
-      var stale = logStack.pop();
-      stale.classList.add('is-leaving');
-      (function(node) {
-        setTimeout(function() {
-          if (node && node.parentNode) node.parentNode.removeChild(node);
-        }, 500);
-      })(stale);
-    }
-  }
-  // Seed the first entry immediately so the log area isn't empty
-  pushLog(phrases[phraseIdx]);
-
-  var logTimer = setInterval(function() {
-    if (destroyed) return;
-    phraseIdx = (phraseIdx + 1) % phrases.length;
-    pushLog(phrases[phraseIdx]);
-  }, 2200);
-
   return {
     destroy: function() {
       destroyed = true;
       if (rafId) cancelAnimationFrame(rafId);
-      clearInterval(logTimer);
     },
     finalize: function(onComplete) {
       if (destroyed) { if (onComplete) onComplete(); return; }
       destroyed = true;
       if (rafId) cancelAnimationFrame(rafId);
-      clearInterval(logTimer);
 
-      // Streams fade + text snaps to focus, then the whole loader
-      // cross-fades out so the real dashboard underneath can mount.
+      // Overlay fades + whole loader cross-fades out so the real
+      // dashboard underneath can mount.
       rootEl.classList.add('ll-focusing');
       setTimeout(function() {
         rootEl.classList.add('ll-done');
         setTimeout(function() {
           if (onComplete) onComplete();
         }, 180);
-      }, 420);
+      }, 360);
     }
   };
 }

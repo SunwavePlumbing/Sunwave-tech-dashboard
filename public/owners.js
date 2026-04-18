@@ -429,6 +429,16 @@ function fmtMkShort(mk) {
   var p = mk.split('-');
   return (['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(p[1])-1] || '') + ' ' + p[0].slice(2);
 }
+// Abbreviated 4-year anchor: "2026-02" → "Feb 2026". Used in the
+// dual-anchor header above the Full Picture ledger so long month
+// names ("February 2026", "September 2026") stay on a single line
+// at narrow mobile widths. Selection sheets + page titles still use
+// fmtMkFull so users see the unabbreviated label when picking.
+function fmtMkAnchor(mk) {
+  if (!mk) return '';
+  var p = mk.split('-');
+  return (['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(p[1])-1] || '') + ' ' + p[0];
+}
 
 // Format a range as "Apr 24 – Mar 26" (single month collapses to just "Mar 26")
 function fmtRangeShort(startMk, endMk) {
@@ -1570,7 +1580,11 @@ function renderOwners() {
     if (finGranularity === 'range' && finRange && rangeIdxs.length) {
       // ── Range mode ─────────────────────────────────────────────
       priIdxs = rangeIdxs.slice();
-      priAnchorLabel = finRange.label + ' (' + fmtRangeShort(finRange.startMk, finRange.endMk) + ')';
+      // Anchor shows ONLY the compact date range ("Apr 25 – Mar 26").
+      // The semantic label ("Last 12 Months") is already displayed in
+      // the big page title above this card, so repeating it here just
+      // pushes the cmp anchor onto a second line on mobile.
+      priAnchorLabel = fmtRangeShort(finRange.startMk, finRange.endMk);
 
       // Compare = prior period of equal length, clamped to dataset
       var rLen2  = rangeIdxs.length;
@@ -1579,8 +1593,9 @@ function renderOwners() {
       cmpIdxs = [];
       if (pEnd2 >= 0 && pEnd2 >= pStart2) {
         for (var p2 = pStart2; p2 <= pEnd2; p2++) cmpIdxs.push(p2);
-        cmpAnchorLabel = 'Prior period (' +
-          fmtRangeShort(months[cmpIdxs[0]], months[cmpIdxs[cmpIdxs.length-1]]) + ')';
+        // Drop the "Prior period ( )" wrapper — the "vs" badge between
+        // the two anchors already communicates that this is the comp.
+        cmpAnchorLabel = fmtRangeShort(months[cmpIdxs[0]], months[cmpIdxs[cmpIdxs.length-1]]);
       } else {
         cmpAnchorLabel = 'No prior period';
       }
@@ -1590,7 +1605,9 @@ function renderOwners() {
       // ── Month mode ─────────────────────────────────────────────
       var priIdx2 = curIdx;
       priIdxs        = [priIdx2];
-      priAnchorLabel = fmtMkFull(finMonth);
+      // fmtMkAnchor → "Feb 2026" (not "February 2026"). Full month
+      // name still appears in the compare sheet picker + big title.
+      priAnchorLabel = fmtMkAnchor(finMonth);
 
       // Sentinel 'none' = user explicitly opted out of comparison.
       // We preserve that choice across re-renders and show a clean
@@ -1616,7 +1633,7 @@ function renderOwners() {
         }
         var cmpIdx2 = pnlCompareMonth ? months.indexOf(pnlCompareMonth) : -1;
         cmpIdxs = cmpIdx2 >= 0 ? [cmpIdx2] : [];
-        cmpAnchorLabel = pnlCompareMonth ? fmtMkFull(pnlCompareMonth) : 'Select…';
+        cmpAnchorLabel = pnlCompareMonth ? fmtMkAnchor(pnlCompareMonth) : 'Select…';
       }
     }
 
