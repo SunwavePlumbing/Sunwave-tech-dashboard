@@ -1334,114 +1334,536 @@ body.paper-mode .lg-svg {
 }
 
 /* ════════════════════════════════════════════════════════════════
-   VARIANT 1 — Continuous Origami Fold
-   (SVG polygon points animated via SMIL; drop-shadow + noise overlay)
+   VARIANT 1 — Drafting Pencil Circle Trace
+   Circle circumference = 2π·42 ≈ 264. Stroke-dashoffset animates
+   264 → 0 with asymmetric easing (fast start, slow finish) so the
+   pencil "lands" gracefully as it closes the loop. The yellow
+   dimension line fades in after the circle completes.
    ════════════════════════════════════════════════════════════════ */
-/* Nothing extra needed — SMIL + filters handle it inline in the SVG. */
+body.paper-mode .lg1-circle {
+  stroke-dasharray: 264;
+  stroke-dashoffset: 264;
+  animation: lg1Draw 3s cubic-bezier(0.1, 0, 0.3, 1) infinite;
+}
+@keyframes lg1Draw {
+  0%   { stroke-dashoffset: 264; }
+  70%  { stroke-dashoffset: 0;   }
+  92%  { stroke-dashoffset: 0;   }
+  100% { stroke-dashoffset: 264; }
+}
+body.paper-mode .lg1-dim {
+  opacity: 0;
+  animation: lg1DimIn 3s ease-in-out infinite;
+}
+@keyframes lg1DimIn {
+  0%, 60%  { opacity: 0; }
+  75%, 92% { opacity: 1; }
+  100%     { opacity: 0; }
+}
 
 /* ════════════════════════════════════════════════════════════════
-   VARIANT 2 — Topographical Ripple
+   VARIANT 2 — Architectural Overlay Blueprint Stagger
+   Four vellum layers drop in from ~8px above, each with a 100ms
+   delay and a cushioned ease-out for that "sheet of tracing paper
+   settling" feel. They stay visible, then fade out + reset to loop.
    ════════════════════════════════════════════════════════════════ */
-body.paper-mode .lg2-breath {
-  transform-origin: 70px 70px;
-  transform-box: fill-box;
-  animation: lg2Breath 3.2s cubic-bezier(0.25, 0.1, 0.25, 1) infinite;
+body.paper-mode .lg2-layer {
+  opacity: 0;
+  transform: translateY(-8px);
+  animation: lg2Drop 4.4s cubic-bezier(0.22, 1, 0.36, 1) infinite;
 }
-@keyframes lg2Breath {
-  0%, 100% { transform: scale(0.95); }
-  50%      { transform: scale(1.05); }
+body.paper-mode .lg2-layer--1 { animation-delay: 0s;    }
+body.paper-mode .lg2-layer--2 { animation-delay: 0.12s; }
+body.paper-mode .lg2-layer--3 { animation-delay: 0.24s; }
+body.paper-mode .lg2-layer--4 { animation-delay: 0.36s; }
+@keyframes lg2Drop {
+  0%       { opacity: 0;   transform: translateY(-8px); }
+  22%      { opacity: 0.7; transform: translateY(0);    }
+  72%      { opacity: 0.7; transform: translateY(0);    }
+  92%, 100%{ opacity: 0;   transform: translateY(-2px); }
 }
-body.paper-mode .lg2-p {
+
+/* ════════════════════════════════════════════════════════════════
+   VARIANT 3 — Physical Paper Flip Book of a Building
+   8 construction frames cycled via a steps(1) animation. Each
+   frame is visible for 1/8 of the cycle (250ms at 2s total), snaps
+   off at the boundary (no fade) for that tactile flip-book feel.
+   Container is pre-rotated -6° for an isometric presentation.
+   ════════════════════════════════════════════════════════════════ */
+body.paper-mode .lg3-svg {
+  transform: rotate(-6deg) skewX(-3deg);
+  transform-origin: center;
+}
+body.paper-mode .lg3-frame {
+  opacity: 0;
+  animation: lg3Frame 2.4s steps(1, end) infinite;
+}
+body.paper-mode .lg3-frame--1 { animation-delay: 0s;    }
+body.paper-mode .lg3-frame--2 { animation-delay: 0.3s;  }
+body.paper-mode .lg3-frame--3 { animation-delay: 0.6s;  }
+body.paper-mode .lg3-frame--4 { animation-delay: 0.9s;  }
+body.paper-mode .lg3-frame--5 { animation-delay: 1.2s;  }
+body.paper-mode .lg3-frame--6 { animation-delay: 1.5s;  }
+body.paper-mode .lg3-frame--7 { animation-delay: 1.8s;  }
+body.paper-mode .lg3-frame--8 { animation-delay: 2.1s;  }
+@keyframes lg3Frame {
+  0%, 12.4% { opacity: 1; }
+  12.5%, 100% { opacity: 0; }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   VARIANT 4 — Sequential Floor Plan Room Draw
+   Four walls draw via stroke-dashoffset in sequence, with a 150ms
+   "drafting pause" at each corner before the next wall begins. Door
+   swing arc + window symbols fade in after all four walls complete.
+   ════════════════════════════════════════════════════════════════ */
+body.paper-mode .lg4-wall {
   fill: none;
-  stroke: #E27D60;              /* terracotta */
-  stroke-width: 1.3;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-body.paper-mode .lg2-p1 { stroke-dasharray: 510; stroke-dashoffset: 510;
-  animation: lg2Draw 3.2s cubic-bezier(0.4,0,0.2,1) 0s infinite alternate; }
-body.paper-mode .lg2-p2 { stroke-dasharray: 390; stroke-dashoffset: 390;
-  animation: lg2Draw 3.2s cubic-bezier(0.4,0,0.2,1) 0.2s infinite alternate;
-  stroke: #85A286;              /* sage green on the middle ring */
-}
-body.paper-mode .lg2-p3 { stroke-dasharray: 260; stroke-dashoffset: 260;
-  animation: lg2Draw 3.2s cubic-bezier(0.4,0,0.2,1) 0.4s infinite alternate; }
-@keyframes lg2Draw { to { stroke-dashoffset: 0; } }
-
-/* ════════════════════════════════════════════════════════════════
-   VARIANT 3 — Ink Bleed Capillary Action
-   (SVG <animate> on r/opacity; gooey feGaussianBlur + feColorMatrix
-    filter in the SVG renders organic non-vector edges)
-   ════════════════════════════════════════════════════════════════ */
-/* Nothing extra needed — SMIL + filter handle it inline. */
-
-/* ════════════════════════════════════════════════════════════════
-   VARIANT 4 — Shifting Sand Dunes
-   (d-attr animated via SMIL, turbulence filter overlays grain)
-   ════════════════════════════════════════════════════════════════ */
-/* Nothing extra needed — SMIL + filter handle it inline. */
-
-/* ════════════════════════════════════════════════════════════════
-   VARIANT 5 — Sequential Leaf Vein Pathing
-   ════════════════════════════════════════════════════════════════ */
-body.paper-mode .lg5-group {
-  animation: lg5GroupFade 4.8s linear infinite;
-}
-@keyframes lg5GroupFade {
-  0%, 80%  { opacity: 1; }
-  95%, 100% { opacity: 0; }
-}
-body.paper-mode .lg5-stem,
-body.paper-mode .lg5-v {
-  fill: none;
-  stroke: #6B8E23;              /* muted olive green */
+  stroke: #2C2A28;
   stroke-width: 1.4;
   stroke-linecap: round;
 }
-body.paper-mode .lg5-stem {
-  stroke-dasharray: 100; stroke-dashoffset: 100;
-  animation: lg5Draw 4.8s cubic-bezier(0.4,0,0.2,1) 0s infinite;
+/* Wall lengths: top/bottom = 72, sides = 60 */
+body.paper-mode .lg4-w1 { stroke-dasharray: 72; stroke-dashoffset: 72;
+  animation: lg4Draw72 5s cubic-bezier(0.4, 0, 0.2, 1) 0s infinite; }
+body.paper-mode .lg4-w2 { stroke-dasharray: 60; stroke-dashoffset: 60;
+  animation: lg4Draw60 5s cubic-bezier(0.4, 0, 0.2, 1) 0.95s infinite; }
+body.paper-mode .lg4-w3 { stroke-dasharray: 72; stroke-dashoffset: 72;
+  animation: lg4Draw72 5s cubic-bezier(0.4, 0, 0.2, 1) 1.75s infinite; }
+body.paper-mode .lg4-w4 { stroke-dasharray: 60; stroke-dashoffset: 60;
+  animation: lg4Draw60 5s cubic-bezier(0.4, 0, 0.2, 1) 2.7s infinite; }
+/* Each wall draws in ~0.8s then holds; progress bakes in a tiny
+   terminal pause before the next wall starts at the next delay. */
+@keyframes lg4Draw72 {
+  0%   { stroke-dashoffset: 72; }
+  16%  { stroke-dashoffset: 0;  }
+  100% { stroke-dashoffset: 0;  }
 }
-body.paper-mode .lg5-v  { stroke-dasharray: 30; stroke-dashoffset: 30; }
-body.paper-mode .lg5-v1 { animation: lg5Draw 4.8s cubic-bezier(0.4,0,0.2,1) 0.6s infinite; }
-body.paper-mode .lg5-v2 { animation: lg5Draw 4.8s cubic-bezier(0.4,0,0.2,1) 0.9s infinite; }
-body.paper-mode .lg5-v3 { animation: lg5Draw 4.8s cubic-bezier(0.4,0,0.2,1) 1.2s infinite; }
-body.paper-mode .lg5-v4 { animation: lg5Draw 4.8s cubic-bezier(0.4,0,0.2,1) 1.5s infinite; }
-body.paper-mode .lg5-v5 { animation: lg5Draw 4.8s cubic-bezier(0.4,0,0.2,1) 1.8s infinite; }
-@keyframes lg5Draw {
-  0%   { stroke-dashoffset: 100; }
-  30%  { stroke-dashoffset: 0;   }
-  100% { stroke-dashoffset: 0;   }
+@keyframes lg4Draw60 {
+  0%   { stroke-dashoffset: 60; }
+  16%  { stroke-dashoffset: 0;  }
+  100% { stroke-dashoffset: 0;  }
 }
-
-/* ════════════════════════════════════════════════════════════════
-   VARIANT 6 — Organic Wood Ring Expansion
-   ════════════════════════════════════════════════════════════════ */
-body.paper-mode .lg6-ring {
-  fill: none;
-  stroke: #5C5448;              /* deep charcoal/brown */
-  stroke-width: 1.2;
-  stroke-linecap: round;
-  transform-origin: 0 0;         /* the <g> is translated to 70,70 */
-  transform-box: fill-box;
+/* Door swing + window symbols: hidden until t=3.7s, then fade in. */
+body.paper-mode .lg4-door,
+body.paper-mode .lg4-win {
   opacity: 0;
-  animation: lg6Pulse 2.5s cubic-bezier(0.3, 0, 0.2, 1) infinite;
+  animation: lg4Detail 5s ease-out infinite;
 }
-body.paper-mode .lg6-ring--1 { animation-delay: 0s;    }
-body.paper-mode .lg6-ring--2 { animation-delay: 0.5s;  }
-body.paper-mode .lg6-ring--3 { animation-delay: 1.0s;  }
-body.paper-mode .lg6-ring--4 { animation-delay: 1.5s;  }
-body.paper-mode .lg6-ring--5 { animation-delay: 2.0s;  }
-@keyframes lg6Pulse {
-  0%   { transform: scale(0.3); opacity: 0;   }
-  20%  { opacity: 1;                          }
-  100% { transform: scale(1.8); opacity: 0;   }
+body.paper-mode .lg4-win  { animation-delay: 3.7s; }
+body.paper-mode .lg4-door { animation-delay: 3.95s; }
+@keyframes lg4Detail {
+  0%, 5%   { opacity: 0; }
+  20%, 90% { opacity: 1; }
+  100%     { opacity: 0; }
 }
 
 /* ════════════════════════════════════════════════════════════════
-   VARIANT 7 — Terra Cotta Curing Bar
+   VARIANT 5 — Blueprint Grid Ripple to Solid Line
+   36 dots in a 6×6 grid. Each dot's animation-delay is set inline
+   (JS calculates Chebyshev distance × 120ms from the center). The
+   keyframe morphs each dot circle → square → circle.
    ════════════════════════════════════════════════════════════════ */
-body.paper-mode .lg7-wrap {
+body.paper-mode .lg5-dot {
+  fill: #002147;
+  /* Scale origin = the dot's own center via fill-box */
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scale(0.18);
+  rx: 8;
+  ry: 8;
+  opacity: 0.65;
+  animation: lg5Ripple 2.4s cubic-bezier(0.55, 0, 0.45, 1) infinite;
+}
+@keyframes lg5Ripple {
+  0%, 100% {
+    transform: scale(0.18);
+    rx: 8; ry: 8;
+    opacity: 0.55;
+  }
+  40% {
+    transform: scale(1);
+    rx: 2; ry: 2;
+    opacity: 1;
+  }
+  55% {
+    transform: scale(1);
+    rx: 2; ry: 2;
+    opacity: 1;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   VARIANT 6 — Pencil to Pen Line Weight Transition
+   Pencil guide is static. The ink path draws in via dashoffset,
+   with a turbulence-displacement filter giving its edges that
+   wet-ink-into-paper irregularity. Loops.
+   ════════════════════════════════════════════════════════════════ */
+body.paper-mode .lg6-ink {
+  stroke-dasharray: 200; stroke-dashoffset: 200;
+  animation: lg6Ink 3.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+body.paper-mode .lg6-ink--base {
+  stroke-dasharray: 108; stroke-dashoffset: 108;
+  animation: lg6InkBase 3.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+@keyframes lg6Ink {
+  0%   { stroke-dashoffset: 200; }
+  55%  { stroke-dashoffset: 0;   }
+  85%  { stroke-dashoffset: 0;   }
+  100% { stroke-dashoffset: 200; }
+}
+@keyframes lg6InkBase {
+  0%, 55% { stroke-dashoffset: 108; }
+  75%     { stroke-dashoffset: 0;   }
+  85%     { stroke-dashoffset: 0;   }
+  100%    { stroke-dashoffset: 108; }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   VARIANT 7 — Architectural Model Unfolding
+   Central square with four triangular cardstock flaps hinged on
+   each edge. Each flap starts folded up onto the core (rotateX or
+   rotateY 180°) and unfolds outward with a stiff bouncy ease that
+   overshoots + snaps back.
+   ════════════════════════════════════════════════════════════════ */
+body.paper-mode .lg7-scene {
+  width: 120px;
+  height: 120px;
+  position: relative;
+  perspective: 420px;
+  transform-style: preserve-3d;
+}
+body.paper-mode .lg7-core,
+body.paper-mode .lg7-flap {
+  position: absolute;
+  box-sizing: border-box;
+  backface-visibility: visible;
+}
+body.paper-mode .lg7-core {
+  left: 34px; top: 34px;
+  width: 52px; height: 52px;
+  background: #5C5448;
+  border: 1px solid #2C2A28;
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 245, 225, 0.12),
+    0 4px 10px rgba(44, 42, 40, 0.15);
+}
+body.paper-mode .lg7-flap {
+  width: 0;
+  height: 0;
+  animation: lg7FlapOpen 4.2s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+}
+/* Top flap: hinges on top edge of core. Triangle points upward. */
+body.paper-mode .lg7-flap--top {
+  left: 34px; top: 34px;
+  border-left: 26px solid transparent;
+  border-right: 26px solid transparent;
+  border-bottom: 26px solid #F4F1EA;
+  transform-origin: center bottom;
+  transform: translateY(26px) rotateX(180deg);
+  filter: drop-shadow(0 -2px 3px rgba(44, 42, 40, 0.18));
+}
+body.paper-mode .lg7-flap--right {
+  left: 86px; top: 34px;
+  border-top: 26px solid transparent;
+  border-bottom: 26px solid transparent;
+  border-left: 26px solid #F4F1EA;
+  transform-origin: left center;
+  transform: translateX(-26px) rotateY(180deg);
+  animation-delay: 0.1s;
+  filter: drop-shadow(2px 0 3px rgba(44, 42, 40, 0.18));
+}
+body.paper-mode .lg7-flap--bottom {
+  left: 34px; top: 86px;
+  border-left: 26px solid transparent;
+  border-right: 26px solid transparent;
+  border-top: 26px solid #F4F1EA;
+  transform-origin: center top;
+  transform: translateY(-26px) rotateX(180deg);
+  animation-delay: 0.2s;
+  filter: drop-shadow(0 2px 3px rgba(44, 42, 40, 0.18));
+}
+body.paper-mode .lg7-flap--left {
+  left: 8px; top: 34px;
+  border-top: 26px solid transparent;
+  border-bottom: 26px solid transparent;
+  border-right: 26px solid #F4F1EA;
+  transform-origin: right center;
+  transform: translateX(26px) rotateY(180deg);
+  animation-delay: 0.3s;
+  filter: drop-shadow(-2px 0 3px rgba(44, 42, 40, 0.18));
+}
+/* Each flap's own translate/rotation is baked into the keyframe
+   endpoints — we can't "add" a unique translate per flap to a
+   shared keyframe, so we set per-flap transforms in the block above
+   and animate them with per-flap keyframes below. */
+body.paper-mode .lg7-flap--top    { animation-name: lg7Top;    }
+body.paper-mode .lg7-flap--right  { animation-name: lg7Right;  }
+body.paper-mode .lg7-flap--bottom { animation-name: lg7Bottom; }
+body.paper-mode .lg7-flap--left   { animation-name: lg7Left;   }
+@keyframes lg7Top {
+  0%, 15%  { transform: translateY(26px)  rotateX(180deg); }
+  55%, 85% { transform: translateY(0)     rotateX(0deg);   }
+  100%     { transform: translateY(26px)  rotateX(180deg); }
+}
+@keyframes lg7Right {
+  0%, 15%  { transform: translateX(-26px) rotateY(180deg); }
+  55%, 85% { transform: translateX(0)     rotateY(0deg);   }
+  100%     { transform: translateX(-26px) rotateY(180deg); }
+}
+@keyframes lg7Bottom {
+  0%, 15%  { transform: translateY(-26px) rotateX(180deg); }
+  55%, 85% { transform: translateY(0)     rotateX(0deg);   }
+  100%     { transform: translateY(-26px) rotateX(180deg); }
+}
+@keyframes lg7Left {
+  0%, 15%  { transform: translateX(26px)  rotateY(180deg); }
+  55%, 85% { transform: translateX(0)     rotateY(0deg);   }
+  100%     { transform: translateX(26px)  rotateY(180deg); }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   VARIANT 8 — Paper Crane Transformation
+   SMIL on the path's `d` handles the morph. CSS drop-shadow on the
+   wrapper deepens during the mid-fold to sell physical depth.
+   ════════════════════════════════════════════════════════════════ */
+body.paper-mode .lg8-wrap {
+  filter: drop-shadow(0 2px 4px rgba(44, 42, 40, 0.15));
+  animation: lg8Shadow 4.5s ease-in-out infinite;
+}
+@keyframes lg8Shadow {
+  0%, 100% { filter: drop-shadow(0 2px  4px rgba(44, 42, 40, 0.15)); }
+  45%      { filter: drop-shadow(0 10px 14px rgba(44, 42, 40, 0.28)); }
+  55%      { filter: drop-shadow(0 10px 14px rgba(44, 42, 40, 0.28)); }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   VARIANT 9 — Vellum Paper Scale Pulse
+   Drawing scales 1 → 1.06 → 1 on a 3.6s breath. The grain overlay
+   sits ON TOP in multiply blend, static — so the drawing visibly
+   moves under the fixed fibers, grounding it as a physical plate.
+   ════════════════════════════════════════════════════════════════ */
+body.paper-mode .lg9-wrap {
+  position: relative;
+  width: 150px; height: 150px;
+  overflow: hidden;
+  border-radius: 4px;
+}
+body.paper-mode .lg9-drawing {
+  transform-origin: center;
+  animation: lg9Breath 3.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+@keyframes lg9Breath {
+  0%, 100% { transform: scale(1);    }
+  50%      { transform: scale(1.06); }
+}
+body.paper-mode .lg9-grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+  opacity: 0.28;
+  background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Cfilter id='n9'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='9' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.2  0 0 0 0 0.17  0 0 0 0 0.12  0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n9)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   VARIANT 10 — Laser-Cut Stencil Shadow Sweep
+   Stencil SVG is static. Only the drop-shadow's (dx, dy) are
+   animated in a circular path, so the "light source" moves over a
+   stationary paper object. Blur + alpha remain constant.
+   ════════════════════════════════════════════════════════════════ */
+body.paper-mode .lg10-stencil {
+  width: 150px; height: 150px;
+  animation: lg10Sweep 5.5s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+}
+@keyframes lg10Sweep {
+  0%   { filter: drop-shadow( 3px  2px 3px rgba(92, 84, 72, 0.28)); }
+  25%  { filter: drop-shadow(-2px  3px 3px rgba(92, 84, 72, 0.28)); }
+  50%  { filter: drop-shadow(-3px -2px 3px rgba(92, 84, 72, 0.28)); }
+  75%  { filter: drop-shadow( 2px -3px 3px rgba(92, 84, 72, 0.28)); }
+  100% { filter: drop-shadow( 3px  2px 3px rgba(92, 84, 72, 0.28)); }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   VARIANT 11 — Tabular Data Growth Cascade
+   Each row slides up + fades in + flashes Kelly-green briefly, then
+   stays settled. Staggered 280ms. The loop resets all rows together
+   after a brief hold at the end.
+   ════════════════════════════════════════════════════════════════ */
+body.paper-mode .lg11-wrap {
+  width: 85%;
+  font-family: ui-monospace, 'SF Mono', 'Menlo', monospace;
+  font-size: 11px;
+  color: #2C2A28;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+body.paper-mode .lg11-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px;
+  background: rgba(76, 187, 23, 0);
+  border-radius: 3px;
+  border-bottom: 1px dashed rgba(122, 117, 113, 0.35);
+  opacity: 0;
+  transform: translateY(8px);
+  font-variant-numeric: tabular-nums;
+  animation: lg11Row 4.8s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+body.paper-mode .lg11-label { color: #5C5448; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; font-size: 9px; }
+body.paper-mode .lg11-val   { font-weight: 700; }
+body.paper-mode .lg11-pos   { font-weight: 700; color: #4CBB17; font-size: 10px; }
+body.paper-mode .lg11-row:nth-child(2) .lg11-pos,
+body.paper-mode .lg11-row:nth-child(4) .lg11-pos { color: #C44; }
+@keyframes lg11Row {
+  0%       { opacity: 0; transform: translateY(8px); background: rgba(76, 187, 23, 0); }
+  6%       { opacity: 1; transform: translateY(0);   background: rgba(76, 187, 23, 0.45); }
+  15%      { background: rgba(76, 187, 23, 0); }
+  75%      { opacity: 1; transform: translateY(0);   background: rgba(76, 187, 23, 0); }
+  88%, 100%{ opacity: 0; transform: translateY(-4px); background: rgba(76, 187, 23, 0); }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   VARIANT 12 — Growth Chart Risograph Highlighter
+   Clip-rect (the "highlighter window") grows from left to right at
+   the same speed the charcoal line is drawn, revealing the yellow
+   area fill underneath in sync. Data-point dots pop in as the line
+   reaches each one.
+   ════════════════════════════════════════════════════════════════ */
+body.paper-mode .lg12-line {
+  stroke-dasharray: 160;
+  stroke-dashoffset: 160;
+  animation: lg12Line 4s cubic-bezier(0.42, 0, 0.2, 1) infinite;
+}
+body.paper-mode .lg12-clip-rect {
+  animation: lg12Clip 4s cubic-bezier(0.42, 0, 0.2, 1) infinite;
+  transform-box: fill-box;
+}
+@keyframes lg12Line {
+  0%   { stroke-dashoffset: 160; }
+  60%  { stroke-dashoffset: 0;   }
+  85%  { stroke-dashoffset: 0;   }
+  100% { stroke-dashoffset: 160; }
+}
+@keyframes lg12Clip {
+  0%   { width: 20px;  }
+  60%  { width: 140px; }
+  85%  { width: 140px; }
+  100% { width: 20px;  }
+}
+body.paper-mode .lg12-dot {
+  opacity: 0;
+  animation: lg12Pop 4s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+}
+body.paper-mode .lg12-dot--1 { animation-delay: 0s;    }
+body.paper-mode .lg12-dot--2 { animation-delay: 0.25s; }
+body.paper-mode .lg12-dot--3 { animation-delay: 0.5s;  }
+body.paper-mode .lg12-dot--4 { animation-delay: 0.75s; }
+body.paper-mode .lg12-dot--5 { animation-delay: 1.0s;  }
+body.paper-mode .lg12-dot--6 { animation-delay: 1.25s; }
+@keyframes lg12Pop {
+  0%, 3%   { opacity: 0; transform: scale(0.2); }
+  5%       { opacity: 1; transform: scale(1.4); }
+  12%, 85% { opacity: 1; transform: scale(1);   }
+  100%     { opacity: 0; transform: scale(1);   }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   VARIANT 13 — Stacked Data Column Fill
+   Each segment's scale-Y grows from 0 → 1 with a heavy "slam down"
+   ease-in curve. Column delays cascade left → right; within a
+   column the bottom segment lands first, then middle, then top.
+   ════════════════════════════════════════════════════════════════ */
+body.paper-mode .lg13-seg {
+  transform-origin: center bottom;
+  transform-box: fill-box;
+  transform: scaleY(0) translateY(-10px);
+  opacity: 0;
+  animation: lg13Drop 4.4s cubic-bezier(0.7, 0.04, 0.98, 0.34) infinite;
+  stroke: #2C2A28;
+  stroke-width: 0.4;
+}
+@keyframes lg13Drop {
+  0%, 8%   { transform: scaleY(0) translateY(-10px); opacity: 0; }
+  16%      { transform: scaleY(1.08) translateY(0);  opacity: 1; }
+  22%      { transform: scaleY(0.95) translateY(0);  opacity: 1; }
+  28%, 80% { transform: scaleY(1) translateY(0);     opacity: 1; }
+  92%, 100%{ transform: scaleY(1) translateY(0);     opacity: 0; }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   VARIANT 14 — Sequential Project Roadmap Connection
+   The connecting path draws via dashoffset over 2.8s. Each icon's
+   delay is calibrated to when the pen reaches its coordinate on
+   the path (roughly 0.6s / 1.3s / 2.0s / 2.6s). On trigger, the
+   icon scale-pulses + fills with accent color.
+   ════════════════════════════════════════════════════════════════ */
+body.paper-mode .lg14-path {
+  stroke-dasharray: 170;
+  stroke-dashoffset: 170;
+  animation: lg14Line 4.2s cubic-bezier(0.45, 0, 0.2, 1) infinite;
+}
+@keyframes lg14Line {
+  0%   { stroke-dashoffset: 170; }
+  65%  { stroke-dashoffset: 0;   }
+  85%  { stroke-dashoffset: 0;   }
+  100% { stroke-dashoffset: 170; }
+}
+body.paper-mode .lg14-icon {
+  fill: #FAF9F6;
+  stroke: #2C2A28;
+  stroke-width: 1;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: lg14Icon 4.2s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+}
+body.paper-mode .lg14-icon--1 { animation-delay: 0.2s;  }
+body.paper-mode .lg14-icon--2 { animation-delay: 0.9s;  }
+body.paper-mode .lg14-icon--3 { animation-delay: 1.6s;  }
+body.paper-mode .lg14-icon--4 { animation-delay: 2.3s;  }
+@keyframes lg14Icon {
+  0%, 5%   { fill: #FAF9F6; transform: scale(1);   }
+  10%      { fill: #E88140; transform: scale(1.3); }
+  15%      { fill: #E88140; transform: scale(0.95);}
+  25%, 85% { fill: #E88140; transform: scale(1);   }
+  95%, 100%{ fill: #FAF9F6; transform: scale(1);   }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   VARIANT 15 — Isometric Bar Chart Ripple
+   Each bar's scale-Y animates 0 → 1 with an elastic cubic-bezier
+   that overshoots then wobbles. Bar delays come inline via JS,
+   diagonal (col + row * STEP) for the ripple pattern.
+   ════════════════════════════════════════════════════════════════ */
+body.paper-mode .lg15-bar {
+  transform: scaleY(0);
+  animation: lg15Rise 4s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+}
+@keyframes lg15Rise {
+  0%, 4%   { transform: scaleY(0);    }
+  18%      { transform: scaleY(1.15); }
+  28%      { transform: scaleY(0.92); }
+  38%      { transform: scaleY(1.04); }
+  48%, 80% { transform: scaleY(1);    }
+  92%, 100%{ transform: scaleY(0);    }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   VARIANT 16 — Continuous Origami Fold (KEPT)
+   SMIL drives the points animation inline. Nothing additional needed.
+   ════════════════════════════════════════════════════════════════ */
+/* Nothing extra — SMIL + filter handle it inline. */
+
+/* ════════════════════════════════════════════════════════════════
+   VARIANT 17 — Terra Cotta Curing Bar (KEPT)
+   Pure DOM + CSS, same as the prior round.
+   ════════════════════════════════════════════════════════════════ */
+body.paper-mode .lg17-wrap {
   width: 85%;
   height: 14px;
   border-radius: 8px;
@@ -1450,76 +1872,24 @@ body.paper-mode .lg7-wrap {
     inset 0 1px 2px rgba(92, 84, 72, 0.22),
     inset 0 -1px 1px rgba(255, 255, 255, 0.45);
   overflow: hidden;
-  position: relative;
 }
-body.paper-mode .lg7-fill {
+body.paper-mode .lg17-fill {
   height: 100%;
   width: 0;
   border-radius: 8px;
   background: #A0522D;
-  /* Tiny noise layer — a base64 feTurbulence PNG would be heavier;
-     using a CSS gradient of transparent micro-dots gives enough
-     paper-fiber feel without an image round-trip. */
   background-image:
     radial-gradient(rgba(0,0,0,0.10) 1px, transparent 1.2px),
     radial-gradient(rgba(0,0,0,0.06) 1px, transparent 1.2px);
   background-size: 4px 4px, 7px 7px;
-  animation: lg7Fill 3.2s cubic-bezier(0.25, 0.1, 0.25, 1) infinite;
+  animation: lg17Fill 3.2s cubic-bezier(0.25, 0.1, 0.25, 1) infinite;
 }
-@keyframes lg7Fill {
+@keyframes lg17Fill {
   0%   { width: 0;    background-color: #A0522D; }
   75%  { width: 100%; background-color: #CD853F; }
   90%  { width: 100%; background-color: #CD853F; opacity: 1; }
   100% { width: 100%; background-color: #CD853F; opacity: 0; }
 }
-
-/* ════════════════════════════════════════════════════════════════
-   VARIANT 8 — Sun Dial Shadow Sweep
-   (SMIL animateTransform + animate on points; CSS handles nothing)
-   ════════════════════════════════════════════════════════════════ */
-/* Nothing extra needed — SMIL handles it inline. */
-
-/* ════════════════════════════════════════════════════════════════
-   VARIANT 9 — Minimalist Botanical Drawing Loop
-   ════════════════════════════════════════════════════════════════ */
-body.paper-mode .lg9-path,
-body.paper-mode .lg9-vein {
-  fill: none;
-  stroke: #2F4F4F;              /* dark slate */
-  stroke-width: 1.4;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-body.paper-mode .lg9-path {
-  stroke-dasharray: 360;
-  stroke-dashoffset: 360;
-  animation: lg9Draw 4s ease-in-out infinite;
-}
-body.paper-mode .lg9-vein {
-  stroke-dasharray: 90;
-  stroke-dashoffset: 90;
-  animation: lg9DrawVein 4s ease-in-out infinite;
-}
-@keyframes lg9Draw {
-  0%   { stroke-dashoffset: 360;  }
-  40%  { stroke-dashoffset: 0;    }
-  55%  { stroke-dashoffset: 0;    }
-  95%  { stroke-dashoffset: -360; }
-  100% { stroke-dashoffset: -360; }
-}
-@keyframes lg9DrawVein {
-  0%, 30% { stroke-dashoffset: 90; }
-  50%     { stroke-dashoffset: 0;  }
-  55%     { stroke-dashoffset: 0;  }
-  95%     { stroke-dashoffset: -90; }
-  100%    { stroke-dashoffset: -90; }
-}
-
-/* ════════════════════════════════════════════════════════════════
-   VARIANT 10 — Lunar Phase Transition
-   (SMIL on cx; mask + turbulence filter inline)
-   ════════════════════════════════════════════════════════════════ */
-/* Nothing extra needed — SMIL + filter + mask handle it inline. */
 
 /* ── Mount-in animation for the real dashboard ─────────────────── */
 body.paper-mode #marketingContent.mkt-mount-in > * {
@@ -1543,37 +1913,62 @@ body.paper-mode #marketingContent.mkt-mount-in > * {
   body.paper-mode .lg-stage       { min-height: 120px; }
 }
 
-/* ── Reduced motion ───────────────────────────────────────────── */
+/* ── Reduced motion ─────────────────────────────────────────────
+   For the CSS-driven variants, stop the infinite animations and
+   render the end state. SMIL-driven variants (1-title dim in 1, 4
+   dune morphs, 8 crane morph, 10 moon cx) keep running — CSS
+   `prefers-reduced-motion` doesn't affect SMIL, but these are
+   quiet enough to leave alone. */
 @media (prefers-reduced-motion: reduce) {
-  body.paper-mode .lg2-breath,
-  body.paper-mode .lg2-p1,
-  body.paper-mode .lg2-p2,
-  body.paper-mode .lg2-p3,
-  body.paper-mode .lg5-group,
-  body.paper-mode .lg5-stem,
-  body.paper-mode .lg5-v,
-  body.paper-mode .lg6-ring,
-  body.paper-mode .lg7-fill,
-  body.paper-mode .lg9-path,
-  body.paper-mode .lg9-vein {
+  body.paper-mode .lg1-circle,
+  body.paper-mode .lg1-dim,
+  body.paper-mode .lg2-layer,
+  body.paper-mode .lg3-frame,
+  body.paper-mode .lg4-wall,
+  body.paper-mode .lg4-door,
+  body.paper-mode .lg4-win,
+  body.paper-mode .lg5-dot,
+  body.paper-mode .lg6-ink,
+  body.paper-mode .lg7-flap,
+  body.paper-mode .lg8-wrap,
+  body.paper-mode .lg9-drawing,
+  body.paper-mode .lg10-stencil,
+  body.paper-mode .lg11-row,
+  body.paper-mode .lg12-line,
+  body.paper-mode .lg12-clip-rect,
+  body.paper-mode .lg12-dot,
+  body.paper-mode .lg13-seg,
+  body.paper-mode .lg14-path,
+  body.paper-mode .lg14-icon,
+  body.paper-mode .lg15-bar,
+  body.paper-mode .lg17-fill {
     animation: none !important;
   }
-  body.paper-mode .lg2-p1,
-  body.paper-mode .lg2-p2,
-  body.paper-mode .lg2-p3,
-  body.paper-mode .lg5-stem,
-  body.paper-mode .lg5-v,
-  body.paper-mode .lg9-path,
-  body.paper-mode .lg9-vein {
+  body.paper-mode .lg1-circle,
+  body.paper-mode .lg4-wall,
+  body.paper-mode .lg6-ink,
+  body.paper-mode .lg12-line,
+  body.paper-mode .lg14-path {
     stroke-dashoffset: 0 !important;
   }
-  body.paper-mode .lg6-ring { opacity: 0.4; transform: scale(1); }
-  body.paper-mode .lg7-fill { width: 60%; background-color: #B5672E; }
-  /* SMIL animations are paused by setting their begin to an unreachable
-     value is complex — instead we just accept that SMIL will still run
-     for users with reduced-motion preference. Most users who set this
-     flag also use Safari/Chrome which respect it at the OS level for
-     `transition`/`animation` but not for SMIL. */
+  body.paper-mode .lg1-dim,
+  body.paper-mode .lg2-layer,
+  body.paper-mode .lg4-door,
+  body.paper-mode .lg4-win,
+  body.paper-mode .lg11-row,
+  body.paper-mode .lg12-dot { opacity: 1; transform: translateY(0); }
+  body.paper-mode .lg3-frame--8 { opacity: 1; }
+  body.paper-mode .lg5-dot     { transform: scale(0.6); opacity: 0.7; }
+  body.paper-mode .lg13-seg    { transform: scaleY(1); opacity: 1; }
+  body.paper-mode .lg15-bar    { transform: scaleY(1); }
+  body.paper-mode .lg17-fill   { width: 60%; background-color: #B5672E; }
+  body.paper-mode .lg7-flap--top,
+  body.paper-mode .lg7-flap--right,
+  body.paper-mode .lg7-flap--bottom,
+  body.paper-mode .lg7-flap--left {
+    transform: translate(0, 0) rotateX(0) rotateY(0);
+  }
+  body.paper-mode .lg14-icon { fill: #E88140; }
 }
 
 /* ════════════════════════════════════════════════════════════════
