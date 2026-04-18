@@ -348,16 +348,19 @@ function renderMarketing() {
       : '<span style="color:#ddd">—</span>';
     var rowClass = m.isCurrent ? ' class="mkt-row-current"' : '';
     var projTag = m.isCurrent
-      ? ' <span style="font-size:10px;color:#FF9500;font-weight:600">PROJ</span>'
+      ? '<span class="mkt-jobs-proj">PROJ</span>'
       : '';
-    // Jobs cell: three slots (number / delta / PROJ) each in a fixed
-    // grid column so the number always lands at the same x position,
-    // regardless of whether the row has a delta or PROJ badge.
+    // Jobs cell: number on top (always right-aligned to the td's right
+    // edge — so every row's number lands at the same x automatically),
+    // delta + PROJ stacked BELOW in a smaller meta line. Prior layout
+    // used a horizontal 3-column grid with fixed ch widths, which broke
+    // on narrow viewports where the fixed columns ate all the cell's
+    // width and the number column compressed to ~0px.
+    var metaContent = deltaJobs + projTag;
     var jobsCell =
-      '<div class="mkt-jobs-grid">' +
-        '<span class="mkt-jobs-num">' + displayJobs + '</span>' +
-        '<span class="mkt-jobs-delta-slot">' + deltaJobs + '</span>' +
-        '<span class="mkt-jobs-proj-slot">' + projTag + '</span>' +
+      '<div class="mkt-jobs-cell">' +
+        '<div class="mkt-jobs-num">' + displayJobs + '</div>' +
+        (metaContent ? '<div class="mkt-jobs-meta">' + metaContent + '</div>' : '') +
       '</div>';
     return '<tr' + rowClass + '>' +
       '<td>' + esc(m.fullLabel) + '</td>' +
@@ -382,16 +385,12 @@ function renderMarketing() {
     '<div class="mkt-table-card"><div class="mkt-table-scroll"><table class="mkt-table">' +
       '<thead><tr><th>Month</th><th># Jobs</th><th>Revenue</th>' + qboHeaderCols + '</tr></thead>' +
       '<tbody>' + tableRows + '</tbody>' +
-      // Footer total is wrapped in the SAME mkt-jobs-grid as the body rows
-      // so the number column lands at the same x as rows above — otherwise
-      // the plain-text td would right-align at the td edge while body rows
-      // right-align at (td edge − delta slot − PROJ slot).
+      // Footer total: plain text in the td. Both body rows and this
+      // cell right-align to the same edge (the td's right padding), so
+      // the numbers line up column-wise without any grid wrapper — the
+      // new stacked body layout also right-aligns to the td edge.
       '<tfoot><tr><td>12-Month Total</td>' +
-        '<td><div class="mkt-jobs-grid">' +
-          '<span class="mkt-jobs-num">' + totalHistJobs + '</span>' +
-          '<span class="mkt-jobs-delta-slot"></span>' +
-          '<span class="mkt-jobs-proj-slot"></span>' +
-        '</div></td>' +
+        '<td>' + totalHistJobs + '</td>' +
         '<td>' + fmt(totalHistRev) + '</td><td>' + footSpend + '</td><td>' + footCost + '</td></tr></tfoot>' +
     '</table></div></div>';
 

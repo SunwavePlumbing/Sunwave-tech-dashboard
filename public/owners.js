@@ -1500,27 +1500,32 @@ function renderOwners() {
       - (genExp[i]||0) - (taxesExp[i]||0) - (merchExp[i]||0) - (benefitsExp[i]||0);
   });
   // good:'up' = more of this is better (revenue/profit); 'down' = less is better (expenses)
+  // acctKey: QBO account name for the drill-down modal. Matches exactly
+  //   what /api/account-detail expects. `null` = not drillable (subtotals
+  //   like Gross Profit have no transactions). `__other_opex__` is a
+  //   sentinel — resolves to a residual breakdown of OpEx leaves that
+  //   don't belong to any named category (see mfDrillDownOther).
   var pnlRows = [
-    { label: 'Revenue',              arr: revenue,    cls: 'subtotal', good: 'up'   },
-    { label: 'Cost of Goods Sold',   arr: cogs,       cls: '',         good: 'down' },
-    { label: 'Tech Labor',           arr: techLabor,  cls: 'indent',   good: 'down' },
-    { label: 'Parts',                arr: parts,      cls: 'indent',   good: 'down' },
-    { label: 'Subcontractors',       arr: subs,       cls: 'indent',   good: 'down' },
-    { label: 'Gross Profit',         arr: gp,         cls: 'subtotal', good: 'up'   },
-    { label: 'Operating Expenses',   arr: totalExp,   cls: '',         good: 'down' },
-    { label: 'Admin Payroll',        arr: adminPay,   cls: 'indent',   good: 'down' },
-    { label: 'Marketing',            arr: mktTotal,   cls: 'indent',   good: 'down' },
-    { label: 'Rent',                 arr: rentExp,    cls: 'indent',   good: 'down' },
-    { label: 'Vehicle',              arr: vehicleExp, cls: 'indent',   good: 'down' },
-    { label: 'Office',               arr: officeExp,  cls: 'indent',   good: 'down' },
-    { label: 'Utilities',            arr: utilExp,    cls: 'indent',   good: 'down' },
-    { label: 'Merchant Fees',        arr: merchExp,   cls: 'indent',   good: 'down' },
-    { label: 'Employee Benefits',    arr: benefitsExp,cls: 'indent',   good: 'down' },
-    { label: 'Taxes',                arr: taxesExp,   cls: 'indent',   good: 'down' },
-    { label: 'Travel',               arr: travelExp,  cls: 'indent',   good: 'down' },
-    { label: 'Meals',                arr: mealsExp,   cls: 'indent',   good: 'down' },
-    { label: 'Other',                arr: otherOpex,  cls: 'indent',   good: 'down' },
-    { label: 'Net Operating Income', arr: noi,        cls: 'total',    good: 'up'   }
+    { label: 'Revenue',              arr: revenue,    cls: 'subtotal', good: 'up',   acctKey: 'Total Income' },
+    { label: 'Cost of Goods Sold',   arr: cogs,       cls: '',         good: 'down', acctKey: 'Total Cost of goods sold' },
+    { label: 'Tech Labor',           arr: techLabor,  cls: 'indent',   good: 'down', acctKey: 'Total Cost of Goods Sold - Labor' },
+    { label: 'Parts',                arr: parts,      cls: 'indent',   good: 'down', acctKey: 'Cost of Goods Sold - Job Supplies' },
+    { label: 'Subcontractors',       arr: subs,       cls: 'indent',   good: 'down', acctKey: 'Subcontractors' },
+    { label: 'Gross Profit',         arr: gp,         cls: 'subtotal', good: 'up',   acctKey: null },
+    { label: 'Operating Expenses',   arr: totalExp,   cls: '',         good: 'down', acctKey: 'Total Expenses' },
+    { label: 'Admin Payroll',        arr: adminPay,   cls: 'indent',   good: 'down', acctKey: 'Total Salaried & Admin Payroll Expense' },
+    { label: 'Marketing',            arr: mktTotal,   cls: 'indent',   good: 'down', acctKey: 'Total Advertising & marketing' },
+    { label: 'Rent',                 arr: rentExp,    cls: 'indent',   good: 'down', acctKey: 'Total Rent' },
+    { label: 'Vehicle',              arr: vehicleExp, cls: 'indent',   good: 'down', acctKey: 'Total Vehicle Expenses' },
+    { label: 'Office',               arr: officeExp,  cls: 'indent',   good: 'down', acctKey: 'Total Office expenses' },
+    { label: 'Utilities',            arr: utilExp,    cls: 'indent',   good: 'down', acctKey: 'Total Utilities' },
+    { label: 'Merchant Fees',        arr: merchExp,   cls: 'indent',   good: 'down', acctKey: 'Total Merchant account fees' },
+    { label: 'Employee Benefits',    arr: benefitsExp,cls: 'indent',   good: 'down', acctKey: 'Total Employee benefits' },
+    { label: 'Taxes',                arr: taxesExp,   cls: 'indent',   good: 'down', acctKey: 'Total Taxes paid' },
+    { label: 'Travel',               arr: travelExp,  cls: 'indent',   good: 'down', acctKey: 'Total Travel' },
+    { label: 'Meals',                arr: mealsExp,   cls: 'indent',   good: 'down', acctKey: 'Total Meals' },
+    { label: 'Other',                arr: otherOpex,  cls: 'indent',   good: 'down', acctKey: '__other_opex__' },
+    { label: 'Net Operating Income', arr: noi,        cls: 'total',    good: 'up',   acctKey: null }
   ];
 
   // Show/hide the $/% toggle — only relevant in quarter mode
@@ -1744,8 +1749,29 @@ function renderOwners() {
         '</div>';
 
       var catAttr = catType ? ' data-cat="' + catType + '"' : '';
+
+      // Drill-down wiring — rows with an acctKey open the same expense
+      // modal used by the donut + summary-card legends. Subtotals like
+      // Gross Profit / Net Operating Income have acctKey=null and stay
+      // read-only (no underlying transactions to list).
+      //   • acctKey === '__other_opex__' → residual OpEx breakdown
+      //   • any other string → direct drill into that QBO account
+      var drillAttrs = '';
+      if (row.acctKey && pv > 0) {
+        var safeLabel = String(row.label).replace(/'/g, "\\'");
+        var safeKey   = String(row.acctKey).replace(/'/g, "\\'");
+        var clickFn = row.acctKey === '__other_opex__'
+          ? "mfDrillDownOther('" + safeLabel + "')"
+          : "mfDrillDown('" + safeLabel + "','" + safeKey + "')";
+        drillAttrs =
+          ' role="button" tabindex="0"' +
+          ' onclick="' + clickFn + '"' +
+          ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();' + clickFn + '}"';
+      }
+      var drillClass = (row.acctKey && pv > 0) ? ' pnl-row--drill' : '';
+
       var html =
-        '<div class="pnl-row ' + rowTier + '" data-sign="' + sign + '"' + catAttr + '>' +
+        '<div class="pnl-row ' + rowTier + drillClass + '" data-sign="' + sign + '"' + catAttr + drillAttrs + '>' +
           flagHtml +
           '<div class="pnl-row-name">' +
             '<span class="pnl-row-label">' + esc(labelText) + '</span>' +
@@ -2723,17 +2749,26 @@ function toggleDonutSlice(idx) {
 }
 
 /* Open the expense drill-down sheet for a donut category by index.
-   Called only from the chart's own onClick (tap a slice). Reuses
-   the same mfDrillDown() path as the COGS/Overhead bar legends, so
-   the modal + transactions are identical across all entry points. */
+   Called only from the chart's own onClick (tap a slice). Named
+   slices go through mfDrillDown (same path the COGS/Overhead bar
+   legends use). The "Other" slice is a computed residual with no
+   single underlying QBO account, so it takes the mfDrillDownOther
+   path — which stitches together every unnamed expense leaf and
+   shows them as a breakdown. */
 function openDonutDrillDown(idx) {
   var labels = window._donutLabels || [];
   var accts  = window._donutAccts  || [];
   var label  = labels[idx];
   var acct   = accts[idx];
-  if (!label || !acct) return;   // "Other" has no single account — no-op
+  if (!label) return;
   if (navigator.vibrate) { try { navigator.vibrate(8); } catch(e) {} }
-  mfDrillDown(label, acct);
+  if (acct) {
+    mfDrillDown(label, acct);
+  } else if (label === 'Other') {
+    // The donut's residual set is wider than the P&L's (includes COGS
+    // leaves too), so pass kind='donut' — see mfDrillDownOther.
+    mfDrillDownOther(label, 'donut');
+  }
 }
 
 /* ── Custom white tooltip card for the trend chart ───────────────
@@ -2963,7 +2998,112 @@ async function mfDrillDown(label, acctKey) {
   showExpModal(label, periodLabel, items, total, color);
 }
 
-// Show the expense sheet in "loading" state while the transaction fetch runs
+// ── "Other" drill-down — residual expense breakdown ───────────────
+// The "Other" row in the P&L and the "Other" slice in the donut are
+// computed residuals: they represent the difference between a total
+// (all OpEx, or all cost) and the sum of the categories we name
+// explicitly. They don't map to a single QBO account, so mfDrillDown
+// won't work — we have to enumerate the leaf accounts that were NOT
+// attributed to a named category and show them as a breakdown.
+//
+// kind:
+//   'pnl'   — residual OpEx (complement of the named P&L rows)
+//   'donut' — residual of COGS + OpEx (complement of the named donut slices)
+// When kind is omitted we default to 'pnl' since that's the most
+// common caller (the ledger row).
+async function mfDrillDownOther(label, kind) {
+  if (!ownersData) return;
+  kind = kind || 'pnl';
+  var color = '#9ca3af';  // slate — same as the donut "Other" slice
+
+  // Determine the fetch window (same logic as mfDrillDown)
+  var availMonths = ownersData.months || [];
+  var fetchMonths, periodLabel;
+  if (finGranularity === 'quarter' && finQuarter) {
+    fetchMonths = quarterMonths(finQuarter).filter(function(mk) {
+      return availMonths.indexOf(mk) >= 0;
+    });
+    periodLabel = fmtQk(finQuarter);
+  } else if (finGranularity === 'range' && finRange) {
+    var rsI = availMonths.indexOf(finRange.startMk);
+    var reI = availMonths.indexOf(finRange.endMk);
+    if (rsI < 0) rsI = 0;
+    if (reI < 0) reI = availMonths.length - 1;
+    fetchMonths = availMonths.slice(rsI, reI + 1);
+    periodLabel = finRange.label + ' · ' + fmtRangeShort(finRange.startMk, finRange.endMk);
+  } else {
+    var single = finMonth || availMonths[availMonths.length - 1];
+    fetchMonths = [single];
+    periodLabel = fmtMk(single);
+  }
+
+  // Named category parents — their leaf accounts are already represented
+  // in the dashboard's explicit categories. Anything NOT under these
+  // parents is "Other" residual.
+  var namedOpex = [
+    'Total Salaried & Admin Payroll Expense',
+    'Total Advertising & marketing',
+    'Total Rent',
+    'Total Vehicle Expenses',
+    'Total Office expenses',
+    'Total Utilities',
+    'Total Merchant account fees',
+    'Total Employee benefits',
+    'Total Taxes paid',
+    'Total Travel',
+    'Total Meals',
+    'Total General Expenses'   // the overhead card's own "Other" bucket
+  ];
+  var namedCogs = [
+    'Total Cost of Goods Sold - Labor',
+    'Cost of Goods Sold - Job Supplies',
+    'Subcontractors'
+  ];
+  // Donut's named set additionally includes Insurance (a bare leaf,
+  // not a "Total X" parent), but we handle bare leaves by name below.
+  var namedLeafExtras = kind === 'donut' ? ['Insurance'] : [];
+
+  // Collect every leaf name we should EXCLUDE from the residual.
+  var excluded = {};
+  function markLeaves(parentKey) {
+    var kids = (ownersData.children && ownersData.children[parentKey]) || [];
+    kids.forEach(function(n) { excluded[n] = true; });
+    excluded[parentKey] = true;  // also exclude the parent itself
+  }
+  namedOpex.forEach(markLeaves);
+  if (kind === 'donut') namedCogs.forEach(markLeaves);
+  namedLeafExtras.forEach(function(n) { excluded[n] = true; });
+
+  // The complete expense-side leaf pool = children of Total Expenses
+  //   (+ children of Total Cost of goods sold when kind === 'donut').
+  var poolParents = ['Total Expenses'];
+  if (kind === 'donut') poolParents.push('Total Cost of goods sold');
+  var pool = [];
+  poolParents.forEach(function(p) {
+    var kids = (ownersData.children && ownersData.children[p]) || [];
+    kids.forEach(function(n) { if (!excluded[n]) pool.push(n); });
+  });
+  // De-dup (a leaf could theoretically appear under multiple parents)
+  pool = pool.filter(function(n, i) { return pool.indexOf(n) === i; });
+
+  // Sum each residual leaf across the fetch window, then sort desc.
+  var items = pool.map(function(name) {
+    var val = fetchMonths.reduce(function(s, mk) {
+      return s + ((ownersData.accounts[name] && ownersData.accounts[name][mk]) || 0);
+    }, 0);
+    return { name: name, val: val };
+  }).filter(function(i) { return i.val > 0; })
+    .sort(function(a, b) { return b.val - a.val; });
+
+  var total = items.reduce(function(s, it) { return s + it.val; }, 0);
+
+  // Show the breakdown modal immediately — no transaction fetch needed
+  // since we're stitching together multiple sub-account totals already
+  // present in ownersData.accounts. (If the user wants even deeper
+  // detail, they can click any individual line later — but we keep the
+  // first hop synchronous for speed.)
+  showExpModal(label, periodLabel + ' · residual breakdown', items, total, color);
+}
 function showExpModalLoading(title, monthLabel, color) {
   var backdrop = document.getElementById('expBackdrop');
   var titleEl  = document.getElementById('expSheetTitle');

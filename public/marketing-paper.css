@@ -152,9 +152,16 @@ body.paper-mode .mkt-table tbody td:first-child,
 body.paper-mode .mkt-table tfoot td:first-child {
   background-color: var(--paper-card);
 }
+/* Current-month row: must be OPAQUE, not translucent. The sticky
+   first-column cell paints on top of the TR's own background; if both
+   use a translucent --brand-orange-tint, the two 8%-alpha layers stack
+   to ~15% alpha inside the sticky cell — visibly darker than the rest
+   of the row. #F6EDE4 is the pre-computed opaque equivalent of
+   `--paper-card` (#F7F6F2) blended with --brand-orange-tint
+   (rgba(232,129,64,0.08)). Same hue, no doubling. */
 body.paper-mode .mkt-row-current,
 body.paper-mode .mkt-row-current td:first-child {
-  background-color: var(--brand-orange-tint) !important;
+  background-color: #F6EDE4 !important;
 }
 /* Section title above the card — remove any implicit background so
    the label reads as a heading, not a floating block. */
@@ -166,40 +173,53 @@ body.paper-mode .section-title {
   padding-left: 2px;
 }
 
-/* "# JOBS" cell: three-column mini-grid (number / delta / PROJ).
-   CRITICAL: must be `display: grid` (NOT inline-grid) so the grid
-   fills the td's full width. Previously inline-grid combined with the
-   td's text-align:right meant shorter grids (rows missing a delta or
-   PROJ badge) dockedthemselves further right, which pushed the number
-   column to a different x on every row.
-   Columns:
-     1. `1fr` for the number — right-aligned text inside, so its digits
-        end at the same x regardless of how many digits (handles 1–4).
-     2. Fixed `5.5ch` delta slot (widest real delta is "-100%" = 5 chars).
-     3. Fixed `4.5ch` PROJ slot ("PROJ" = 4 chars).
-   Both badge slots are reserved even when empty so col 1's right edge
-   is at a constant x across every row, including the footer total. */
-body.paper-mode .mkt-jobs-grid {
-  display: grid;
-  grid-template-columns: 1fr 5.5ch 4.5ch;
-  align-items: baseline;
-  gap: 6px;
-  width: 100%;
+/* "# JOBS" cell: stacked layout — number on top, delta + PROJ underneath
+   in a smaller meta line. Everything right-aligns to the td's right
+   edge (inherited from `.mkt-table td:not(:first-child) { text-align: right }`)
+   so numbers form a clean vertical column across every row, including
+   the footer's plain-text total — no grid wrappers needed.
+   Why not the old 3-column grid? Fixed-ch columns (5.5ch + 4.5ch) would
+   consume the whole cell on narrow viewports, compressing the number
+   column to zero and visually shifting the number rightward, which is
+   what made the projected row's number appear to land where PROJ sits
+   underneath. Stacking eliminates the horizontal-fit problem entirely. */
+body.paper-mode .mkt-jobs-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;   /* right-align both lines */
+  gap: 2px;
+  line-height: 1.15;
 }
 body.paper-mode .mkt-jobs-num {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;  /* digits same width → column aligns */
 }
-body.paper-mode .mkt-jobs-delta-slot {
-  text-align: left;
+body.paper-mode .mkt-jobs-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* Reset margin on the delta chip when it lives inside the stacked meta */
+body.paper-mode .mkt-jobs-meta .delta { margin-left: 0; }
+/* PROJ badge — small, orange, sits next to the delta in the meta line */
+body.paper-mode .mkt-jobs-proj {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--brand-orange);
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--brand-orange-tint);
+  line-height: 1;
+}
+/* Ensure tfoot total gets the same tabular digit widths as body rows
+   so "2516" right-aligns to exactly the same x as "222", "248", etc. */
+body.paper-mode .mkt-table tfoot td {
   font-variant-numeric: tabular-nums;
 }
-body.paper-mode .mkt-jobs-proj-slot {
-  text-align: left;
-}
-/* Reset margin on any delta span that was set via inline CSS earlier */
-body.paper-mode .mkt-jobs-delta-slot .delta { margin-left: 0; }
 
 /* ── Softened ink typography ──────────────────────────────────── */
 body.paper-mode h1,
@@ -884,13 +904,36 @@ body.paper-mode .pnl-row-flag {
 body.paper-mode .pnl-row-flag--good { background: #D4A94A; }   /* muted mustard */
 body.paper-mode .pnl-row-flag--bad  { background: #C75A3A; }   /* soft terracotta */
 
+/* ── Drillable rows: cursor + focus ring ─────────────────────────
+   Rows with an acctKey get a pointer cursor and a visible keyboard
+   focus ring. The hover tint is already provided by the general
+   `.pnl-row:hover` rule below, so these rows light up the same way
+   non-drillable subtotals do — the cursor is enough to signal intent
+   without adding visual noise to every row in the ledger. */
+body.paper-mode .pnl-row--drill {
+  cursor: pointer;
+}
+body.paper-mode .pnl-row--drill:focus-visible {
+  outline: 2px solid var(--riso-oxford);
+  outline-offset: -2px;
+  background: rgba(70, 65, 60, 0.04);
+}
+
 /* ── Hover state on ledger rows (Location Owners Full Picture) ──
    Warm-gray fill matches the Technicians hover — no blend modes,
-   no cyan wash, just a simple solid tint. Only fires on leaf /
-   subtotal rows; categories keep their persistent wash, total keeps
-   its double-rule borders. */
-body.paper-mode .pnl-row:not(.pnl-row--cat):not(.pnl-row--total):hover {
+   no cyan wash, just a simple solid tint. Fires on all leaf +
+   subtotal rows AND on any row marked drillable (categories like
+   Revenue / COGS / Operating Expenses now open a drill-down modal,
+   so they benefit from a hover affordance). The total row still
+   keeps its double-rule borders unaffected. */
+body.paper-mode .pnl-row:not(.pnl-row--cat):not(.pnl-row--total):hover,
+body.paper-mode .pnl-row--drill:hover {
   background: rgba(70, 65, 60, 0.04);
+}
+/* Category rows already have a persistent color wash; overlay the
+   hover tint on top so the click affordance still reads. */
+body.paper-mode .pnl-row--cat.pnl-row--drill:hover {
+  filter: brightness(0.97);
 }
 
 /* ── Mobile — tighter padding, smaller labels, narrower delta col ── */
