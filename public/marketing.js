@@ -13,97 +13,299 @@ async function fetchQBOMarketing() {
   if (marketingData) renderMarketing();
 }
 
-/* ── Marketing loader — minimal: circle + counter ───────────────
-   Just two elements on a clean paper canvas:
-     1. An SVG concentric ring pair drawn in with a slow rotation
-     2. A "N / total accounts" counter below
+/* ── Marketing loader — EVALUATION GALLERY ──────────────────────
+   Temporary showcase of 10 loader concepts. Each cell plays its
+   animation continuously + is numbered so the user can pick one.
 
-   No streams, no letter-wave, no highlights, no dots, no milestone
-   flashes, no haptics, no blur finalize. The loader is quiet by
-   design — it gets out of the way so the dashboard can land.
+   When the /api/marketing fetch finishes, finalize() stashes the
+   onComplete callback instead of auto-dismissing, and a small
+   "Continue to dashboard →" button appears so the user can jump
+   past the gallery when ready. This prevents the gallery from
+   disappearing on fast API responses before the user has had a
+   chance to examine it.
 
-     .destroy()    — stop the counter (used on error paths)
-     .finalize(cb) — plain opacity fade-out, then fire `cb` */
+   After the user picks a favorite, the 9 losers + this gallery
+   wrapper will be replaced with just the winning animation. */
 function startLedgerLoader(container) {
   if (_ttLoader) _ttLoader.destroy();
 
-  // Plausible account-count ceiling (random 28–40k per run) so the
-  // "current / total" ratio visibly climbs during typical load windows.
-  var totalTarget = 28000 + Math.floor(Math.random() * 12000);
-  var totalStr    = totalTarget.toLocaleString();
+  // ── 10 loader concepts — each an SVG + class package ────────
+  // All SVGs use a 140x140 viewBox (except sun dial which centers
+  // on 0,0 for easier rotation). CSS in marketing-paper.css drives
+  // every animation — no JS timers here beyond the dismiss logic.
+  var cells = [
+    { n:  1, name: 'Continuous Origami Fold',        svg: lgSvg_1() },
+    { n:  2, name: 'Topographical Ripple',           svg: lgSvg_2() },
+    { n:  3, name: 'Ink Bleed Capillary Action',     svg: lgSvg_3() },
+    { n:  4, name: 'Shifting Sand Dunes',            svg: lgSvg_4() },
+    { n:  5, name: 'Sequential Leaf Vein Pathing',   svg: lgSvg_5() },
+    { n:  6, name: 'Organic Wood Ring Expansion',    svg: lgSvg_6() },
+    { n:  7, name: 'Terra Cotta Curing Bar',         svg: lgSvg_7() },
+    { n:  8, name: 'Sun Dial Shadow Sweep',          svg: lgSvg_8() },
+    { n:  9, name: 'Minimalist Botanical Drawing',   svg: lgSvg_9() },
+    { n: 10, name: 'Lunar Phase Transition',         svg: lgSvg_10() }
+  ];
 
-  // Minimal SVG: outer ring + inner ring. Both draw in via CSS
-  // stroke-dashoffset, then the outer ring rotates slowly and the
-  // whole figure breathes. No crosshair, spokes, registration dots,
-  // or color alternation.
-  var svgHtml =
-    '<svg class="ll-draft" viewBox="0 0 120 120" aria-hidden="true" focusable="false">' +
-      '<circle class="ll-draft-ring ll-draft-ring--outer" cx="60" cy="60" r="48"/>' +
-      '<circle class="ll-draft-ring ll-draft-ring--inner" cx="60" cy="60" r="22"/>' +
-    '</svg>';
+  var gridHtml = cells.map(function(c) {
+    return '<div class="lg-cell lg-cell--' + c.n + '">' +
+      '<div class="lg-head">' +
+        '<span class="lg-num">' + c.n + '</span>' +
+        '<span class="lg-name">' + esc(c.name) + '</span>' +
+      '</div>' +
+      '<div class="lg-stage">' + c.svg + '</div>' +
+    '</div>';
+  }).join('');
 
   container.innerHTML =
-    '<div class="ledger-loader" id="ttLoader">' +
-      '<div class="ll-overlay">' +
-        svgHtml +
-        '<div class="ll-tally">' +
-          '<span class="ll-tally-num" id="llTallyNum">0</span>' +
-          '<span class="ll-tally-sep">/</span>' +
-          '<span class="ll-tally-total">' + totalStr + '</span>' +
-          '<span class="ll-tally-unit">accounts</span>' +
-        '</div>' +
+    '<div class="ledger-loader ledger-loader--gallery" id="ttLoader">' +
+      '<div class="lg-intro">' +
+        '<div class="lg-intro-title">Loading animation — pick a favorite</div>' +
+        '<div class="lg-intro-sub">Each cell plays its animation continuously. Tell me the number you like best and I\u2019ll wire just that one up as the real loader (removing the other nine).</div>' +
+        '<button type="button" class="lg-continue" id="lgContinue" onclick="_dismissLoaderGallery()">Continue to dashboard \u2192</button>' +
       '</div>' +
+      '<div class="lg-grid">' + gridHtml + '</div>' +
     '</div>';
 
-  var rootEl  = container.querySelector('#ttLoader');
-  var tallyEl = container.querySelector('#llTallyNum');
+  var rootEl      = container.querySelector('#ttLoader');
+  var continueBtn = rootEl.querySelector('#lgContinue');
+  var destroyed   = false;
+  var pendingCb   = null;   // onComplete from finalize(), triggered on dismiss
 
-  // Counter climbs with a sinusoidal rate (~120–220/sec) so it feels
-  // organic rather than perfectly linear. DOM update throttled to
-  // ~220ms so the 150ms opacity cross-fade on each digit change has
-  // time to complete.
-  var startTs       = performance.now();
-  var lastPaintedTs = 0;
-  var destroyed     = false;
-  var rafId         = null;
-  var lastValue     = 0;
-  var UPDATE_MS     = 220;
-
-  function tickTally(ts) {
+  // Global dismiss shim — the inline onclick on #lgContinue lives
+  // in HTML without module scope, so we expose the dismiss function
+  // on window. Closes over `rootEl` / `pendingCb` from this init.
+  window._dismissLoaderGallery = function() {
     if (destroyed) return;
-    var elapsed = ts - startTs;
-    var rate    = 170 + Math.sin(elapsed / 850) * 50;
-    var value   = Math.min(totalTarget - 1, Math.floor(elapsed / 1000 * rate));
-    if (ts - lastPaintedTs >= UPDATE_MS && value !== lastValue && tallyEl) {
-      lastPaintedTs = ts;
-      tallyEl.classList.add('is-ticking');
-      tallyEl.textContent = value.toLocaleString();
-      requestAnimationFrame(function() {
-        if (!destroyed && tallyEl) tallyEl.classList.remove('is-ticking');
-      });
-      lastValue = value;
-    }
-    rafId = requestAnimationFrame(tickTally);
-  }
-  rafId = requestAnimationFrame(tickTally);
+    destroyed = true;
+    rootEl.classList.add('ll-done');
+    setTimeout(function() {
+      if (pendingCb) { var cb = pendingCb; pendingCb = null; cb(); }
+    }, 320);
+  };
 
   return {
-    destroy: function() {
-      destroyed = true;
-      if (rafId) cancelAnimationFrame(rafId);
-    },
+    destroy: function() { destroyed = true; },
     finalize: function(onComplete) {
       if (destroyed) { if (onComplete) onComplete(); return; }
-      destroyed = true;
-      if (rafId) cancelAnimationFrame(rafId);
-
-      // Simple opacity fade out; dashboard mounts underneath.
-      rootEl.classList.add('ll-done');
-      setTimeout(function() {
-        if (onComplete) onComplete();
-      }, 320);
+      // Data is ready — show the Continue button so the user can
+      // leave the gallery when they're done evaluating.
+      pendingCb = onComplete;
+      if (continueBtn) continueBtn.classList.add('is-ready');
     }
   };
+}
+
+/* ──────────────────────────────────────────────────────────────
+   SVG builders for each of the 10 loader concepts. Kept as small
+   helper functions so the main startLedgerLoader body stays legible.
+   ────────────────────────────────────────────────────────────── */
+
+// 1 — Continuous Origami Fold: a polygon whose `points` attribute
+// is animated via SMIL, simulating a square folding + unfolding.
+// A drop-shadow filter deepens when the fold is tighter.
+function lgSvg_1() {
+  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
+    '<defs>' +
+      '<filter id="lg1-shadow" x="-30%" y="-30%" width="160%" height="160%">' +
+        '<feGaussianBlur stdDeviation="3"/>' +
+        '<feOffset dx="0" dy="3"/>' +
+        '<feComponentTransfer><feFuncA type="linear" slope="0.35"/></feComponentTransfer>' +
+        '<feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>' +
+      '</filter>' +
+      '<filter id="lg1-noise">' +
+        '<feTurbulence baseFrequency="0.9" numOctaves="2" seed="3" stitchTiles="stitch"/>' +
+        '<feColorMatrix values="0 0 0 0 0.2  0 0 0 0 0.17  0 0 0 0 0.12  0 0 0 0.12 0"/>' +
+        '<feComposite in2="SourceGraphic" operator="in"/>' +
+      '</filter>' +
+    '</defs>' +
+    '<polygon fill="#F4F1EA" filter="url(#lg1-shadow)" ' +
+             'points="20,20 120,20 120,120 20,120">' +
+      '<animate attributeName="points" dur="4.5s" repeatCount="indefinite" ' +
+               'calcMode="spline" keyTimes="0;0.3;0.55;0.8;1" ' +
+               'keySplines="0.3 0 0.2 1;0.3 0 0.2 1;0.3 0 0.2 1;0.3 0 0.2 1" ' +
+               'values="20,20 120,20 120,120 20,120;' +
+                       '20,25 70,20 70,120 20,115;' +
+                       '25,30 120,45 120,115 25,110;' +
+                       '22,20 120,28 118,120 22,120;' +
+                       '20,20 120,20 120,120 20,120"/>' +
+    '</polygon>' +
+    '<rect width="140" height="140" fill="transparent" filter="url(#lg1-noise)" opacity="0.7"/>' +
+  '</svg>';
+}
+
+// 2 — Topographical Ripple: 3 organic (bezier, not-quite-circular)
+// concentric paths. CSS handles stroke draw-in + a slow breathing
+// scale centered on (70, 70).
+function lgSvg_2() {
+  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
+    '<g class="lg2-breath">' +
+      '<path class="lg2-p lg2-p1" d="M70,22 C98,26 115,50 110,72 C104,96 86,114 70,116 C50,114 32,96 28,72 C24,50 42,24 70,22 Z"/>' +
+      '<path class="lg2-p lg2-p2" d="M70,38 C90,42 100,58 98,72 C95,90 82,102 70,104 C56,102 44,90 42,72 C40,58 52,38 70,38 Z"/>' +
+      '<path class="lg2-p lg2-p3" d="M70,54 C83,56 90,64 88,72 C86,82 78,90 70,90 C62,90 54,82 52,72 C50,64 57,54 70,54 Z"/>' +
+    '</g>' +
+  '</svg>';
+}
+
+// 3 — Ink Bleed Capillary: a single dark circle whose radius
+// expands non-linearly (pause + accelerate, like ink absorbing).
+// A gooey SVG filter (gaussian blur + color-matrix threshold)
+// gives the expansion organic, non-vector edges.
+function lgSvg_3() {
+  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
+    '<defs>' +
+      '<filter id="lg3-goo">' +
+        '<feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur"/>' +
+        '<feColorMatrix in="blur" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" result="goo"/>' +
+        '<feBlend in="SourceGraphic" in2="goo"/>' +
+      '</filter>' +
+    '</defs>' +
+    '<g filter="url(#lg3-goo)">' +
+      '<circle cx="70" cy="70" r="6" fill="#5C4033">' +
+        '<animate attributeName="r" dur="3.2s" repeatCount="indefinite" ' +
+                 'calcMode="spline" keyTimes="0;0.3;0.5;0.7;1" ' +
+                 'keySplines="0.3 0 0.4 1;0.6 0 0.6 1;0.6 0 0.5 1;0.4 0 0.3 1" ' +
+                 'values="6;20;40;50;6"/>' +
+        '<animate attributeName="opacity" dur="3.2s" repeatCount="indefinite" ' +
+                 'keyTimes="0;0.3;0.55;0.85;1" values="1;1;0.8;0.2;0"/>' +
+      '</circle>' +
+      '<circle cx="62" cy="65" r="4" fill="#5C4033" opacity="0.9">' +
+        '<animate attributeName="r" dur="3.2s" begin="-0.3s" repeatCount="indefinite" ' +
+                 'values="4;16;32;40;4"/>' +
+        '<animate attributeName="opacity" dur="3.2s" begin="-0.3s" repeatCount="indefinite" ' +
+                 'values="0.9;0.9;0.6;0.15;0"/>' +
+      '</circle>' +
+    '</g>' +
+  '</svg>';
+}
+
+// 4 — Shifting Sand Dunes: two bottom paths whose `d` attribute is
+// SMIL-animated through sine-wave key frames, offset in time so the
+// back dune trails the front dune.
+function lgSvg_4() {
+  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
+    '<defs>' +
+      '<filter id="lg4-grain">' +
+        '<feTurbulence baseFrequency="1.8" numOctaves="2" seed="5"/>' +
+        '<feColorMatrix values="0 0 0 0 0.2  0 0 0 0 0.15  0 0 0 0 0.08  0 0 0 0.15 0"/>' +
+        '<feComposite in2="SourceGraphic" operator="in"/>' +
+      '</filter>' +
+    '</defs>' +
+    '<path fill="#C19A6B" opacity="0.95">' +
+      '<animate attributeName="d" dur="9s" repeatCount="indefinite" ' +
+               'values="M0,72 Q35,55 70,72 T140,72 L140,140 L0,140 Z;' +
+                       'M0,72 Q35,85 70,72 T140,72 L140,140 L0,140 Z;' +
+                       'M0,72 Q35,55 70,72 T140,72 L140,140 L0,140 Z"/>' +
+    '</path>' +
+    '<path fill="#D4B895">' +
+      '<animate attributeName="d" dur="9s" begin="-3s" repeatCount="indefinite" ' +
+               'values="M0,92 Q30,77 70,92 T140,92 L140,140 L0,140 Z;' +
+                       'M0,92 Q30,107 70,92 T140,92 L140,140 L0,140 Z;' +
+                       'M0,92 Q30,77 70,92 T140,92 L140,140 L0,140 Z"/>' +
+    '</path>' +
+    '<rect width="140" height="140" fill="transparent" filter="url(#lg4-grain)" opacity="0.8"/>' +
+  '</svg>';
+}
+
+// 5 — Sequential Leaf Vein Pathing: stem draws first, then each
+// branching vein in sequence. Whole group fades out at end, loops.
+function lgSvg_5() {
+  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
+    '<g class="lg5-group">' +
+      '<path class="lg5-stem"     d="M70,22 Q72,70 70,118"/>' +
+      '<path class="lg5-v lg5-v1" d="M70,38 Q86,44 96,54"/>' +
+      '<path class="lg5-v lg5-v2" d="M70,48 Q54,54 44,64"/>' +
+      '<path class="lg5-v lg5-v3" d="M70,64 Q88,70 100,80"/>' +
+      '<path class="lg5-v lg5-v4" d="M70,74 Q54,80 40,86"/>' +
+      '<path class="lg5-v lg5-v5" d="M70,90 Q84,96 94,104"/>' +
+    '</g>' +
+  '</svg>';
+}
+
+// 6 — Organic Wood Rings: five slightly-irregular rings. Each
+// scales outward from center while fading, staggered 0.45s apart.
+function lgSvg_6() {
+  // A reusable slightly-wonky ring path (radius ~18 centered at 0,0).
+  // We translate the whole group to (70, 70) so scale works around center.
+  var ring = 'M-18,-2 C-18,-14 -4,-18 0,-18 C16,-18 18,-4 18,0 ' +
+             'C18,14 4,18 0,18 C-16,18 -18,4 -18,-2 Z';
+  var rings = '';
+  for (var i = 1; i <= 5; i++) {
+    rings += '<path class="lg6-ring lg6-ring--' + i + '" d="' + ring + '"/>';
+  }
+  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
+    '<g transform="translate(70 70)">' + rings + '</g>' +
+  '</svg>';
+}
+
+// 7 — Terra Cotta Curing Bar: plain DOM — rounded container + inner
+// fill div. CSS animates width 0→100% while background transitions
+// from wet-clay to baked-terracotta.
+function lgSvg_7() {
+  return '<div class="lg7-wrap"><div class="lg7-fill"></div></div>';
+}
+
+// 8 — Sun Dial Shadow Sweep: static center dot + rotating shadow
+// triangle whose length oscillates via SMIL keyframes. viewBox is
+// centered at 0,0 for easier rotation math.
+function lgSvg_8() {
+  return '<svg class="lg-svg" viewBox="-60 -60 120 120">' +
+    '<g class="lg8-rot">' +
+      '<polygon fill="rgba(92, 84, 72, 0.18)">' +
+        '<animate attributeName="points" dur="6s" repeatCount="indefinite" ' +
+                 'values="-2,0 2,0 0,-48;' +
+                         '-3,0 3,0 0,-55;' +
+                         '-2,0 2,0 0,-40;' +
+                         '-3,0 3,0 0,-55;' +
+                         '-2,0 2,0 0,-48"/>' +
+      '</polygon>' +
+      '<animateTransform attributeName="transform" type="rotate" ' +
+                        'from="0 0 0" to="360 0 0" dur="6s" repeatCount="indefinite"/>' +
+    '</g>' +
+    '<circle cx="0" cy="0" r="3" fill="#5C5448"/>' +
+  '</svg>';
+}
+
+// 9 — Minimalist Botanical Drawing: single continuous path of an
+// abstract monstera-ish leaf. CSS draws it over ~1.8s, holds ~0.3s,
+// erases via negative dashoffset, loops.
+function lgSvg_9() {
+  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
+    '<path class="lg9-path" d="M70,120 ' +
+      'C70,100 50,88 32,74 ' +
+      'C40,54 58,50 64,40 ' +
+      'C68,30 72,30 76,40 ' +
+      'C82,50 100,54 108,74 ' +
+      'C90,88 70,100 70,120"/>' +
+    '<line class="lg9-vein" x1="70" y1="36" x2="70" y2="120"/>' +
+  '</svg>';
+}
+
+// 10 — Lunar Phase Transition: off-white moon base + a dark shadow
+// circle masked to the moon's bounds, translating horizontally to
+// sweep the visible shape through crescent → half → full phases.
+function lgSvg_10() {
+  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
+    '<defs>' +
+      '<mask id="lg10-mask">' +
+        '<circle cx="70" cy="70" r="40" fill="white"/>' +
+      '</mask>' +
+      '<filter id="lg10-grain">' +
+        '<feTurbulence baseFrequency="0.9" numOctaves="2" seed="7"/>' +
+        '<feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.06 0"/>' +
+        '<feComposite in2="SourceGraphic" operator="in"/>' +
+      '</filter>' +
+    '</defs>' +
+    '<circle cx="70" cy="70" r="40" fill="#FDFBF7"/>' +
+    '<rect width="140" height="140" fill="transparent" filter="url(#lg10-grain)" opacity="0.5"/>' +
+    '<g mask="url(#lg10-mask)">' +
+      '<circle cx="70" cy="70" r="40" fill="#3A4042">' +
+        '<animate attributeName="cx" dur="8s" repeatCount="indefinite" ' +
+                 'calcMode="spline" keyTimes="0;0.5;1" ' +
+                 'keySplines="0.42 0 0.58 1;0.42 0 0.58 1" ' +
+                 'values="-20;160;-20"/>' +
+      '</circle>' +
+    '</g>' +
+  '</svg>';
 }
 
 async function fetchMarketing() {
