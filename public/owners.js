@@ -207,6 +207,15 @@ function toggleMonthPicker() {
   // Opening — remove `hidden` so the transition can run, then add class
   picker.removeAttribute('hidden');
   if (backdrop) backdrop.removeAttribute('hidden');
+  // Lock body scroll while the picker is open (mobile only — on desktop
+  // the picker is an inline popover, not a fullscreen bottom-sheet, so
+  // the lock would be disruptive). Without this, swipes on the dark
+  // backdrop chain to window, scrolling the page AND causing iOS Safari
+  // to retract its URL bar — which is what creates the white strip at
+  // the top of the status bar zone. Mirrors exp-modal-lock + pnl-cmp-lock. */
+  if (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) {
+    document.body.classList.add('fin-month-lock');
+  }
   requestAnimationFrame(function() {
     requestAnimationFrame(function() {
       picker.classList.add('is-open');
@@ -214,6 +223,76 @@ function toggleMonthPicker() {
       if (backdrop) backdrop.classList.add('is-open');
     });
   });
+  // Wire drag-to-dismiss (idempotent — the handler guards against
+  // double-wiring so calling this on every open is safe).
+  wireFinMonthDrag();
+}
+
+// ── Drag-to-dismiss on the month-picker's grabber (mobile) ─────
+// Mirrors wirePnlSheetDrag + wireExpSheetDrag so the mobile bottom-
+// sheets all behave identically: swipe the top strip down and the
+// sheet follows the finger; release past 80px OR with velocity
+// > 0.5 px/ms closes the sheet; otherwise it springs back up.
+function wireFinMonthDrag() {
+  var zone = document.getElementById('finMonthGrabZone');
+  if (!zone || zone._finDragWired) return;
+  zone._finDragWired = true;
+
+  var picker = document.getElementById('finMonthPicker');
+  var startY = 0;
+  var curDY  = 0;
+  var startT = 0;
+  var dragging = false;
+  var pointerId = null;
+
+  function onDown(e) {
+    // Ignore multi-touch and non-primary buttons
+    if (e.button != null && e.button !== 0) return;
+    dragging  = true;
+    startY    = e.clientY;
+    startT    = Date.now();
+    curDY     = 0;
+    pointerId = e.pointerId;
+    try { zone.setPointerCapture(pointerId); } catch (_) {}
+    if (picker) picker.classList.add('is-dragging');
+  }
+  function onMove(e) {
+    if (!dragging || !picker) return;
+    var dy = e.clientY - startY;
+    if (dy < 0) dy = 0;             // ignore upward pulls — sheet is at rest
+    curDY = dy;
+    picker.style.transform = 'translateY(' + dy + 'px)';
+  }
+  function onUp() {
+    if (!dragging) return;
+    dragging = false;
+    var dt       = Math.max(1, Date.now() - startT);
+    var velocity = curDY / dt;      // px/ms
+    try { zone.releasePointerCapture(pointerId); } catch (_) {}
+    pointerId = null;
+    // Dismiss past threshold OR with a quick flick downward
+    if (curDY > 80 || velocity > 0.5) {
+      // Clear the inline transform so the CSS transition drives the
+      // rest of the slide-down via the `is-open` class removal.
+      if (picker) {
+        picker.classList.remove('is-dragging');
+        picker.style.transform = '';
+      }
+      closMonthPicker();
+    } else {
+      // Snap back: restore transition + clear transform
+      if (picker) {
+        picker.classList.remove('is-dragging');
+        picker.style.transform = '';
+      }
+    }
+    curDY = 0;
+  }
+
+  zone.addEventListener('pointerdown',   onDown);
+  zone.addEventListener('pointermove',   onMove);
+  zone.addEventListener('pointerup',     onUp);
+  zone.addEventListener('pointercancel', onUp);
 }
 function closMonthPicker() {
   var picker   = document.getElementById('finMonthPicker');
@@ -221,8 +300,15 @@ function closMonthPicker() {
   var backdrop = document.getElementById('finMonthBackdrop');
   if (!picker) return;
   picker.classList.remove('is-open');
+  // Clear any drag-in-progress state + inline transform so the next
+  // open doesn't start with a leftover translateY from a partial drag.
+  picker.classList.remove('is-dragging');
+  picker.style.transform = '';
   hdr && hdr.classList.remove('is-open');
   if (backdrop) backdrop.classList.remove('is-open');
+  // Unconditionally remove the body lock — cheaper than conditional
+  // check, harmless if it wasn't added (viewport was > 768 on open).
+  document.body.classList.remove('fin-month-lock');
   // After the slide/fade completes, re-apply `hidden` so nothing is
   // focusable or takes pointer events while the picker is dormant.
   setTimeout(function() {
@@ -2278,10 +2364,12 @@ function renderOwners() {
       return priorIdx >= 0 ? (revenue[priorIdx] || null) : null;
     });
 
-    // Orange palette: muted for history, vivid brand orange for current month
-    var revColors = revData.map(function(v, i) {
-      return (revStart + i) === revEnd ? '#f97316' : '#fed7aa';
-    });
+    // Every bar starts fully saturated so the chart reads "alive" on load.
+    // The onHover handler below dims non-focused bars to 40% alpha, which
+    // is now the single source of the "focused month" visual — no need to
+    // pre-highlight the latest month, since the Summary Plate above the
+    // chart + the x-axis label already communicate that it's the default.
+    var revColors = revData.map(function() { return '#f97316'; });
 
     if (revBarChartInst) revBarChartInst.destroy();
     var revCtx = document.getElementById('revBarChart').getContext('2d');
@@ -2518,10 +2606,10 @@ function renderOwners() {
     var cfBal     = bsHistory.slice(bsStart, bsEnd + 1);
     var cfLabels  = cfMonths.map(function(mk) { return fmtMkShort(mk); });
 
-    // Clean flat colours: light blue for history, vivid blue for current month
-    var cfColors = cfBal.map(function(v, i) {
-      return (bsStart + i) === bsEnd ? '#2563eb' : '#93c5fd';
-    });
+    // Every bar starts fully saturated so the chart reads "alive" on load.
+    // Mirrors the revenue chart — the onHover handler dims non-focused
+    // bars to 40% alpha, which is the single source of the focus signal.
+    var cfColors = cfBal.map(function() { return '#2563eb'; });
 
     if (cfBarChartInst) cfBarChartInst.destroy();
     var cfCtx = document.getElementById('cfBarChart').getContext('2d');

@@ -874,7 +874,8 @@ body.exp-modal-lock {
 .fin-period-tab.active { color: #1a2d3a; border-bottom-color: #FF9500; }
 
 /* ── Dropdown popover (desktop) ────────────────────────────────── */
-.fin-month-grabber { display: none; }          /* shown only on mobile */
+.fin-month-grabber  { display: none; }          /* shown only on mobile */
+.fin-month-grab-zone{ display: none; }          /* shown only on mobile */
 .fin-month-backdrop { display: none; }          /* shown only on mobile */
 /* Preserve `hidden` attribute semantics even when CSS tries to display it */
 .fin-month-picker[hidden],
@@ -2523,6 +2524,16 @@ body.exp-modal-lock {
   /* ── MONTH PICKER: real bottom-sheet modal ─────────────────────────
      Slides up from the bottom edge, overlays a dimmed backdrop. Uses a
      snappy cubic-bezier for a tactile spring-like feel. */
+  /* Body scroll-lock while the mobile bottom-sheet is open. Same pattern
+     as exp-modal-lock + pnl-cmp-lock. Prevents swipes on the dark
+     backdrop from chaining to window scroll, and prevents iOS Safari
+     from retracting its URL bar (which shifts the visual viewport and
+     creates a visible white strip at the top of the status bar zone). */
+  body.fin-month-lock {
+    overflow: hidden;
+    overscroll-behavior: contain;
+    touch-action: none;
+  }
   .fin-month-backdrop {
     display: block;
     position: fixed;
@@ -2531,6 +2542,8 @@ body.exp-modal-lock {
     z-index: 998;
     pointer-events: none;
     transition: background 0.28s ease;
+    /* Absorb scroll chaining at the backdrop so gestures don't bubble */
+    overscroll-behavior: contain;
   }
   .fin-month-backdrop.is-open {
     background: rgba(15, 23, 42, 0.45);
@@ -2544,6 +2557,9 @@ body.exp-modal-lock {
     max-height: 78vh;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    /* Sheet's own scroll container — internal scroll still works, but
+       gestures past its boundaries don't chain to the body beneath. */
+    overscroll-behavior: contain;
     border-radius: 18px 18px 0 0;
     box-shadow: 0 -8px 30px rgba(15, 23, 42, 0.18);
     z-index: 999;
@@ -2556,14 +2572,37 @@ body.exp-modal-lock {
   .fin-month-picker.is-open {
     transform: translateY(0);
   }
+  /* Grab zone: padded touch target wrapping the grabber pill. Users
+     can swipe down from anywhere in this strip (not just the 4px
+     pill) to dismiss the sheet. touch-action: none claims the
+     vertical gesture so the browser doesn't hijack it for a native
+     page-scroll. Cursor grab/grabbing hints the affordance on desktop
+     hybrid devices (e.g. iPad with trackpad). */
+  .fin-month-grab-zone {
+    display: block;
+    padding: 10px 0 6px;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: grab;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .fin-month-grab-zone:active { cursor: grabbing; }
   /* Grabber at the top of the sheet — visual affordance for drag */
   .fin-month-grabber {
     display: block;
     width: 40px;
     height: 4px;
-    margin: 10px auto 4px;
+    margin: 0 auto;
     background: #d1d5db;
     border-radius: 2px;
+    pointer-events: none;   /* the zone itself owns the gesture */
+  }
+  /* Kill the sheet's slide transition during an active drag so it
+     tracks the finger 1:1 instead of easing behind it. */
+  .fin-month-picker.is-dragging {
+    transition: none;
   }
 
   .fin-period-tabs {

@@ -96,8 +96,14 @@
       <div class="fin-month-backdrop" id="finMonthBackdrop" hidden onclick="closMonthPicker()"></div>
       <!-- Month / Quarter / Quick-Select picker -->
       <div class="fin-month-picker" id="finMonthPicker" hidden>
-        <!-- Mobile grabber — visual affordance for the bottom sheet -->
-        <div class="fin-month-grabber"></div>
+        <!-- Mobile drag zone: grabber pill + padded touch target around
+             it. On mobile (≤768px) the CSS gives this element enough
+             vertical padding that the user can swipe anywhere across
+             the sheet's top strip — not just the 4px pill — to dismiss
+             the sheet. On desktop the grabber + zone are both hidden. -->
+        <div class="fin-month-grab-zone" id="finMonthGrabZone">
+          <div class="fin-month-grabber"></div>
+        </div>
         <div class="fin-period-tabs">
           <button class="fin-period-tab" id="finTabQuick"   onclick="setFinGranularity('quick')">Quick Select</button>
           <button class="fin-period-tab" id="finTabMonth"   onclick="setFinGranularity('month')">By Month</button>
