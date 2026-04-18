@@ -244,20 +244,6 @@ body.paper-mode .mkt-jobs-delta {
   line-height: 1;
 }
 body.paper-mode .mkt-jobs-delta .delta { margin-left: 0; font-size: inherit; }
-/* PROJ badge — no background pill. Just vibrant Oxford Blue text
-   placed to the right of the delta. Uppercase + spaced tracking
-   preserves the ledger-stamp feel. */
-body.paper-mode .mkt-jobs-proj {
-  margin-left: 0.5rem;
-  font-size: 9.5px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  color: var(--riso-oxford);     /* Oxford Blue #002147 */
-  background: transparent;
-  padding: 0;
-  line-height: 1;
-  text-transform: uppercase;
-}
 /* Ensure tfoot total gets the same tabular digit widths as body rows
    so "2516" right-aligns to exactly the same x as "222", "248", etc. */
 body.paper-mode .mkt-table tfoot td {
@@ -1630,11 +1616,10 @@ body.paper-mode .mkt-table tbody tr:hover td,
 body.paper-mode .mkt-table tbody tr:hover td:first-child {
   background-color: rgba(0, 0, 0, 0.02);
 }
-/* Hold the number / delta / PROJ ink colors steady on hover — no
-   fades, no shifts. The row just darkens its paper, nothing else. */
+/* Hold the number / delta ink colors steady on hover — no fades,
+   no shifts. The row just darkens its paper, nothing else. */
 body.paper-mode .mkt-table tbody tr:hover .mkt-jobs-num        { color: #2C2A28; }
 body.paper-mode .mkt-table tbody tr:hover .mkt-jobs-num--proj  { color: #7A7571; }
-body.paper-mode .mkt-table tbody tr:hover .mkt-jobs-proj       { color: var(--riso-oxford); }
 body.paper-mode .mkt-table tbody tr:hover .delta-up            { color: #4CBB17; }
 body.paper-mode .mkt-table tbody tr:hover .delta-down          { color: #E34234; }
 /* Full Picture 2-col legacy table — same warm gray, beats the base

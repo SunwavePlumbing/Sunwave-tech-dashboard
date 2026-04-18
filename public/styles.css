@@ -16,7 +16,11 @@ body {
 
 .header {
   background: white;
-  padding: 1.1rem 1rem 1rem;
+  /* Top padding uses max() of the design baseline (1.1rem) and the
+     iOS notch inset, so on devices without a notch the header keeps
+     its original spacing, but on iPhones with notches the header
+     pushes down so its content doesn't disappear under the cutout. */
+  padding: max(1.1rem, env(safe-area-inset-top, 0px)) 1rem 1rem;
   text-align: center;
   border-bottom: 1px solid #efefef;
   box-shadow: 0 1px 6px rgba(0,0,0,0.06);
@@ -297,12 +301,26 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 
 /* ── Expense drill-down sheet ─────────────────────────────────
    Slides up from bottom on phone; centered sheet on desktop.     */
+/* Body scroll-lock while the modal is open. Without this, swiping
+   on the gray backdrop area (or on the sheet header / contents
+   when they reach a scroll boundary) lets the gesture chain to
+   the page underneath, which then scrolls the dashboard behind
+   the modal. Mirrors the `pnl-cmp-lock` pattern used by the
+   compare-month sheet. */
+body.exp-modal-lock {
+  overflow: hidden;
+  overscroll-behavior: contain;
+  touch-action: none;
+}
 .exp-backdrop {
   display: none;   /* JS sets display:flex on open — never shown at page load */
   position: fixed; inset: 0; z-index: 200;
   align-items: flex-end; justify-content: center;
   background: rgba(0,0,0,0);
   transition: background 0.25s;
+  /* Absorb any swipe gesture that lands on the gray backdrop area
+     so it can't bubble up to the body and cause a page scroll. */
+  overscroll-behavior: contain;
 }
 @media (min-width: 600px) {
   .exp-backdrop { align-items: center; }

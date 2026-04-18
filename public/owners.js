@@ -3212,6 +3212,9 @@ function showExpModal(title, monthLabel, items, total, color) {
                      '<span class="exp-foot-val">' + fmtDollar(total) + '</span>';
 
   backdrop.style.display = 'flex';  // make it flex before animating
+  // Lock body scroll so swipes on the backdrop / sheet can't bubble
+  // out to the page underneath. The class is removed in closeExpModal.
+  document.body.classList.add('exp-modal-lock');
   requestAnimationFrame(function() { backdrop.classList.add('exp-open'); });
 }
 
@@ -3219,7 +3222,10 @@ function closeExpModal() {
   var backdrop = document.getElementById('expBackdrop');
   if (!backdrop) return;
   backdrop.classList.remove('exp-open');
-  document.body.style.overflow = ''; // restore page scroll
+  // Restore page scroll. Also clear the legacy inline overflow style
+  // in case it was set by older code paths — defensive cleanup.
+  document.body.classList.remove('exp-modal-lock');
+  document.body.style.overflow = '';
   // Remove from layout after the slide-down transition finishes
   setTimeout(function() { backdrop.style.display = 'none'; }, 280);
 }

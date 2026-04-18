@@ -285,24 +285,24 @@ function renderMarketing() {
       ? (costPerJob > 0 ? fmt(costPerJob) : '<span style="color:#ccc">—</span>')
       : '<span style="color:#ddd">—</span>';
     var rowClass = m.isCurrent ? ' class="mkt-row-current"' : '';
-    var projTag = m.isCurrent
-      ? '<span class="mkt-jobs-proj">PROJ</span>'
-      : '';
-    // Jobs cell: single horizontal row — number | delta | PROJ.
+    // Jobs cell: single horizontal row — number | delta.
     //   - .mkt-jobs-num has a fixed min-width (tabular-nums), so every
     //     row's number right-aligns to the SAME x regardless of what
     //     appears next to it.
     //   - .mkt-jobs-delta wrapper is ALWAYS emitted (even empty) so its
     //     reserved horizontal slot keeps the column geometry identical
     //     on rows with vs without a % change.
-    //   - Projected row gets a modifier class that italicizes the number
-    //     in graphite + paints a sunflower-yellow highlighter behind it.
+    //   - Projected (current-month) row gets a modifier class that
+    //     italicizes the number in graphite + paints a sunflower-yellow
+    //     highlighter behind it. The highlighter alone communicates
+    //     "estimate" — no separate PROJ badge needed (the badge took
+    //     extra horizontal space that pushed the projected row's number
+    //     out of the column's vertical alignment with all other rows).
     var numClass = m.isCurrent ? 'mkt-jobs-num mkt-jobs-num--proj' : 'mkt-jobs-num';
     var jobsCell =
       '<div class="mkt-jobs-cell">' +
         '<span class="' + numClass + '">' + displayJobs + '</span>' +
         '<span class="mkt-jobs-delta">' + deltaJobs + '</span>' +
-        projTag +
       '</div>';
     return '<tr' + rowClass + '>' +
       '<td>' + esc(m.fullLabel) + '</td>' +

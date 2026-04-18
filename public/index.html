@@ -2,7 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- viewport-fit=cover lets fullscreen overlays (e.g. .exp-backdrop)
+       extend through the iOS safe-area at the top of the screen (under
+       the notch / status bar) instead of leaving a bare white strip.
+       Page elements that need to dodge the notch use env(safe-area-inset-top). -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Sunwave Plumbing — KPIs</title>
   <link rel="icon" type="image/png" href="/Favicon.png">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
