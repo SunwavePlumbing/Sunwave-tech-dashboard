@@ -1024,19 +1024,20 @@ body.paper-mode .pnl-row:not(.pnl-row--cat):not(.pnl-row--total):hover {
 }
 
 /* ════════════════════════════════════════════════════════════════
-   "Modern Ledger" loading state (Marketing tab, first visit)
+   "Living Ledger" loading state (Marketing tab, first visit)
    ────────────────────────────────────────────────────────────────
-   Editorial, document-forward loading state: a heavily blurred
-   placeholder skeleton of the dashboard in the background with a
-   breathing "Reconciling Marketing Ledger…" tagline centered over
-   it, plus an infinite batch-processing tally ticking continuously.
-   Resolution: tagline fades out and the blur snaps to zero as the
-   real dashboard mounts beneath. No monospace, no percentages.
+   A dynamic processing engine that visualizes high-velocity data
+   reconciliation. Dual vertical data streams scroll with a stutter-
+   scroll cadence behind a radial vignette. Centered above: an ink-
+   soak "Reconciling Marketing Ledger…" tagline + pen-drip dots +
+   infinite tally with sunflower-yellow highlighter flash every 1k.
+   Resolution: streams fade, text snaps into focus, loader cross-
+   fades out and the real dashboard mounts beneath.
    ════════════════════════════════════════════════════════════════ */
 
 body.paper-mode .ledger-loader {
   position: relative;
-  min-height: 440px;
+  min-height: 460px;
   padding: 32px 28px;
   overflow: hidden;
   border-radius: 14px;
@@ -1044,96 +1045,117 @@ body.paper-mode .ledger-loader {
   transition: opacity 380ms ease;
   font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   color: var(--brand-ink);
+  user-select: none;
 }
 body.paper-mode .ledger-loader.ll-done {
   opacity: 0;
   pointer-events: none;
 }
 
-/* ── Blurred placeholder skeleton ────────────────────────────── */
-/* Three fake stat cards + a fake bar chart + a few fake table rows,
-   blurred hard and pulsing gently — reads as "paper about to come
-   into focus." On finalize() the blur snaps to zero simultaneously
-   with opacity fading to 0 so the real content can mount behind. */
-body.paper-mode .ll-skeleton {
+/* ── Dual data streams: "Raw Data" (left) + "Refined Ledger" (right) ─
+   Two vertical tracks that loop infinitely via -50% translate on a
+   doubled content list. Stutter-scroll comes from a multi-plateau
+   keyframe that mixes quick slides with brief holds to mimic the
+   processor "reading" each batch. */
+body.paper-mode .ll-streams {
   position: absolute;
-  inset: 24px 28px;
-  opacity: 0.35;
-  filter: blur(8px);
-  animation: llBreathe 3.8s ease-in-out infinite;
+  inset: 0;
+  overflow: hidden;
   pointer-events: none;
+  user-select: none;
+  z-index: 1;
+  /* Radial focus: streams are full-strength around the middle area
+     where the tagline sits and fade transparent toward the corners,
+     so the eye naturally lands on the text without losing the
+     "something is flowing" atmosphere. */
+  -webkit-mask-image: radial-gradient(ellipse 75% 70% at 50% 50%,
+    rgba(0,0,0,1) 30%, rgba(0,0,0,0.7) 55%, rgba(0,0,0,0) 90%);
+  mask-image: radial-gradient(ellipse 75% 70% at 50% 50%,
+    rgba(0,0,0,1) 30%, rgba(0,0,0,0.7) 55%, rgba(0,0,0,0) 90%);
+}
+
+body.paper-mode .ll-stream {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 26%;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  font-family: ui-monospace, 'SF Mono', 'Menlo', 'Consolas', monospace;
+  font-size: 11px;
+  line-height: 1.75;
+  white-space: nowrap;
 }
-body.paper-mode .ledger-loader.ll-focusing .ll-skeleton {
-  filter: blur(0px);
+body.paper-mode .ll-stream--left   { left: 3%;  color: #7A7571; opacity: 0.18; }
+body.paper-mode .ll-stream--right  { right: 3%; color: var(--riso-oxford); opacity: 0.22; text-align: right; }
+body.paper-mode .ll-stream--center {
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  color: #7A7571;
+  opacity: 0.16;
+  text-align: center;
+}
+
+body.paper-mode .ll-stream-track {
+  display: flex;
+  flex-direction: column;
+  will-change: transform;
+  animation: llStutterScroll 14s linear infinite;
+}
+/* Right stream scrolls slightly slower + offset so the two columns
+   feel like independent pipelines rather than mirror images. */
+body.paper-mode .ll-stream--right .ll-stream-track {
+  animation-duration: 18s;
+  animation-delay: -4s;
+}
+body.paper-mode .ll-stream--center .ll-stream-track {
+  animation-duration: 16s;
+}
+body.paper-mode .ll-stream-line {
+  padding: 0 6px;
+}
+
+/* Stutter-scroll: linear slides punctuated by tiny plateaus (~1–2% of
+   cycle each) to simulate the processor micro-pausing as it "reads"
+   each batch. 6 plateaus across the cycle lands roughly every 200ms
+   at 14s duration. Ends at -50% so the doubled-content loop is seamless. */
+@keyframes llStutterScroll {
+  0%    { transform: translateY(0); }
+  14%   { transform: translateY(-7%); }
+  15%   { transform: translateY(-7%); }      /* pause */
+  30%   { transform: translateY(-15%); }
+  31%   { transform: translateY(-15%); }     /* pause */
+  46%   { transform: translateY(-23%); }
+  47%   { transform: translateY(-23%); }     /* pause */
+  62%   { transform: translateY(-31%); }
+  63%   { transform: translateY(-31%); }     /* pause */
+  80%   { transform: translateY(-41%); }
+  81%   { transform: translateY(-41%); }     /* pause */
+  100%  { transform: translateY(-50%); }
+}
+
+/* On finalize(), streams fade out fast so the dashboard can mount. */
+body.paper-mode .ledger-loader.ll-focusing .ll-streams {
   opacity: 0;
-  transition: filter 420ms cubic-bezier(0.22, 1, 0.36, 1), opacity 340ms ease;
-  animation: none;
-}
-@keyframes llBreathe {
-  0%, 100% { filter: blur(8px);   opacity: 0.30; }
-  50%      { filter: blur(5.5px); opacity: 0.42; }
+  transition: opacity 340ms ease;
 }
 
-body.paper-mode .ll-skel-stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 14px;
-}
-body.paper-mode .ll-skel-card {
-  background: rgba(55, 59, 77, 0.06);
-  border-radius: 10px;
-  padding: 18px 16px;
-  height: 94px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-body.paper-mode .ll-skel-line {
-  border-radius: 3px;
-  background: rgba(55, 59, 77, 0.22);
-}
-body.paper-mode .ll-skel-line--sm { width: 42%; height: 9px; opacity: 0.55; }
-body.paper-mode .ll-skel-line--lg { width: 68%; height: 20px; }
-
-body.paper-mode .ll-skel-chart {
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
-  height: 128px;
-  padding: 0 4px;
-}
-body.paper-mode .ll-skel-bar {
-  flex: 1;
-  background: linear-gradient(180deg, rgba(243, 138, 63, 0.45), rgba(243, 138, 63, 0.28));
-  border-radius: 5px;
-  min-height: 18px;
+/* ── Radial vignette: soft paper-color wash around the edges to
+   further protect text legibility and suggest "focused view". ──── */
+body.paper-mode .ll-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  background: radial-gradient(ellipse 55% 48% at 50% 50%,
+    rgba(247, 246, 242, 0) 40%,
+    rgba(247, 246, 242, 0.55) 75%,
+    rgba(247, 246, 242, 0.9) 100%);
 }
 
-body.paper-mode .ll-skel-table {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 6px 4px 0;
-}
-body.paper-mode .ll-skel-row {
-  display: grid;
-  grid-template-columns: 1fr auto auto;
-  gap: 22px;
-  align-items: center;
-}
-body.paper-mode .ll-skel-cell {
-  height: 12px;
-  border-radius: 3px;
-  background: rgba(55, 59, 77, 0.2);
-}
-body.paper-mode .ll-skel-cell--wide { width: 60%; }
-body.paper-mode .ll-skel-cell--med  { width: 88px; }
-body.paper-mode .ll-skel-cell--sm   { width: 54px; }
-
-/* ── Centered overlay: tagline + tally ──────────────────────── */
+/* ── Centered overlay: ink-soak tagline + pen-drip dots + tally ── */
 body.paper-mode .ll-overlay {
   position: absolute;
   inset: 0;
@@ -1141,51 +1163,147 @@ body.paper-mode .ll-overlay {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 14px;
+  gap: 16px;
   pointer-events: none;
-  z-index: 2;
+  z-index: 3;
   transition: opacity 280ms ease;
 }
 body.paper-mode .ledger-loader.ll-focusing .ll-overlay {
   opacity: 0;
 }
+
+/* Ink-soak tagline: text-shadow pulses out + back like fountain-pen
+   ink bleeding into paper fibers. Font-weight also breathes (300↔700)
+   on variable-font stacks; on non-variable fallbacks the shadow alone
+   carries the effect cleanly. */
 body.paper-mode .ll-title {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  font-size: 20px;
-  font-weight: 600;
+  font-size: 21px;
+  font-weight: 500;
   letter-spacing: -0.01em;
   color: var(--riso-oxford);
-  animation: llBreathePulse 2.8s ease-in-out infinite;
   text-align: center;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0;
 }
-@keyframes llBreathePulse {
-  0%, 100% { opacity: 1;    transform: translateY(0); }
-  50%      { opacity: 0.55; transform: translateY(-1px); }
+body.paper-mode .ll-title-text {
+  animation: llInkSoak 2.6s ease-in-out infinite;
+  font-variation-settings: 'wght' 500;
 }
+@keyframes llInkSoak {
+  0%, 100% {
+    font-weight: 400;
+    font-variation-settings: 'wght' 380;
+    text-shadow: 0 0 0 rgba(0, 33, 71, 0);
+    letter-spacing: -0.005em;
+  }
+  50% {
+    font-weight: 700;
+    font-variation-settings: 'wght' 720;
+    text-shadow: 0 0 2.2px rgba(0, 33, 71, 0.55),
+                 0 0 6px   rgba(0, 33, 71, 0.18);
+    letter-spacing: 0.005em;
+  }
+}
+
+/* Pen-drip dots: each dot scales vertically (scaleY) like an ink
+   droplet elongating before snapping back. Sequential delay so the
+   three dots cascade rather than pulse in unison. */
+body.paper-mode .ll-dots {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 4px;
+  margin-left: 6px;
+  height: 1em;
+}
+body.paper-mode .ll-dot {
+  width: 4px;
+  height: 4px;
+  background: var(--riso-oxford);
+  border-radius: 2px;
+  transform-origin: top center;
+  animation: llPenDrip 1.6s ease-in-out infinite;
+}
+body.paper-mode .ll-dot:nth-child(1) { animation-delay: 0s; }
+body.paper-mode .ll-dot:nth-child(2) { animation-delay: 0.2s; }
+body.paper-mode .ll-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes llPenDrip {
+  0%, 60%, 100% { transform: scaleY(1);   opacity: 0.4; }
+  18%           { transform: scaleY(2.4); opacity: 1;   }
+  32%           { transform: scaleY(1);   opacity: 0.7; }
+}
+
+/* ── Tally + label ──────────────────────────────────────────────── */
 body.paper-mode .ll-tally {
-  font-size: 13px;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--brand-ink-muted);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.01em;
 }
 body.paper-mode .ll-tally-num {
+  position: relative;
   font-weight: 700;
   color: var(--brand-ink);
   font-variant-numeric: tabular-nums;
   display: inline-block;
   min-width: 5.5ch;
   text-align: right;
+  padding: 0 3px;
+  border-radius: 3px;
+  /* Highlighter wash — painted by ::before so it sits BEHIND the
+     number without affecting layout. Fires once per thousand via JS
+     toggling .is-milestone. */
 }
-body.paper-mode .ll-tally-label {
-  transition: opacity 180ms ease;
-  margin-left: 2px;
+body.paper-mode .ll-tally-num::before {
+  content: '';
+  position: absolute;
+  inset: 10% -2px 8% -2px;
+  background: rgba(255, 215, 0, 0);
+  border-radius: 2px;
+  z-index: -1;
+  transition: background 0s;
 }
-body.paper-mode .ll-tally-label.is-fading { opacity: 0; }
+body.paper-mode .ll-tally-num.is-milestone::before {
+  background: rgba(255, 215, 0, 0.55);
+  animation: llMilestoneFade 320ms ease-out forwards;
+}
+@keyframes llMilestoneFade {
+  0%   { background: rgba(255, 215, 0, 0.55); }
+  100% { background: rgba(255, 215, 0, 0);    }
+}
 
-/* ── Mount-in animation for the real dashboard ─────────────────
-   Triggered briefly after finalize() completes so the real cards
-   slide up + fade in as the blurred loader is cross-faded away. */
+/* Typewriter-scrape label transition: old phrase wipes out via
+   left-to-right clip-path (reads like a hand swiping the ledger
+   line clean); new phrase wipes in from the opposite direction.
+   Feels like a physical update in a paper ledger. */
+body.paper-mode .ll-tally-label {
+  display: inline-block;
+  clip-path: inset(0 0 0 0);
+  transition: opacity 220ms ease;
+}
+body.paper-mode .ll-tally-label.is-fading {
+  animation: llScrapeOut 220ms ease-in forwards;
+}
+body.paper-mode .ll-tally-label.is-entering {
+  animation: llScrapeIn 260ms ease-out forwards;
+}
+@keyframes llScrapeOut {
+  0%   { clip-path: inset(0 0% 0 0);   opacity: 1;   }
+  60%  { clip-path: inset(0 70% 0 0);  opacity: 0.5; }
+  100% { clip-path: inset(0 100% 0 0); opacity: 0;   }
+}
+@keyframes llScrapeIn {
+  0%   { clip-path: inset(0 0 0 100%); opacity: 0;   }
+  60%  { clip-path: inset(0 0 0 30%);  opacity: 0.6; }
+  100% { clip-path: inset(0 0 0 0);    opacity: 1;   }
+}
+
+/* ── Mount-in animation for the real dashboard ─────────────────── */
 body.paper-mode #marketingContent.mkt-mount-in > * {
   animation: mktMountIn 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -1194,22 +1312,26 @@ body.paper-mode #marketingContent.mkt-mount-in > * {
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ── Mobile: stack stats 2-wide, shorter chart, tighter padding ─ */
+/* ── Mobile: single centered stream, shift content above true center,
+   smaller type, reduced vignette intensity ──────────────────────── */
 @media (max-width: 768px) {
-  body.paper-mode .ledger-loader { min-height: 360px; padding: 24px 16px; }
-  body.paper-mode .ll-skeleton   { inset: 16px 18px; gap: 16px; }
-  body.paper-mode .ll-skel-stats { grid-template-columns: 1fr 1fr; gap: 10px; }
-  body.paper-mode .ll-skel-stats .ll-skel-card:nth-child(3) { display: none; }
-  body.paper-mode .ll-skel-card  { height: 74px; padding: 14px 12px; }
-  body.paper-mode .ll-skel-chart { height: 86px; gap: 6px; }
+  body.paper-mode .ledger-loader { min-height: 380px; padding: 24px 16px; }
+  body.paper-mode .ll-overlay    { justify-content: flex-start; padding-top: 38%; gap: 12px; }
   body.paper-mode .ll-title      { font-size: 17px; }
   body.paper-mode .ll-tally      { font-size: 12px; }
+  body.paper-mode .ll-stream     { font-size: 10px; line-height: 1.9; }
+  body.paper-mode .ll-dot        { width: 3px; height: 3px; }
 }
 
-/* ── Reduced motion: hold a static blur, no pulsing or breathing ─ */
+/* ── Reduced motion: freeze streams, hold ink-soak mid-pulse, keep
+   label swaps as simple opacity fades (no clip-path sweep) ─────── */
 @media (prefers-reduced-motion: reduce) {
-  body.paper-mode .ll-skeleton { animation: none; filter: blur(6px); opacity: 0.35; }
-  body.paper-mode .ll-title    { animation: none; opacity: 1; transform: none; }
+  body.paper-mode .ll-stream-track { animation: none; }
+  body.paper-mode .ll-title-text   { animation: none; text-shadow: 0 0 1.5px rgba(0, 33, 71, 0.3); }
+  body.paper-mode .ll-dot          { animation: none; opacity: 0.6; }
+  body.paper-mode .ll-tally-label.is-fading   { animation: none; opacity: 0; }
+  body.paper-mode .ll-tally-label.is-entering { animation: none; opacity: 1; clip-path: none; }
+  body.paper-mode .ll-tally-num.is-milestone::before { animation: none; background: rgba(255, 215, 0, 0); }
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -1497,8 +1619,8 @@ body.paper-mode .tech-name-label.is-revealing::after {
   body.paper-mode::before { transition: none; }
   .pnl-cmp-sheet { transition: none; }
   .pnl-cmp-backdrop { transition: none; }
-  /* Marketing loader: the ll-skeleton + ll-title reduced-motion
-     overrides are already scoped inside the ledger-loader block;
+  /* Marketing loader: the stream + ink-soak + dot + label reduced-motion
+     overrides are already scoped inside the ledger-loader block above;
      this rule just ensures the mount-in slide-up is skipped too. */
   body.paper-mode #marketingContent.mkt-mount-in > * { animation: none; }
   /* Skeleton shimmer also stops — block stays at base tone. */

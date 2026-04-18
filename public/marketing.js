@@ -13,53 +13,103 @@ async function fetchQBOMarketing() {
   if (marketingData) renderMarketing();
 }
 
-/* ── "Modern Ledger" loading state ──────────────────────────────
-   Replaces the monospace teletype with an editorial sans-serif
-   presentation: a blurred placeholder ledger in the background,
-   a centered "Reconciling Marketing Ledger…" breathing tagline,
-   and an infinite batch-processing tally (records scanned) that
-   ticks continuously instead of chasing an arbitrary 100%.
+/* ── "Living Ledger" loading state ──────────────────────────────
+   A dynamic processing engine that visualizes high-velocity data
+   reconciliation. Two vertical data streams (raw marketing fragments
+   on the left, refined ledger entries on the right) scroll with a
+   stutter-scroll cadence behind the central "Reconciling Marketing
+   Ledger…" ink-soak tagline + infinite tally. The counter flashes a
+   sunflower-yellow highlighter every 1,000 units; on mobile, every
+   5,000-unit milestone triggers a haptic vibration.
      .destroy()    — tear down all timers (used on error paths)
      .finalize(cb) — unblur + fade out, fire `cb` when safe to mount */
 function startLedgerLoader(container) {
   if (_ttLoader) _ttLoader.destroy();
 
-  // Placeholder skeleton of the real dashboard — three stat cards, a
-  // short bar chart, and table rows. Heavily blurred + translucent so
-  // it reads as "the paper that's about to come into focus," never as
-  // real data. Bars are rendered with brand-orange tint so the eye
-  // still registers "marketing dashboard shape" through the blur.
-  function skelRow() {
-    return '<div class="ll-skel-row">' +
-      '<div class="ll-skel-cell ll-skel-cell--wide"></div>' +
-      '<div class="ll-skel-cell ll-skel-cell--med"></div>' +
-      '<div class="ll-skel-cell ll-skel-cell--sm"></div>' +
-    '</div>';
-  }
-  var rows = '';
-  for (var i = 0; i < 6; i++) rows += skelRow();
+  var isMobile = window.innerWidth <= 768;
 
-  var barHeights = [40, 72, 58, 85, 48, 76, 62, 55, 88, 66, 50, 78];
-  var bars = barHeights.map(function(h) {
-    return '<div class="ll-skel-bar" style="height:' + h + '%"></div>';
-  }).join('');
+  // ── Stream source content ──────────────────────────────────────
+  // Raw marketing fragments (left stream): utm params, JSON blobs,
+  // ad IDs — the "unprocessed" side of the ingest pipeline.
+  var rawFragments = [
+    'utm_source=google_ads', 'click_id=mk_9f2a3c21',
+    '{"spend":428.51,"imp":12840}', 'gclid=CjwKCAjw_9f2',
+    'campaign=retarget_winter', 'referrer=fb.com/ads',
+    'ad_set_id=AS-4412-B', '{"ctr":0.048,"cpc":1.82}',
+    'utm_medium=cpc', 'conv_value=$642.00',
+    'tracking_id=mk_tr_9a71bf', 'fbclid=IwAR3xq',
+    '{"roi":3.24,"roas":4.18}', 'utm_campaign=spring_promo',
+    'impression_id=imp_7721', '{"spend":188.04,"conv":6}',
+    'adwords_id=AW-882941', 'source=organic_search',
+    'campaign_id=CMP-2026-0412', '{"cpm":14.20,"reach":82104}',
+    'utm_term=plumber+near+me', 'ref=nextdoor',
+    'pixel_id=pix_0xff41', '{"spend":612.88,"imp":19204}',
+    'click_id=mk_88fc91', 'utm_source=yelp',
+    '{"leads":14,"cpl":41.92}', 'tracking=angi_lead_gen',
+    'gclid=CjwKBh93Mxl', '{"spend":974.22,"conv":22}'
+  ];
+  // Refined ledger entries (right stream): formatted accounting
+  // rows — the "processed" side. Date | Ledger ID | Balance.
+  function genLedger(n) {
+    var out = [];
+    var today = new Date();
+    for (var i = 0; i < n; i++) {
+      var d = new Date(today);
+      d.setDate(d.getDate() - (i % 30));
+      var mm = String(d.getMonth() + 1).padStart(2, '0');
+      var dd = String(d.getDate()).padStart(2, '0');
+      var id = 'L-' + (8800 + i);
+      var amt = (Math.random() * 1800 + 60).toFixed(2);
+      var formatted = '$' + Number(amt).toLocaleString(undefined, {
+        minimumFractionDigits: 2, maximumFractionDigits: 2
+      });
+      out.push(d.getFullYear() + '-' + mm + '-' + dd + '  #' + id + '  ' + formatted);
+    }
+    return out;
+  }
+  var ledgerEntries = genLedger(30);
+
+  // Build a stream column — duplicate content so the infinite scroll
+  // loop is seamless (translating -50% lands on an identical phrase).
+  function buildStream(items, cls) {
+    var doubled = items.concat(items);
+    var lines = doubled.map(function(t) {
+      return '<div class="ll-stream-line">' + esc(t) + '</div>';
+    }).join('');
+    return '<div class="ll-stream ' + cls + '" aria-hidden="true">' +
+             '<div class="ll-stream-track">' + lines + '</div>' +
+           '</div>';
+  }
+
+  // Desktop: left raw + right refined. Mobile: single narrower raw
+  // stream in the center (right stream hidden for visual clarity).
+  var streamsHtml;
+  if (isMobile) {
+    // Mobile uses ~40% fewer entries per stream to keep FPS high on
+    // lower-end devices (spec §5 "reduce background data lines by 60%").
+    var mobileRaw = rawFragments.slice(0, Math.ceil(rawFragments.length * 0.4));
+    streamsHtml = buildStream(mobileRaw, 'll-stream--center');
+  } else {
+    streamsHtml = buildStream(rawFragments, 'll-stream--left') +
+                  buildStream(ledgerEntries,  'll-stream--right');
+  }
 
   container.innerHTML =
     '<div class="ledger-loader" id="ttLoader">' +
-      '<div class="ll-skeleton" aria-hidden="true">' +
-        '<div class="ll-skel-stats">' +
-          '<div class="ll-skel-card"><div class="ll-skel-line ll-skel-line--sm"></div><div class="ll-skel-line ll-skel-line--lg"></div></div>' +
-          '<div class="ll-skel-card"><div class="ll-skel-line ll-skel-line--sm"></div><div class="ll-skel-line ll-skel-line--lg"></div></div>' +
-          '<div class="ll-skel-card"><div class="ll-skel-line ll-skel-line--sm"></div><div class="ll-skel-line ll-skel-line--lg"></div></div>' +
-        '</div>' +
-        '<div class="ll-skel-chart">' + bars + '</div>' +
-        '<div class="ll-skel-table">' + rows + '</div>' +
-      '</div>' +
+      '<div class="ll-streams" aria-hidden="true">' + streamsHtml + '</div>' +
+      '<div class="ll-vignette" aria-hidden="true"></div>' +
       '<div class="ll-overlay">' +
-        '<div class="ll-title">Reconciling Marketing Ledger\u2026</div>' +
+        '<div class="ll-title">' +
+          '<span class="ll-title-text">Reconciling Marketing Ledger</span>' +
+          '<span class="ll-dots" aria-hidden="true">' +
+            '<span class="ll-dot"></span>' +
+            '<span class="ll-dot"></span>' +
+            '<span class="ll-dot"></span>' +
+          '</span>' +
+        '</div>' +
         '<div class="ll-tally">' +
-          '<span class="ll-tally-num" id="llTallyNum">0</span> ' +
-          '<span class="ll-tally-label" id="llTallyLabel">records scanned</span>' +
+          '<span class="ll-tally-num" id="llTallyNum">0</span>' +
+          '<span class="ll-tally-label" id="llTallyLabel">accounts aggregated</span>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -69,43 +119,79 @@ function startLedgerLoader(container) {
   var labelEl = container.querySelector('#llTallyLabel');
 
   // ── Infinite tally: continuously ticking up ─────────────────────
-  // The rate varies sinusoidally (~130–220/sec) so the counter feels
-  // alive and non-linear, but never approaches a ceiling. There's no
-  // arbitrary "100%" finish line to stall against.
-  var startTs   = performance.now();
-  var destroyed = false;
-  var rafId     = null;
+  // Sinusoidal rate (~120–220/sec) so the counter feels organic, not
+  // linear. Detects 1,000-unit crossings to flash a yellow highlighter,
+  // and 5,000-unit crossings to fire a haptic pulse on mobile.
+  var startTs       = performance.now();
+  var destroyed     = false;
+  var rafId         = null;
+  var lastValue     = 0;
+  var lastMilestone = 0;   // tracks last 1,000-mark we flashed
+  var lastHaptic    = 0;   // tracks last 5,000-mark we vibrated on
+  var hapticSupported = isMobile && typeof navigator !== 'undefined'
+                        && typeof navigator.vibrate === 'function';
+
+  function flashMilestone() {
+    if (!tallyEl) return;
+    tallyEl.classList.remove('is-milestone');
+    // Force reflow so re-adding the class restarts the animation
+    void tallyEl.offsetWidth;
+    tallyEl.classList.add('is-milestone');
+  }
+
   function tickTally(ts) {
     if (destroyed) return;
     var elapsed = ts - startTs;
-    var rate    = 170 + Math.sin(elapsed / 850) * 50;  // ~120–220 rec/sec
+    var rate    = 170 + Math.sin(elapsed / 850) * 50;  // ~120–220/sec
     var value   = Math.floor(elapsed / 1000 * rate);
-    if (tallyEl) tallyEl.textContent = value.toLocaleString();
+    if (value !== lastValue && tallyEl) {
+      tallyEl.textContent = value.toLocaleString();
+      // 1,000-unit milestone highlighter flash
+      var thousand = Math.floor(value / 1000);
+      if (thousand > lastMilestone) {
+        lastMilestone = thousand;
+        flashMilestone();
+      }
+      // 5,000-unit haptic pulse (mobile only, Web Vibration API)
+      var fiveK = Math.floor(value / 5000);
+      if (fiveK > lastHaptic && hapticSupported) {
+        lastHaptic = fiveK;
+        try { navigator.vibrate(12); } catch (_) {}
+      }
+      lastValue = value;
+    }
     rafId = requestAnimationFrame(tickTally);
   }
   rafId = requestAnimationFrame(tickTally);
 
-  // ── Label rotation: swap the "records scanned" phrase every ~2s
-  // so the running tally feels like different stages of work, not a
-  // single repetitive counter. Fade-out/in via CSS opacity transition.
+  // ── Label rotation: typewriter-scrape transition ────────────────
+  // Old phrase wipes out via clip-path (reads as a hand swiping the
+  // ledger clean), new phrase wipes in from the opposite direction.
+  // Feels like the ledger is being updated in real time.
   var labels = [
-    'records scanned',
+    'accounts aggregated',
     'invoices cross-checked',
     'ledger lines reconciled',
-    'accounts aggregated',
+    'normalizing spend',
+    'validating API keys',
     'entries balanced'
   ];
   var labelIdx = 0;
   var labelTimer = setInterval(function() {
     if (!labelEl || destroyed) return;
     labelIdx = (labelIdx + 1) % labels.length;
+    labelEl.classList.remove('is-entering');
     labelEl.classList.add('is-fading');
     setTimeout(function() {
       if (destroyed || !labelEl) return;
       labelEl.textContent = labels[labelIdx];
       labelEl.classList.remove('is-fading');
-    }, 180);
-  }, 2000);
+      // Kick in the entering animation on the next frame
+      requestAnimationFrame(function() {
+        if (!destroyed && labelEl) labelEl.classList.add('is-entering');
+      });
+    }, 220);
+  }, 2200);
 
   return {
     destroy: function() {
@@ -119,10 +205,8 @@ function startLedgerLoader(container) {
       if (rafId) cancelAnimationFrame(rafId);
       clearInterval(labelTimer);
 
-      // Tagline fades, then the whole loader unblurs + dissolves.
-      // Mirrors a camera snapping into focus — matches the "aha" of
-      // the data resolving. The fake skeleton intentionally fades too
-      // so the real dashboard underneath can mount cleanly.
+      // Streams fade + text snaps to focus, then the whole loader
+      // cross-fades out so the real dashboard underneath can mount.
       rootEl.classList.add('ll-focusing');
       setTimeout(function() {
         rootEl.classList.add('ll-done');
