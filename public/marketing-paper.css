@@ -410,12 +410,15 @@ body.paper-mode .modal-table thead th {
 }
 /* Edge-fade masks on Revenue / Cash-in-the-Bank scroll charts were
    fading to pure white; fade to the paper-card color instead so the
-   soft gradient blends into the card surface rather than flashing. */
+   soft gradient blends into the card surface rather than flashing.
+   Outer stop is fully opaque (was 0.98) so the edge meets the card
+   background with zero seam. Width is controlled by the base rule
+   (10px) — no override needed here. */
 body.paper-mode .fin-chart-wrap--scroll::before {
-  background: linear-gradient(to left, rgba(247, 246, 242, 0), rgba(247, 246, 242, 0.98)) !important;
+  background: linear-gradient(to left, rgba(247, 246, 242, 0), rgba(247, 246, 242, 1)) !important;
 }
 body.paper-mode .fin-chart-wrap--scroll::after {
-  background: linear-gradient(to right, rgba(247, 246, 242, 0), rgba(247, 246, 242, 0.98)) !important;
+  background: linear-gradient(to right, rgba(247, 246, 242, 0), rgba(247, 246, 242, 1)) !important;
 }
 
 /* ── Summary Plate (hover/scrub header on Revenue + Cash charts) ──
@@ -541,6 +544,18 @@ body.paper-mode .pnl-anchor-cmp {
 body.paper-mode .pnl-anchor-cmp:hover {
   border-color: var(--brand-ink-muted);
   background: rgba(55, 59, 77, 0.03);
+}
+/* Range mode: comparison is auto-computed (prior period), not user-
+   selectable. Keep the visual frame but drop the dashed "interactive"
+   treatment and the hover affordance — it reads as a static label. */
+body.paper-mode .pnl-anchor-cmp--auto {
+  background: transparent;
+  border: 1px solid var(--paper-border);  /* solid, muted — not dashed */
+  border-radius: 10px;
+  padding: 7px 14px;
+  text-align: left;
+  cursor: default;
+  font: inherit;
 }
 body.paper-mode .pnl-anchor-cmp-month {
   font-size: 18px;
@@ -824,13 +839,18 @@ body.paper-mode .pnl-row--sub .pnl-row-cur {
 
 /* TOTAL — Net Operating Income. Double ledger-blue rule above AND
    below (bottom-line convention, but warmed up to accounting-pad
-   colors so the page feels hand-penned rather than grey-on-grey). */
+   colors so the page feels hand-penned rather than grey-on-grey).
+   Border width is 6px: per spec `Npx double` renders as three equal
+   bands (line / gap / line), so 6px = 2px line + 2px gap + 2px line.
+   3px produced 1+1+1 which read as a single thin smudge rather than
+   a true double rule. Padding is bumped to 20px so the big NOI $
+   value has clear breathing room on both sides of each rule. */
 body.paper-mode .pnl-row--total {
-  border-top: 3px double rgba(74, 107, 140, 0.6);
-  border-bottom: 3px double rgba(74, 107, 140, 0.6);
+  border-top: 6px double rgba(74, 107, 140, 0.6);
+  border-bottom: 6px double rgba(74, 107, 140, 0.6);
   margin-top: 10px;
-  padding-top: 14px;
-  padding-bottom: 14px;
+  padding-top: 20px;
+  padding-bottom: 20px;
 }
 body.paper-mode .pnl-row--total .pnl-row-label {
   font-size: 14px;
@@ -890,6 +910,14 @@ body.paper-mode .pnl-row:not(.pnl-row--cat):not(.pnl-row--total):hover {
   body.paper-mode .pnl-row--cat  .pnl-row-cur { font-size: 15.5px; }
   body.paper-mode .pnl-row--sub  .pnl-row-cur { font-size: 16px; }
   body.paper-mode .pnl-row--total .pnl-row-cur{ font-size: 18px; }
+  /* The generic `.pnl-row` mobile rule above sets padding: 9px 8px
+     which wipes the total row's 20px vertical padding. Restore it
+     explicitly so the double-rule borders aren't crowded against
+     the big NOI dollar value on phones. */
+  body.paper-mode .pnl-row--total {
+    padding-top: 20px;
+    padding-bottom: 20px;
+  }
   body.paper-mode .pnl-row-prev            { font-size: 10.5px; }
   body.paper-mode .pnl-row-delta-cell      { min-width: 126px; }
   body.paper-mode .pnl-row-delta           { font-size: 11px; padding: 3px 7px; gap: 5px; }
@@ -898,6 +926,15 @@ body.paper-mode .pnl-row:not(.pnl-row--cat):not(.pnl-row--total):hover {
 }
 
 /* ── Compare-month sheet / modal ────────────────────────────── */
+/* Scroll lock while the sheet is open — prevents the background
+   page from scrolling when the user drags on the sheet's grabber
+   or anywhere inside the sheet shell. Without this the native touch
+   gesture falls through to window and the whole page slides. */
+body.pnl-cmp-lock {
+  overflow: hidden;
+  overscroll-behavior: contain;
+  touch-action: none;
+}
 .pnl-cmp-backdrop[hidden] { display: none !important; }
 .pnl-cmp-backdrop {
   position: fixed; inset: 0;
@@ -928,6 +965,10 @@ body.paper-mode .pnl-row:not(.pnl-row--cat):not(.pnl-row--total):hover {
   box-shadow: 0 -8px 30px rgba(55, 59, 77, 0.15);
 }
 .pnl-cmp-backdrop.is-open .pnl-cmp-sheet { transform: translateY(0); }
+/* Active drag: kill the slide transition so the sheet tracks the
+   finger 1:1. The transition is restored on release so the snap-back
+   or dismiss animation is smooth. */
+.pnl-cmp-sheet.is-dragging { transition: none; }
 /* Desktop: centered modal with fade+slide-down entrance + X close */
 @media (min-width: 769px) {
   .pnl-cmp-backdrop { align-items: center; }
@@ -946,7 +987,14 @@ body.paper-mode .pnl-row:not(.pnl-row--cat):not(.pnl-row--total):hover {
   padding: 16px 20px 14px;
   border-bottom: 1px solid rgba(55, 59, 77, 0.08);
   position: relative;
+  /* Claim the vertical gesture — the browser must NOT interpret a
+     swipe here as a page scroll. Paired with the body scroll-lock
+     and our pointer drag handler this makes the drag 100% captured. */
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
 }
+.pnl-cmp-sheet.is-dragging .pnl-cmp-sheet-drag { cursor: grabbing; }
 .pnl-cmp-sheet-grabber {
   width: 38px; height: 4px;
   background: #cbd5e1;
@@ -1015,7 +1063,18 @@ body.paper-mode .pnl-row:not(.pnl-row--cat):not(.pnl-row--total):hover {
   background: var(--brand-orange-soft);
   border-radius: 0 2px 2px 0;
 }
-.pnl-cmp-sheet-item-label { flex: 1; }
+.pnl-cmp-sheet-item-label { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+/* "No comparison" sentinel row — subtle visual separation from the
+   month list below via a solid bottom border (vs dashed siblings). */
+.pnl-cmp-sheet-item--none {
+  border-bottom: 1px solid rgba(55, 59, 77, 0.12);
+}
+.pnl-cmp-sheet-item-desc {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--brand-ink-muted);
+  letter-spacing: 0.01em;
+}
 .pnl-cmp-sheet-tag {
   font-size: 9px;
   font-weight: 800;

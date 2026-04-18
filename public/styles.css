@@ -1174,6 +1174,10 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   justify-content: space-between; flex-wrap: wrap; gap: 8px;
 }
 .mf-header-title { font-size:15px; font-weight:700; color:#1a2d3a; }
+/* Sub-line under the header title — only rendered in range mode
+   (e.g. "Apr 24 – Mar 26") so users see both the semantic label
+   ("All Time") and the underlying window. */
+.mf-header-sub   { font-size:11px; font-weight:500; color:#94a3b8; letter-spacing:0.02em; width:100%; margin-top:2px; }
 .mf-header-stamp { font-size:11px; color:#bbb; }
 
 /* ── Step rows: Revenue, = Gross Profit, = Operating Profit ── */
@@ -2173,7 +2177,11 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   content: '';
   position: absolute;
   top: 0; bottom: 0;
-  width: 16px;
+  /* Narrowed from 16px — the wider fade visibly ate into the first /
+     last bar of the chart. 10px is enough to hint "more content" without
+     washing out real data. Gradient also reaches full opacity at the
+     outer edge (was 0.98) so there's no subpixel haze against the card. */
+  width: 10px;
   pointer-events: none;
   z-index: 2;
   opacity: 1;
@@ -2181,11 +2189,11 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 }
 .fin-chart-wrap--scroll::before {
   left: 0;
-  background: linear-gradient(to left, rgba(255,255,255,0), rgba(255,255,255,0.98));
+  background: linear-gradient(to left, rgba(255,255,255,0), rgba(255,255,255,1));
 }
 .fin-chart-wrap--scroll::after {
   right: 0;
-  background: linear-gradient(to right, rgba(255,255,255,0), rgba(255,255,255,0.98));
+  background: linear-gradient(to right, rgba(255,255,255,0), rgba(255,255,255,1));
 }
 /* Dynamically hide the fade on whichever edge the user has reached */
 .fin-chart-wrap--scroll.is-scroll-start::before { opacity: 0; }

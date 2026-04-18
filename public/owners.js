@@ -2,9 +2,17 @@
 var ownersData = null;
 var finMode        = 'dollar';            // 'dollar' | 'pct'
 var finMonth       = null;               // YYYY-MM currently selected
-var finGranularity = 'month';            // 'month' | 'quarter'
+var finGranularity = 'month';            // 'month' | 'quarter' | 'range'
 var _finPickerTab  = 'month';             // 'quick' | 'month' | 'quarter' — picker UI tab
 var finQuarter     = null;               // 'YYYY-Q#' e.g. '2026-Q1'
+// Range mode: aggregation across multiple contiguous months. When set,
+// summary + P&L sum every metric across [startMk .. endMk] inclusive,
+// and comparisons default to the prior period of equal length.
+//   key    — internal preset id ('ytd' | 'last12' | 'lastYear' | 'last2' | 'all')
+//   label  — full human label for titles ("Year to Date", "All Time", …)
+//   short  — short label for stamps/subtitles ("Apr 24 – Mar 26")
+//   startMk / endMk — inclusive month-key bounds
+var finRange      = null;
 var finCompare     = 'prior_year_month'; // prior_month | prior_year_month | prior_year_avg | none
 var pnlCompareMonth = null;              // month key shown in the comparison column of the Full Picture grid
 var ownersBalance = null;
@@ -225,9 +233,11 @@ function closMonthPicker() {
   }, 320);
 }
 
-// Select a month from the custom list
+// Select a month from the custom list — exits range mode back to single-month.
 function pickFinMonth(mk) {
-  finMonth = mk;
+  finMonth       = mk;
+  finRange       = null;
+  finGranularity = 'month';
   closMonthPicker();
   if (ownersData && ownersData.connected) renderOwners();
 }
@@ -420,6 +430,18 @@ function fmtMkShort(mk) {
   return (['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(p[1])-1] || '') + ' ' + p[0].slice(2);
 }
 
+// Format a range as "Apr 24 – Mar 26" (single month collapses to just "Mar 26")
+function fmtRangeShort(startMk, endMk) {
+  if (!startMk || !endMk) return '';
+  if (startMk === endMk) return fmtMkShort(startMk);
+  return fmtMkShort(startMk) + ' – ' + fmtMkShort(endMk);
+}
+function fmtRangeFull(startMk, endMk) {
+  if (!startMk || !endMk) return '';
+  if (startMk === endMk) return fmtMkFull(startMk);
+  return fmtMkFull(startMk) + ' – ' + fmtMkFull(endMk);
+}
+
 // ── Quarter helpers ──────────────────────────────────────────────
 // '2026-03' → '2026-Q1'
 function quarterKey(mk) {
@@ -464,6 +486,9 @@ function setFinGranularity(g) {
   }
   _finPickerTab = g;
   finGranularity = g;
+  // Switching to month/quarter clears any active preset range — the
+  // user is moving away from the aggregate window view.
+  finRange = null;
   if (g === 'quarter') {
     // Jump to the quarter containing the currently selected month
     if (finMonth && !finQuarter) finQuarter = quarterKey(finMonth);
@@ -480,36 +505,84 @@ function setFinGranularity(g) {
   if (ownersData && ownersData.connected) renderOwners();
 }
 
-// Preset shortcut from the "Quick Select" tab. Presets map to an
-// appropriate anchor month (monthly granularity) so the rest of the
-// dashboard — trends, rev bars, cash flow — frames the right window.
+// Compute the start/end month-keys for a preset, given the available
+// months array. Returns { key, label, startMk, endMk } or null if the
+// preset can't be satisfied (e.g. no data in that window).
+// Ranges are clamped to the data actually available — e.g. "Last 2
+// Years" when only 18 months of data exist yields the full 18.
+function computeFinRange(preset, months) {
+  if (!months || !months.length) return null;
+  var latestMk   = months[months.length - 1];
+  var earliestMk = months[0];
+  var latestYr   = parseInt(latestMk.split('-')[0]);
+  var latestIdx  = months.length - 1;
+
+  var startIdx, endIdx, label;
+  if (preset === 'ytd') {
+    // Start of current calendar year (or earliest available) → latest
+    var ytdStart = latestYr + '-01';
+    startIdx = months.indexOf(ytdStart);
+    if (startIdx < 0) startIdx = 0;
+    endIdx   = latestIdx;
+    label    = 'Year to Date';
+  } else if (preset === 'last12') {
+    // Rolling trailing 12 months (clamped to available data)
+    endIdx   = latestIdx;
+    startIdx = Math.max(0, endIdx - 11);
+    label    = 'Last 12 Months';
+  } else if (preset === 'lastYear') {
+    // Full previous calendar year (Jan – Dec of latestYr - 1)
+    var py = latestYr - 1;
+    var pyStart = py + '-01';
+    var pyEnd   = py + '-12';
+    startIdx = months.indexOf(pyStart);
+    endIdx   = months.indexOf(pyEnd);
+    if (startIdx < 0) {
+      // Fallback: first month of prior year that exists
+      for (var i = 0; i < months.length; i++) {
+        if (months[i].indexOf(py + '-') === 0) { startIdx = i; break; }
+      }
+    }
+    if (endIdx < 0) {
+      // Fallback: last month of prior year that exists
+      for (var j = months.length - 1; j >= 0; j--) {
+        if (months[j].indexOf(py + '-') === 0) { endIdx = j; break; }
+      }
+    }
+    if (startIdx < 0 || endIdx < 0) return null; // no data for prior year
+    label = 'Last Year (' + py + ')';
+  } else if (preset === 'last2') {
+    // Rolling trailing 24 months (clamped to available data)
+    endIdx   = latestIdx;
+    startIdx = Math.max(0, endIdx - 23);
+    label    = 'Last 2 Years';
+  } else if (preset === 'all') {
+    startIdx = 0;
+    endIdx   = latestIdx;
+    label    = 'All Time';
+  } else {
+    return null;
+  }
+  return {
+    key: preset, label: label,
+    startMk: months[startIdx], endMk: months[endIdx],
+    startIdx: startIdx, endIdx: endIdx
+  };
+}
+
+// Preset shortcut from the "Quick Select" tab. Builds a proper
+// multi-month RANGE so summary + P&L aggregate across the whole
+// window (Apr 24 – Mar 26 sums every month in between), rather than
+// anchoring to a single month like the old behaviour.
 function pickFinPreset(preset) {
   var months = (ownersData && ownersData.months) || [];
   if (!months.length) { closMonthPicker(); return; }
-  var latest = months[months.length - 1];             // "2026-03"
-  var latestParts = latest.split('-');
-  var latestYear  = parseInt(latestParts[0]);
-  var earliest    = months[0];
-  var target = latest;
-  if (preset === 'ytd' || preset === 'last12') {
-    target = latest;                                  // latest anchor
-  } else if (preset === 'lastYear') {
-    // December of previous calendar year, else latest month of that year
-    var ly = (latestYear - 1) + '-12';
-    target = months.indexOf(ly) >= 0 ? ly : months.filter(function(m) {
-      return m.indexOf((latestYear - 1) + '-') === 0;
-    }).pop() || latest;
-  } else if (preset === 'last2') {
-    var ly2 = (latestYear - 2) + '-12';
-    target = months.indexOf(ly2) >= 0 ? ly2 : months.filter(function(m) {
-      return m.indexOf((latestYear - 2) + '-') === 0;
-    }).pop() || latest;
-  } else if (preset === 'all') {
-    target = earliest;
-  }
-  finMonth = target;
-  finGranularity = 'month';
-  _finPickerTab = 'month';
+  var range = computeFinRange(preset, months);
+  if (!range) { closMonthPicker(); return; }
+  finRange       = range;
+  finMonth       = range.endMk;  // curIdx anchors to range end for trend chart highlight
+  finGranularity = 'range';
+  _finPickerTab  = 'quick';      // keep the Quick Select tab active after picking
   closMonthPicker();
   if (ownersData && ownersData.connected) renderOwners();
 }
@@ -547,23 +620,99 @@ function openPnlCompareSheet() {
     document.body.appendChild(backdrop);
   }
   populatePnlCompareSheet();
+  // Lock background scroll while the sheet is open. Without this, a
+  // vertical touch-drag on the sheet handle that's not captured by
+  // our JS falls through to the window and scrolls the page beneath —
+  // which is what produced the "gray filter slides down" behaviour.
+  document.body.classList.add('pnl-cmp-lock');
   backdrop.removeAttribute('hidden');
   requestAnimationFrame(function() {
     requestAnimationFrame(function() { backdrop.classList.add('is-open'); });
   });
+  // Wire up drag-to-dismiss on the grabber. Re-wired on every open
+  // because populatePnlCompareSheet rewrites the sheet's innerHTML.
+  wirePnlSheetDrag();
 }
 
 function closePnlCompareSheet() {
   var backdrop = document.getElementById('pnlCompareBackdrop');
   if (!backdrop) return;
   backdrop.classList.remove('is-open');
+  document.body.classList.remove('pnl-cmp-lock');
+  // Reset any inline translate left over from a drag-in-progress so
+  // the next open doesn't start from a drag offset.
+  var sheet = document.getElementById('pnlCompareSheet');
+  if (sheet) {
+    sheet.classList.remove('is-dragging');
+    sheet.style.transform = '';
+  }
   setTimeout(function() {
     if (!backdrop.classList.contains('is-open')) backdrop.setAttribute('hidden', '');
   }, 320);
 }
 
-// (Re)builds the list inside the compare sheet — pinned YoY + Prior
-// first, then remaining months most-recent first.
+// ── Drag-to-dismiss on the sheet's grabber header ───────────────
+// Touch the grabber and swipe down: the sheet follows the finger,
+// and on release either dismisses (if pulled far/fast enough) or
+// snaps back up. Pointer Events let us handle mouse + touch + pen
+// through one code path. touch-action: none on the grabber (CSS)
+// stops the browser from hijacking the gesture for a native scroll.
+function wirePnlSheetDrag() {
+  var sheet  = document.getElementById('pnlCompareSheet');
+  if (!sheet) return;
+  var handle = sheet.querySelector('.pnl-cmp-sheet-drag');
+  if (!handle || handle._pnlDragWired) return;
+  handle._pnlDragWired = true;
+
+  var startY = 0;
+  var curDY  = 0;
+  var dragging = false;
+  var pointerId = null;
+
+  function onDown(e) {
+    // Only react to primary pointer / single-finger touch
+    if (e.button != null && e.button !== 0) return;
+    dragging  = true;
+    startY    = e.clientY;
+    curDY     = 0;
+    pointerId = e.pointerId;
+    try { handle.setPointerCapture(pointerId); } catch (_) {}
+    sheet.classList.add('is-dragging');
+  }
+  function onMove(e) {
+    if (!dragging) return;
+    var dy = e.clientY - startY;
+    if (dy < 0) dy = 0;             // ignore upward pulls — sheet is already at rest
+    curDY = dy;
+    sheet.style.transform = 'translateY(' + dy + 'px)';
+  }
+  function onUp(e) {
+    if (!dragging) return;
+    dragging = false;
+    sheet.classList.remove('is-dragging');
+    try { handle.releasePointerCapture(pointerId); } catch (_) {}
+    // Threshold: either pulled down 80+ px, or the sheet is over
+    // 30% of its visible height below the rest position — in either
+    // case, dismiss. Otherwise snap back.
+    var sheetH = sheet.getBoundingClientRect().height || 600;
+    if (curDY > 80 || curDY / sheetH > 0.3) {
+      closePnlCompareSheet();
+    } else {
+      sheet.style.transform = '';   // CSS transition animates back to 0
+    }
+    curDY = 0;
+  }
+  handle.addEventListener('pointerdown', onDown);
+  handle.addEventListener('pointermove', onMove);
+  handle.addEventListener('pointerup',   onUp);
+  handle.addEventListener('pointercancel', onUp);
+}
+
+// (Re)builds the list inside the compare sheet.
+// Order:
+//   1. "No comparison" sentinel (key='none') — single-month view, no deltas.
+//   2. YoY + Prior month pinned entries.
+//   3. Remaining months most-recent first.
 function populatePnlCompareSheet() {
   var sheet = document.getElementById('pnlCompareSheet');
   if (!sheet || !ownersData) return;
@@ -579,11 +728,17 @@ function populatePnlCompareSheet() {
   if (months.indexOf(yoyKey) >= 0) pinned.push({ key: yoyKey, tag: 'YoY' });
   if (priorMonthKey && priorMonthKey !== yoyKey) pinned.push({ key: priorMonthKey, tag: 'Prior' });
   var pinnedKeys = pinned.map(function(p) { return p.key; });
-  var list = pinned.concat(
-    months.slice().reverse()
-      .filter(function(m) { return m !== finMonth && pinnedKeys.indexOf(m) < 0; })
-      .map(function(m) { return { key: m, tag: null }; })
-  );
+
+  // Lead with the "No comparison" row so users can quickly drop out of
+  // comparison mode without hunting for a specific month. Rendered with
+  // its own label so fmtMkFull doesn't get called on the sentinel.
+  var list = [{ key: 'none', tag: null, label: 'No comparison', desc: 'Show current period only' }]
+    .concat(pinned)
+    .concat(
+      months.slice().reverse()
+        .filter(function(m) { return m !== finMonth && pinnedKeys.indexOf(m) < 0; })
+        .map(function(m) { return { key: m, tag: null }; })
+    );
 
   var header =
     '<div class="pnl-cmp-sheet-drag">' +
@@ -593,10 +748,15 @@ function populatePnlCompareSheet() {
     '</div>';
   var items = list.map(function(c) {
     var active = c.key === pnlCompareMonth ? ' is-active' : '';
-    var tag = c.tag ? '<span class="pnl-cmp-sheet-tag">' + c.tag + '</span>' : '';
-    var check = c.key === pnlCompareMonth ? '<span class="pnl-cmp-sheet-check">\u2713</span>' : '';
-    return '<button class="pnl-cmp-sheet-item' + active + '" onclick="pickPnlCompare(\'' + c.key + '\')">' +
-      '<span class="pnl-cmp-sheet-item-label">' + fmtMkFull(c.key) + '</span>' + tag + check +
+    var tag    = c.tag ? '<span class="pnl-cmp-sheet-tag">' + c.tag + '</span>' : '';
+    var check  = c.key === pnlCompareMonth ? '<span class="pnl-cmp-sheet-check">\u2713</span>' : '';
+    var label  = c.label || fmtMkFull(c.key);
+    var desc   = c.desc
+      ? '<span class="pnl-cmp-sheet-item-desc">' + esc(c.desc) + '</span>'
+      : '';
+    var cls    = 'pnl-cmp-sheet-item' + active + (c.key === 'none' ? ' pnl-cmp-sheet-item--none' : '');
+    return '<button class="' + cls + '" onclick="pickPnlCompare(\'' + c.key + '\')">' +
+      '<span class="pnl-cmp-sheet-item-label">' + label + desc + '</span>' + tag + check +
     '</button>';
   }).join('');
   sheet.innerHTML = header + '<div class="pnl-cmp-sheet-list">' + items + '</div>';
@@ -643,9 +803,15 @@ function renderOwners() {
     finQuarter = quarters[quarters.length - 1];
   }
 
-  // Sync tab active states — picker UI uses _finPickerTab which may be
-  // 'quick' (preset mode) while the underlying granularity stays month.
-  if (_finPickerTab !== 'quick') _finPickerTab = finGranularity;
+  // Sync tab active states. Range mode always shows the Quick Select
+  // tab since that's the only way to enter a range. Month/quarter mode
+  // syncs to the current granularity (unless user explicitly switched
+  // to the Quick tab, which stays sticky).
+  if (finGranularity === 'range') {
+    _finPickerTab = 'quick';
+  } else if (_finPickerTab !== 'quick') {
+    _finPickerTab = finGranularity;
+  }
   var tabQck = document.getElementById('finTabQuick');
   var tabM   = document.getElementById('finTabMonth');
   var tabQ   = document.getElementById('finTabQuarter');
@@ -655,24 +821,36 @@ function renderOwners() {
 
   // Update picker header title
   var titleEl = document.getElementById('finMonthTitle');
-  if (titleEl) titleEl.textContent = finGranularity === 'quarter' ? fmtQk(finQuarter) : fmtMkFull(finMonth);
+  if (titleEl) {
+    titleEl.textContent =
+      finGranularity === 'quarter' ? fmtQk(finQuarter) :
+      finGranularity === 'range' && finRange ? finRange.label :
+      fmtMkFull(finMonth);
+  }
 
   // Rebuild list for current picker tab
   var listEl = document.getElementById('finMonthList');
   if (listEl) {
     if (_finPickerTab === 'quick') {
-      // Broad preset shortcuts — each anchors the dashboard to a
-      // representative period. Descriptions give one-line context.
+      // Broad preset shortcuts — each aggregates the dashboard across a
+      // rolling window. Descriptions show the EXACT month span the
+      // preset resolves to against the loaded data, so users know
+      // before they click (e.g. "Last 2 Years" with 18 months of data
+      // shows "Apr 24 – Mar 26" = 18 months actual).
       var latestYr = parseInt((months[months.length - 1] || '').split('-')[0]) || new Date().getFullYear();
-      var presets = [
-        { key: 'ytd',      label: 'Year to Date',     desc: fmtMkShort(months[months.length-1]) + ' anchor' },
-        { key: 'last12',   label: 'Last 12 Months',   desc: 'Rolling trailing window' },
-        { key: 'lastYear', label: 'Last Year (' + (latestYr - 1) + ')', desc: 'End of previous year' },
-        { key: 'last2',    label: 'Last 2 Years',     desc: 'Two years back' },
-        { key: 'all',      label: 'All Time',         desc: 'From ' + fmtMkShort(months[0]) }
-      ];
+      var presetKeys = ['ytd', 'last12', 'lastYear', 'last2', 'all'];
+      var presets = presetKeys.map(function(k) {
+        var r = computeFinRange(k, months);
+        return r ? {
+          key:   k,
+          label: r.label,
+          desc:  fmtRangeShort(r.startMk, r.endMk)
+        } : null;
+      }).filter(Boolean);
+      var activeKey = (finGranularity === 'range' && finRange) ? finRange.key : null;
       listEl.innerHTML = presets.map(function(p) {
-        return '<div class="fin-month-item fin-month-item--preset" onclick="pickFinPreset(\'' + p.key + '\')">' +
+        var active = p.key === activeKey ? ' active' : '';
+        return '<div class="fin-month-item fin-month-item--preset' + active + '" onclick="pickFinPreset(\'' + p.key + '\')">' +
           '<span class="fin-month-item-label">' + p.label + '</span>' +
           '<span class="fin-month-item-sub">' + p.desc + '</span>' +
         '</div>';
@@ -732,10 +910,29 @@ function renderOwners() {
     if (qIdxs.length) curIdx = qIdxs[qIdxs.length - 1];
   }
 
-  // at() — sums across the quarter in quarter mode, otherwise returns single-month value
+  // Range mode: aggregate across every month in the preset window.
+  // rangeIdxs is the inclusive [startIdx..endIdx] list. We anchor
+  // curIdx to the END of the range so the trend chart, bar chart,
+  // and other single-point visualisations still get a sensible
+  // highlight point.
+  var rangeIdxs = [];
+  if (finGranularity === 'range' && finRange) {
+    var rs = months.indexOf(finRange.startMk);
+    var re = months.indexOf(finRange.endMk);
+    if (rs < 0) rs = 0;
+    if (re < 0) re = months.length - 1;
+    for (var ri = rs; ri <= re; ri++) rangeIdxs.push(ri);
+    if (rangeIdxs.length) curIdx = rangeIdxs[rangeIdxs.length - 1];
+  }
+
+  // at() — aggregates across the active window (quarter / range) or
+  // returns single-month value when in plain month mode.
   function at(arr) {
     if (finGranularity === 'quarter' && qIdxs.length) {
       return qIdxs.reduce(function(s, i) { return s + (arr[i] || 0); }, 0);
+    }
+    if (finGranularity === 'range' && rangeIdxs.length) {
+      return rangeIdxs.reduce(function(s, i) { return s + (arr[i] || 0); }, 0);
     }
     return arr[curIdx] || 0;
   }
@@ -754,6 +951,23 @@ function renderOwners() {
     if (pyIdxs.length) {
       cmpLabel  = 'vs. ' + fmtQk(pyQk);
       cmpValues = function(arr) { return pyIdxs.reduce(function(s, i) { return s + (arr[i] || 0); }, 0); };
+    }
+  } else if (finGranularity === 'range' && rangeIdxs.length) {
+    // Compare to the prior period of equal length — e.g. "Last 12
+    // Months" (Apr 25 – Mar 26) compares against the 12 months before
+    // that (Apr 24 – Mar 25). If the prior period doesn't fully fit
+    // in the dataset, we truncate to what's available (any partial
+    // overlap is better than no comparison).
+    var rLen = rangeIdxs.length;
+    var pStart = Math.max(0, rangeIdxs[0] - rLen);
+    var pEnd   = rangeIdxs[0] - 1;
+    if (pEnd >= 0 && pEnd >= pStart) {
+      var priorIdxs = [];
+      for (var pi = pStart; pi <= pEnd; pi++) priorIdxs.push(pi);
+      cmpLabel  = 'vs. prior ' + rLen + (rLen === 1 ? ' month' : ' months');
+      cmpValues = function(arr) {
+        return priorIdxs.reduce(function(s, i) { return s + (arr[i] || 0); }, 0);
+      };
     }
   } else {
     var cmpIdx = -1;
@@ -991,9 +1205,19 @@ function renderOwners() {
   var formulaHtml =
     '<div class="mf-card">' +
 
-      // Header
+      // Header — primary label depends on current aggregation mode.
+      // Range mode shows "All Time Financial Summary" (or whichever
+      // preset name), with an "Apr 24 – Mar 26" subtitle so users see
+      // both the semantic label and the underlying window.
       '<div class="mf-header">' +
-        '<div class="mf-header-title">' + fmtMk(finMonth) + ' Financial Summary</div>' +
+        '<div class="mf-header-title">' + (
+          finGranularity === 'quarter' ? fmtQk(finQuarter) :
+          finGranularity === 'range' && finRange ? finRange.label :
+          fmtMk(finMonth)
+        ) + ' Financial Summary</div>' +
+        (finGranularity === 'range' && finRange
+          ? '<div class="mf-header-sub">' + esc(fmtRangeShort(finRange.startMk, finRange.endMk)) + '</div>'
+          : '') +
         (stamp ? '<div class="mf-header-stamp">' + stamp + '</div>' : '') +
       '</div>' +
 
@@ -1085,7 +1309,10 @@ function renderOwners() {
         var gapTxt   = isAbove
           ? '\u25b2 ' + gap.toFixed(1) + '% above the 15% profit goal'
           : gap.toFixed(1) + '% below the 15% profit goal';
-        var periodWord = finGranularity === 'quarter' ? 'quarter' : 'month';
+        var periodWord =
+          finGranularity === 'quarter' ? 'quarter' :
+          finGranularity === 'range'   ? 'period' :
+          'month';
 
         // ── Delta vs prior period ──────────────────────────────
         var prevNOIPct = null;
@@ -1098,6 +1325,19 @@ function renderOwners() {
             var pRev = priorIdxs.reduce(function(s,i){return s+(revenue[i]||0);},0);
             var pNOI = priorIdxs.reduce(function(s,i){return s+(noi[i]||0);},0);
             if (pRev > 0) prevNOIPct = pNOI / pRev * 100;
+          }
+        } else if (finGranularity === 'range' && rangeIdxs.length) {
+          // Range mode: compare against the prior equal-length window
+          var rLenN = rangeIdxs.length;
+          var pEndN = rangeIdxs[0] - 1;
+          var pStartN = Math.max(0, pEndN - rLenN + 1);
+          if (pEndN >= 0 && pEndN >= pStartN) {
+            var pRevR = 0, pNOIR = 0;
+            for (var iN = pStartN; iN <= pEndN; iN++) {
+              pRevR += revenue[iN] || 0;
+              pNOIR += noi[iN] || 0;
+            }
+            if (pRevR > 0) prevNOIPct = pNOIR / pRevR * 100;
           }
         } else if (curIdx > 0 && revenue[curIdx-1] > 0) {
           prevNOIPct = noi[curIdx-1] / revenue[curIdx-1] * 100;
@@ -1229,7 +1469,11 @@ function renderOwners() {
   document.getElementById('finTrendCard').style.display = multiMonth ? '' : 'none';
   var updEl = document.getElementById('finUpdated');
   if (updEl) {
-    var updTxt = (finGranularity === 'quarter' ? fmtQk(finQuarter) : fmtMk(finMonth)) + '  \u00b7  ';
+    var updLbl =
+      finGranularity === 'quarter' ? fmtQk(finQuarter) :
+      finGranularity === 'range' && finRange ? finRange.label + ' (' + fmtRangeShort(finRange.startMk, finRange.endMk) + ')' :
+      fmtMk(finMonth);
+    var updTxt = updLbl + '  \u00b7  ';
     if (ownersData.fetchedAt) updTxt += 'as of ' + new Date(ownersData.fetchedAt).toLocaleTimeString();
     updEl.textContent = updTxt;
   }
@@ -1308,27 +1552,76 @@ function renderOwners() {
     document.getElementById('finPnlSubtitle').textContent = fmtQk(finQuarter);
 
   } else {
-    // ── Month mode: focused 2-column comparison layout ───────────
-    var priIdx2 = curIdx;
-    var priRev  = revenue[priIdx2] || 0;
+    // ── Month mode OR Range mode: focused 2-column ledger layout ──
+    //
+    // In both modes we aggregate the primary side across priIdxs and
+    // the comparison side across cmpIdxs. For single-month mode these
+    // arrays have length 1; for range mode they span the whole window.
+    // Unifying on arrays lets buildLedgerRow stay identical regardless
+    // of mode.
+    var priIdxs, cmpIdxs, priAnchorLabel, cmpAnchorLabel;
+    var cmpIsAuto = false;  // true in range mode — user can't pick
 
-    // Default compare = SAME MONTH prior year (YoY). Falls back to
-    // prior month if the YoY month isn't in the dataset.
-    if (!pnlCompareMonth || pnlCompareMonth === finMonth || months.indexOf(pnlCompareMonth) < 0) {
-      // NOTE: must not shadow the outer `parts` (the Job-Supplies monthly
-      // value array from line 693) — doing so zeroes out `dParts` in the
-      // donut below and dumps the $83K into the "Other" slice.
-      var ymParts = finMonth.split('-');
-      var yoyKey = (parseInt(ymParts[0]) - 1) + '-' + ymParts[1];
-      if (months.indexOf(yoyKey) >= 0) {
-        pnlCompareMonth = yoyKey;
+    if (finGranularity === 'range' && finRange && rangeIdxs.length) {
+      // ── Range mode ─────────────────────────────────────────────
+      priIdxs = rangeIdxs.slice();
+      priAnchorLabel = finRange.label + ' (' + fmtRangeShort(finRange.startMk, finRange.endMk) + ')';
+
+      // Compare = prior period of equal length, clamped to dataset
+      var rLen2  = rangeIdxs.length;
+      var pEnd2  = rangeIdxs[0] - 1;
+      var pStart2 = Math.max(0, pEnd2 - rLen2 + 1);
+      cmpIdxs = [];
+      if (pEnd2 >= 0 && pEnd2 >= pStart2) {
+        for (var p2 = pStart2; p2 <= pEnd2; p2++) cmpIdxs.push(p2);
+        cmpAnchorLabel = 'Prior period (' +
+          fmtRangeShort(months[cmpIdxs[0]], months[cmpIdxs[cmpIdxs.length-1]]) + ')';
       } else {
-        var defPi = priIdx2 - 1;
-        pnlCompareMonth = defPi >= 0 ? months[defPi] : null;
+        cmpAnchorLabel = 'No prior period';
+      }
+      cmpIsAuto = true;
+
+    } else {
+      // ── Month mode ─────────────────────────────────────────────
+      var priIdx2 = curIdx;
+      priIdxs        = [priIdx2];
+      priAnchorLabel = fmtMkFull(finMonth);
+
+      // Sentinel 'none' = user explicitly opted out of comparison.
+      // We preserve that choice across re-renders and show a clean
+      // single-column ledger with no deltas. Any OTHER invalid value
+      // (null, the current month itself, or a month not in the data)
+      // falls back to auto-picking YoY / prior month.
+      if (pnlCompareMonth === 'none') {
+        cmpIdxs        = [];
+        cmpAnchorLabel = 'No comparison';
+      } else {
+        if (!pnlCompareMonth || pnlCompareMonth === finMonth || months.indexOf(pnlCompareMonth) < 0) {
+          // NOTE: must not shadow the outer `parts` (the Job-Supplies monthly
+          // value array from line 693) — doing so zeroes out `dParts` in the
+          // donut below and dumps the $83K into the "Other" slice.
+          var ymParts = finMonth.split('-');
+          var yoyKey = (parseInt(ymParts[0]) - 1) + '-' + ymParts[1];
+          if (months.indexOf(yoyKey) >= 0) {
+            pnlCompareMonth = yoyKey;
+          } else {
+            var defPi = priIdx2 - 1;
+            pnlCompareMonth = defPi >= 0 ? months[defPi] : null;
+          }
+        }
+        var cmpIdx2 = pnlCompareMonth ? months.indexOf(pnlCompareMonth) : -1;
+        cmpIdxs = cmpIdx2 >= 0 ? [cmpIdx2] : [];
+        cmpAnchorLabel = pnlCompareMonth ? fmtMkFull(pnlCompareMonth) : 'Select…';
       }
     }
-    var cmpIdx2 = pnlCompareMonth ? months.indexOf(pnlCompareMonth) : -1;
-    var cmpRev  = cmpIdx2 >= 0 ? (revenue[cmpIdx2] || 0) : 0;
+
+    // Sum helper — primary/compare revenue used for % Rev ratios etc.
+    function sumIdxs(arr, idxs) {
+      if (!idxs || !idxs.length) return 0;
+      return idxs.reduce(function(s, i) { return s + (arr[i] || 0); }, 0);
+    }
+    var priRev = sumIdxs(revenue, priIdxs);
+    var cmpRev = sumIdxs(revenue, cmpIdxs);
 
     // ── "Performance Impact" ledger row builder ───────────────────
     // Replaces the old 3-column table with a stacked flex row that
@@ -1343,14 +1636,19 @@ function renderOwners() {
       'Revenue': 1, 'Cost of Goods Sold': 1, 'Operating Expenses': 1
     };
 
-    function buildLedgerRow(row, pi, ci, priRev, cmpRev) {
-      var pv   = row.arr[pi] || 0;
-      var cv   = ci >= 0 ? (row.arr[ci] || 0) : 0;
+    function buildLedgerRow(row, piIdxs, ciIdxs, priRev, cmpRev) {
+      // Primary / comparison values — sum across the index arrays so
+      // the same builder works for single-month AND multi-month range
+      // modes. Single-month passes length-1 arrays; range mode passes
+      // the full window.
+      var pv   = sumIdxs(row.arr, piIdxs);
+      var hasCmp = ciIdxs && ciIdxs.length > 0;
+      var cv   = hasCmp ? sumIdxs(row.arr, ciIdxs) : 0;
       var diff = pv - cv;
 
       // Direction: is this diff a "win" or a "watch"?
       // Revenue/GP/NOI: up=good. Costs/expenses: down=good.
-      var isFlat  = (diff === 0) || ci < 0;
+      var isFlat  = (diff === 0) || !hasCmp;
       var isGood  = !isFlat && (row.good === 'up' ? diff > 0 : diff < 0);
       var sign    = isFlat ? 'flat' : (isGood ? 'pos' : 'neg');
 
@@ -1378,7 +1676,7 @@ function renderOwners() {
       if (isFlat) {
         deltaHtml =
           '<span class="pnl-delta-arrow">' + arrowGlyph + '</span>' +
-          '<span class="pnl-delta-text">' + (ci < 0 ? '\u2014' : 'no change') + '</span>';
+          '<span class="pnl-delta-text">' + (!hasCmp ? '\u2014' : 'no change') + '</span>';
       } else {
         var sgn = diff > 0 ? '+' : '';
         var pctPrefix = diff > 0 ? '+' : '';
@@ -1435,7 +1733,7 @@ function renderOwners() {
       var valuesHtml =
         '<div class="pnl-row-values">' +
           '<div class="pnl-row-cur">' + fmtDollar(pv) + '</div>' +
-          (ci < 0
+          (!hasCmp
             ? '<div class="pnl-row-prev">&mdash;</div>'
             : '<div class="pnl-row-prev">was ' + fmtDollar(cv) + '</div>') +
         '</div>';
@@ -1460,26 +1758,31 @@ function renderOwners() {
       return { html: html, sign: sign, absDiff: Math.abs(diff), absPct: Math.abs(pctVal), row: row };
     }
 
-    // Dual-anchor "MAR 2026  vs  MAR 2025 ▾" header replaces the
-    // horizontal scrolling chip list. The compare button opens a
-    // bottom-sheet (mobile) / centered modal (desktop) via
-    // openPnlCompareSheet() so the user picks from a clean list.
-    var priFullLabel = fmtMkFull(finMonth);
-    var cmpFullLabel = pnlCompareMonth ? fmtMkFull(pnlCompareMonth) : 'Select…';
+    // Dual-anchor header — "Viewing  vs  Compare to".
+    // In month mode the Compare-to side is a clickable button that
+    // opens the pick-a-month sheet. In range mode the comparison is
+    // auto-computed (prior period of equal length) so the button
+    // becomes a static read-only label — clicking it doesn't make
+    // sense since the comparison is derived, not chosen.
+    var cmpButtonOpen  = cmpIsAuto
+      ? '<div class="pnl-anchor-cmp pnl-anchor-cmp--auto" aria-label="Comparison period (auto)">'
+      : '<button class="pnl-anchor-cmp" onclick="openPnlCompareSheet()" aria-label="Change comparison month">';
+    var cmpButtonClose = cmpIsAuto ? '</div>' : '</button>';
+    var cmpChevronHtml = cmpIsAuto ? '' :
+      '<svg class="pnl-anchor-chev" viewBox="0 0 12 7" width="13" height="8" aria-hidden="true">' +
+        '<path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '</svg>';
     var pickerHtml =
       '<div class="pnl-anchor">' +
         '<div class="pnl-anchor-pri">' +
           '<div class="pnl-anchor-kicker">Viewing</div>' +
-          '<div class="pnl-anchor-pri-month">' + esc(priFullLabel) + '</div>' +
+          '<div class="pnl-anchor-pri-month">' + esc(priAnchorLabel) + '</div>' +
         '</div>' +
         '<div class="pnl-anchor-vs" aria-hidden="true">vs</div>' +
-        '<button class="pnl-anchor-cmp" onclick="openPnlCompareSheet()" aria-label="Change comparison month">' +
+        cmpButtonOpen +
           '<div class="pnl-anchor-kicker">Compare to</div>' +
-          '<div class="pnl-anchor-cmp-month">' + esc(cmpFullLabel) +
-          '<svg class="pnl-anchor-chev" viewBox="0 0 12 7" width="13" height="8" aria-hidden="true">' +
-            '<path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
-          '</svg></div>' +
-        '</button>' +
+          '<div class="pnl-anchor-cmp-month">' + esc(cmpAnchorLabel) + cmpChevronHtml + '</div>' +
+        cmpButtonClose +
       '</div>';
 
     // ── Build ledger rows in natural P&L statement order ─────────────
@@ -1496,11 +1799,11 @@ function renderOwners() {
     // dead weight in a P&L. Subtotals / grand totals / category headers
     // always render as orientation anchors.
     var ledgerItems = pnlRows.map(function(row) {
-      return buildLedgerRow(row, priIdx2, cmpIdx2, priRev, cmpRev);
+      return buildLedgerRow(row, priIdxs, cmpIdxs, priRev, cmpRev);
     }).filter(function(it) {
       if (it.row.cls === 'indent') {
-        var pv = it.row.arr[priIdx2] || 0;
-        var cv = cmpIdx2 >= 0 ? (it.row.arr[cmpIdx2] || 0) : 0;
+        var pv = sumIdxs(it.row.arr, priIdxs);
+        var cv = sumIdxs(it.row.arr, cmpIdxs);
         if (pv === 0 && cv === 0) return false;
       }
       return true;
@@ -1517,7 +1820,10 @@ function renderOwners() {
       '</div>';
 
     document.getElementById('finPnlGrid').innerHTML = pickerHtml + ledgerHtml;
-    document.getElementById('finPnlSubtitle').textContent = fmtMkFull(finMonth);
+    document.getElementById('finPnlSubtitle').textContent =
+      finGranularity === 'range' && finRange
+        ? fmtRangeFull(finRange.startMk, finRange.endMk)
+        : fmtMkFull(finMonth);
   }
 
   // ── Cost breakdown donut (selected month) ────────────────────
@@ -1530,7 +1836,7 @@ function renderOwners() {
   var dVehicle   = at(vehicleExp);
   var dOffice    = at(officeExp);
   var dMerch     = at(merchExp);
-  var dInsure    = acct('Insurance')[curIdx] || 0;
+  var dInsure    = at(acct('Insurance'));
   var dBenefits  = at(benefitsExp);
   var dUtil      = at(utilExp);
   var dAccounted = dTechLabor + dParts + dSubs + dAdmin + dMkt + dRent + dVehicle + dOffice + dMerch + dInsure + dBenefits + dUtil;
@@ -2598,13 +2904,26 @@ async function mfDrillDown(label, acctKey) {
 
   // Determine which months to pull and the label to show in the sheet header
   var fetchMonths, periodLabel;
+  var availMonths = ownersData.months || [];
   if (finGranularity === 'quarter' && finQuarter) {
     fetchMonths = quarterMonths(finQuarter).filter(function(mk) {
-      return (ownersData.months || []).indexOf(mk) >= 0;
+      return availMonths.indexOf(mk) >= 0;
     });
     periodLabel = fmtQk(finQuarter);
+  } else if (finGranularity === 'range' && finRange) {
+    // Range mode: pull every month inside the window. Fetches run
+    // serially below — for long windows (All Time / Last 2 Years)
+    // this is N HTTP calls, so users feel the cost, but it matches
+    // what they'd expect: "show me every transaction across this
+    // whole period."
+    var rsI = availMonths.indexOf(finRange.startMk);
+    var reI = availMonths.indexOf(finRange.endMk);
+    if (rsI < 0) rsI = 0;
+    if (reI < 0) reI = availMonths.length - 1;
+    fetchMonths = availMonths.slice(rsI, reI + 1);
+    periodLabel = finRange.label + ' · ' + fmtRangeShort(finRange.startMk, finRange.endMk);
   } else {
-    var single = finMonth || (ownersData.months || [])[(ownersData.months || []).length - 1];
+    var single = finMonth || availMonths[availMonths.length - 1];
     fetchMonths = [single];
     periodLabel = fmtMk(single);
   }
