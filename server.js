@@ -432,8 +432,29 @@ function marketingSpendByMonth(parsed) {
 }
 // ────────────────────────────────────────────────────────────────────────────
 
-// Serve static files from public/
-app.use(express.static('public'));
+// Serve static files from public/. Cache-Control: no-cache on CSS + JS
+// files so browsers always revalidate with the server before using a
+// cached copy (ETag-based 304s if unchanged, fresh content if edited).
+// Without this, Safari/Chrome happily serve a weeks-old CSS/JS from
+// the HTTP cache after a deploy, which makes loader / style changes
+// appear to not land at all.
+app.use(express.static('public', {
+  etag: true,
+  lastModified: true,
+  setHeaders: (res, filePath) => {
+    // Long-term cache for images/fonts — safe, they rarely change
+    if (/\.(png|jpg|jpeg|gif|svg|ico|woff2?)$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      return;
+    }
+    // HTML / CSS / JS — always revalidate. The response is still
+    // cacheable, but the browser MUST check ETag before reusing it,
+    // so edits go live on the next page view without a hard-refresh.
+    if (/\.(html|css|js)$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'no-cache');
+    }
+  }
+}));
 
 app.get('/api/metrics', async (req, res) => {
   if (!API_KEY) {
