@@ -29,30 +29,29 @@ async function fetchQBOMarketing() {
 function startLedgerLoader(container) {
   if (_ttLoader) _ttLoader.destroy();
 
-  // ── 17 loader concepts — each an SVG / DOM + class package ──
-  // Variants 1–15 are the new architectural + business animations;
-  // 16 & 17 are the two kept from the prior round (origami fold +
-  // terra-cotta curing bar). CSS in marketing-paper.css drives most
-  // of the motion — SMIL is used where CSS alone can't animate the
-  // attribute (SVG `points`, `d`, `cx`, etc.).
+  // ── 13 loader concepts — each an SVG / DOM + class package ──
+  // Variants 1–3 are the kept favorites (pencil circle, isometric
+  // ripple, terracotta curing bar). Variants 4–13 are new isometric
+  // variations on the same foundation: every one of them layers
+  // "system doing heavy 3D processing" on top of the bar-ripple
+  // primitive with a specific thematic twist (math / paper / money
+  // / scheduling).
+  // Most motion lives in marketing-paper.css; SMIL is used only for
+  // attributes CSS can't reach (`points`, `d`, `cx`, etc.).
   var cells = [
-    { n:  1, name: 'Drafting Pencil Circle Trace',       svg: lgSvg_1() },
-    { n:  2, name: 'Blueprint Overlay Stagger',          svg: lgSvg_2() },
-    { n:  3, name: 'Paper Flip Book of a Building',      svg: lgSvg_3() },
-    { n:  4, name: 'Floor Plan Room Draw',               svg: lgSvg_4() },
-    { n:  5, name: 'Blueprint Grid Ripple',              svg: lgSvg_5() },
-    { n:  6, name: 'Pencil → Pen Line Weight',           svg: lgSvg_6() },
-    { n:  7, name: 'Architectural Model Unfolding',      svg: lgSvg_7() },
-    { n:  8, name: 'Paper Crane Transformation',         svg: lgSvg_8() },
-    { n:  9, name: 'Vellum Paper Scale Pulse',           svg: lgSvg_9() },
-    { n: 10, name: 'Laser-Cut Stencil Shadow Sweep',     svg: lgSvg_10() },
-    { n: 11, name: 'Tabular Data Growth Cascade',        svg: lgSvg_11() },
-    { n: 12, name: 'Growth Chart Risograph Highlighter', svg: lgSvg_12() },
-    { n: 13, name: 'Stacked Data Column Fill',           svg: lgSvg_13() },
-    { n: 14, name: 'Project Roadmap Connection',         svg: lgSvg_14() },
-    { n: 15, name: 'Isometric Bar Chart Ripple',         svg: lgSvg_15() },
-    { n: 16, name: 'Continuous Origami Fold (kept)',     svg: lgSvg_16() },
-    { n: 17, name: 'Terra Cotta Curing Bar (kept)',      svg: lgSvg_17() }
+    { n:  1, name: 'Drafting Pencil Circle Trace (kept)', svg: lgSvg_1()  },
+    { n:  2, name: 'Isometric Bar Chart Ripple (kept)',   svg: lgSvg_2()  },
+    { n:  3, name: 'Terra Cotta Curing Bar (kept)',       svg: lgSvg_3()  },
+    { n:  4, name: 'Tabular Engine',                       svg: lgSvg_4()  },
+    { n:  5, name: 'Drafting Dimension',                   svg: lgSvg_5()  },
+    { n:  6, name: 'Formula Extrusion',                    svg: lgSvg_6()  },
+    { n:  7, name: 'Origami Pop-Up',                       svg: lgSvg_7()  },
+    { n:  8, name: 'Vellum Layer Push',                    svg: lgSvg_8()  },
+    { n:  9, name: 'Ledger Stack',                         svg: lgSvg_9()  },
+    { n: 10, name: 'Variance Shift',                       svg: lgSvg_10() },
+    { n: 11, name: 'Market Topography',                    svg: lgSvg_11() },
+    { n: 12, name: 'Calendar Matrix',                      svg: lgSvg_12() },
+    { n: 13, name: 'Time-Slot Cascade',                    svg: lgSvg_13() }
   ];
 
   var gridHtml = cells.map(function(c) {
@@ -145,433 +144,33 @@ function lgSvg_1() {
   '</svg>';
 }
 
-/* 2 — Architectural Overlay Blueprint Stagger
-   4 translucent vellum layers stack into place, each dropping in
-   from a few pixels above with a 100ms delay and a "cushioned"
-   decelerating ease to simulate tracing-paper air-resistance. */
-function lgSvg_2() {
-  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
-    // Layer 1 — building outline
-    '<g class="lg2-layer lg2-layer--1" stroke="#002147" fill="none" stroke-width="1.1">' +
-      '<rect x="28" y="34" width="84" height="72"/>' +
-      '<line x1="28" y1="70" x2="112" y2="70"/>' +
-    '</g>' +
-    // Layer 2 — interior walls
-    '<g class="lg2-layer lg2-layer--2" stroke="#002147" fill="none" stroke-width="0.9">' +
-      '<line x1="66" y1="34" x2="66" y2="70"/>' +
-      '<line x1="66" y1="70" x2="112" y2="70"/>' +
-      '<line x1="88" y1="70" x2="88" y2="106"/>' +
-    '</g>' +
-    // Layer 3 — dimension lines + door swing
-    '<g class="lg2-layer lg2-layer--3" stroke="#B57A3A" fill="none" stroke-width="0.8" stroke-dasharray="2 2">' +
-      '<path d="M66,50 Q78,50 78,62" stroke-dasharray="0"/>' +
-      '<line x1="28" y1="22" x2="112" y2="22"/>' +
-      '<line x1="28" y1="19" x2="28" y2="25"/>' +
-      '<line x1="112" y1="19" x2="112" y2="25"/>' +
-    '</g>' +
-    // Layer 4 — annotations + final ink
-    '<g class="lg2-layer lg2-layer--4" fill="#2C2A28" font-family="ui-monospace, monospace" font-size="6">' +
-      '<text x="44" y="52">LIVING</text>' +
-      '<text x="78" y="52">KITCHEN</text>' +
-      '<text x="44" y="88">BED</text>' +
-      '<text x="94" y="88">BATH</text>' +
-      '<circle cx="36" cy="70" r="1.2" fill="#002147"/>' +
-      '<circle cx="104" cy="70" r="1.2" fill="#002147"/>' +
-    '</g>' +
-  '</svg>';
-}
-
-/* 3 — Physical Paper Flip Book of a Building
-   8 construction frames cycled via CSS animation-delay with a
-   keyframe that holds each frame's opacity at 1 for 1/8 of the
-   cycle then snaps to 0. The flip-book "frame-by-frame" feel comes
-   from the deliberate lack of interpolation between states.
-   Container is tilted -6° for an isometric presentation. */
-function lgSvg_3() {
-  // Helper — a floor box (rectangle with window grid)
-  function floor(y, wins) {
-    var w = '';
-    if (wins) {
-      for (var i = 0; i < 3; i++) {
-        w += '<rect x="' + (42 + i*15) + '" y="' + (y+5) + '" width="8" height="10" ' +
-             'fill="#FAF9F6" stroke="#2C2A28" stroke-width="0.5"/>';
-      }
-    }
-    return '<rect x="36" y="' + y + '" width="68" height="20" ' +
-           'fill="#E8E0CF" stroke="#2C2A28" stroke-width="0.8"/>' + w;
-  }
-  var frames = [
-    // F1 — site leveling (just foundation line)
-    '<line x1="30" y1="115" x2="110" y2="115" stroke="#2C2A28" stroke-width="1.2"/>',
-    // F2 — foundation
-    '<rect x="36" y="108" width="68" height="8" fill="#C19A6B" stroke="#2C2A28" stroke-width="0.8"/>',
-    // F3 — + 1st floor
-    '<rect x="36" y="108" width="68" height="8" fill="#C19A6B" stroke="#2C2A28" stroke-width="0.8"/>' +
-    floor(88, false),
-    // F4 — + 1st floor windows
-    '<rect x="36" y="108" width="68" height="8" fill="#C19A6B" stroke="#2C2A28" stroke-width="0.8"/>' +
-    floor(88, true),
-    // F5 — + 2nd floor
-    '<rect x="36" y="108" width="68" height="8" fill="#C19A6B" stroke="#2C2A28" stroke-width="0.8"/>' +
-    floor(88, true) + floor(68, false),
-    // F6 — + 2nd floor windows
-    '<rect x="36" y="108" width="68" height="8" fill="#C19A6B" stroke="#2C2A28" stroke-width="0.8"/>' +
-    floor(88, true) + floor(68, true),
-    // F7 — + 3rd floor
-    '<rect x="36" y="108" width="68" height="8" fill="#C19A6B" stroke="#2C2A28" stroke-width="0.8"/>' +
-    floor(88, true) + floor(68, true) + floor(48, true),
-    // F8 — + peaked roof + door
-    '<rect x="36" y="108" width="68" height="8" fill="#C19A6B" stroke="#2C2A28" stroke-width="0.8"/>' +
-    floor(88, true) + floor(68, true) + floor(48, true) +
-    '<polygon points="30,48 70,28 110,48" fill="#7A4A25" stroke="#2C2A28" stroke-width="0.8"/>' +
-    '<rect x="64" y="98" width="12" height="18" fill="#7A4A25" stroke="#2C2A28" stroke-width="0.5"/>'
-  ];
-  var groups = frames.map(function(f, i) {
-    return '<g class="lg3-frame lg3-frame--' + (i+1) + '">' + f + '</g>';
-  }).join('');
-  return '<svg class="lg-svg lg3-svg" viewBox="0 0 140 140">' + groups + '</svg>';
-}
-
-/* 4 — Sequential Floor Plan Room Draw
-   Four walls draw one at a time via stroke-dashoffset, each with
-   a small "drafting pause" at the corner (100ms) before the next
-   begins. After the walls complete, a door-swing arc and window
-   symbols fade in. */
-function lgSvg_4() {
-  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
-    '<g class="lg4-plan">' +
-      // Four walls of a rectangular room (34,40) to (106,100)
-      '<line class="lg4-wall lg4-w1" x1="34" y1="40" x2="106" y2="40"/>' +
-      '<line class="lg4-wall lg4-w2" x1="106" y1="40" x2="106" y2="100"/>' +
-      '<line class="lg4-wall lg4-w3" x1="106" y1="100" x2="34" y2="100"/>' +
-      '<line class="lg4-wall lg4-w4" x1="34" y1="100" x2="34" y2="40"/>' +
-      // Door swing arc (appears last)
-      '<g class="lg4-door">' +
-        '<path d="M62,100 A14 14 0 0 1 76 86" fill="none" stroke="#7A7571" stroke-width="0.8" stroke-dasharray="1.5 1.5"/>' +
-        '<line x1="62" y1="100" x2="76" y2="100" stroke="#FAF9F6" stroke-width="3"/>' +
-      '</g>' +
-      // Window symbols (three parallel lines)
-      '<g class="lg4-win">' +
-        '<line x1="52" y1="40" x2="88" y2="40" stroke="#FAF9F6" stroke-width="3"/>' +
-        '<line x1="52" y1="40" x2="88" y2="40" stroke="#2C2A28" stroke-width="0.7"/>' +
-      '</g>' +
-    '</g>' +
-  '</svg>';
-}
-
-/* 5 — Blueprint Grid Ripple to Solid Line
-   6×6 grid of tiny dots. Each dot animates scale + border-radius
-   (circle → square touching neighbors) with delay based on
-   Chebyshev distance from center, producing a radial ripple that
-   briefly forms a solid wall before reverting. */
-function lgSvg_5() {
-  var N = 6;
-  var cellSize = 18;
-  var origin = 16;          // leftmost grid position in viewBox
-  var center = (N - 1) / 2; // grid center index (2.5 for 6x6)
-  var html = '';
-  for (var r = 0; r < N; r++) {
-    for (var c = 0; c < N; c++) {
-      var cx = origin + c * cellSize + cellSize / 2;
-      var cy = origin + r * cellSize + cellSize / 2;
-      // Chebyshev distance — creates square rings of equal delay
-      var d = Math.max(Math.abs(r - center), Math.abs(c - center));
-      var delay = (d * 120).toFixed(0);
-      html +=
-        '<rect class="lg5-dot" x="' + (cx - 8) + '" y="' + (cy - 8) +
-              '" width="16" height="16" ' +
-              'style="animation-delay:' + delay + 'ms"/>';
-    }
-  }
-  return '<svg class="lg-svg" viewBox="0 0 140 140">' + html + '</svg>';
-}
-
-/* 6 — Pencil to Pen Line Weight Transition
-   Two stacked paths form the same architectural arch motif. The
-   bottom path is a thin faint pencil guide (static). The top path
-   is drawn in as thick charcoal ink, with a turbulence + displacement
-   filter giving its edges a slight irregular "ink bleed" feel. */
-function lgSvg_6() {
-  var d = 'M28,104 L28,72 Q28,44 70,44 Q112,44 112,72 L112,104';
-  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
-    '<defs>' +
-      '<filter id="lg6-bleed">' +
-        '<feTurbulence baseFrequency="0.9" numOctaves="1" seed="4"/>' +
-        '<feDisplacementMap in="SourceGraphic" scale="1.2"/>' +
-      '</filter>' +
-    '</defs>' +
-    // Pencil guide — faint, thin, static
-    '<path d="' + d + '" fill="none" stroke="#7A7571" stroke-width="0.5" ' +
-          'opacity="0.45" stroke-linecap="round" stroke-linejoin="round"/>' +
-    // Ink tracing — thicker, drawn in, bleeding
-    '<path class="lg6-ink" d="' + d + '" fill="none" stroke="#2C2A28" ' +
-          'stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" ' +
-          'filter="url(#lg6-bleed)"/>' +
-    // Base line under the arch
-    '<line x1="16" y1="104" x2="124" y2="104" stroke="#7A7571" stroke-width="0.5" opacity="0.45"/>' +
-    '<line class="lg6-ink lg6-ink--base" x1="16" y1="104" x2="124" y2="104" ' +
-          'stroke="#2C2A28" stroke-width="2.2" stroke-linecap="round" filter="url(#lg6-bleed)"/>' +
-  '</svg>';
-}
-
-/* 7 — Architectural Model Unfolding
-   Central square (the "core") with four triangular flaps hinged on
-   each of its edges. Flaps begin folded onto the core (rotated 180°
-   around their shared edge) and unfold outward with a stiff bouncy
-   ease that overshoots + snaps back. */
-function lgSvg_7() {
-  return '<div class="lg7-scene">' +
-    '<div class="lg7-core"></div>' +
-    '<div class="lg7-flap lg7-flap--top"></div>' +
-    '<div class="lg7-flap lg7-flap--right"></div>' +
-    '<div class="lg7-flap lg7-flap--bottom"></div>' +
-    '<div class="lg7-flap lg7-flap--left"></div>' +
-  '</div>';
-}
-
-/* 8 — Paper Crane Transformation
-   Square morphs into a crane silhouette via SMIL path morphing.
-   A CSS drop-shadow on the container scales with animation phase
-   (see .lg8-wrap in CSS) to sell the physical depth. */
-function lgSvg_8() {
-  return '<div class="lg8-wrap">' +
-    '<svg class="lg-svg" viewBox="0 0 140 140">' +
-      '<path fill="#F4F1EA" stroke="#5C5448" stroke-width="0.6" stroke-linejoin="round">' +
-        '<animate attributeName="d" dur="4.5s" repeatCount="indefinite" ' +
-                 'calcMode="spline" keyTimes="0;0.45;0.55;1" ' +
-                 'keySplines="0.3 0 0.2 1;0 0 1 1;0.3 0 0.2 1" ' +
-                 'values="' +
-                   // Square (flat paper)
-                   'M28,28 L112,28 L112,112 L28,112 Z;' +
-                   // Mid-fold (diamond kite)
-                   'M70,20 L115,70 L70,120 L25,70 Z;' +
-                   // Crane silhouette (head + body + wings + tail)
-                   'M70,28 L82,58 L118,44 L92,72 L112,100 L86,90 L70,112 L60,88 L28,100 L48,72 L22,44 L58,58 Z;' +
-                   // Back to square (via diamond implicit)
-                   'M28,28 L112,28 L112,112 L28,112 Z"/>' +
-      '</path>' +
-    '</svg>' +
-  '</div>';
-}
-
-/* 9 — Vellum Paper Scale Pulse
-   A technical cross-section detail (beam with flange + web + bolts)
-   scales 1 → 1.06 → 1 on a slow cycle. Above it, a fixed noise
-   overlay sits in multiply blend mode, so the drawing appears to
-   move UNDER the stationary paper grain — locking the scene into
-   the physical world per the spec. */
-function lgSvg_9() {
-  return '<div class="lg9-wrap">' +
-    '<svg class="lg-svg lg9-drawing" viewBox="0 0 140 140">' +
-      // Wide-flange beam (I-beam) cross-section with bolts + dimension
-      '<g stroke="#2C2A28" fill="none" stroke-width="1.1" stroke-linejoin="round">' +
-        // Top flange
-        '<rect x="30" y="40" width="80" height="9" fill="#E8E0CF"/>' +
-        // Web
-        '<rect x="64" y="49" width="12" height="42" fill="#E8E0CF"/>' +
-        // Bottom flange
-        '<rect x="30" y="91" width="80" height="9" fill="#E8E0CF"/>' +
-      '</g>' +
-      // Bolt holes
-      '<g fill="#2C2A28">' +
-        '<circle cx="40" cy="44.5" r="1.2"/>' +
-        '<circle cx="100" cy="44.5" r="1.2"/>' +
-        '<circle cx="40" cy="95.5" r="1.2"/>' +
-        '<circle cx="100" cy="95.5" r="1.2"/>' +
-      '</g>' +
-      // Dimension lines (yellow, technical)
-      '<g stroke="#B09000" stroke-width="0.5" fill="#6B5600">' +
-        '<line x1="30" y1="114" x2="110" y2="114"/>' +
-        '<line x1="30" y1="111" x2="30" y2="117"/>' +
-        '<line x1="110" y1="111" x2="110" y2="117"/>' +
-        '<text x="62" y="124" font-size="6" font-family="ui-monospace, monospace" stroke="none">W8×15</text>' +
-      '</g>' +
-    '</svg>' +
-    // Static paper grain overlaid ON TOP in multiply mode
-    '<div class="lg9-grain"></div>' +
-  '</div>';
-}
-
-/* 10 — Laser-Cut Stencil Shadow Sweep
-   A static geometric stencil. The drop-shadow's (dx, dy, blur, alpha)
-   are animated in a circular sine-wave pattern via CSS keyframes —
-   only the LIGHT SOURCE moves, the stencil sits still, so the scene
-   reads as a physical object on a desk rather than a moving UI. */
-function lgSvg_10() {
-  return '<div class="lg10-stencil">' +
-    '<svg class="lg-svg" viewBox="0 0 140 140">' +
-      // A grid of small architectural cut-outs
-      '<g fill="#FAF9F6" stroke="#2C2A28" stroke-width="0.8">' +
-        '<rect x="20" y="20" width="32" height="32" rx="2"/>' +
-        '<circle cx="70" cy="36" r="16"/>' +
-        '<rect x="88" y="20" width="32" height="32" rx="2"/>' +
-        // Middle row
-        '<polygon points="20,72 52,72 36,104"/>' +
-        '<rect x="54" y="60" width="32" height="40" rx="1"/>' +
-        '<polygon points="88,72 120,72 104,104"/>' +
-        // Bottom row — three small circles
-        '<circle cx="32" cy="118" r="6"/>' +
-        '<circle cx="70" cy="118" r="6"/>' +
-        '<circle cx="108" cy="118" r="6"/>' +
-      '</g>' +
-    '</svg>' +
-  '</div>';
-}
-
-/* 11 — Tabular Data Growth Cascade
-   Four P&L rows. Each fades in with an upward slide, and the moment
-   it lands its background flashes vibrant yellow then fades clear —
-   simulating a calculated cell being highlighted. Staggered 250ms. */
-function lgSvg_11() {
-  var rows = [
-    { label: 'Revenue',   val: '$273K', pos: '+25%' },
-    { label: 'COGS',      val: '$144K', pos: '+34%' },
-    { label: 'Gross',     val: '$129K', pos: '+38%' },
-    { label: 'Net Inc.',  val:  '$41K', pos: '-30%' }
-  ];
-  var html = rows.map(function(r, i) {
-    return '<div class="lg11-row" style="animation-delay:' + (i * 0.28) + 's">' +
-      '<span class="lg11-label">' + r.label + '</span>' +
-      '<span class="lg11-val">'   + r.val   + '</span>' +
-      '<span class="lg11-pos">'   + r.pos   + '</span>' +
-    '</div>';
-  }).join('');
-  return '<div class="lg11-wrap">' + html + '</div>';
-}
-
-/* 12 — Growth Chart Risograph Highlighter
-   Static yellow-wash area fill underneath a charcoal line chart.
-   A clip-rect (animated left → right) reveals the fill in sync
-   with the line drawing, producing the "highlighter following the
-   pen" effect. Turbulence on the fill gives it marker-on-paper feel. */
-function lgSvg_12() {
-  var line = 'M20,108 L40,94 L60,80 L80,64 L100,48 L120,30';
-  var fill = 'M20,108 L40,94 L60,80 L80,64 L100,48 L120,30 L120,120 L20,120 Z';
-  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
-    '<defs>' +
-      '<filter id="lg12-tex">' +
-        '<feTurbulence baseFrequency="0.85" numOctaves="2" seed="6"/>' +
-        '<feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.18 0"/>' +
-        '<feComposite in2="SourceGraphic" operator="in"/>' +
-      '</filter>' +
-      '<clipPath id="lg12-clip">' +
-        '<rect x="0" y="0" width="140" height="140" class="lg12-clip-rect"/>' +
-      '</clipPath>' +
-    '</defs>' +
-    // Axis lines
-    '<g stroke="#7A7571" stroke-width="0.5" opacity="0.4">' +
-      '<line x1="20" y1="108" x2="120" y2="108"/>' +
-      '<line x1="20" y1="20" x2="20" y2="108"/>' +
-    '</g>' +
-    // Yellow wash — static, revealed via clipPath
-    '<g clip-path="url(#lg12-clip)">' +
-      '<path d="' + fill + '" fill="#FFD700" opacity="0.45"/>' +
-      '<rect x="0" y="0" width="140" height="140" fill="transparent" filter="url(#lg12-tex)"/>' +
-    '</g>' +
-    // Charcoal data line (drawn in via CSS)
-    '<path class="lg12-line" d="' + line + '" fill="none" stroke="#2C2A28" ' +
-          'stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>' +
-    // Data point markers — appear as the line passes through
-    '<g fill="#2C2A28">' +
-      '<circle class="lg12-dot lg12-dot--1" cx="20"  cy="108" r="2"/>' +
-      '<circle class="lg12-dot lg12-dot--2" cx="40"  cy="94"  r="2"/>' +
-      '<circle class="lg12-dot lg12-dot--3" cx="60"  cy="80"  r="2"/>' +
-      '<circle class="lg12-dot lg12-dot--4" cx="80"  cy="64"  r="2"/>' +
-      '<circle class="lg12-dot lg12-dot--5" cx="100" cy="48"  r="2"/>' +
-      '<circle class="lg12-dot lg12-dot--6" cx="120" cy="30"  r="2"/>' +
-    '</g>' +
-  '</svg>';
-}
-
-/* 13 — Stacked Data Column Fill
-   Three columns, each with three color-tiered segments. Segments
-   drop in bottom → middle → top per column with a heavy gravitational
-   ease-in easing (accelerating into the landing). Columns staggered
-   left → right. */
-function lgSvg_13() {
-  var cols = [
-    { x: 28, delay: 0 },
-    { x: 60, delay: 0.18 },
-    { x: 92, delay: 0.36 }
-  ];
-  var segments = '';
-  cols.forEach(function(c, idx) {
-    // Bottom: dark, Middle: mid, Top: light — rendered bottom-up
-    // via transform-origin at bottom so scaleY grows upward.
-    segments +=
-      '<rect class="lg13-seg lg13-seg--b" x="' + c.x + '" y="86" width="20" height="24" ' +
-            'fill="#002147" style="animation-delay:' + (c.delay        ) + 's"/>' +
-      '<rect class="lg13-seg lg13-seg--m" x="' + c.x + '" y="66" width="20" height="20" ' +
-            'fill="#5578A0" style="animation-delay:' + (c.delay + 0.22) + 's"/>' +
-      '<rect class="lg13-seg lg13-seg--t" x="' + c.x + '" y="46" width="20" height="20" ' +
-            'fill="#BFE0F3" style="animation-delay:' + (c.delay + 0.44) + 's"/>';
-  });
-  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
-    // Baseline
-    '<line x1="20" y1="110" x2="120" y2="110" stroke="#7A7571" stroke-width="0.6"/>' +
-    segments +
-  '</svg>';
-}
-
-/* 14 — Sequential Project Roadmap Connection
-   4 icons sit on a dashed grid. A charcoal line draws from left to
-   right across them. Each icon has its own delayed animation that
-   fires at the exact moment the pen reaches it — scale-pulse +
-   fill transitions from hollow to solid accent color. */
-function lgSvg_14() {
-  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
-    // Dashed grid background
-    '<g stroke="#D6CFBD" stroke-width="0.4" stroke-dasharray="2 3">' +
-      '<line x1="10" y1="35" x2="130" y2="35"/>' +
-      '<line x1="10" y1="70" x2="130" y2="70"/>' +
-      '<line x1="10" y1="105" x2="130" y2="105"/>' +
-    '</g>' +
-    // The connecting line that draws through each icon
-    '<path class="lg14-path" d="M26,98 Q44,98 52,70 T80,42 Q98,42 112,70" ' +
-          'fill="none" stroke="#2C2A28" stroke-width="1.3" stroke-linecap="round"/>' +
-    // Icons along the path (hollow → solid with scale pulse)
-    '<g>' +
-      '<circle class="lg14-icon lg14-icon--1" cx="26"  cy="98" r="6"/>' +
-      '<rect   class="lg14-icon lg14-icon--2" x="46"   y="64" width="12" height="12"/>' +
-      '<circle class="lg14-icon lg14-icon--3" cx="80"  cy="42" r="6"/>' +
-      '<polygon class="lg14-icon lg14-icon--4" points="112,64 118,76 106,76"/>' +
-    '</g>' +
-  '</svg>';
-}
-
-/* 15 — Isometric Bar Chart Ripple
+/* 2 — Isometric Bar Chart Ripple (KEPT — now variant #2)
    4×3 grid of isometric bars. Each bar scaleY-animates 0→1 with an
    elastic cubic-bezier that overshoots then wobbles into place. The
    diagonal delay (delay = (col + row) * step) produces a ripple that
-   sweeps corner-to-corner. */
-function lgSvg_15() {
+   sweeps corner-to-corner. This is the foundation all the variants
+   below riff on. */
+function lgSvg_2() {
   var COLS = 4, ROWS = 3, CELL = 20, STEP = 0.08;
   var bars = '';
   for (var r = 0; r < ROWS; r++) {
     for (var c = 0; c < COLS; c++) {
-      // Isometric offset per cell — right shifts X, down shifts Y.
-      // On a 140x140 viewbox anchor at (20, 110) for bottom-left.
-      var x = 20 + c * CELL + r * 6;       // isometric column X
-      var y = 100 - r * 10;                 // isometric row baseline Y
-      // Height varies slightly per cell for visual interest
+      var x = 20 + c * CELL + r * 6;
+      var y = 100 - r * 10;
       var h = 22 + (((c + r*2) % 5) * 8);
       var delay = (c + r) * STEP;
-      // Parallelogram: one visible face + a thin top face
       var x1 = x, y1 = y;
       var x2 = x + 14, y2 = y - 4;
       bars +=
-        '<g class="lg15-bar" style="animation-delay:' + delay + 's;transform-origin:' + x1 + 'px ' + y1 + 'px">' +
-          // Front face
+        '<g class="lg2-bar" style="animation-delay:' + delay + 's;transform-origin:' + x1 + 'px ' + y1 + 'px">' +
           '<polygon points="' +
             x1 + ',' + y1 + ' ' + x2 + ',' + y2 + ' ' +
             x2 + ',' + (y2 - h) + ' ' + x1 + ',' + (y1 - h) +
           '" fill="#E88140" stroke="#2C2A28" stroke-width="0.4"/>' +
-          // Top face
           '<polygon points="' +
             x1 + ',' + (y1 - h) + ' ' + x2 + ',' + (y2 - h) + ' ' +
             (x2 + 4) + ',' + (y2 - h - 3) + ' ' + (x1 + 4) + ',' + (y1 - h - 3) +
           '" fill="#F3A268" stroke="#2C2A28" stroke-width="0.4"/>' +
-          // Right side face
           '<polygon points="' +
             x2 + ',' + y2 + ' ' + (x2 + 4) + ',' + (y2 - 3) + ' ' +
             (x2 + 4) + ',' + (y2 - h - 3) + ' ' + x2 + ',' + (y2 - h) +
@@ -582,47 +181,544 @@ function lgSvg_15() {
   return '<svg class="lg-svg" viewBox="0 0 140 140">' + bars + '</svg>';
 }
 
-/* 16 — Continuous Origami Fold (KEPT from prior round)
-   A square polygon whose `points` attribute is animated via SMIL,
-   simulating a square folding + unfolding. Drop-shadow + noise
-   overlay preserved from the original. */
-function lgSvg_16() {
+/* 3 — Terra Cotta Curing Bar (KEPT — now variant #3)
+   Plain DOM — rounded container + inner fill div. CSS animates width
+   0→100% while background transitions from wet-clay to baked-terracotta. */
+function lgSvg_3() {
+  return '<div class="lg3-wrap"><div class="lg3-fill"></div></div>';
+}
+
+/* 4 — The Tabular Engine
+   5×3 grid of charcoal isometric bars. Each bar flaunts a yellow
+   tabular number on its top face that "odometers" through 3 states
+   during the rise, snapping to its final value at peak. Diagonal
+   wave sweeps front-left → back-right. Monospace digits lock the
+   columns so the tickers read as calculation output. */
+function lgSvg_4() {
+  var COLS = 5, ROWS = 3, CELL = 16, STEP = 0.07;
+  var bars = '';
+  // Pre-generated "calculation outputs" per cell — final value shown
+  // after the ticker settles. Mixed K / % / plain to feel financial.
+  var finals = [
+    '42K', '8.1', '220', '67%', '1.2K',
+    '$94', '37', '152', '4.8',  '81%',
+    '612', '$7', '29',  '90%', '3.5K'
+  ];
+  var intermediates = ['···', '...', '— —'];
+  for (var r = 0; r < ROWS; r++) {
+    for (var c = 0; c < COLS; c++) {
+      var x = 16 + c * CELL + r * 5;
+      var y = 108 - r * 8;
+      var h = 28 + ((c + r) % 3) * 6;
+      var delay = (c + r) * STEP;
+      var x1 = x, y1 = y;
+      var x2 = x + 11, y2 = y - 3;
+      var idx = r * COLS + c;
+      var finalVal = finals[idx];
+      var midVal = intermediates[idx % 3];
+      // Use SMIL on text via switching opacity on two <text> nodes
+      bars +=
+        '<g class="lg4-bar" style="animation-delay:' + delay + 's;transform-origin:' + x1 + 'px ' + y1 + 'px">' +
+          // Front face (dark charcoal)
+          '<polygon points="' +
+            x1 + ',' + y1 + ' ' + x2 + ',' + y2 + ' ' +
+            x2 + ',' + (y2 - h) + ' ' + x1 + ',' + (y1 - h) +
+          '" fill="#2C2A28" stroke="#000" stroke-width="0.3"/>' +
+          // Right side face
+          '<polygon points="' +
+            x2 + ',' + y2 + ' ' + (x2 + 3) + ',' + (y2 - 2) + ' ' +
+            (x2 + 3) + ',' + (y2 - h - 2) + ' ' + x2 + ',' + (y2 - h) +
+          '" fill="#1A1918" stroke="#000" stroke-width="0.3"/>' +
+          // Top face — tinted slightly so the yellow digit pops
+          '<polygon points="' +
+            x1 + ',' + (y1 - h) + ' ' + x2 + ',' + (y2 - h) + ' ' +
+            (x2 + 3) + ',' + (y2 - h - 2) + ' ' + (x1 + 3) + ',' + (y1 - h - 2) +
+          '" fill="#3A3834" stroke="#000" stroke-width="0.3"/>' +
+        '</g>' +
+        // Number on top face — monospace yellow "odometer"
+        '<g class="lg4-num" style="animation-delay:' + delay + 's">' +
+          '<text class="lg4-num-mid" x="' + (x1 + 5.5) + '" y="' + (y1 - h + 0.5) + '" ' +
+                'fill="#FFD700" font-size="3.5" font-family="ui-monospace, monospace" ' +
+                'font-weight="700" text-anchor="middle" style="animation-delay:' + delay + 's">' +
+            esc(midVal) +
+          '</text>' +
+          '<text class="lg4-num-final" x="' + (x1 + 5.5) + '" y="' + (y1 - h + 0.5) + '" ' +
+                'fill="#FFD700" font-size="3.8" font-family="ui-monospace, monospace" ' +
+                'font-weight="700" text-anchor="middle" style="animation-delay:' + delay + 's">' +
+            esc(finalVal) +
+          '</text>' +
+        '</g>';
+    }
+  }
+  return '<svg class="lg-svg" viewBox="0 0 140 140">' + bars + '</svg>';
+}
+
+/* 5 — The Drafting Dimension
+   3 hero bars centered on a warm canvas, flanked by faint dashed
+   pencil axis guides (X / Y / Z). As each bar rises, a dimension
+   line with arrows stretches out from its side, bearing a fractional
+   math readout that "locks in" to the final height. Precision ease. */
+function lgSvg_5() {
+  var bars = [
+    { x: 36, h: 58, label: '5 ⅞"' },
+    { x: 64, h: 74, label: '7 ¼"' },
+    { x: 92, h: 46, label: '4 ⅜"' }
+  ];
+  var floor = 108, barW = 12;
+  var svg = '';
+  bars.forEach(function(b, i) {
+    var delay = i * 0.18;
+    var x1 = b.x, x2 = b.x + barW;
+    var topY = floor - b.h;
+    var topOff = 3;   // isometric top offset
+    svg +=
+      // Bar group (scales from base)
+      '<g class="lg5-bar" style="animation-delay:' + delay + 's;transform-origin:' + x1 + 'px ' + floor + 'px">' +
+        // Front face
+        '<polygon points="' +
+          x1 + ',' + floor + ' ' + x2 + ',' + (floor - topOff) + ' ' +
+          x2 + ',' + (topY - topOff) + ' ' + x1 + ',' + topY +
+        '" fill="#E88140" stroke="#2C2A28" stroke-width="0.5"/>' +
+        // Top face
+        '<polygon points="' +
+          x1 + ',' + topY + ' ' + x2 + ',' + (topY - topOff) + ' ' +
+          (x2 + 3) + ',' + (topY - topOff - 2) + ' ' + (x1 + 3) + ',' + (topY - 2) +
+        '" fill="#F3A268" stroke="#2C2A28" stroke-width="0.5"/>' +
+        // Right side
+        '<polygon points="' +
+          x2 + ',' + (floor - topOff) + ' ' + (x2 + 3) + ',' + (floor - topOff - 2) + ' ' +
+          (x2 + 3) + ',' + (topY - topOff - 2) + ' ' + x2 + ',' + (topY - topOff) +
+        '" fill="#B85F2A" stroke="#2C2A28" stroke-width="0.5"/>' +
+      '</g>' +
+      // Dimension line — extends from the top of the bar, yellow technical
+      '<g class="lg5-dim" style="animation-delay:' + (delay + 0.55) + 's">' +
+        '<line x1="' + (x2 + 4) + '" y1="' + topY + '" x2="' + (x2 + 16) + '" y2="' + topY + '" ' +
+              'stroke="#B09000" stroke-width="0.5"/>' +
+        '<line x1="' + (x2 + 15) + '" y1="' + (topY - 2) + '" x2="' + (x2 + 17) + '" y2="' + topY + '" ' +
+              'stroke="#B09000" stroke-width="0.5"/>' +
+        '<line x1="' + (x2 + 15) + '" y1="' + (topY + 2) + '" x2="' + (x2 + 17) + '" y2="' + topY + '" ' +
+              'stroke="#B09000" stroke-width="0.5"/>' +
+        '<text x="' + (x2 + 19) + '" y="' + (topY + 1.8) + '" fill="#6B5600" ' +
+              'font-size="4.2" font-family="ui-monospace, monospace">' + esc(b.label) + '</text>' +
+      '</g>';
+  });
   return '<svg class="lg-svg" viewBox="0 0 140 140">' +
-    '<defs>' +
-      '<filter id="lg16-shadow" x="-30%" y="-30%" width="160%" height="160%">' +
-        '<feGaussianBlur stdDeviation="3"/>' +
-        '<feOffset dx="0" dy="3"/>' +
-        '<feComponentTransfer><feFuncA type="linear" slope="0.35"/></feComponentTransfer>' +
-        '<feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>' +
-      '</filter>' +
-      '<filter id="lg16-noise">' +
-        '<feTurbulence baseFrequency="0.9" numOctaves="2" seed="3" stitchTiles="stitch"/>' +
-        '<feColorMatrix values="0 0 0 0 0.2  0 0 0 0 0.17  0 0 0 0 0.12  0 0 0 0.12 0"/>' +
-        '<feComposite in2="SourceGraphic" operator="in"/>' +
-      '</filter>' +
-    '</defs>' +
-    '<polygon fill="#F4F1EA" filter="url(#lg16-shadow)" ' +
-             'points="20,20 120,20 120,120 20,120">' +
-      '<animate attributeName="points" dur="4.5s" repeatCount="indefinite" ' +
-               'calcMode="spline" keyTimes="0;0.3;0.55;0.8;1" ' +
-               'keySplines="0.3 0 0.2 1;0.3 0 0.2 1;0.3 0 0.2 1;0.3 0 0.2 1" ' +
-               'values="20,20 120,20 120,120 20,120;' +
-                       '20,25 70,20 70,120 20,115;' +
-                       '25,30 120,45 120,115 25,110;' +
-                       '22,20 120,28 118,120 22,120;' +
-                       '20,20 120,20 120,120 20,120"/>' +
-    '</polygon>' +
-    '<rect width="140" height="140" fill="transparent" filter="url(#lg16-noise)" opacity="0.7"/>' +
+    // Pencil axis guides (static, faint)
+    '<g stroke="#B5A98E" stroke-width="0.4" stroke-dasharray="1.5 2" fill="none">' +
+      '<line x1="20" y1="108" x2="124" y2="108"/>' +   // X baseline
+      '<line x1="26" y1="16"  x2="26"  y2="114"/>' +    // Y
+      '<line x1="20" y1="108" x2="14"  y2="120"/>' +    // Z (isometric diagonal)
+    '</g>' +
+    svg +
   '</svg>';
 }
 
-/* 17 — Terra Cotta Curing Bar (KEPT from prior round)
-   Plain DOM — rounded container + inner fill div. CSS animates width
-   0→100% while background transitions from wet-clay to baked-terracotta. */
-function lgSvg_17() {
-  return '<div class="lg17-wrap"><div class="lg17-fill"></div></div>';
+/* 6 — The Formula Extrusion
+   Starts flat: an equation "7 × 8 + 4" rendered in charcoal ink.
+   The digits + operators each extrude upward into an isometric
+   block, ripple in a sine wave, glow kelly-green at peak, then
+   compress back down into the final solved number "60". */
+function lgSvg_6() {
+  // Six glyph columns — chars become extruding blocks
+  var glyphs = [
+    { ch: '7', x: 18  },
+    { ch: '×', x: 36  },
+    { ch: '8', x: 54  },
+    { ch: '+', x: 72  },
+    { ch: '4', x: 90  },
+    { ch: '=', x: 108 }
+  ];
+  var floor = 90, blockW = 12;
+  var blocks = glyphs.map(function(g, i) {
+    var delay = i * 0.07;
+    var x1 = g.x, x2 = g.x + blockW;
+    return '<g class="lg6-block" style="animation-delay:' + delay + 's;transform-origin:' + x1 + 'px ' + floor + 'px">' +
+      // Front face (charcoal extrusion)
+      '<polygon points="' +
+        x1 + ',' + floor + ' ' + x2 + ',' + (floor - 3) + ' ' +
+        x2 + ',' + (floor - 30) + ' ' + x1 + ',' + (floor - 27) +
+      '" fill="#2C2A28" stroke="#000" stroke-width="0.4"/>' +
+      // Top face
+      '<polygon points="' +
+        x1 + ',' + (floor - 27) + ' ' + x2 + ',' + (floor - 30) + ' ' +
+        (x2 + 3) + ',' + (floor - 32) + ' ' + (x1 + 3) + ',' + (floor - 29) +
+      '" fill="#3A3834" stroke="#000" stroke-width="0.4"/>' +
+      // Right side
+      '<polygon points="' +
+        x2 + ',' + (floor - 3) + ' ' + (x2 + 3) + ',' + (floor - 5) + ' ' +
+        (x2 + 3) + ',' + (floor - 32) + ' ' + x2 + ',' + (floor - 30) +
+      '" fill="#1A1918" stroke="#000" stroke-width="0.4"/>' +
+      // Glyph on front face
+      '<text x="' + (x1 + 6) + '" y="' + (floor - 12) + '" fill="#FAF9F6" ' +
+            'font-size="8" font-family="ui-monospace, monospace" font-weight="700" ' +
+            'text-anchor="middle">' + esc(g.ch) + '</text>' +
+    '</g>';
+  }).join('');
+  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
+    // Flat equation that fades out as blocks extrude
+    '<g class="lg6-flat">' +
+      glyphs.map(function(g) {
+        return '<text x="' + (g.x + 6) + '" y="' + (floor - 2) + '" fill="#2C2A28" ' +
+               'font-size="10" font-family="ui-monospace, monospace" font-weight="700" ' +
+               'text-anchor="middle">' + esc(g.ch) + '</text>';
+      }).join('') +
+    '</g>' +
+    // Extruded blocks (grow up, then compress back to flat)
+    blocks +
+    // Final solved answer that reveals at the end
+    '<text class="lg6-answer" x="70" y="118" fill="#2E7D32" ' +
+          'font-size="14" font-family="ui-monospace, monospace" font-weight="800" ' +
+          'text-anchor="middle">= 60</text>' +
+  '</svg>';
 }
 
+/* 7 — The Origami Pop-Up
+   4 isometric bars presented as hollow folded cardstock (no top lid,
+   visible interior shadow). Bars fold out of the flat canvas with
+   a stiff, rigid frame-by-frame snap (steps(4, end)). As they peak
+   they cast sharp deep shadows onto the paper behind. */
+function lgSvg_7() {
+  var bars = [{ x: 32 }, { x: 58 }, { x: 84 }, { x: 110 }];
+  var floor = 108, barW = 14, heights = [42, 58, 36, 50];
+  var svg = '';
+  bars.forEach(function(b, i) {
+    var delay = i * 0.22;
+    var h = heights[i];
+    var x1 = b.x, x2 = b.x + barW;
+    var topY = floor - h;
+    var topOff = 3.5;
+    svg +=
+      '<g class="lg7-fold" style="animation-delay:' + delay + 's;transform-origin:' + x1 + 'px ' + floor + 'px">' +
+        // Shadow cast behind (drops right and down as bar extends)
+        '<polygon points="' +
+          (x1 + 5) + ',' + (floor + 3) + ' ' +
+          (x2 + 8) + ',' + (floor + 1) + ' ' +
+          (x2 + 8) + ',' + (topY - 1) + ' ' +
+          (x1 + 5) + ',' + (topY + 1) +
+        '" fill="#2C2A28" opacity="0.18"/>' +
+        // Hollow interior (visible from top since no lid) — darker
+        '<polygon points="' +
+          x1 + ',' + topY + ' ' + x2 + ',' + (topY - topOff) + ' ' +
+          (x2 - 2) + ',' + (topY - topOff + 1.5) + ' ' + (x1 + 2) + ',' + (topY + 1.5) +
+        '" fill="#2C2A28" opacity="0.55"/>' +
+        // Front face (cardstock tan)
+        '<polygon points="' +
+          x1 + ',' + floor + ' ' + x2 + ',' + (floor - topOff) + ' ' +
+          x2 + ',' + (topY - topOff) + ' ' + x1 + ',' + topY +
+        '" fill="#E8D9B8" stroke="#5C5448" stroke-width="0.6"/>' +
+        // Right side (darker cardstock fold)
+        '<polygon points="' +
+          x2 + ',' + (floor - topOff) + ' ' + (x2 + 3) + ',' + (floor - topOff - 2) + ' ' +
+          (x2 + 3) + ',' + (topY - topOff - 2) + ' ' + x2 + ',' + (topY - topOff) +
+        '" fill="#C4A878" stroke="#5C5448" stroke-width="0.6"/>' +
+        // Top edge (the rim of the hollow top)
+        '<polygon points="' +
+          x1 + ',' + topY + ' ' + x2 + ',' + (topY - topOff) + ' ' +
+          (x2 + 3) + ',' + (topY - topOff - 2) + ' ' + (x1 + 3) + ',' + (topY - 2) +
+        '" fill="#FAF0D5" stroke="#5C5448" stroke-width="0.6"/>' +
+      '</g>';
+  });
+  return '<svg class="lg-svg" viewBox="0 0 140 140">' + svg + '</svg>';
+}
+
+/* 8 — The Vellum Layer Push
+   Isometric bars sit UNDER a frosted vellum sheet. Initially they
+   read as blurred dark shapes. As the ripple hits, each bar pushes
+   up hard enough that its top plane becomes briefly sharp + in-focus
+   through the "vellum" (filter blur animates 4px → 0 → 4px). */
+function lgSvg_8() {
+  var COLS = 4, ROWS = 2, CELL = 22, STEP = 0.12;
+  var bars = '';
+  for (var r = 0; r < ROWS; r++) {
+    for (var c = 0; c < COLS; c++) {
+      var x = 22 + c * CELL + r * 6;
+      var y = 104 - r * 10;
+      var h = 30 + ((c + r * 3) % 4) * 8;
+      var delay = (c + r) * STEP;
+      var x1 = x, y1 = y;
+      var x2 = x + 14, y2 = y - 4;
+      bars +=
+        '<g class="lg8-bar" style="animation-delay:' + delay + 's;transform-origin:' + x1 + 'px ' + y1 + 'px">' +
+          '<polygon points="' +
+            x1 + ',' + y1 + ' ' + x2 + ',' + y2 + ' ' +
+            x2 + ',' + (y2 - h) + ' ' + x1 + ',' + (y1 - h) +
+          '" fill="#5C5448" stroke="#2C2A28" stroke-width="0.3"/>' +
+          '<polygon points="' +
+            x1 + ',' + (y1 - h) + ' ' + x2 + ',' + (y2 - h) + ' ' +
+            (x2 + 4) + ',' + (y2 - h - 3) + ' ' + (x1 + 4) + ',' + (y1 - h - 3) +
+          '" fill="#7A7571" stroke="#2C2A28" stroke-width="0.3"/>' +
+          '<polygon points="' +
+            x2 + ',' + y2 + ' ' + (x2 + 4) + ',' + (y2 - 3) + ' ' +
+            (x2 + 4) + ',' + (y2 - h - 3) + ' ' + x2 + ',' + (y2 - h) +
+          '" fill="#3A3834" stroke="#2C2A28" stroke-width="0.3"/>' +
+        '</g>';
+    }
+  }
+  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
+    '<defs>' +
+      // Paper grain for the vellum sheet
+      '<filter id="lg8-vellum">' +
+        '<feTurbulence baseFrequency="2.2" numOctaves="2" seed="9" stitchTiles="stitch"/>' +
+        '<feColorMatrix values="0 0 0 0 0.85  0 0 0 0 0.82  0 0 0 0 0.74  0 0 0 0.55 0"/>' +
+      '</filter>' +
+    '</defs>' +
+    bars +
+    // Vellum overlay — translucent warm paper with grain
+    '<rect x="0" y="0" width="140" height="140" fill="rgba(250, 249, 246, 0.42)" ' +
+          'pointer-events="none"/>' +
+    '<rect x="0" y="0" width="140" height="140" fill="transparent" filter="url(#lg8-vellum)" ' +
+          'opacity="0.6" pointer-events="none"/>' +
+  '</svg>';
+}
+
+/* 9 — The Ledger Stack
+   Bars built from 4 discrete "poker chip" ledger segments that fall
+   from above with a staccato cascading ease, slamming into place.
+   Once a full stack lands, a risograph kelly-green wash bleeds out
+   from the base signalling booked revenue. */
+function lgSvg_9() {
+  var cols = [{ x: 30 }, { x: 60 }, { x: 90 }];
+  var floor = 108, chipH = 8, chipW = 20;
+  var segs = '';
+  var washes = '';
+  cols.forEach(function(col, ci) {
+    var colDelay = ci * 0.35;
+    for (var s = 0; s < 4; s++) {
+      // chips fall top → bottom of their stack (first chip lands at floor)
+      var y = floor - (s + 1) * chipH;
+      var delay = colDelay + s * 0.09;
+      var tint = ['#2C2A28', '#5C5448', '#8A7C64', '#E88140'][s];
+      var topTint = ['#3A3834', '#6F6654', '#9B8B70', '#F3A268'][s];
+      segs +=
+        '<g class="lg9-chip" style="animation-delay:' + delay + 's;transform-origin:' + col.x + 'px ' + y + 'px">' +
+          // Chip front
+          '<polygon points="' +
+            col.x + ',' + (y + chipH) + ' ' + (col.x + chipW) + ',' + (y + chipH - 2) + ' ' +
+            (col.x + chipW) + ',' + (y - 2) + ' ' + col.x + ',' + y +
+          '" fill="' + tint + '" stroke="#1A1918" stroke-width="0.4"/>' +
+          // Chip top
+          '<polygon points="' +
+            col.x + ',' + y + ' ' + (col.x + chipW) + ',' + (y - 2) + ' ' +
+            (col.x + chipW + 3) + ',' + (y - 4) + ' ' + (col.x + 3) + ',' + (y - 2) +
+          '" fill="' + topTint + '" stroke="#1A1918" stroke-width="0.4"/>' +
+          // Chip right side
+          '<polygon points="' +
+            (col.x + chipW) + ',' + (y + chipH - 2) + ' ' + (col.x + chipW + 3) + ',' + (y + chipH - 4) + ' ' +
+            (col.x + chipW + 3) + ',' + (y - 4) + ' ' + (col.x + chipW) + ',' + (y - 2) +
+          '" fill="#1A1918" stroke="#000" stroke-width="0.3"/>' +
+        '</g>';
+    }
+    // Revenue wash — kelly-green radial bleed out from base
+    washes +=
+      '<ellipse class="lg9-wash" cx="' + (col.x + chipW / 2) + '" cy="' + (floor + 2) + '" ' +
+               'rx="18" ry="6" fill="#2E7D32" opacity="0" ' +
+               'style="animation-delay:' + (colDelay + 0.5) + 's"/>';
+  });
+  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
+    // Baseline
+    '<line x1="16" y1="108" x2="124" y2="108" stroke="#5C5448" stroke-width="0.6"/>' +
+    washes +
+    segs +
+  '</svg>';
+}
+
+/* 10 — The Variance Shift
+   Two thick side-by-side bars — the left drawn as a dashed pencil
+   "projected" bar, the right as a solid charcoal "actual" bar. Both
+   ripple up together; the solid bar shoots past the dashed one, and
+   the exact overshoot region fills with a bright coral wash. */
+function lgSvg_10() {
+  var floor = 112, barW = 28;
+  var projH = 58, actH = 78;          // actual exceeds projected by 20
+  var p = { x: 40 }, a = { x: 80 };
+  var topOff = 5;
+  var pTop = floor - projH;
+  var aTop = floor - actH;
+  var overshootTop = aTop;
+  var overshootBot = pTop;
+  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
+    // Baseline
+    '<line x1="24" y1="112" x2="124" y2="112" stroke="#7A7571" stroke-width="0.6"/>' +
+    // Labels
+    '<text x="54" y="124" fill="#7A7571" font-size="5.5" font-family="ui-monospace, monospace" text-anchor="middle">PROJ</text>' +
+    '<text x="94" y="124" fill="#2C2A28" font-size="5.5" font-family="ui-monospace, monospace" font-weight="700" text-anchor="middle">ACT</text>' +
+    // Projected bar (dashed pencil outline)
+    '<g class="lg10-proj" style="transform-origin:' + p.x + 'px ' + floor + 'px">' +
+      '<polygon points="' +
+        p.x + ',' + floor + ' ' + (p.x + barW) + ',' + (floor - topOff) + ' ' +
+        (p.x + barW) + ',' + (pTop - topOff) + ' ' + p.x + ',' + pTop +
+      '" fill="none" stroke="#7A7571" stroke-width="0.9" stroke-dasharray="3 2"/>' +
+      '<polygon points="' +
+        p.x + ',' + pTop + ' ' + (p.x + barW) + ',' + (pTop - topOff) + ' ' +
+        (p.x + barW + 4) + ',' + (pTop - topOff - 3) + ' ' + (p.x + 4) + ',' + (pTop - 3) +
+      '" fill="none" stroke="#7A7571" stroke-width="0.9" stroke-dasharray="3 2"/>' +
+    '</g>' +
+    // Actual bar — solid charcoal, overshoots past projected
+    '<g class="lg10-act" style="transform-origin:' + a.x + 'px ' + floor + 'px">' +
+      // Front face (charcoal — lower portion up to projected peak)
+      '<polygon points="' +
+        a.x + ',' + floor + ' ' + (a.x + barW) + ',' + (floor - topOff) + ' ' +
+        (a.x + barW) + ',' + (pTop - topOff) + ' ' + a.x + ',' + pTop +
+      '" fill="#2C2A28" stroke="#1A1918" stroke-width="0.4"/>' +
+      // Coral overshoot region
+      '<polygon class="lg10-coral" points="' +
+        a.x + ',' + pTop + ' ' + (a.x + barW) + ',' + (pTop - topOff) + ' ' +
+        (a.x + barW) + ',' + (aTop - topOff) + ' ' + a.x + ',' + aTop +
+      '" fill="#FF6B5C" stroke="#B8483C" stroke-width="0.4"/>' +
+      // Right side — full bar
+      '<polygon points="' +
+        (a.x + barW) + ',' + (floor - topOff) + ' ' + (a.x + barW + 4) + ',' + (floor - topOff - 3) + ' ' +
+        (a.x + barW + 4) + ',' + (aTop - topOff - 3) + ' ' + (a.x + barW) + ',' + (aTop - topOff) +
+      '" fill="#1A1918" stroke="#000" stroke-width="0.4"/>' +
+      // Top face
+      '<polygon points="' +
+        a.x + ',' + aTop + ' ' + (a.x + barW) + ',' + (aTop - topOff) + ' ' +
+        (a.x + barW + 4) + ',' + (aTop - topOff - 3) + ' ' + (a.x + 4) + ',' + (aTop - 3) +
+      '" fill="#FF8A7D" stroke="#B8483C" stroke-width="0.4"/>' +
+    '</g>' +
+    // "+20" delta callout that appears after overshoot
+    '<text class="lg10-delta" x="94" y="' + (overshootTop + (overshootBot - overshootTop) / 2 + 2) + '" ' +
+          'fill="#FAF9F6" font-size="5" font-family="ui-monospace, monospace" ' +
+          'font-weight="700" text-anchor="middle">+20</text>' +
+  '</svg>';
+}
+
+/* 11 — The Market Topography
+   A dense 12×6 field of thin isometric needles forming a topographic
+   grid. A slow, heavy diagonal wave sweeps back-left → front-right
+   across the whole field (duration ~6s — deliberately unhurried to
+   sell "processing thousands of data points"). */
+function lgSvg_11() {
+  var COLS = 12, ROWS = 6, CELLW = 9, CELLH = 6, STEP = 0.035;
+  var needles = '';
+  for (var r = 0; r < ROWS; r++) {
+    for (var c = 0; c < COLS; c++) {
+      var x = 14 + c * CELLW + r * 4;
+      var y = 112 - r * CELLH;
+      // Height varies pseudo-randomly for topography feel
+      var h = 10 + (((c * 7 + r * 11) % 9) * 2.8);
+      var delay = (c + r) * STEP;
+      var x1 = x, y1 = y;
+      var x2 = x + 4, y2 = y - 1.5;
+      needles +=
+        '<g class="lg11-needle" style="animation-delay:' + delay + 's;transform-origin:' + x1 + 'px ' + y1 + 'px">' +
+          // Thin front face
+          '<polygon points="' +
+            x1 + ',' + y1 + ' ' + x2 + ',' + y2 + ' ' +
+            x2 + ',' + (y2 - h) + ' ' + x1 + ',' + (y1 - h) +
+          '" fill="#5C5448" stroke="none"/>' +
+          // Thin top
+          '<polygon points="' +
+            x1 + ',' + (y1 - h) + ' ' + x2 + ',' + (y2 - h) + ' ' +
+            (x2 + 1.2) + ',' + (y2 - h - 0.8) + ' ' + (x1 + 1.2) + ',' + (y1 - h - 0.8) +
+          '" fill="#8A7C64" stroke="none"/>' +
+        '</g>';
+    }
+  }
+  return '<svg class="lg-svg" viewBox="0 0 140 140">' + needles + '</svg>';
+}
+
+/* 12 — The Calendar Matrix
+   7-col × 4-row grid of debossed calendar squares pressed into paper.
+   A ripple sweeps across the "month" — selected cells pop up from
+   indented → elevated with a sharp yellow top edge flagging a booked
+   appointment. Unbooked cells remain indented. */
+function lgSvg_12() {
+  var COLS = 7, ROWS = 4, CELLW = 13, CELLH = 14, STEP = 0.055;
+  // Booked pattern — some cells stay flat, others pop up
+  var booked = {
+    '1-2': 1, '2-0': 1, '2-4': 1, '3-1': 1, '3-5': 1,
+    '1-6': 1, '2-6': 1, '0-3': 1, '3-3': 1, '1-1': 1, '2-2': 1
+  };
+  var cells = '';
+  for (var r = 0; r < ROWS; r++) {
+    for (var c = 0; c < COLS; c++) {
+      var x = 16 + c * CELLW;
+      var y = 30 + r * CELLH;
+      var delay = (c + r) * STEP;
+      var isBooked = booked[r + '-' + c];
+      if (isBooked) {
+        cells +=
+          '<g class="lg12-cell lg12-cell--booked" ' +
+             'style="animation-delay:' + delay + 's;transform-origin:' + (x + CELLW/2) + 'px ' + (y + CELLH/2) + 'px">' +
+            // Front
+            '<rect x="' + x + '" y="' + y + '" width="' + (CELLW - 1.5) + '" height="' + (CELLH - 1.5) + '" ' +
+                  'fill="#2C2A28" stroke="#1A1918" stroke-width="0.3"/>' +
+            // Yellow top highlight edge
+            '<rect class="lg12-top" x="' + x + '" y="' + (y - 1.5) + '" width="' + (CELLW - 1.5) + '" height="1.8" ' +
+                  'fill="#FFD700"/>' +
+          '</g>';
+      } else {
+        // Debossed empty slot
+        cells +=
+          '<rect x="' + x + '" y="' + y + '" width="' + (CELLW - 1.5) + '" height="' + (CELLH - 1.5) + '" ' +
+                'fill="#E8E0CF" stroke="#C4BAA0" stroke-width="0.4" rx="0.5"/>';
+      }
+    }
+  }
+  // Day-of-week header row
+  var dows = ['S','M','T','W','T','F','S'];
+  var header = dows.map(function(d, i) {
+    return '<text x="' + (16 + i * CELLW + (CELLW - 1.5)/2) + '" y="24" ' +
+           'fill="#7A7571" font-size="6" font-family="ui-monospace, monospace" ' +
+           'text-anchor="middle">' + d + '</text>';
+  }).join('');
+  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
+    header +
+    cells +
+  '</svg>';
+}
+
+/* 13 — The Time-Slot Cascade
+   4 tall bars; each bar is broken into 5 horizontal time-slice
+   slabs. As the ripple hits a bar, each slab spins 180° around the
+   bar's vertical axis in sequence (like a briefcase-lock combo),
+   snapping into its final alignment with a heavy drop. */
+function lgSvg_13() {
+  var bars = [{ x: 28 }, { x: 54 }, { x: 80 }, { x: 106 }];
+  var floor = 116, barW = 18, slabH = 14, slabCount = 5;
+  var topOff = 4;
+  var svg = '';
+  bars.forEach(function(b, bi) {
+    var colDelay = bi * 0.26;
+    for (var s = 0; s < slabCount; s++) {
+      var y = floor - (s + 1) * slabH;
+      var delay = colDelay + s * 0.09;
+      // Alternating slab tints — schedule-block feel
+      var tint = (s % 2 === 0) ? '#E88140' : '#B85F2A';
+      var topTint = (s % 2 === 0) ? '#F3A268' : '#D17036';
+      var x1 = b.x, x2 = b.x + barW;
+      svg +=
+        '<g class="lg13-slab" style="animation-delay:' + delay + 's;transform-origin:' + (b.x + barW/2) + 'px ' + (y + slabH/2) + 'px">' +
+          // Front face
+          '<polygon points="' +
+            x1 + ',' + (y + slabH) + ' ' + x2 + ',' + (y + slabH - 3) + ' ' +
+            x2 + ',' + (y - 3) + ' ' + x1 + ',' + y +
+          '" fill="' + tint + '" stroke="#2C2A28" stroke-width="0.4"/>' +
+          // Top
+          '<polygon points="' +
+            x1 + ',' + y + ' ' + x2 + ',' + (y - 3) + ' ' +
+            (x2 + 3) + ',' + (y - 5) + ' ' + (x1 + 3) + ',' + (y - 2) +
+          '" fill="' + topTint + '" stroke="#2C2A28" stroke-width="0.4"/>' +
+          // Side
+          '<polygon points="' +
+            x2 + ',' + (y + slabH - 3) + ' ' + (x2 + 3) + ',' + (y + slabH - 5) + ' ' +
+            (x2 + 3) + ',' + (y - 5) + ' ' + x2 + ',' + (y - 3) +
+          '" fill="#7A3F1A" stroke="#2C2A28" stroke-width="0.4"/>' +
+          // Hour label on side of slab
+          '<text x="' + (x1 + 3) + '" y="' + (y + slabH - 4) + '" fill="#FAF9F6" ' +
+                'font-size="3.5" font-family="ui-monospace, monospace" font-weight="700">' +
+            (9 + s) + ':00</text>' +
+        '</g>';
+    }
+  });
+  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
+    // Baseline
+    '<line x1="18" y1="' + floor + '" x2="124" y2="' + floor + '" ' +
+          'stroke="#5C5448" stroke-width="0.6"/>' +
+    svg +
+  '</svg>';
+}
 async function fetchMarketing() {
   var container = document.getElementById('marketingContent');
   _ttLoader = startLedgerLoader(container);
