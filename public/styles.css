@@ -2154,50 +2154,66 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 /* ── Horizontal-scroll bar-chart wrapper ────────────────────────
    Used on Revenue / Cash Flow bars. Inner canvas is 150% wide so
    each bar has breathing room; viewport scrolls with iOS momentum.
-   Fade mask on the right edge hints that there's more data. */
-.fin-chart-wrap--scroll { overflow: hidden; }
+   Left edge gets a "binding crease" (1px dashed graphite + shadow
+   decay) so older months appear to slide into the notebook spine;
+   right edge is deliberately bare — the card's own border-radius
+   acts as the physical page edge, and bars that are partially
+   bisected at the right signal "swipe to see more". */
+.fin-chart-wrap--scroll { overflow: hidden; position: relative; }
 .fin-chart-wrap--scroll .fin-chart-scroll {
   width: 100%; height: 100%;
   overflow-x: auto; overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
+  /* Hide scrollbar across engines: WebKit via pseudo, Firefox via
+     scrollbar-width, legacy Edge/IE via -ms-overflow-style */
   scrollbar-width: none;
+  -ms-overflow-style: none;
+  /* Contain overscroll so swiping past the last bar doesn't trigger
+     browser back/forward or pull-to-refresh on mobile */
+  overscroll-behavior-x: contain;
 }
 .fin-chart-wrap--scroll .fin-chart-scroll::-webkit-scrollbar { display: none; }
 .fin-chart-wrap--scroll .fin-chart-inner-wide {
   width: 150%; height: 100%; min-width: 150%;
   position: relative;
 }
-/* Edge fades: hint "there's more, scroll to see it". Each fade is
-   opacity-animated and hidden when the user reaches that end. */
-.fin-chart-wrap--scroll {
-  position: relative;
-}
-.fin-chart-wrap--scroll::before,
-.fin-chart-wrap--scroll::after {
+
+/* ── "Binding Crease": physical page-fold at the left edge ─────
+   Replaces the wide gradient fade with a graphite-pencil guideline
+   paired with a soft rightward shadow decay — together they read as
+   paper folding inward toward the notebook binding. The pseudo is
+   14px wide: the `border-left` paints the crisp 1px crease at x=0,
+   and the gradient fills the remaining 13px with a shallow umbra
+   that dissipates to transparent at the right, so the first chart
+   bar is at most *slightly* shadowed — never washed out like a
+   10–16px opaque fade would.
+
+   Right edge: intentionally LEFT BARE. The card's own border-radius
+   acts as the physical "page edge". A bar that's partially bisected
+   at the right reads as an implicit "more content, swipe to see" —
+   no gradient, no line, no visual weight wasted on a hint. */
+.fin-chart-wrap--scroll::before {
   content: '';
   position: absolute;
   top: 0; bottom: 0;
-  /* Narrowed from 16px — the wider fade visibly ate into the first /
-     last bar of the chart. 10px is enough to hint "more content" without
-     washing out real data. Gradient also reaches full opacity at the
-     outer edge (was 0.98) so there's no subpixel haze against the card. */
-  width: 10px;
+  left: 0;
+  width: 14px;
   pointer-events: none;
   z-index: 2;
+  /* 1px dashed graphite pencil — sits at x=0 of the pseudo, acts as
+     the visible "crease" of the page fold */
+  border-left: 1px dashed rgba(122, 117, 113, 0.32);
+  /* Shadow decay right of the crease — 3D depth WITHOUT pixel waste */
+  background: linear-gradient(to right,
+    rgba(70, 65, 60, 0.11) 0%,
+    rgba(70, 65, 60, 0.04) 45%,
+    rgba(70, 65, 60, 0) 100%);
   opacity: 1;
-  transition: opacity 0.25s ease;
+  transition: opacity 0.3s ease;
 }
-.fin-chart-wrap--scroll::before {
-  left: 0;
-  background: linear-gradient(to left, rgba(255,255,255,0), rgba(255,255,255,1));
-}
-.fin-chart-wrap--scroll::after {
-  right: 0;
-  background: linear-gradient(to right, rgba(255,255,255,0), rgba(255,255,255,1));
-}
-/* Dynamically hide the fade on whichever edge the user has reached */
+/* When scrolled to the far left, the crease fades — the first bar is
+   already flush to the edge, so there's nothing to "hide behind" */
 .fin-chart-wrap--scroll.is-scroll-start::before { opacity: 0; }
-.fin-chart-wrap--scroll.is-scroll-end::after    { opacity: 0; }
 
 /* ── Summary Plate: contextual data header above scrollable charts ──
    Replaces the floating dark tooltip + in-bar labels. Updates live as

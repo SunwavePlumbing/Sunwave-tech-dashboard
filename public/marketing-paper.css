@@ -428,17 +428,18 @@ body.paper-mode .modal-table thead th {
   background-color: var(--paper-card) !important;
   border-bottom-color: var(--paper-border) !important;
 }
-/* Edge-fade masks on Revenue / Cash-in-the-Bank scroll charts were
-   fading to pure white; fade to the paper-card color instead so the
-   soft gradient blends into the card surface rather than flashing.
-   Outer stop is fully opaque (was 0.98) so the edge meets the card
-   background with zero seam. Width is controlled by the base rule
-   (10px) — no override needed here. */
+/* "Binding Crease" in paper mode — the base graphite crease reads
+   fine on the paper card, but we slightly warm both the pencil line
+   and the umbra gradient so they match the sepia tilt of the rest of
+   the paper palette instead of looking cool-gray against warm paper.
+   Geometry matches the base rule (14px wide pseudo, dashed left
+   border + horizontal gradient decay). Right edge stays bare. */
 body.paper-mode .fin-chart-wrap--scroll::before {
-  background: linear-gradient(to left, rgba(247, 246, 242, 0), rgba(247, 246, 242, 1)) !important;
-}
-body.paper-mode .fin-chart-wrap--scroll::after {
-  background: linear-gradient(to right, rgba(247, 246, 242, 0), rgba(247, 246, 242, 1)) !important;
+  border-left: 1px dashed rgba(122, 117, 113, 0.40);
+  background: linear-gradient(to right,
+    rgba(74, 66, 56, 0.13) 0%,
+    rgba(74, 66, 56, 0.05) 45%,
+    rgba(74, 66, 56, 0) 100%);
 }
 
 /* ── Summary Plate (hover/scrub header on Revenue + Cash charts) ──
