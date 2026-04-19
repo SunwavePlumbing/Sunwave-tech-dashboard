@@ -127,13 +127,24 @@ function ufsToggle(key) {
   // Clear all seg active states — we'll re-apply to the target below
   var segs = card ? card.querySelectorAll('.ufs-seg') : [];
   for (var i = 0; i < segs.length; i++) segs[i].classList.remove('is-active');
+  // Clear active-category class on the card — we'll re-apply below if the
+  // target ends up open. This class drives:
+  //   (a) the dim-siblings rule (inactive segments fade to ~38% opacity),
+  //   (b) the downward caret extruding from the active segment,
+  //   (c) the 4px colored top border on the active .ufs-zoom panel.
+  if (card) {
+    card.classList.remove('is-active--cogs');
+    card.classList.remove('is-active--ovhd');
+    card.classList.remove('is-active--profit');
+  }
   // Toggle target (mfToggle flips is-open — opens if closed, closes if open)
   var seg = card ? card.querySelector('.ufs-seg[data-key="' + key + '"]') : null;
   mfToggle(targetId, seg);
-  // If target is now open, flag its button active (yellow underline)
+  // If target is now open, flag its button active (caret + top border bloom)
   var targetEl = document.getElementById(targetId);
   if (targetEl && targetEl.classList.contains('is-open') && seg) {
     seg.classList.add('is-active');
+    if (card) card.classList.add('is-active--' + key);
   }
 }
 
@@ -146,16 +157,49 @@ function ufsToggle(key) {
 // content's onclick handlers reference these IDs via string literals,
 // so we rewrite them at clone time.)
 function ufsCloneZoomPanels() {
-  ['Cogs', 'Ovhd', 'Noi'].forEach(function(k) {
-    var src = document.getElementById('mf' + k + 'Detail');
-    var dst = document.getElementById('ufs' + k + 'Detail');
+  // Per-category parent color (vibrant hex matching the bar segment).
+  // This is the single source of truth for the "no rainbow" rule inside
+  // each ufs-zoom panel: the breakdown bar uses this color at stepped
+  // opacities, and every legend row gets a 4px left edge in this color.
+  var cats = [
+    { k: 'Cogs', color: '#FF5B5B' },  // Cost of Goods Sold (coral)
+    { k: 'Ovhd', color: '#FF8A1F' },  // Overhead (vibrant orange)
+    { k: 'Noi',  color: '#2ECC71' }   // Profit (green)
+  ];
+  cats.forEach(function(cat) {
+    var src = document.getElementById('mf' + cat.k + 'Detail');
+    var dst = document.getElementById('ufs' + cat.k + 'Detail');
     if (!src || !dst) return;
     var srcHtml = src.innerHTML;
-    // Remap any embedded IDs (data-zid, onclick(...) references) so
-    // the cloned handlers target the UFS panel's zids, not the mf
-    // panel's — keeps hover/select state scoped to the active card.
-    var re = new RegExp('mf' + k + 'Detail', 'g');
-    dst.innerHTML = srcHtml.replace(re, 'ufs' + k + 'Detail');
+    // Remap any embedded IDs (data-zid, onclick references) so the
+    // cloned handlers target the UFS panel's zids, not the mf panel's —
+    // keeps hover/select state scoped to the active card.
+    var re = new RegExp('mf' + cat.k + 'Detail', 'g');
+    dst.innerHTML = srcHtml.replace(re, 'ufs' + cat.k + 'Detail');
+
+    // ── Rainbow → single-tone breakdown bar ─────────────────────────
+    // The cloned .mf-zoom-seg elements carry inline `background:<hex>`
+    // from the rainbow palette. Overwrite each to the parent category
+    // color at descending opacity (1.0 → 0.40) so the bar reads as one
+    // structured accent instead of Skittles.
+    var segs = dst.querySelectorAll('.mf-zoom-seg');
+    var segsCount = segs.length;
+    for (var i = 0; i < segsCount; i++) {
+      var op = segsCount > 1 ? 1 - (i / (segsCount - 1)) * 0.60 : 1;
+      segs[i].style.background = cat.color;
+      segs[i].style.opacity = op.toFixed(2);
+    }
+
+    // ── Pastel row tints → clean paper rows + 4px left edge ─────────
+    // The cloned legend rows carry inline `background:rgba(...)` +
+    // `border-left:3px solid <rainbowHex>`. Strip the tint, beef the
+    // stripe to 4px in the parent color, and let the CSS handle the
+    // dashed charcoal dividers between rows.
+    var rows = dst.querySelectorAll('.mf-zoom-leg-row');
+    for (var j = 0; j < rows.length; j++) {
+      rows[j].style.background = 'transparent';
+      rows[j].style.borderLeft = '4px solid ' + cat.color;
+    }
   });
 }
 

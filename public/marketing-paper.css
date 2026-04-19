@@ -2177,36 +2177,46 @@ body.paper-mode .ufs-formula {
   font-variant-numeric: tabular-nums;
 }
 body.paper-mode .ufs-f-term {
+  /* align-items: center (was baseline) so the TERM's geometric center
+     lines up with the operator-pill centers — no more visual drift
+     between the rounded ops and the text caps. Both the label and the
+     value now share a single center axis. */
   display: inline-flex;
-  align-items: baseline;
+  align-items: center;
   gap: 7px;
   white-space: nowrap;
-  line-height: 1.15;
+  line-height: 1;
 }
 body.paper-mode .ufs-f-label {
+  /* Titles stay in deep charcoal ink — premium "pen on paper" look.
+     Only the dollar values carry the vibrant category color (set below). */
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.01em;
   color: #2C2A28;
+  line-height: 1;
 }
 body.paper-mode .ufs-f-val {
   font-size: 17px;
   font-weight: 800;
   letter-spacing: -0.015em;
   color: #1A1918;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
-/* Category-tinted labels so formula reads semantically */
-body.paper-mode .ufs-f-term--cogs   .ufs-f-label { color: #B83E3E; }
-body.paper-mode .ufs-f-term--ovhd   .ufs-f-label { color: #C76810; }
-body.paper-mode .ufs-f-term--profit .ufs-f-label { color: #1E8749; }
+/* Category-tinted VALUES only — titles remain charcoal for a clean,
+   ink-on-paper formula read. */
 body.paper-mode .ufs-f-term--cogs   .ufs-f-val   { color: #B83E3E; }
 body.paper-mode .ufs-f-term--ovhd   .ufs-f-val   { color: #C76810; }
 body.paper-mode .ufs-f-term--profit .ufs-f-val   { color: #1E8749; }
 /* Operator pills — visual dividers */
 body.paper-mode .ufs-f-op {
+  /* Operator pills use align-self: center so they sit on the same
+     geometric axis as the term flex-boxes — no baseline offset. */
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  align-self: center;
   width: 24px; height: 24px;
   border-radius: 50%;
   background: rgba(92, 84, 72, 0.10);
@@ -2216,6 +2226,10 @@ body.paper-mode .ufs-f-op {
   font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
   line-height: 1;
   flex-shrink: 0;
+  /* Nudge glyph to optical center: the "−" and "=" glyphs render
+     slightly above center metric-wise in monospace, so pull them
+     down by half a hair for a perfectly centered read. */
+  padding-top: 1px;
 }
 body.paper-mode .ufs-f-op--eq {
   background: rgba(30, 135, 73, 0.14);
@@ -2248,7 +2262,10 @@ body.paper-mode .ufs-seg {
   font-family: inherit;
   cursor: pointer;
   outline: none;
+  /* Opacity joins the transition so the dim-siblings effect fades
+     in/out smoothly rather than snapping when you switch segments. */
   transition: filter 180ms cubic-bezier(0.2, 0, 0.1, 1),
+              opacity 240ms cubic-bezier(0.4, 0, 0.2, 1),
               transform 180ms cubic-bezier(0.2, 0, 0.1, 1);
   user-select: none;
 }
@@ -2297,18 +2314,56 @@ body.paper-mode .ufs-seg:focus-visible {
   outline-offset: 2px;
   z-index: 2;
 }
-/* Active / open segment — crisp yellow underline ONLY (no color shifts) */
+/* ── Active segment: downward caret extruding into the dropdown ────
+   A pure-CSS triangle (border trick) grows from scaleY(0) to scaleY(1)
+   with a gentle back-ease when a segment is opened, creating the
+   visual bridge between the bar and the dropdown container. The
+   per-category ::after color matches the segment's background hex so
+   the caret reads as a continuation of the segment itself. */
 body.paper-mode .ufs-seg.is-active::after {
   content: '';
   position: absolute;
-  left: 6px; right: 6px; bottom: -6px;
-  height: 4px;
-  background: #FFD700;
-  border-radius: 2px;
-  box-shadow: 0 1px 3px rgba(255, 215, 0, 0.35);
+  bottom: -10px;
+  left: 50%;
+  width: 0; height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 11px solid #2C2A28;   /* overridden per-category below */
+  pointer-events: none;
+  z-index: 2;
+  transform-origin: top center;
+  transform: translateX(-50%) scaleY(0);
+  opacity: 0;
+  animation: ufsCaretGrow 260ms cubic-bezier(0.34, 1.45, 0.64, 1) 40ms forwards;
+  /* Subtle drop shadow to separate from the panel below */
+  filter: drop-shadow(0 1px 0.5px rgba(44, 42, 40, 0.18));
+}
+body.paper-mode .ufs-seg--cogs.is-active::after   { border-top-color: #FF5B5B; }
+body.paper-mode .ufs-seg--ovhd.is-active::after   { border-top-color: #FF8A1F; }
+body.paper-mode .ufs-seg--profit.is-active::after { border-top-color: #2ECC71; }
+@keyframes ufsCaretGrow {
+  from { transform: translateX(-50%) scaleY(0); opacity: 0; }
+  to   { transform: translateX(-50%) scaleY(1); opacity: 1; }
 }
 body.paper-mode .ufs-seg.is-active {
-  filter: brightness(1.05);
+  filter: brightness(1.06) saturate(1.05);
+  z-index: 1;
+}
+
+/* ── Dim siblings when one segment is active ───────────────────────
+   When the card has an active category, all OTHER segments fade back
+   to 38% opacity so the user's eye is magnetized to the chosen one.
+   The transition on .ufs-seg above makes this fade buttery-smooth. */
+body.paper-mode .ufs-card.is-active--cogs   .ufs-seg:not(.ufs-seg--cogs),
+body.paper-mode .ufs-card.is-active--ovhd   .ufs-seg:not(.ufs-seg--ovhd),
+body.paper-mode .ufs-card.is-active--profit .ufs-seg:not(.ufs-seg--profit) {
+  opacity: 0.38;
+}
+body.paper-mode .ufs-card.is-active--cogs   .ufs-seg:not(.ufs-seg--cogs):hover,
+body.paper-mode .ufs-card.is-active--ovhd   .ufs-seg:not(.ufs-seg--ovhd):hover,
+body.paper-mode .ufs-card.is-active--profit .ufs-seg:not(.ufs-seg--profit):hover {
+  /* Raise dimmed siblings on hover so they remain discoverable */
+  opacity: 0.72;
 }
 
 /* ── 3. Accordion panels ───────────────────────────────────────── */
@@ -2320,12 +2375,25 @@ body.paper-mode .ufs-seg.is-active {
    / .mf-noi-detail rules — we only need to handle positioning +
    spacing inside the UFS card shell. */
 body.paper-mode .ufs-zoom {
-  margin-top: 14px;
+  margin-top: 18px;
+  padding-top: 14px;
+  /* Reserve the 4px border slot even when closed so the open-state
+     border doesn't cause a layout shift when toggled. */
+  border-top: 4px solid transparent;
+  transition: border-top-color 220ms cubic-bezier(0.4, 0, 0.2, 1);
 }
-/* The original mf-zoom-detail selectors already handle
-   visibility via .is-open + animate via .mf-zoom-bar-anim — we don't
-   need to redefine anything, just ensure our panel can benefit from
-   those rules without layout surprises. */
+/* ── Active dropdown: 4px solid top border matching the category ──
+   Creates the continuous visual line from the bar → caret → data.
+   Only applied when the panel is open (is-open) so the bar stays
+   uncluttered in the default resting state. */
+body.paper-mode .ufs-zoom--cogs.is-open   { border-top-color: #FF5B5B; }
+body.paper-mode .ufs-zoom--ovhd.is-open   { border-top-color: #FF8A1F; }
+body.paper-mode .ufs-zoom--profit.is-open { border-top-color: #2ECC71; }
+
+/* The original mf-zoom-detail selectors already handle visibility via
+   .is-open + animate via .mf-zoom-bar-anim — we don't need to
+   redefine anything, just ensure our panel can benefit from those
+   rules without layout surprises. */
 body.paper-mode .ufs-zoom[hidden] { display: none; }
 body.paper-mode .ufs-zoom:not(.is-open):not([hidden]) {
   /* mfToggle strips hidden + adds is-open in two frames; this rule
@@ -2333,6 +2401,62 @@ body.paper-mode .ufs-zoom:not(.is-open):not([hidden]) {
      nor is-open yet so it doesn't flash at full height. */
   max-height: 0;
   overflow: hidden;
+  padding-top: 0;
+  margin-top: 0;
+  border-top-width: 0;
+}
+
+/* ── Cloned-panel cleanup: remove rainbow clutter inside .ufs-zoom ──
+   The cloned .mf-zoom-detail content is used BOTH in the original
+   mf-card (where rainbow tints + pastel row backgrounds are OK) and
+   here in the UFS card (where we want the stricter paper aesthetic).
+   These overrides scope ONLY to .ufs-zoom so the mf-card variants
+   are untouched. */
+
+/* Hide the inner "Details" connector divider — we already have the
+   4px colored top border above, and the uppercase label. Double
+   rules would clutter the header. */
+body.paper-mode .ufs-zoom .mf-zoom-conn-divider { display: none; }
+body.paper-mode .ufs-zoom .mf-zoom-connector-wrap {
+  /* With the flex:1 divider hidden, right-align the uppercase label so
+     "OVERHEAD DETAILS" still sits on the right edge (matches the
+     original layout + the screenshot reference). */
+  justify-content: flex-end;
+  padding-top: 2px;
+  margin-top: 4px;
+}
+/* Label uses the active-category color so the section header reads as
+   a continuation of the colored top border + caret. */
+body.paper-mode .ufs-zoom--cogs   .mf-zoom-conn-label { color: #B83E3E; }
+body.paper-mode .ufs-zoom--ovhd   .mf-zoom-conn-label { color: #C76810; }
+body.paper-mode .ufs-zoom--profit .mf-zoom-conn-label { color: #1E8749; }
+
+/* Breakdown bar: inline opacity is applied per-segment by
+   ufsCloneZoomPanels() in owners.js. The rows of the cloned bar
+   keep their flex widths — no CSS change needed here — but we
+   remove the percent-label white stroke since segments are all the
+   same hue now (varying opacity). */
+body.paper-mode .ufs-zoom .mf-zoom-seg-pct {
+  color: #1A1918;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+/* Legend rows: faint charcoal dashed dividers (pencil-guideline feel)
+   between rows. Inline background:transparent + borderLeft:4px in
+   parent color are set by ufsCloneZoomPanels in owners.js. */
+body.paper-mode .ufs-zoom .mf-zoom-leg-row {
+  border-bottom: 1px dashed rgba(42, 42, 42, 0.15);
+  /* Slightly more vertical breathing room now that the pastel row
+     tint is gone — lets the dashed dividers read as deliberate. */
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+body.paper-mode .ufs-zoom .mf-zoom-leg-row:last-child {
+  border-bottom: none;
+}
+/* Hover state for rows: subtle charcoal wash — no pastel flash */
+body.paper-mode .ufs-zoom .mf-zoom-leg-row:hover {
+  background: rgba(44, 42, 40, 0.04) !important;
 }
 
 /* ── Mobile ────────────────────────────────────────────────────── */
