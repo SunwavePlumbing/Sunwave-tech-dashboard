@@ -31,15 +31,19 @@ var dateRanges = [
    (~15% alpha) plus a matching saturated-dark text color. Rendered
    as circular chips (border-radius:50% via paper-mode CSS) so the
    ink letter reads as the real mark and the bg as a soft halo. */
+// Avatar tint alpha bumped 0.15 → 0.30 so the color halos read clearly
+// against the off-white paper background (previously washed out, per
+// user feedback). Foreground ink colors unchanged — they already carry
+// enough contrast for the white 700-weight initials.
 var AVATAR_PALETTES = [
-  { bg: 'rgba(0, 128, 128, 0.15)',   fg: '#006666' },  // muted teal
-  { bg: 'rgba(204, 85, 0, 0.15)',    fg: '#8A3D00' },  // terracotta
-  { bg: 'rgba(138, 154, 91, 0.15)',  fg: '#4F5E2E' },  // sage green
-  { bg: 'rgba(225, 173, 1, 0.15)',   fg: '#7A5C00' },  // mustard
-  { bg: 'rgba(95, 123, 154, 0.15)',  fg: '#2E4466' },  // dusty blue
-  { bg: 'rgba(136, 120, 160, 0.15)', fg: '#4A4069' },  // heather purple
-  { bg: 'rgba(181, 102, 121, 0.15)', fg: '#6E3040' },  // dusty rose
-  { bg: 'rgba(90, 102, 112, 0.15)',  fg: '#2A3540' }   // slate
+  { bg: 'rgba(0, 128, 128, 0.30)',   fg: '#006666' },  // teal
+  { bg: 'rgba(204, 85, 0, 0.30)',    fg: '#8A3D00' },  // terracotta
+  { bg: 'rgba(138, 154, 91, 0.30)',  fg: '#4F5E2E' },  // sage green
+  { bg: 'rgba(225, 173, 1, 0.30)',   fg: '#7A5C00' },  // mustard
+  { bg: 'rgba(95, 123, 154, 0.30)',  fg: '#2E4466' },  // dusty blue
+  { bg: 'rgba(136, 120, 160, 0.30)', fg: '#4A4069' },  // heather purple
+  { bg: 'rgba(181, 102, 121, 0.30)', fg: '#6E3040' },  // dusty rose
+  { bg: 'rgba(90, 102, 112, 0.30)',  fg: '#2A3540' }   // slate
 ];
 function avatarColor(name) {
   var h = 0;

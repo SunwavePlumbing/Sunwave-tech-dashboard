@@ -241,6 +241,30 @@ function ufsCloneZoomPanels() {
     var re = new RegExp('mf' + k + 'Detail', 'g');
     dst.innerHTML = srcHtml.replace(re, 'ufs' + k + 'Detail');
 
+    // V5: Prepend a "Target Goal vs Actual" readout at the very top of
+    // the dropdown (above the rainbow sub-bar) for panels that carry a
+    // data-target-goal attribute — currently COGS (50%) and Profit (15%).
+    // Overhead has no published goal so no readout is injected.
+    var goal   = dst.getAttribute('data-target-goal');
+    var actual = dst.getAttribute('data-actual');
+    if (goal && actual) {
+      var hitCls = (parseFloat(actual) >= parseFloat(goal)) ? ' is-on-target' : ' is-off-target';
+      // Profit is "above goal = good"; COGS is "below goal = good".
+      // Flip semantics for COGS so "under 50%" reads as on-target.
+      if (k === 'Cogs') {
+        hitCls = (parseFloat(actual) <= parseFloat(goal)) ? ' is-on-target' : ' is-off-target';
+      }
+      var readout = document.createElement('div');
+      readout.className = 'ufs-target-readout' + hitCls;
+      readout.innerHTML =
+        '<span class="ufs-target-readout-lbl">Target Goal</span>' +
+        '<span class="ufs-target-readout-val">' + goal + '%</span>' +
+        '<span class="ufs-target-readout-sep">|</span>' +
+        '<span class="ufs-target-readout-lbl">Actual</span>' +
+        '<span class="ufs-target-readout-val">' + actual + '%</span>';
+      dst.insertBefore(readout, dst.firstChild);
+    }
+
     // (a) Bump border-LEFT-WIDTH only, leaving color+style from inline
     // alone. This preserves the per-row rainbow color that mfZoomDetail
     // assigned from the palette — exactly what the spec asks for.
@@ -1820,19 +1844,12 @@ function renderOwners() {
             '</span>' +
           '</button>' +
         '</div>' +
-        // ── Drafting target markers (architectural tick + uppercase label)
-        //    COGS target at 50% (coral), Profit goal at 85% (vivid green).
-        //    Positioned as siblings of .ufs-bar so they can extrude above
-        //    AND below the bar; .ufs-bar-wrap is position:relative so
-        //    left:50% / left:85% key off the bar's full width.
-        '<div class="ufs-target ufs-target--cogs" style="left:50%">' +
-          '<div class="ufs-target-tick"></div>' +
-          '<div class="ufs-target-lbl">TARGET 50%</div>' +
-        '</div>' +
-        '<div class="ufs-target ufs-target--profit" style="left:85%">' +
-          '<div class="ufs-target-tick"></div>' +
-          '<div class="ufs-target-lbl">PROFIT GOAL 15%</div>' +
-        '</div>' +
+        // V5: Target ticks on the main bar have been removed. They caused
+        // horizontal layout glitches (the 85% Profit-Goal tick reaching
+        // beyond the Profit segment on narrow viewports). The goal-vs-
+        // actual comparison now lives as a text readout at the top of
+        // the COGS and Profit dropdown panels instead — see
+        // ufsCloneZoomPanels() where .ufs-target-readout is injected.
       '</div>' +
       // ── Expansion funnel — trapezoidal SVG polygon drawn between
       //    the clicked segment on the bar and the dropdown panel
@@ -1847,25 +1864,24 @@ function renderOwners() {
       '</div>' +
       // ── Dropdown panels — empty shells that ufsCloneZoomPanels()
       //    populates after render by deep-copying the mf-card panels.
-      '<div id="ufsCogsDetail" class="mf-zoom-detail ufs-zoom ufs-zoom--cogs" hidden></div>' +
+      //    V5: COGS and Profit shells carry data-target-goal / data-actual
+      //    so the clone step can prepend a "Target Goal vs Actual" readout
+      //    directly above the rainbow breakdown bar. Overhead is omitted
+      //    intentionally (no published goal for overhead %).
+      '<div id="ufsCogsDetail" class="mf-zoom-detail ufs-zoom ufs-zoom--cogs" ' +
+           'data-target-goal="50" data-actual="' + cogsPct.toFixed(1) + '" hidden></div>' +
       '<div id="ufsOvhdDetail" class="mf-zoom-detail ufs-zoom ufs-zoom--ovhd" hidden></div>' +
-      '<div id="ufsNoiDetail" class="mf-zoom-detail mf-noi-detail ufs-zoom ufs-zoom--profit" hidden></div>' +
+      '<div id="ufsNoiDetail" class="mf-zoom-detail mf-noi-detail ufs-zoom ufs-zoom--profit" ' +
+           'data-target-goal="15" data-actual="' + ufsProfitPct.toFixed(1) + '" hidden></div>' +
     '</div>'; // .ufs-card
 
-  // The legacy mf-card (stacked REVENUE / COGS / Overhead / Profit
-  // rows with their own sub-bars) has been fully superseded by the
-  // UFS card above. We keep formulaHtml rendered but completely
-  // hidden so the embedded #mfCogsDetail / #mfOvhdDetail / #mfNoiDetail
-  // zoom-panel nodes still exist in the DOM — ufsCloneZoomPanels()
-  // reads their innerHTML to populate the UFS dropdowns. Nothing
-  // paints to the user.
-  document.getElementById('finCards').innerHTML =
-    '<div class="mf-card-legacy-sink" hidden aria-hidden="true" ' +
-         'style="display:none !important;position:absolute;left:-99999px;' +
-                'width:0;height:0;overflow:hidden;pointer-events:none;">' +
-      formulaHtml +
-    '</div>' +
-    unifiedHtml;
+  // V5: The legacy mf-card is rendered ABOVE the UFS card again so both
+  // can be evaluated side-by-side. (Previously it was hidden offscreen;
+  // the user now wants a direct visual comparison while V5 is iterated.)
+  // Its embedded #mfCogsDetail / #mfOvhdDetail / #mfNoiDetail nodes are
+  // still the source that ufsCloneZoomPanels() reads from, so this also
+  // keeps the UFS dropdown content in lockstep with the legacy card.
+  document.getElementById('finCards').innerHTML = formulaHtml + unifiedHtml;
   // Deep-copy the mf-card zoom-panel content into the UFS panels
   // (same content, same handlers, remapped IDs). Must run AFTER the
   // outer innerHTML assignment so both source and destination panels

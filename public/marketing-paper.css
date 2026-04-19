@@ -1810,8 +1810,11 @@ body.paper-mode .ufs-card {
   /* Generous inner padding + bottom margin per spec so the card
      breathes and doesn't crowd what sits below it. */
   padding: 36px 40px 32px;
-  margin-top: 18px;
-  margin-bottom: 48px;
+  /* V5: Match standard card vertical rhythm on the page. The
+     legacy .mf-card uses margin-bottom: 1.2rem; the earlier V4
+     value of 48px was too airy and broke the shared grid. */
+  margin-top: 1.2rem;
+  margin-bottom: 1.2rem;
   font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   color: #1A1918;
   position: relative;
@@ -1971,18 +1974,10 @@ body.paper-mode .ufs-amount--profit { animation-delay: 840ms; }
   100%  { opacity: 1; transform: translateY(0); }
 }
 
-/* Target ticks slice down from the top after all segments have
-   landed — a subtle "locking the data in" punctuation mark. */
-body.paper-mode .ufs-target {
-  transform-origin: top center;
-  animation: ufsTickSlice 480ms cubic-bezier(0.34, 1.5, 0.64, 1) both;
-  animation-delay: 1080ms;
-}
-@keyframes ufsTickSlice {
-  0%    { transform: translateX(-50%) scaleY(0); opacity: 0; }
-  60%   { opacity: 1; }
-  100%  { transform: translateX(-50%) scaleY(1); opacity: 1; }
-}
+/* V5: Target ticks on the main bar were removed — they caused
+   horizontal layout glitches at 85% on narrow viewports. The
+   goal-vs-actual readout now lives inside the dropdown panels
+   (see .ufs-target-readout). No tick-slice animation needed. */
 
 /* The funnel's reveal animation inherits from .ufs-funnel-container
    transitions above — its appearance is USER-triggered (click),
@@ -2137,44 +2132,56 @@ body.paper-mode .ufs-card.is-active--profit .ufs-seg:not(.ufs-seg--profit):hover
   opacity: 0.64;
 }
 
-/* ── Drafting target markers (TARGET 50% / PROFIT GOAL 15%) ────────
-   Tightened per V3 spec: tick now extends only ~6–7px above AND
-   below the bar — acting as subtle notches, not full dividing walls.
-   Labels sit directly under each tick in the matching category
-   color. pointer-events:none so taps still reach the bar. */
-body.paper-mode .ufs-target {
-  position: absolute;
-  top: 2px;                 /* ~6px above the bar's top edge */
-  bottom: 28px;             /* tick ends ~6px below bar + label slot */
-  width: 2px;
-  transform: translateX(-50%);
-  pointer-events: none;
-  z-index: 2;
-}
-body.paper-mode .ufs-target-tick {
-  position: absolute;
-  inset: 0;
-  border-radius: 1px;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.45);
-}
-body.paper-mode .ufs-target-lbl {
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  margin-top: 6px;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  white-space: nowrap;
+/* ── V5: Target Goal vs Actual readout ───────────────────────────
+   Lives at the very top of the COGS and Profit dropdown panels
+   (just below the funnel, above the rainbow sub-bar). Injected
+   by ufsCloneZoomPanels() for any panel that carries a
+   data-target-goal attribute. Overhead has no published goal so
+   no readout is injected there. Typography is technical/mono to
+   match the rest of the card's structured feel. */
+body.paper-mode .ufs-target-readout {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  padding: 14px 18px;
+  margin: 0 0 16px;
+  border-radius: 10px;
+  background: rgba(44, 42, 40, 0.035);
+  border: 1px solid rgba(44, 42, 40, 0.08);
   font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
   font-variant-numeric: tabular-nums;
+  color: #1A1918;
 }
-body.paper-mode .ufs-target--cogs   .ufs-target-tick { background: #FF5B5B; }
-body.paper-mode .ufs-target--cogs   .ufs-target-lbl  { color:      #B83E3E; }
-body.paper-mode .ufs-target--profit .ufs-target-tick { background: #2ECC71; }
-body.paper-mode .ufs-target--profit .ufs-target-lbl  { color:      #1E8749; }
+body.paper-mode .ufs-target-readout-lbl {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #6B655C;
+}
+body.paper-mode .ufs-target-readout-val {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: #1A1918;
+}
+body.paper-mode .ufs-target-readout-sep {
+  font-size: 14px;
+  font-weight: 400;
+  color: rgba(44, 42, 40, 0.22);
+  padding: 0 2px;
+}
+/* Per-category accent — tints the Actual number so the active
+   category color is echoed in the readout. */
+body.paper-mode .ufs-zoom--cogs   .ufs-target-readout-val:last-of-type { color: #B83E3E; }
+body.paper-mode .ufs-zoom--profit .ufs-target-readout-val:last-of-type { color: #1E8749; }
+/* On-target / off-target glyph — a subtle left-border cue so a
+   scan read tells you whether you're inside the goal without
+   having to parse the numbers. */
+body.paper-mode .ufs-target-readout.is-on-target  { border-left: 3px solid #2ECC71; }
+body.paper-mode .ufs-target-readout.is-off-target { border-left: 3px solid #FF8A1F; }
 
 /* ── 3. Accordion panels ───────────────────────────────────────── */
 /* ── Cloned zoom-panel dropdowns ──────────────────────────────────
@@ -2303,7 +2310,10 @@ body.paper-mode .ufs-zoom .mf-zoom-seg-pct {
   body.paper-mode .ufs-seg     { padding: 0 8px; }
   body.paper-mode .ufs-seg-label { font-size: 12.5px; }
   body.paper-mode .ufs-seg-pct   { font-size: 11px; }
-  body.paper-mode .ufs-target-lbl { font-size: 9px; letter-spacing: 0.1em; }
+  /* V5: .ufs-target / .ufs-target-lbl no longer exist on the main bar. */
+  body.paper-mode .ufs-target-readout { padding: 10px 12px; gap: 6px 10px; }
+  body.paper-mode .ufs-target-readout-lbl { font-size: 9.5px; letter-spacing: 0.14em; }
+  body.paper-mode .ufs-target-readout-val { font-size: 14px; }
   body.paper-mode .ufs-header-title  { font-size: 15px; }
   body.paper-mode .ufs-header-period { font-size: 12.5px; }
   body.paper-mode .ufs-zoom      { margin-top: 4px; }
