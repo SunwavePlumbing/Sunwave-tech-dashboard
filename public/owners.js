@@ -1875,13 +1875,20 @@ function renderOwners() {
            'data-target-goal="15" data-actual="' + ufsProfitPct.toFixed(1) + '" hidden></div>' +
     '</div>'; // .ufs-card
 
-  // V5: The legacy mf-card is rendered ABOVE the UFS card again so both
-  // can be evaluated side-by-side. (Previously it was hidden offscreen;
-  // the user now wants a direct visual comparison while V5 is iterated.)
-  // Its embedded #mfCogsDetail / #mfOvhdDetail / #mfNoiDetail nodes are
-  // still the source that ufsCloneZoomPanels() reads from, so this also
-  // keeps the UFS dropdown content in lockstep with the legacy card.
-  document.getElementById('finCards').innerHTML = formulaHtml + unifiedHtml;
+  // The legacy mf-card has been fully superseded by the UFS card above.
+  // It's wrapped in an offscreen sink so nothing paints, but the
+  // #mfCogsDetail / #mfOvhdDetail / #mfNoiDetail nodes inside still
+  // exist in the DOM — ufsCloneZoomPanels() reads their innerHTML to
+  // populate the UFS dropdowns, so the sink is required, not optional.
+  // (A prior revision briefly re-showed this card for side-by-side V5
+  // evaluation; that's no longer wanted.)
+  document.getElementById('finCards').innerHTML =
+    '<div class="mf-card-legacy-sink" hidden aria-hidden="true" ' +
+         'style="display:none !important;position:absolute;left:-99999px;' +
+                'width:0;height:0;overflow:hidden;pointer-events:none;">' +
+      formulaHtml +
+    '</div>' +
+    unifiedHtml;
   // Deep-copy the mf-card zoom-panel content into the UFS panels
   // (same content, same handlers, remapped IDs). Must run AFTER the
   // outer innerHTML assignment so both source and destination panels

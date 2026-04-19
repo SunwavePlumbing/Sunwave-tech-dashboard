@@ -13,64 +13,47 @@ async function fetchQBOMarketing() {
   if (marketingData) renderMarketing();
 }
 
-/* ── Marketing loader — EVALUATION GALLERY ──────────────────────
-   Temporary showcase of 10 loader concepts. Each cell plays its
-   animation continuously + is numbered so the user can pick one.
+/* ── Marketing loader — PRODUCTION ──────────────────────────────
+   The Topographical Ripple animation is now the real loading page.
+   No evaluation gallery, no manual "Continue to dashboard" button:
+   the loader auto-dismisses as soon as /api/marketing resolves.
 
-   When the /api/marketing fetch finishes, finalize() stashes the
-   onComplete callback instead of auto-dismissing, and a small
-   "Continue to dashboard →" button appears so the user can jump
-   past the gallery when ready. This prevents the gallery from
-   disappearing on fast API responses before the user has had a
-   chance to examine it.
-
-   After the user picks a favorite, the 9 losers + this gallery
-   wrapper will be replaced with just the winning animation. */
-/* ── Marketing loader — EVALUATION GALLERY (reduced to 5) ───────
-   Narrowed to the user's favorites:
-     1. Isometric Bar Chart Ripple   (smoother retract on collapse)
-     2. Slide-Rule Timeline          (rolling profit readout, no pause)
-     3. Blueprint Calendar Tracker   (monthly calendar + live cost+rev tallies)
-     4. Expanding Ledger Node        (smoother flow, profit ramps to $70K)
-     5. Dial & Notch Tracker         (sweeping needle + rolling margin %)
-
-   Each cell plays continuously so the user can evaluate. When the
-   /api/marketing fetch finishes, finalize() queues the callback and
-   unlocks the "Continue to dashboard →" button; clicking it dismisses
-   the gallery and mounts the real dashboard. */
+   Animation cycle is short (~600ms — see marketing-paper.css) so:
+     • fast responses barely flash the loader
+     • slow responses cycle quickly and feel responsive
+     • the transition into the dashboard is a ~160ms fade-out
+   destroy() kills the loader immediately (for error paths);
+   finalize(cb) runs the fade and then invokes the callback. */
 function startLedgerLoader(container) {
   if (_ttLoader) _ttLoader.destroy();
 
-  // Single-animation loader (Topographical Ripple, chosen from the
-  // prior evaluation gallery). The grid layout still works with one
-  // cell; we just drop the "pick a favorite" chrome and let the
-  // single animation fill the stage.
   container.innerHTML =
     '<div class="ledger-loader ledger-loader--solo" id="ttLoader">' +
       '<div class="lg-stage lg-stage--solo">' + lgSvg_4() + '</div>' +
-      '<button type="button" class="lg-continue" id="lgContinue" onclick="_dismissLoaderGallery()">Continue to dashboard \u2192</button>' +
     '</div>';
 
-  var rootEl      = container.querySelector('#ttLoader');
-  var continueBtn = rootEl.querySelector('#lgContinue');
-  var destroyed   = false;
-  var pendingCb   = null;
-
-  window._dismissLoaderGallery = function() {
-    if (destroyed) return;
-    destroyed = true;
-    rootEl.classList.add('ll-done');
-    setTimeout(function() {
-      if (pendingCb) { var cb = pendingCb; pendingCb = null; cb(); }
-    }, 320);
-  };
+  var rootEl    = container.querySelector('#ttLoader');
+  var destroyed = false;
 
   return {
     destroy: function() { destroyed = true; },
     finalize: function(onComplete) {
       if (destroyed) { if (onComplete) onComplete(); return; }
-      pendingCb = onComplete;
-      if (continueBtn) continueBtn.classList.add('is-ready');
+      destroyed = true;
+      // 1. Snap all rings + label + accent to their completed end-state
+      //    (CSS .ll-finishing class). The user always sees the finished
+      //    tableau before the loader fades, no matter where in the 20s
+      //    cycle the API happened to resolve.
+      rootEl.classList.add('ll-finishing');
+      // 2. Hold the completed pose briefly so it registers as "done".
+      // 3. Fade out via .ll-done (opacity transition ~160ms in CSS).
+      // 4. Fire the onComplete callback to mount the real dashboard.
+      setTimeout(function() {
+        rootEl.classList.add('ll-done');
+        setTimeout(function() {
+          if (onComplete) onComplete();
+        }, 180);
+      }, 520);
     }
   };
 }

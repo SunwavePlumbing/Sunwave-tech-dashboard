@@ -1225,7 +1225,10 @@ body.paper-mode .ledger-loader {
   font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   color: #2C2A28;
   user-select: none;
-  transition: opacity 320ms ease;
+  /* Fast fade-out to match the 160ms JS dismiss timeout. This is the
+     real production loader now, not an evaluation gallery — we don't
+     want a long fade holding the eye after data is ready. */
+  transition: opacity 160ms ease;
 }
 body.paper-mode .ledger-loader.ll-done {
   opacity: 0;
@@ -1381,11 +1384,13 @@ body.paper-mode .lg-svg {
      58–90% — label + peak fully visible (hold state)
      90–100% — rings + label fade together for a clean loop
    ════════════════════════════════════════════════════════════════ */
-/* Cycle 20s. Each ring draws in its OWN non-overlapping 20% slot of
-   the cycle, so ring N+1 never starts until ring N is fully drawn.
-   Per-ring unique keyframes are necessary because animation-delay
-   only shifts — it can't gate a ring's draw to "hidden until slot,
-   drawn after." Order: outermost first (--3), innermost last (--0). */
+/* Cycle 20s. Each ring draws in its OWN non-overlapping 20% slot so
+   the ripple reads as a slow meditative outward→inward pulse while
+   /api/marketing is in flight. When the response lands, JS adds
+   .ll-finishing on the loader root which snaps everything to the
+   completed end state (all rings drawn, label + accent visible)
+   with a short ease — so the user always sees a punctuated "done"
+   tableau before the wrapper fades out. Outer first (--3), inner last (--0). */
 body.paper-mode .lg4-ring--3 {
   animation: lg4Ring3 20s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
@@ -1444,6 +1449,36 @@ body.paper-mode .lg4-accent {
   89%       { opacity: 1; }
   92%, 94%  { stroke-dashoffset: 0;   opacity: 1; }
   100%      { stroke-dashoffset: 0;   opacity: 0; }
+}
+
+/* ── .ll-finishing — snap to completed tableau on data-ready ───
+   When /api/marketing resolves, JS adds .ll-finishing on the root.
+   This kills the infinite cycle and transitions every ring + the
+   label + the orange accent to their fully-drawn end state in ~380ms.
+   The user always sees the "done" pose before the loader fades out,
+   no matter where in the 20s cycle the data happened to arrive. */
+body.paper-mode .ledger-loader.ll-finishing .lg4-ring--0,
+body.paper-mode .ledger-loader.ll-finishing .lg4-ring--1,
+body.paper-mode .ledger-loader.ll-finishing .lg4-ring--2,
+body.paper-mode .ledger-loader.ll-finishing .lg4-ring--3,
+body.paper-mode .ledger-loader.ll-finishing .lg4-label,
+body.paper-mode .ledger-loader.ll-finishing .lg4-accent {
+  animation: none !important;
+  transition: stroke-dashoffset 380ms cubic-bezier(0.4, 0, 0.2, 1),
+              opacity           220ms ease-out,
+              transform         300ms cubic-bezier(0.34, 1.3, 0.64, 1);
+}
+body.paper-mode .ledger-loader.ll-finishing .lg4-ring--0,
+body.paper-mode .ledger-loader.ll-finishing .lg4-ring--1,
+body.paper-mode .ledger-loader.ll-finishing .lg4-ring--2,
+body.paper-mode .ledger-loader.ll-finishing .lg4-ring--3,
+body.paper-mode .ledger-loader.ll-finishing .lg4-accent {
+  stroke-dashoffset: 0 !important;
+  opacity: 1 !important;
+}
+body.paper-mode .ledger-loader.ll-finishing .lg4-label {
+  opacity: 1 !important;
+  transform: translateY(0) !important;
 }
 
 /* ── Reduced motion — freeze at a readable end-state ──────────── */
@@ -1654,6 +1689,26 @@ body.paper-mode #cfBarChart {
 body.paper-mode .fin-donut-wrap {
   position: relative;
 }
+/* ── Paper texture overlay on donut segments ──────────────────────
+   Chart.js draws the donut as flat colored fills on a canvas. To make
+   the slices feel like they're printed on the same paper as the rest
+   of the card, we overlay the same fractalNoise SVG used by the page
+   background with mix-blend-mode: multiply — this tints only the
+   colored segments (transparent canvas pixels don't get darkened in
+   any meaningful way against the card's paper bg). Opacity tuned so
+   the fiber grain reads clearly without muddying the categorical
+   color palette. pointer-events:none so slice clicks still land. */
+body.paper-mode .fin-donut-wrap::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  mix-blend-mode: multiply;
+  opacity: 0.42;
+  pointer-events: none;
+  z-index: 1;
+}
 body.paper-mode .fin-donut-center {
   position: absolute;
   top: 50%; left: 50%;
@@ -1663,6 +1718,9 @@ body.paper-mode .fin-donut-center {
   font-variant-numeric: tabular-nums;
   width: 46%;             /* constrain so long values don't overflow the hole */
   max-width: 170px;
+  /* Stay above the paper-texture overlay so the center total reads
+     without being darkened by the multiply blend. */
+  z-index: 2;
 }
 body.paper-mode .fin-donut-center-label {
   font-size: 10.5px;
@@ -1816,7 +1874,7 @@ body.paper-mode .ufs-card {
   margin-top: 1.2rem;
   margin-bottom: 1.2rem;
   font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  color: #1A1918;
+  color: #373B4D;
   position: relative;
   box-shadow:
     0 1px 1px rgba(44, 42, 40, 0.04),
@@ -1837,7 +1895,7 @@ body.paper-mode .ufs-header-title {
   font-size: 17px;
   font-weight: 800;
   letter-spacing: -0.01em;
-  color: #1A1918;
+  color: #373B4D;
   line-height: 1.2;
 }
 body.paper-mode .ufs-header-period {
@@ -1873,7 +1931,7 @@ body.paper-mode .ufs-main-eyebrow {
 body.paper-mode .ufs-main-value {
   font-size: 52px;
   font-weight: 800;
-  color: #1A1918;
+  color: #373B4D;
   letter-spacing: -0.025em;
   line-height: 1;
   font-variant-numeric: tabular-nums;
@@ -2012,7 +2070,7 @@ body.paper-mode .ufs-seg {
   min-width: 0;
   padding: 0 14px;
   border: none;
-  color: #1A1918;
+  color: #373B4D;
   font-family: inherit;
   cursor: pointer;
   outline: none;
@@ -2052,7 +2110,7 @@ body.paper-mode .ufs-seg-label {
   font-size: 15px;
   font-weight: 800;
   letter-spacing: 0.01em;
-  color: #1A1918;                /* dark ink — NO white text anywhere */
+  color: #373B4D;                /* dark ink — NO white text anywhere */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2065,7 +2123,7 @@ body.paper-mode .ufs-seg-pct {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
-  color: #1A1918;
+  color: #373B4D;
 }
 
 /* Hover: ONE clean effect — subtle brightness lift. No multi-tone. */
@@ -2152,7 +2210,7 @@ body.paper-mode .ufs-target-readout {
   border: 1px solid rgba(44, 42, 40, 0.08);
   font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
   font-variant-numeric: tabular-nums;
-  color: #1A1918;
+  color: #373B4D;
 }
 body.paper-mode .ufs-target-readout-lbl {
   font-size: 10.5px;
@@ -2165,7 +2223,7 @@ body.paper-mode .ufs-target-readout-val {
   font-size: 16px;
   font-weight: 800;
   letter-spacing: -0.01em;
-  color: #1A1918;
+  color: #373B4D;
 }
 body.paper-mode .ufs-target-readout-sep {
   font-size: 14px;
