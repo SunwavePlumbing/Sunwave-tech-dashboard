@@ -42,11 +42,16 @@ function startLedgerLoader(container) {
   if (_ttLoader) _ttLoader.destroy();
 
   var cells = [
-    { n: 1, name: 'Isometric Bar Chart Ripple', svg: lgSvg_1() },
-    { n: 2, name: 'Slide-Rule Timeline',        svg: lgSvg_2() },
-    { n: 3, name: 'Blueprint Calendar Tracker', svg: lgSvg_3() },
-    { n: 4, name: 'Expanding Ledger Node',      svg: lgSvg_4() },
-    { n: 5, name: 'Dial & Notch Tracker',       svg: lgSvg_5() }
+    { n:  1, name: 'Golden Spiral Ledger',        svg: lgSvg_1()  },
+    { n:  2, name: 'Orbital Ledger',              svg: lgSvg_2()  },
+    { n:  3, name: 'Sine Wave Cash Flow',         svg: lgSvg_3()  },
+    { n:  4, name: 'Voronoi Money Partition',     svg: lgSvg_4()  },
+    { n:  5, name: 'Unit Circle Trigonometry',    svg: lgSvg_5()  },
+    { n:  6, name: 'Pascal\u2019s Triangle Cascade', svg: lgSvg_6() },
+    { n:  7, name: 'Hex Honeycomb Fill',          svg: lgSvg_7()  },
+    { n:  8, name: 'Vector Addition Chain',       svg: lgSvg_8()  },
+    { n:  9, name: 'Linear Regression Fit',       svg: lgSvg_9()  },
+    { n: 10, name: 'Polar Rose Bloom',            svg: lgSvg_10() }
   ];
 
   var gridHtml = cells.map(function(c) {
@@ -134,327 +139,629 @@ function rollingTicker(opts) {
          '</g>';
 }
 
-/* 1 — Isometric Bar Chart Ripple
-   4×3 isometric grid of terracotta bars. Diagonal ripple sweeps
-   corner-to-corner via per-bar animation-delay. SMOOTHER COLLAPSE
-   tweak: CSS keyframes use per-step timing-functions so the peak
-   is elastic but the retract is a clean symmetric ease — no bounce. */
+/* ══════════════════════════════════════════════════════════════════
+   10 geometric / mathematical / money loading animations
+   Every variant: clearly geometric, tied to a recognizable math
+   concept, features a running $ total, and loops seamlessly with
+   continuous easing (no jerky stops, no long pauses).
+   Class prefix lgN — CSS scoped per-variant in marketing-paper.css.
+   ══════════════════════════════════════════════════════════════════ */
+
+/* 1 — Golden Spiral Ledger
+   A logarithmic spiral r = a·e^(bθ) with b = ln(φ)/(π/2) draws itself
+   via stroke-dashoffset. Fibonacci $ labels (1,1,2,3,5,8,13,21 K$)
+   fade in at stations along the curve. Running total rolls at center.
+   The spiral, once drawn, fades gracefully before looping. */
 function lgSvg_1() {
-  var COLS = 4, ROWS = 3, CELL = 20, STEP = 0.08;
-  var bars = '';
-  for (var r = 0; r < ROWS; r++) {
-    for (var c = 0; c < COLS; c++) {
-      var x = 20 + c * CELL + r * 6;
-      var y = 100 - r * 10;
-      var h = 22 + (((c + r*2) % 5) * 8);
-      var delay = (c + r) * STEP;
-      var x1 = x, y1 = y;
-      var x2 = x + 14, y2 = y - 4;
-      bars +=
-        '<g class="lg1-bar" style="animation-delay:' + delay + 's;transform-origin:' + x1 + 'px ' + y1 + 'px">' +
-          '<polygon points="' +
-            x1 + ',' + y1 + ' ' + x2 + ',' + y2 + ' ' +
-            x2 + ',' + (y2 - h) + ' ' + x1 + ',' + (y1 - h) +
-          '" fill="#E88140" stroke="#2C2A28" stroke-width="0.4"/>' +
-          '<polygon points="' +
-            x1 + ',' + (y1 - h) + ' ' + x2 + ',' + (y2 - h) + ' ' +
-            (x2 + 4) + ',' + (y2 - h - 3) + ' ' + (x1 + 4) + ',' + (y1 - h - 3) +
-          '" fill="#F3A268" stroke="#2C2A28" stroke-width="0.4"/>' +
-          '<polygon points="' +
-            x2 + ',' + y2 + ' ' + (x2 + 4) + ',' + (y2 - 3) + ' ' +
-            (x2 + 4) + ',' + (y2 - h - 3) + ' ' + x2 + ',' + (y2 - h) +
-          '" fill="#B85F2A" stroke="#2C2A28" stroke-width="0.4"/>' +
-        '</g>';
-    }
+  var cx = 70, cy = 72;
+  var PHI = 1.61803398875;
+  var b = Math.log(PHI) / (Math.PI / 2);
+  var a = 0.45;
+  // Sample points along θ from -π to 3π (two full turns)
+  var pts = [];
+  for (var i = 0; i <= 160; i++) {
+    var theta = -Math.PI + (i / 160) * (4 * Math.PI);
+    var r = a * Math.exp(b * theta);
+    var x = cx + r * Math.cos(theta);
+    var y = cy + r * Math.sin(theta);
+    pts.push(x.toFixed(2) + ',' + y.toFixed(2));
   }
-  return '<svg class="lg-svg" viewBox="0 0 140 140">' + bars + '</svg>';
-}
-
-/* 2 — Slide-Rule Timeline
-   Charcoal indicator sweeps the ruler at constant velocity. Every
-   booked slot fires an expense dip + revenue spike + green wash.
-   TWEAK: the profit readout is now a vertical rolling ticker that
-   climbs from $0 to $17,420 in lockstep with the indicator; the
-   loop is fully continuous (no hold at the end — indicator retracts
-   smoothly during the last 15% so it lines up for the next sweep). */
-function lgSvg_2() {
-  var baseline = 88;
-  var notches = 12;
-  var dx = 108 / (notches - 1);
-  var start = 16;
-  var booked = [1, 3, 4, 6, 8, 9, 11];
-  var spikeHeights = { 1: 22, 3: 30, 4: 18, 6: 34, 8: 26, 9: 20, 11: 32 };
-  var dipHeights   = { 1:  6, 3:  8, 4:  5, 6: 10, 8:  7, 9:  5, 11:  9 };
-  // Static notches on the ruler
-  var tickMarks = '';
-  for (var i = 0; i < notches; i++) {
-    var xN = start + i * dx;
-    tickMarks += '<line x1="' + xN + '" y1="' + (baseline - 3) + '" x2="' + xN + '" y2="' + (baseline + 3) + '" ' +
-                 'stroke="#7A7571" stroke-width="0.5"/>';
-  }
-  var events = '';
-  booked.forEach(function(i, idx) {
-    var xB = start + i * dx;
-    var delay = idx * 0.24;
-    var spike = spikeHeights[i];
-    var dip = dipHeights[i];
-    events +=
-      '<rect class="lg2-wash" x="' + (xB - 3.5) + '" y="' + (baseline - spike) + '" ' +
-            'width="7" height="' + spike + '" fill="#3CA04A" opacity="0.22" rx="1" ' +
-            'style="animation-delay:' + delay + 's;transform-origin:' + xB + 'px ' + baseline + 'px"/>' +
-      '<line class="lg2-dip" x1="' + xB + '" y1="' + baseline + '" x2="' + xB + '" y2="' + (baseline + dip) + '" ' +
-            'stroke="#D17036" stroke-width="1.6" stroke-linecap="round" ' +
-            'style="animation-delay:' + delay + 's"/>' +
-      '<line class="lg2-spike" x1="' + xB + '" y1="' + baseline + '" x2="' + xB + '" y2="' + (baseline - spike) + '" ' +
-            'stroke="#2C2A28" stroke-width="1.6" stroke-linecap="round" ' +
-            'style="animation-delay:' + delay + 's"/>';
-  });
-  // Rolling profit ticker — climbs $0 → $17,420 across the sweep
-  var ticker = rollingTicker({
-    id: 'lg2-clip', x: 70, y: 33, w: 52, h: 12,
-    values: ['$0', '$1,240', '$3,720', '$6,480', '$9,340', '$12,200', '$14,860', '$17,420'],
-    fill: '#2C2A28', size: 8, anchor: 'middle', className: 'lg2-roll'
-  });
-  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
-    '<line x1="' + start + '" y1="' + baseline + '" x2="' + (start + (notches - 1) * dx) + '" y2="' + baseline + '" ' +
-          'stroke="#2C2A28" stroke-width="0.8"/>' +
-    tickMarks +
-    '<g class="lg2-readout">' +
-      '<rect x="44" y="22" width="52" height="16" rx="2" fill="#FAF0D5" stroke="#5C5448" stroke-width="0.5"/>' +
-    '</g>' +
-    ticker +
-    // Caption under readout
-    '<text x="70" y="46" fill="#7A7571" font-size="4" font-family="ui-monospace, monospace" ' +
-          'text-anchor="middle" letter-spacing="0.08em">PROFIT</text>' +
-    events +
-    '<line class="lg2-indicator" x1="' + start + '" y1="' + (baseline - 14) + '" ' +
-          'x2="' + start + '" y2="' + (baseline + 14) + '" ' +
-          'stroke="#2C2A28" stroke-width="1.5" stroke-linecap="round"/>' +
-  '</svg>';
-}
-
-/* 3 — Blueprint Calendar Tracker
-   A proper monthly calendar: 7 columns (days of week) × 5 rows.
-   Day-of-week header row on top, day numbers inside each cell.
-   Selected appointment days fill with a diagonal charcoal crosshatch
-   (drafting-wall style) in booking order. Live counters for Cost
-   (terracotta) and Revenue (charcoal) both roll upward as bookings
-   accumulate — spec: both tick up together. */
-function lgSvg_3() {
-  var COLS = 7, ROWS = 5, CELLW = 16, CELLH = 14;
-  var originX = 14, originY = 40;
-  var headerY = 34;
-  var dows = ['S','M','T','W','T','F','S'];
-  // Day-of-week header
-  var header = dows.map(function(d, i) {
-    return '<text x="' + (originX + i * CELLW + CELLW / 2) + '" y="' + headerY + '" ' +
-           'fill="#7A7571" font-size="4.5" font-family="ui-monospace, monospace" ' +
-           'font-weight="700" text-anchor="middle" letter-spacing="0.08em">' + d + '</text>';
-  }).join('');
-  // Calendar cells + day numbers. Month starts on Wed (offset = 3), 30 days.
-  var offset = 3;
-  var totalDays = 30;
-  var grid = '';
-  var dayLabels = '';
-  for (var r = 0; r < ROWS; r++) {
-    for (var c = 0; c < COLS; c++) {
-      var slot = r * COLS + c;
-      var day = slot - offset + 1;
-      var x = originX + c * CELLW;
-      var y = originY + r * CELLH;
-      // Cell outline
-      grid += '<rect x="' + x + '" y="' + y + '" width="' + CELLW + '" height="' + CELLH + '" ' +
-              'fill="#FAF0D5" stroke="#C4BAA0" stroke-width="0.4"/>';
-      if (day >= 1 && day <= totalDays) {
-        dayLabels += '<text x="' + (x + 2) + '" y="' + (y + 5.5) + '" fill="#5C5448" ' +
-                     'font-size="4" font-family="ui-monospace, monospace">' + day + '</text>';
-      } else {
-        // Gray out cell (empty)
-        grid += '<rect x="' + x + '" y="' + y + '" width="' + CELLW + '" height="' + CELLH + '" ' +
-                'fill="#E8E0CF" opacity="0.6"/>';
-      }
-    }
-  }
-  // Booking order (calendar slot indices for days getting hatched). 8 bookings.
-  var bookings = [5, 8, 11, 14, 16, 18, 22, 25, 28, 31];
-  var hatches = '';
-  bookings.forEach(function(slot, i) {
-    var r = Math.floor(slot / COLS);
-    var c = slot % COLS;
-    var x = originX + c * CELLW;
-    var y = originY + r * CELLH;
-    var delay = i * 0.36;
-    // Diagonal crosshatch lines inside cell
-    var lines = '';
-    for (var k = -2; k <= 4; k++) {
-      var x1 = x + k * 4;
-      var y1 = y;
-      var x2 = x + k * 4 + CELLH;
-      var y2 = y + CELLH;
-      var xa = Math.max(x, x1);
-      var ya = y + Math.max(0, x - x1);
-      var xb = Math.min(x + CELLW, x2);
-      var yb = y + CELLH - Math.max(0, x2 - (x + CELLW));
-      lines += '<line x1="' + xa + '" y1="' + ya + '" x2="' + xb + '" y2="' + yb + '" ' +
-               'stroke="#2C2A28" stroke-width="0.6" stroke-linecap="round"/>';
-    }
-    hatches +=
-      '<g class="lg3-hatch" style="animation-delay:' + delay + 's">' +
-        '<clipPath id="lg3-clip-' + slot + '"><rect x="' + x + '" y="' + y + '" width="' + CELLW + '" height="' + CELLH + '"/></clipPath>' +
-        '<g clip-path="url(#lg3-clip-' + slot + ')">' + lines + '</g>' +
-      '</g>';
-  });
-  // Two rolling counters — cost and revenue, both rising together
-  var costValues = ['$0', '$280', '$540', '$820', '$1,180', '$1,420', '$1,760', '$2,180'];
-  var revValues  = ['$0', '$1,200', '$2,400', '$3,600', '$4,800', '$6,100', '$7,300', '$8,420'];
-  var costTicker = rollingTicker({
-    id: 'lg3-cost-clip', x: 34, y: 20, w: 36, h: 10,
-    values: costValues, fill: '#B85F2A', size: 6.5, anchor: 'middle', className: 'lg3-roll'
-  });
-  var revTicker = rollingTicker({
-    id: 'lg3-rev-clip', x: 102, y: 20, w: 36, h: 10,
-    values: revValues, fill: '#2C2A28', size: 6.5, anchor: 'middle', className: 'lg3-roll'
-  });
-  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
-    // Counter labels
-    '<text x="34" y="12" fill="#7A7571" font-size="3.8" font-family="ui-monospace, monospace" ' +
-          'text-anchor="middle" letter-spacing="0.08em">COST</text>' +
-    '<text x="102" y="12" fill="#7A7571" font-size="3.8" font-family="ui-monospace, monospace" ' +
-          'text-anchor="middle" letter-spacing="0.08em">REVENUE</text>' +
-    costTicker +
-    revTicker +
-    // Calendar body
-    header +
-    grid +
-    dayLabels +
-    hatches +
-  '</svg>';
-}
-
-/* 4 — Expanding Ledger Node
-   6 satellite nodes connected to a central PROFIT hub. Each node
-   inflates smoothly, revealing a micro-donut (terracotta expense
-   chased by green profit). Pulse dots (SMIL) fire hub→node. The
-   central profit ticker rolls continuously from $0 up to $70,000.
-   TWEAKS: smoother continuous flow (no hold at peak); profit roll
-   is monotonic the whole way through. */
-function lgSvg_4() {
-  var hub = { x: 70, y: 70 };
-  var nodes = [
-    { x: 30, y: 30 }, { x: 110, y: 30 },
-    { x: 22, y: 70 }, { x: 118, y: 70 },
-    { x: 30, y: 110 }, { x: 110, y: 110 }
+  var pathD = 'M' + pts.join(' L');
+  // Fibonacci station markers along spiral (picked θ values for even spacing)
+  var stations = [
+    { theta: -0.3,  fib: '$1K',  i: 0 },
+    { theta:  0.9,  fib: '$2K',  i: 1 },
+    { theta:  2.1,  fib: '$3K',  i: 2 },
+    { theta:  3.3,  fib: '$5K',  i: 3 },
+    { theta:  4.5,  fib: '$8K',  i: 4 },
+    { theta:  5.7,  fib: '$13K', i: 5 },
+    { theta:  6.9,  fib: '$21K', i: 6 }
   ];
-  var connects = nodes.map(function(n) {
-    return '<line x1="' + hub.x + '" y1="' + hub.y + '" x2="' + n.x + '" y2="' + n.y + '" ' +
-           'stroke="#C4BAA0" stroke-width="0.4" stroke-dasharray="2 2"/>';
-  }).join('');
-  var pulses = nodes.map(function(n, i) {
-    var delay = i * 0.45 + 0.3;
-    return '<circle class="lg4-pulse lg4-pulse--' + i + '" cx="' + hub.x + '" cy="' + hub.y + '" ' +
-           'r="1.8" fill="#3CA04A" opacity="0">' +
-             '<animate attributeName="cx" dur="6s" begin="' + delay + 's" repeatCount="indefinite" ' +
-                      'values="' + hub.x + ';' + n.x + ';' + n.x + '" keyTimes="0;0.12;1"/>' +
-             '<animate attributeName="cy" dur="6s" begin="' + delay + 's" repeatCount="indefinite" ' +
-                      'values="' + hub.y + ';' + n.y + ';' + n.y + '" keyTimes="0;0.12;1"/>' +
-             '<animate attributeName="opacity" dur="6s" begin="' + delay + 's" repeatCount="indefinite" ' +
-                      'values="0;1;1;0" keyTimes="0;0.04;0.12;0.14"/>' +
-           '</circle>';
-  }).join('');
-  var svgNodes = nodes.map(function(n, i) {
-    var delay = i * 0.45;
-    var r = 10;
-    return '<g class="lg4-node" style="animation-delay:' + delay + 's;transform-origin:' + n.x + 'px ' + n.y + 'px">' +
-             '<circle cx="' + n.x + '" cy="' + n.y + '" r="' + r + '" fill="#FAF9F6" stroke="#2C2A28" stroke-width="0.6"/>' +
-             '<circle class="lg4-expense" cx="' + n.x + '" cy="' + n.y + '" r="7" ' +
-                     'fill="none" stroke="#D17036" stroke-width="3" ' +
-                     'stroke-dasharray="8 36" stroke-dashoffset="11" ' +
-                     'transform="rotate(-90 ' + n.x + ' ' + n.y + ')" ' +
-                     'style="animation-delay:' + delay + 's"/>' +
-             '<circle class="lg4-profit" cx="' + n.x + '" cy="' + n.y + '" r="7" ' +
-                     'fill="none" stroke="#3CA04A" stroke-width="3" ' +
-                     'stroke-dasharray="36 8" stroke-dashoffset="-8" ' +
-                     'transform="rotate(-90 ' + n.x + ' ' + n.y + ')" ' +
-                     'style="animation-delay:' + (delay + 0.14) + 's"/>' +
+  var labels = stations.map(function(s) {
+    var r = a * Math.exp(b * s.theta);
+    var x = cx + r * Math.cos(s.theta);
+    var y = cy + r * Math.sin(s.theta);
+    return '<g class="lg1-label lg1-label--' + s.i + '" style="transform-origin:' + x + 'px ' + y + 'px">' +
+             '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="1.6" fill="#D9A520"/>' +
+             '<text x="' + x.toFixed(1) + '" y="' + (y - 3).toFixed(1) + '" fill="#2C2A28" ' +
+                   'font-size="5" font-family="ui-monospace, monospace" font-weight="700" ' +
+                   'text-anchor="middle" style="font-variant-numeric: tabular-nums">' + s.fib + '</text>' +
            '</g>';
   }).join('');
-  // Rolling profit — ramps to $70,000 across the full cycle
-  var profitValues = ['$0', '$8,400', '$18,200', '$28,600', '$39,400', '$50,200', '$60,800', '$70,000'];
+  // Running total rolling ticker at center
   var ticker = rollingTicker({
-    id: 'lg4-clip', x: 70, y: 74, w: 24, h: 9,
-    values: profitValues, fill: '#2C2A28', size: 6, anchor: 'middle', className: 'lg4-roll'
+    id: 'lg1-clip', x: cx, y: cy + 3, w: 30, h: 10,
+    values: ['$0', '$1K', '$3K', '$6K', '$11K', '$19K', '$32K', '$53K'],
+    fill: '#D9A520', size: 8, anchor: 'middle', className: 'lg1-roll'
   });
   return '<svg class="lg-svg" viewBox="0 0 140 140">' +
-    connects +
-    svgNodes +
-    pulses +
-    // Central hub
-    '<circle cx="' + hub.x + '" cy="' + hub.y + '" r="14" fill="#FAF9F6" stroke="#2C2A28" stroke-width="0.8"/>' +
-    '<text x="70" y="66" fill="#7A7571" font-size="3.8" font-family="ui-monospace, monospace" ' +
-          'text-anchor="middle" letter-spacing="0.08em">PROFIT</text>' +
+    // Faint grid
+    '<g stroke="#E3DFD3" stroke-width="0.3" opacity="0.6">' +
+      '<line x1="0" y1="72" x2="140" y2="72"/>' +
+      '<line x1="70" y1="0" x2="70" y2="140"/>' +
+    '</g>' +
+    // Spiral path (drawn via stroke-dashoffset)
+    '<path class="lg1-spiral" d="' + pathD + '" fill="none" stroke="#2C2A28" ' +
+          'stroke-width="1.2" stroke-linecap="round"/>' +
+    labels +
+    ticker +
+    // PHI symbol — watermark
+    '<text x="70" y="16" fill="#7A7571" font-size="7" font-family="ui-monospace, monospace" ' +
+          'font-weight="700" text-anchor="middle" letter-spacing="0.1em">\u03C6 = 1.618</text>' +
+  '</svg>';
+}
+
+/* 2 — Orbital Ledger
+   3 concentric orbits rotate at Keplerian rates (inner fastest). Each
+   orbit carries evenly-spaced coins (small circles with a $ mark).
+   Central $ total rolls up continuously. The eternal rotations never
+   stop — the loader is always in motion. */
+function lgSvg_2() {
+  var cx = 70, cy = 72;
+  function ring(radius, count, coinColor, durSec, className, startOffset) {
+    var coins = '';
+    for (var i = 0; i < count; i++) {
+      var angle = (i / count) * Math.PI * 2 + (startOffset || 0);
+      var x = cx + radius * Math.cos(angle);
+      var y = cy + radius * Math.sin(angle);
+      coins += '<g>' +
+                 '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="3.2" ' +
+                         'fill="' + coinColor + '" stroke="#2C2A28" stroke-width="0.5"/>' +
+                 '<text x="' + x.toFixed(1) + '" y="' + (y + 1.5).toFixed(1) + '" fill="#2C2A28" ' +
+                       'font-size="3.5" font-family="ui-monospace, monospace" font-weight="700" ' +
+                       'text-anchor="middle">$</text>' +
+               '</g>';
+    }
+    return '<g class="' + className + '" style="transform-origin:' + cx + 'px ' + cy + 'px">' +
+             // Orbit trail (static)
+             '<circle cx="' + cx + '" cy="' + cy + '" r="' + radius + '" fill="none" ' +
+                     'stroke="#D6CFBD" stroke-width="0.4" stroke-dasharray="1.5 2"/>' +
+             coins +
+           '</g>';
+  }
+  var ticker = rollingTicker({
+    id: 'lg2-clip', x: cx, y: cy + 3, w: 22, h: 8,
+    values: ['$0', '$420', '$1,180', '$2,340', '$3,920', '$5,840', '$8,100', '$10,640'],
+    fill: '#2C2A28', size: 7, anchor: 'middle', className: 'lg2-roll'
+  });
+  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
+    ring(52, 8, '#E8D9B8', 22, 'lg2-orbit lg2-orbit--3', 0) +
+    ring(36, 6, '#F3C670', 14, 'lg2-orbit lg2-orbit--2', 0.4) +
+    ring(22, 4, '#D9A520', 8,  'lg2-orbit lg2-orbit--1', 0.8) +
+    // Central accumulator plate
+    '<circle cx="' + cx + '" cy="' + cy + '" r="12" fill="#FAF0D5" ' +
+            'stroke="#2C2A28" stroke-width="0.8"/>' +
+    '<text x="' + cx + '" y="' + (cy - 3) + '" fill="#7A7571" font-size="3.5" ' +
+          'font-family="ui-monospace, monospace" text-anchor="middle" letter-spacing="0.1em">TOTAL</text>' +
     ticker +
   '</svg>';
 }
 
-/* 5 — Dial & Notch Tracker
-   Circular dial with 24 tick marks, terracotta inner breathing ring,
-   green revenue arc sweeping the perimeter, and now a SWEEPING
-   NEEDLE that tracks the revenue arc's progress. The margin
-   percentage rolls 0% → 38% (tick-up), syncing with the arc.
-   Subtle outer-glow pulse when the margin locks in. */
-function lgSvg_5() {
-  var cx = 70, cy = 72, rOuter = 44, rRing = 36, rInner = 26;
-  var circRing = 2 * Math.PI * rRing;
-  var ticks = '';
-  for (var i = 0; i < 24; i++) {
-    var angle = (i / 24) * Math.PI * 2 - Math.PI / 2;
-    var x1 = cx + Math.cos(angle) * (rOuter - 4);
-    var y1 = cy + Math.sin(angle) * (rOuter - 4);
-    var x2 = cx + Math.cos(angle) * rOuter;
-    var y2 = cy + Math.sin(angle) * rOuter;
-    var delay = i * 0.07;
-    ticks += '<line class="lg5-tick" x1="' + x1.toFixed(1) + '" y1="' + y1.toFixed(1) + '" ' +
-                  'x2="' + x2.toFixed(1) + '" y2="' + y2.toFixed(1) + '" ' +
-                  'stroke="#2C2A28" stroke-width="1" stroke-linecap="round" ' +
-                  'style="animation-delay:' + delay.toFixed(2) + 's"/>';
+/* 3 — Sine Wave Cash Flow
+   A continuous sine curve translates leftward at constant velocity.
+   Green credit markers rise at peaks; coral debit markers drop at
+   troughs. A running integral area fills softly under the curve.
+   Profit $ ticker rolls continuously with the phase. */
+function lgSvg_3() {
+  var baseline = 82;
+  var amplitude = 22;
+  var period = 40;
+  // Generate long sine path covering 4 periods so translation is seamless
+  var pts = [];
+  for (var i = 0; i <= 320; i++) {
+    var x = -20 + i * 0.8;
+    var y = baseline - amplitude * Math.sin((x / period) * Math.PI * 2);
+    pts.push(x.toFixed(2) + ',' + y.toFixed(2));
   }
-  // Rolling margin ticker — 0% → 38%
-  var marginValues = ['0%', '6%', '12%', '18%', '24%', '30%', '34%', '38%'];
+  var linePath = 'M' + pts.join(' L');
+  // Fill path (closed area under curve)
+  var fillPath = linePath + ' L236,140 L-20,140 Z';
+  // Peak/trough markers along visible range
+  var markers = '';
+  for (var p = 0; p < 6; p++) {
+    var mx = 10 + p * 22;
+    var isPeak = p % 2 === 0;
+    var markY = baseline - amplitude * Math.sin((mx / period) * Math.PI * 2);
+    var mkCol = isPeak ? '#3CA04A' : '#FF5B5B';
+    var mkDelay = p * 0.55;
+    markers +=
+      '<circle class="lg3-mark" cx="' + mx + '" cy="' + markY.toFixed(1) + '" r="2.2" ' +
+             'fill="' + mkCol + '" stroke="#2C2A28" stroke-width="0.4" ' +
+             'style="animation-delay:' + mkDelay + 's"/>';
+  }
   var ticker = rollingTicker({
-    id: 'lg5-clip', x: cx, y: cy + 8, w: 22, h: 12,
-    values: marginValues, fill: '#2C2A28', size: 10, anchor: 'middle', className: 'lg5-roll'
+    id: 'lg3-clip', x: 70, y: 24, w: 40, h: 10,
+    values: ['$0', '$1,240', '$2,680', '$4,180', '$5,920', '$7,840', '$9,920', '$12,480'],
+    fill: '#2C2A28', size: 8, anchor: 'middle', className: 'lg3-roll'
+  });
+  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
+    // Axes
+    '<line x1="0" y1="' + baseline + '" x2="140" y2="' + baseline + '" stroke="#7A7571" ' +
+          'stroke-width="0.5" stroke-dasharray="2 2"/>' +
+    // Scrolling wave group (CSS translate)
+    '<g class="lg3-scroll">' +
+      '<path d="' + fillPath + '" fill="#FFD700" opacity="0.18"/>' +
+      '<path d="' + linePath + '" fill="none" stroke="#2C2A28" stroke-width="1.5" ' +
+            'stroke-linecap="round" stroke-linejoin="round"/>' +
+    '</g>' +
+    markers +
+    // Label
+    '<text x="70" y="16" fill="#7A7571" font-size="4" font-family="ui-monospace, monospace" ' +
+          'text-anchor="middle" letter-spacing="0.1em">y = A\u00B7sin(\u03C9t)</text>' +
+    ticker +
+  '</svg>';
+}
+
+/* 4 — Voronoi Money Partition
+   8 tessellating cells of hand-tuned Voronoi-like polygons. Each
+   cell fades in with a radial gradient from its seed point; the seed
+   dots pulse continuously so the geometry always feels alive.
+   Each cell carries a $ value; total rolls up. */
+function lgSvg_4() {
+  // Pre-computed 8 cells covering a 140×140 canvas. Polygons derived
+  // from seeds + hand-tuned so the tessellation reads as Voronoi.
+  var cells = [
+    { seed: { x: 30, y: 26 }, poly: '0,0 68,0 58,40 22,48 0,30', val: '$2.4K', idx: 0 },
+    { seed: { x: 100, y: 25 }, poly: '68,0 140,0 140,38 104,46 58,40', val: '$3.1K', idx: 1 },
+    { seed: { x: 18, y: 72 }, poly: '0,30 22,48 34,78 0,86', val: '$1.8K', idx: 2 },
+    { seed: { x: 62, y: 64 }, poly: '22,48 58,40 104,46 88,76 46,82 34,78', val: '$4.2K', idx: 3 },
+    { seed: { x: 116, y: 70 }, poly: '104,46 140,38 140,92 88,76', val: '$2.9K', idx: 4 },
+    { seed: { x: 24, y: 112 }, poly: '0,86 34,78 46,110 12,140 0,140', val: '$1.5K', idx: 5 },
+    { seed: { x: 72, y: 110 }, poly: '46,82 88,76 94,116 60,140 12,140 46,110', val: '$3.7K', idx: 6 },
+    { seed: { x: 116, y: 114 }, poly: '88,76 140,92 140,140 60,140 94,116', val: '$2.2K', idx: 7 }
+  ];
+  // Gradient defs — one radial gradient per cell, keyed by seed
+  var gradDefs = cells.map(function(c) {
+    var col = ['#FFD700','#F3C670','#D9A520','#E88140','#F3A268','#3CA04A','#5DBF69','#4A7CB8'][c.idx];
+    return '<radialGradient id="lg4-g' + c.idx + '" cx="' + c.seed.x + '" cy="' + c.seed.y + '" ' +
+           'r="60" gradientUnits="userSpaceOnUse">' +
+             '<stop offset="0" stop-color="' + col + '" stop-opacity="0.7"/>' +
+             '<stop offset="0.75" stop-color="' + col + '" stop-opacity="0.25"/>' +
+             '<stop offset="1" stop-color="' + col + '" stop-opacity="0.15"/>' +
+           '</radialGradient>';
+  }).join('');
+  var polys = cells.map(function(c) {
+    return '<g class="lg4-cell lg4-cell--' + c.idx + '" style="animation-delay:' + (c.idx * 0.28) + 's">' +
+             '<polygon points="' + c.poly + '" fill="url(#lg4-g' + c.idx + ')" ' +
+                      'stroke="#2C2A28" stroke-width="0.5"/>' +
+             '<circle cx="' + c.seed.x + '" cy="' + c.seed.y + '" r="1.6" fill="#2C2A28"/>' +
+             '<text x="' + c.seed.x + '" y="' + (c.seed.y + 8) + '" fill="#1A1918" ' +
+                   'font-size="5" font-family="ui-monospace, monospace" font-weight="700" ' +
+                   'text-anchor="middle" style="font-variant-numeric: tabular-nums">' + c.val + '</text>' +
+           '</g>';
+  }).join('');
+  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
+    '<defs>' + gradDefs + '</defs>' +
+    polys +
+  '</svg>';
+}
+
+/* 5 — Unit Circle Trigonometry
+   A unit circle at center. A rotating radius sweeps continuously
+   (CSS rotate on a transform group). The tip traces the perimeter.
+   Two bars (REV = sin, EXP = cos) oscillate in lockstep with the
+   rotation via matching keyframe curves. Running profit rolls. */
+function lgSvg_5() {
+  var cx = 46, cy = 72, R = 28;
+  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
+    // Unit circle face
+    '<circle cx="' + cx + '" cy="' + cy + '" r="' + R + '" fill="#FAF0D5" ' +
+            'stroke="#7A7571" stroke-width="0.5"/>' +
+    // Axes through center
+    '<line x1="' + (cx - R - 4) + '" y1="' + cy + '" x2="' + (cx + R + 4) + '" y2="' + cy + '" ' +
+          'stroke="#7A7571" stroke-width="0.4"/>' +
+    '<line x1="' + cx + '" y1="' + (cy - R - 4) + '" x2="' + cx + '" y2="' + (cy + R + 4) + '" ' +
+          'stroke="#7A7571" stroke-width="0.4"/>' +
+    // Rotating radius + tip dot (rotates around center)
+    '<g class="lg5-rotator" style="transform-origin:' + cx + 'px ' + cy + 'px">' +
+      '<line x1="' + cx + '" y1="' + cy + '" x2="' + (cx + R) + '" y2="' + cy + '" ' +
+            'stroke="#2C2A28" stroke-width="1.2" stroke-linecap="round"/>' +
+      '<circle cx="' + (cx + R) + '" cy="' + cy + '" r="2.4" fill="#D9A520" ' +
+              'stroke="#2C2A28" stroke-width="0.4"/>' +
+    '</g>' +
+    // Center pivot
+    '<circle cx="' + cx + '" cy="' + cy + '" r="1.8" fill="#2C2A28"/>' +
+    // θ label
+    '<text x="' + cx + '" y="' + (cy + R + 12) + '" fill="#7A7571" font-size="4.5" ' +
+          'font-family="ui-monospace, monospace" text-anchor="middle">\u03B8 \u2192 2\u03C0</text>' +
+    // Revenue bar (sin) — vertical bar on the right
+    '<g transform="translate(92, 108)">' +
+      '<rect x="0" y="-60" width="14" height="60" fill="#E8E0CF" stroke="#7A7571" stroke-width="0.4"/>' +
+      '<rect class="lg5-rev" x="0" y="-60" width="14" height="60" fill="#3CA04A" ' +
+            'style="transform-origin:7px 0"/>' +
+      '<text x="7" y="10" fill="#1E8749" font-size="4.5" font-family="ui-monospace, monospace" ' +
+            'font-weight="700" text-anchor="middle">REV</text>' +
+    '</g>' +
+    // Expense bar (cos) — vertical bar on the far right
+    '<g transform="translate(114, 108)">' +
+      '<rect x="0" y="-60" width="14" height="60" fill="#E8E0CF" stroke="#7A7571" stroke-width="0.4"/>' +
+      '<rect class="lg5-exp" x="0" y="-60" width="14" height="60" fill="#FF5B5B" ' +
+            'style="transform-origin:7px 0"/>' +
+      '<text x="7" y="10" fill="#B83E3E" font-size="4.5" font-family="ui-monospace, monospace" ' +
+            'font-weight="700" text-anchor="middle">EXP</text>' +
+    '</g>' +
+    // Top corner label with running profit
+    '<text x="100" y="16" fill="#7A7571" font-size="4.5" font-family="ui-monospace, monospace" ' +
+          'text-anchor="middle" letter-spacing="0.08em">PROFIT</text>' +
+    rollingTicker({
+      id: 'lg5-clip', x: 100, y: 26, w: 36, h: 10,
+      values: ['$0', '$1.2K', '$2.8K', '$4.6K', '$6.1K', '$7.8K', '$9.4K', '$11.2K'],
+      fill: '#2C2A28', size: 8, anchor: 'middle', className: 'lg5-roll'
+    }) +
+  '</svg>';
+}
+
+/* 6 — Pascal's Triangle Cascade
+   6 rows of Pascal's triangle. Each node is a small circle with its
+   binomial coefficient. Nodes cascade in top-down with gentle spring
+   ease; parent-child lines draw with stroke-dashoffset. Bottom row
+   sum (2^5 = 32) → $32K label. Whole cascade loops continuously. */
+function lgSvg_6() {
+  var rows = [
+    [1],
+    [1, 1],
+    [1, 2, 1],
+    [1, 3, 3, 1],
+    [1, 4, 6, 4, 1],
+    [1, 5, 10, 10, 5, 1]
+  ];
+  var cx = 70;
+  var startY = 22, rowH = 16;
+  var nodeSpacing = 14;
+  // Compute node positions
+  var nodes = [];
+  rows.forEach(function(row, r) {
+    var rowWidth = (row.length - 1) * nodeSpacing;
+    var startX = cx - rowWidth / 2;
+    row.forEach(function(val, c) {
+      nodes.push({ r: r, c: c, x: startX + c * nodeSpacing, y: startY + r * rowH, v: val });
+    });
+  });
+  // Connection lines (parent → child). Child at (r+1, c) has parents (r, c-1) and (r, c).
+  var lines = '';
+  for (var r = 0; r < rows.length - 1; r++) {
+    for (var c = 0; c < rows[r].length; c++) {
+      var parent = nodes.filter(function(n) { return n.r === r && n.c === c; })[0];
+      // Left child
+      var lc = nodes.filter(function(n) { return n.r === r + 1 && n.c === c; })[0];
+      var rc = nodes.filter(function(n) { return n.r === r + 1 && n.c === c + 1; })[0];
+      var delay = (r + 1) * 0.35;
+      [lc, rc].forEach(function(child, idx) {
+        if (!child) return;
+        lines += '<line class="lg6-edge" x1="' + parent.x + '" y1="' + parent.y + '" ' +
+                                          'x2="' + child.x + '" y2="' + child.y + '" ' +
+                       'stroke="#7A7571" stroke-width="0.4" ' +
+                       'style="animation-delay:' + delay + 's"/>';
+      });
+    }
+  }
+  // Nodes: circles + values
+  var nodeEls = nodes.map(function(n, i) {
+    var delay = n.r * 0.35 + n.c * 0.04;
+    return '<g class="lg6-node" style="transform-origin:' + n.x + 'px ' + n.y + 'px;animation-delay:' + delay + 's">' +
+             '<circle cx="' + n.x + '" cy="' + n.y + '" r="5" fill="#FAF0D5" ' +
+                     'stroke="#2C2A28" stroke-width="0.6"/>' +
+             '<text x="' + n.x + '" y="' + (n.y + 1.8) + '" fill="#2C2A28" font-size="5.5" ' +
+                   'font-family="ui-monospace, monospace" font-weight="700" text-anchor="middle" ' +
+                   'style="font-variant-numeric: tabular-nums">' + n.v + '</text>' +
+           '</g>';
+  }).join('');
+  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
+    lines +
+    nodeEls +
+    // Binomial formula label
+    '<text x="70" y="16" fill="#7A7571" font-size="4.5" font-family="ui-monospace, monospace" ' +
+          'text-anchor="middle" letter-spacing="0.08em">C(n, k)</text>' +
+    // Row-5 sum callout
+    '<text class="lg6-sum" x="70" y="128" fill="#3CA04A" font-size="9" ' +
+          'font-family="ui-monospace, monospace" font-weight="800" text-anchor="middle" ' +
+          'style="font-variant-numeric: tabular-nums">\u03A3 = $32K</text>' +
+  '</svg>';
+}
+
+/* 7 — Hex Honeycomb Fill
+   Central hex + 6 ring-1 + 12 ring-2 = 19-hex honeycomb. Radial
+   ripple from center outward fills cells with $ denominations. After
+   full, outer cells drain first; cycle restarts with inner. Continuous. */
+function lgSvg_7() {
+  var cx = 70, cy = 72;
+  var R = 7;                     // hex "radius" (center to vertex)
+  var a = R * Math.sqrt(3) / 2;  // apothem
+  var dy = 1.5 * R;              // vertical neighbor offset
+  // Hex positions (pointy-top): (col, row) to (x, y)
+  // Ring 0: center. Ring 1: 6 hexes. Ring 2: 12 hexes.
+  function hexPath(hcx, hcy) {
+    var pts = [];
+    for (var k = 0; k < 6; k++) {
+      var ang = (Math.PI / 3) * k - Math.PI / 2;   // pointy-top
+      pts.push((hcx + R * Math.cos(ang)).toFixed(2) + ',' + (hcy + R * Math.sin(ang)).toFixed(2));
+    }
+    return pts.join(' ');
+  }
+  // Position generators via axial coordinates (q, r) — pointy-top formula
+  function axialToXY(q, r) {
+    return {
+      x: cx + a * 2 * q + a * r,
+      y: cy + dy * r
+    };
+  }
+  var positions = [];
+  // Ring 0
+  positions.push({ q: 0, r: 0, ring: 0 });
+  // Ring 1 (6 hexes)
+  var ring1 = [[1,0],[1,-1],[0,-1],[-1,0],[-1,1],[0,1]];
+  ring1.forEach(function(p) { positions.push({ q: p[0], r: p[1], ring: 1 }); });
+  // Ring 2 (12 hexes)
+  var ring2 = [
+    [2,0],[2,-1],[2,-2],[1,-2],[0,-2],[-1,-1],
+    [-2,0],[-2,1],[-2,2],[-1,2],[0,2],[1,1]
+  ];
+  ring2.forEach(function(p) { positions.push({ q: p[0], r: p[1], ring: 2 }); });
+  var denoms = ['$500','$100','$50','$100','$200','$50','$100','$200','$100','$50','$200','$100','$500','$200','$100','$50','$100','$500','$100'];
+  var hexes = positions.map(function(p, i) {
+    var xy = axialToXY(p.q, p.r);
+    var delay = p.ring * 0.28 + (i % 6) * 0.06;
+    return '<g class="lg7-hex lg7-hex--ring' + p.ring + '" style="' +
+           'transform-origin:' + xy.x.toFixed(2) + 'px ' + xy.y.toFixed(2) + 'px;' +
+           'animation-delay:' + delay.toFixed(2) + 's">' +
+             '<polygon points="' + hexPath(xy.x, xy.y) + '" fill="#FAF0D5" ' +
+                      'stroke="#2C2A28" stroke-width="0.5"/>' +
+             '<text x="' + xy.x.toFixed(2) + '" y="' + (xy.y + 1.8).toFixed(2) + '" ' +
+                   'fill="#1A1918" font-size="3.2" font-family="ui-monospace, monospace" ' +
+                   'font-weight="700" text-anchor="middle" ' +
+                   'style="font-variant-numeric: tabular-nums">' + denoms[i] + '</text>' +
+           '</g>';
+  }).join('');
+  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
+    hexes +
+    // Running tally
+    '<text x="70" y="14" fill="#7A7571" font-size="4" font-family="ui-monospace, monospace" ' +
+          'text-anchor="middle" letter-spacing="0.1em">SUM</text>' +
+    rollingTicker({
+      id: 'lg7-clip', x: 70, y: 128, w: 44, h: 10,
+      values: ['$0', '$500', '$1.1K', '$1.8K', '$2.6K', '$3.5K', '$4.1K', '$4.6K'],
+      fill: '#2C2A28', size: 8, anchor: 'middle', className: 'lg7-roll'
+    }) +
+  '</svg>';
+}
+
+/* 8 — Vector Addition Chain
+   Three vectors (Revenue, −COGS, −Overhead) chain tip-to-tail on a
+   faint grid. Each draws itself via stroke-dashoffset. The dashed
+   resultant (Profit) bridges origin → final tip. Running $ labels
+   accompany each arrow. Whole sequence loops with a retract. */
+function lgSvg_8() {
+  var O = { x: 22, y: 108 };
+  var V1 = { x: 82, y: 52 };    // after Revenue
+  var V2 = { x: 62, y: 78 };    // after -COGS
+  var V3 = { x: 104, y: 92 };   // after -Overhead = final profit tip
+  function arrow(from, to, cls, color, dashLen) {
+    // Arrow head: compute unit vector
+    var dx = to.x - from.x, dy = to.y - from.y;
+    var len = Math.sqrt(dx*dx + dy*dy);
+    var ux = dx/len, uy = dy/len;
+    var hx = to.x - ux * 6, hy = to.y - uy * 6;
+    var px = -uy * 2.5, py = ux * 2.5;
+    var head = (hx + px).toFixed(1) + ',' + (hy + py).toFixed(1) + ' ' +
+               to.x.toFixed(1) + ',' + to.y.toFixed(1) + ' ' +
+               (hx - px).toFixed(1) + ',' + (hy - py).toFixed(1);
+    return '<g class="' + cls + '">' +
+             '<line x1="' + from.x + '" y1="' + from.y + '" x2="' + to.x + '" y2="' + to.y + '" ' +
+                   'stroke="' + color + '" stroke-width="1.8" stroke-linecap="round" ' +
+                   'stroke-dasharray="' + dashLen + '" stroke-dashoffset="' + dashLen + '"/>' +
+             '<polyline class="' + cls + '-head" points="' + head + '" ' +
+                      'fill="none" stroke="' + color + '" stroke-width="1.6" ' +
+                      'stroke-linecap="round" stroke-linejoin="round"/>' +
+           '</g>';
+  }
+  // Grid
+  var grid = '';
+  for (var gx = 0; gx <= 140; gx += 14) {
+    grid += '<line x1="' + gx + '" y1="0" x2="' + gx + '" y2="140" stroke="#E3DFD3" stroke-width="0.3"/>';
+  }
+  for (var gy = 0; gy <= 140; gy += 14) {
+    grid += '<line x1="0" y1="' + gy + '" x2="140" y2="' + gy + '" stroke="#E3DFD3" stroke-width="0.3"/>';
+  }
+  // Dashed resultant (Profit)
+  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
+    grid +
+    // Origin marker
+    '<circle cx="' + O.x + '" cy="' + O.y + '" r="2" fill="#2C2A28"/>' +
+    '<text x="' + (O.x - 6) + '" y="' + (O.y + 4) + '" fill="#7A7571" font-size="4.5" ' +
+          'font-family="ui-monospace, monospace" text-anchor="end">O</text>' +
+    // Vector 1: Revenue (charcoal)
+    arrow(O, V1, 'lg8-v1', '#2C2A28', 100) +
+    '<text class="lg8-l1" x="' + ((O.x + V1.x) / 2 + 4) + '" y="' + ((O.y + V1.y) / 2 - 4) + '" ' +
+          'fill="#2C2A28" font-size="5" font-family="ui-monospace, monospace" font-weight="700" ' +
+          'style="font-variant-numeric: tabular-nums">+$273K</text>' +
+    // Vector 2: -COGS (coral)
+    arrow(V1, V2, 'lg8-v2', '#FF5B5B', 50) +
+    '<text class="lg8-l2" x="' + ((V1.x + V2.x) / 2 + 6) + '" y="' + ((V1.y + V2.y) / 2) + '" ' +
+          'fill="#B83E3E" font-size="5" font-family="ui-monospace, monospace" font-weight="700" ' +
+          'style="font-variant-numeric: tabular-nums">\u2212$144K</text>' +
+    // Vector 3: -Overhead (orange)
+    arrow(V2, V3, 'lg8-v3', '#FF8A1F', 60) +
+    '<text class="lg8-l3" x="' + ((V2.x + V3.x) / 2) + '" y="' + ((V2.y + V3.y) / 2 + 7) + '" ' +
+          'fill="#C76810" font-size="5" font-family="ui-monospace, monospace" font-weight="700" ' +
+          'style="font-variant-numeric: tabular-nums">\u2212$88K</text>' +
+    // Resultant (green dashed)
+    (function() {
+      var dx = V3.x - O.x, dy = V3.y - O.y;
+      var len = Math.sqrt(dx*dx + dy*dy);
+      var ux = dx/len, uy = dy/len;
+      var hx = V3.x - ux * 6, hy = V3.y - uy * 6;
+      var px = -uy * 2.5, py = ux * 2.5;
+      var head = (hx + px).toFixed(1) + ',' + (hy + py).toFixed(1) + ' ' +
+                 V3.x.toFixed(1) + ',' + V3.y.toFixed(1) + ' ' +
+                 (hx - px).toFixed(1) + ',' + (hy - py).toFixed(1);
+      return '<g class="lg8-res">' +
+               '<line x1="' + O.x + '" y1="' + O.y + '" x2="' + V3.x + '" y2="' + V3.y + '" ' +
+                     'stroke="#3CA04A" stroke-width="1.6" stroke-linecap="round" ' +
+                     'stroke-dasharray="3 2.5"/>' +
+               '<polyline points="' + head + '" fill="none" stroke="#3CA04A" ' +
+                        'stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>' +
+               '<text x="' + (V3.x + 4) + '" y="' + (V3.y - 4) + '" fill="#1E8749" ' +
+                     'font-size="6" font-family="ui-monospace, monospace" font-weight="800" ' +
+                     'style="font-variant-numeric: tabular-nums">=$41K</text>' +
+             '</g>';
+    })() +
+  '</svg>';
+}
+
+/* 9 — Linear Regression Fit
+   Scatter plot of 8 points (noisy-linear trend). Points drop in
+   sequentially with gravity ease. A best-fit line draws through with
+   stroke-dashoffset after each point lands. Running slope/margin
+   ticker updates. Loop: fade points, restart. Continuous. */
+function lgSvg_9() {
+  // Pre-computed points (noisy linear, slope ≈ -0.52 in SVG coords)
+  var points = [
+    { x: 20,  y: 102 },
+    { x: 34,  y: 96 },
+    { x: 48,  y: 84 },
+    { x: 60,  y: 82 },
+    { x: 74,  y: 70 },
+    { x: 86,  y: 66 },
+    { x: 100, y: 54 },
+    { x: 114, y: 48 }
+  ];
+  // Best fit: linear regression y = mx + b
+  var n = points.length;
+  var sx = 0, sy = 0, sxy = 0, sxx = 0;
+  points.forEach(function(p) { sx += p.x; sy += p.y; sxy += p.x * p.y; sxx += p.x * p.x; });
+  var m = (n * sxy - sx * sy) / (n * sxx - sx * sx);
+  var bInt = (sy - m * sx) / n;
+  var x0 = 20, x1 = 114;
+  var y0 = m * x0 + bInt;
+  var y1 = m * x1 + bInt;
+  // Point dots
+  var dots = points.map(function(p, i) {
+    return '<circle class="lg9-dot lg9-dot--' + i + '" cx="' + p.x + '" cy="' + p.y + '" r="2.6" ' +
+                  'fill="#D9A520" stroke="#2C2A28" stroke-width="0.5" ' +
+                  'style="animation-delay:' + (0.2 + i * 0.25) + 's"/>';
+  }).join('');
+  // Axes
+  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
+    // Axes
+    '<g stroke="#7A7571" stroke-width="0.5" fill="none">' +
+      '<line x1="14" y1="110" x2="120" y2="110"/>' +
+      '<line x1="14" y1="110" x2="14" y2="30"/>' +
+    '</g>' +
+    // Tick marks
+    '<g stroke="#D6CFBD" stroke-width="0.3">' +
+      '<line x1="14" y1="42" x2="120" y2="42"/>' +
+      '<line x1="14" y1="66" x2="120" y2="66"/>' +
+      '<line x1="14" y1="90" x2="120" y2="90"/>' +
+    '</g>' +
+    dots +
+    // Best-fit line (animated draw last)
+    '<line class="lg9-fit" x1="' + x0 + '" y1="' + y0.toFixed(1) + '" ' +
+                          'x2="' + x1 + '" y2="' + y1.toFixed(1) + '" ' +
+          'stroke="#3CA04A" stroke-width="1.6" stroke-linecap="round"/>' +
+    // Equation label
+    '<text x="70" y="14" fill="#7A7571" font-size="4.5" font-family="ui-monospace, monospace" ' +
+          'text-anchor="middle" letter-spacing="0.08em">y = mx + b</text>' +
+    rollingTicker({
+      id: 'lg9-clip', x: 110, y: 26, w: 40, h: 8,
+      values: ['margin', '8%', '14%', '19%', '24%', '28%', '32%', '36%'],
+      fill: '#2C2A28', size: 7, anchor: 'middle', className: 'lg9-roll'
+    }) +
+  '</svg>';
+}
+
+/* 10 — Polar Rose Bloom
+   Polar curve r = a·cos(kθ) drawn via stroke-dashoffset. k=5 yields
+   a 5-petal rose. Each petal fills with its own category color as
+   the curve crosses it. Sum rolls up at center. Glow briefly at
+   completion, fade, redraw — seamless continuous bloom. */
+function lgSvg_10() {
+  var cx = 70, cy = 72;
+  var A = 42;
+  var k = 5;
+  // Sample points: θ from 0 to π (full 5-petal rose)
+  var pts = [];
+  for (var i = 0; i <= 240; i++) {
+    var theta = (i / 240) * Math.PI;
+    var r = A * Math.cos(k * theta);
+    if (r < 0) r = 0;   // clip to zero to prevent overlapping negative-petal artifacts
+    var x = cx + r * Math.cos(theta);
+    var y = cy + r * Math.sin(theta);
+    pts.push(x.toFixed(2) + ',' + y.toFixed(2));
+  }
+  var pathD = 'M' + pts.join(' L') + ' Z';
+  // Petal colors + labels (5 categories)
+  var petalColors = ['#FF5B5B', '#FF8A1F', '#D9A520', '#3CA04A', '#4A7CB8'];
+  var petalLabels = ['$42K','$31K','$24K','$18K','$12K'];
+  // Petal center points (θ = (2k+1)·π/(2k) for k=0..4)... for cos(5θ): peaks at θ=0, π/5, 2π/5, 3π/5, 4π/5
+  var petalMarkers = '';
+  for (var p = 0; p < 5; p++) {
+    var ptheta = (p / 5) * Math.PI + Math.PI / 10;
+    var pr = A * 0.65;
+    var px = cx + pr * Math.cos(ptheta);
+    var py = cy + pr * Math.sin(ptheta);
+    petalMarkers +=
+      '<text class="lg10-lbl lg10-lbl--' + p + '" x="' + px.toFixed(1) + '" y="' + py.toFixed(1) + '" ' +
+            'fill="#1A1918" font-size="4.5" font-family="ui-monospace, monospace" font-weight="700" ' +
+            'text-anchor="middle" style="font-variant-numeric: tabular-nums;animation-delay:' + (p * 0.6).toFixed(2) + 's">' +
+        petalLabels[p] +
+      '</text>';
+  }
+  // Gradient fills per petal via clipPath — easier: layer 5 filled rose shapes each
+  // clipped to their angular wedge. Here we'll use stroke-only rose + a fill overlay.
+  var ticker = rollingTicker({
+    id: 'lg10-clip', x: cx, y: cy + 3, w: 28, h: 9,
+    values: ['$0', '$12K', '$30K', '$54K', '$85K', '$127K'],
+    fill: '#2C2A28', size: 7, anchor: 'middle', className: 'lg10-roll'
   });
   return '<svg class="lg-svg" viewBox="0 0 140 140">' +
     '<defs>' +
-      '<filter id="lg5-glow" x="-50%" y="-50%" width="200%" height="200%">' +
-        '<feGaussianBlur stdDeviation="2"/>' +
-      '</filter>' +
+      '<radialGradient id="lg10-glow" cx="' + cx + '" cy="' + cy + '" r="60" gradientUnits="userSpaceOnUse">' +
+        '<stop offset="0" stop-color="#FFD700" stop-opacity="0.4"/>' +
+        '<stop offset="1" stop-color="#FFD700" stop-opacity="0"/>' +
+      '</radialGradient>' +
     '</defs>' +
-    // Faint dial face
-    '<circle cx="' + cx + '" cy="' + cy + '" r="' + rOuter + '" fill="#FAF0D5" stroke="#7A7571" stroke-width="0.4"/>' +
-    // Glow ring (hidden until margin locks)
-    '<circle class="lg5-glow" cx="' + cx + '" cy="' + cy + '" r="' + rOuter + '" ' +
-            'fill="none" stroke="#3CA04A" stroke-width="2" opacity="0" filter="url(#lg5-glow)"/>' +
-    ticks +
-    // Terracotta inner breathing ring
-    '<circle class="lg5-expense" cx="' + cx + '" cy="' + cy + '" r="' + rInner + '" ' +
-            'fill="none" stroke="#D17036" stroke-width="2" opacity="0.55"/>' +
-    // Green revenue arc
-    '<circle class="lg5-revenue" cx="' + cx + '" cy="' + cy + '" r="' + rRing + '" ' +
-            'fill="none" stroke="#3CA04A" stroke-width="3" stroke-linecap="round" ' +
-            'stroke-dasharray="' + circRing.toFixed(2) + '" stroke-dashoffset="' + circRing.toFixed(2) + '" ' +
-            'transform="rotate(-90 ' + cx + ' ' + cy + ')"/>' +
-    // Sweeping needle — rotates around center from -90° (12 o'clock) to +270° (full rev)
-    '<g class="lg5-needle" style="transform-origin:' + cx + 'px ' + cy + 'px">' +
-      '<line x1="' + cx + '" y1="' + cy + '" x2="' + cx + '" y2="' + (cy - rRing - 2) + '" ' +
-            'stroke="#2C2A28" stroke-width="1.2" stroke-linecap="round"/>' +
-      '<circle cx="' + cx + '" cy="' + (cy - rRing - 2) + '" r="1.6" fill="#2C2A28"/>' +
-    '</g>' +
-    // Pivot cap
-    '<circle cx="' + cx + '" cy="' + cy + '" r="2.2" fill="#2C2A28"/>' +
-    // Center label
-    '<text x="' + cx + '" y="' + (cy - 3) + '" fill="#7A7571" font-size="4" ' +
-          'font-family="ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">MARGIN</text>' +
+    // Fill with petal-tinted gradient (subtle)
+    '<path d="' + pathD + '" fill="url(#lg10-glow)" opacity="0.85"/>' +
+    // Stroked rose curve (animated draw)
+    '<path class="lg10-rose" d="' + pathD + '" fill="none" stroke="#2C2A28" ' +
+          'stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>' +
+    // Petal tips — colored dots at the max of each petal
+    (function() {
+      var dots = '';
+      for (var p = 0; p < 5; p++) {
+        var ptheta = (p / 5) * Math.PI + Math.PI / 10;
+        var px = cx + A * Math.cos(ptheta);
+        var py = cy + A * Math.sin(ptheta);
+        dots += '<circle class="lg10-tip lg10-tip--' + p + '" cx="' + px.toFixed(1) + '" cy="' + py.toFixed(1) + '" ' +
+                         'r="3" fill="' + petalColors[p] + '" stroke="#2C2A28" stroke-width="0.4" ' +
+                         'style="animation-delay:' + (p * 0.6).toFixed(2) + 's"/>';
+      }
+      return dots;
+    })() +
+    petalMarkers +
+    // Formula label
+    '<text x="70" y="14" fill="#7A7571" font-size="4.5" font-family="ui-monospace, monospace" ' +
+          'text-anchor="middle" letter-spacing="0.08em">r = a\u00B7cos(k\u03B8)</text>' +
     ticker +
   '</svg>';
 }

@@ -1334,220 +1334,454 @@ body.paper-mode .lg-svg {
 }
 
 /* ════════════════════════════════════════════════════════════════
-   VARIANT 1 — Isometric Bar Chart Ripple
-   SMOOTH COLLAPSE: uses per-step `animation-timing-function` so the
-   rise is elastic (bouncy overshoot) but the retract is a clean
-   symmetric ease — no overshoot-back-to-0 wobble. 5.2s cycle.
+   VARIANT 1 — Golden Spiral Ledger
+   Spiral path draws via stroke-dashoffset (length ≈ 600). Fib
+   labels stagger in. Ticker rolls. Cycle: 7s. Retract via opacity
+   fade only — no reset snap because the path stays fully drawn
+   then fades as a whole. Always feels fluid.
    ════════════════════════════════════════════════════════════════ */
-body.paper-mode .lg1-bar {
-  transform: scaleY(0);
-  animation: lg1Rise 5.2s infinite;
+body.paper-mode .lg1-spiral {
+  stroke-dasharray: 600;
+  stroke-dashoffset: 600;
+  animation: lg1Spiral 7s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
-@keyframes lg1Rise {
-  0%        { transform: scaleY(0);
-              animation-timing-function: cubic-bezier(0.34, 1.5, 0.64, 1); }
-  18%       { transform: scaleY(1.12);
-              animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1); }
-  28%       { transform: scaleY(0.96);
-              animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1); }
-  38%       { transform: scaleY(1.03);
-              animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1); }
-  48%       { transform: scaleY(1);
-              animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
-  65%       { transform: scaleY(1);
-              animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1); }
-  100%      { transform: scaleY(0); }
+@keyframes lg1Spiral {
+  0%, 4%    { stroke-dashoffset: 600; opacity: 1; }
+  70%       { stroke-dashoffset: 0;   opacity: 1; }
+  88%       { stroke-dashoffset: 0;   opacity: 1; }
+  100%      { stroke-dashoffset: 0;   opacity: 0; }
+}
+body.paper-mode .lg1-label {
+  opacity: 0;
+  transform: scale(0.6);
+  animation: lg1Label 7s cubic-bezier(0.34, 1.4, 0.64, 1) infinite;
+}
+@keyframes lg1Label {
+  0%, 6%    { opacity: 0; transform: scale(0.6); }
+  14%, 88%  { opacity: 1; transform: scale(1);   }
+  100%      { opacity: 0; transform: scale(0.6); }
+}
+body.paper-mode .lg1-label--0 { animation-delay: 0.30s; }
+body.paper-mode .lg1-label--1 { animation-delay: 0.90s; }
+body.paper-mode .lg1-label--2 { animation-delay: 1.50s; }
+body.paper-mode .lg1-label--3 { animation-delay: 2.10s; }
+body.paper-mode .lg1-label--4 { animation-delay: 2.70s; }
+body.paper-mode .lg1-label--5 { animation-delay: 3.30s; }
+body.paper-mode .lg1-label--6 { animation-delay: 3.90s; }
+body.paper-mode .lg1-roll {
+  animation: lg1Roll 7s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+@keyframes lg1Roll {
+  0%, 4%    { transform: translateY(0); }
+  80%, 88%  { transform: translateY(var(--roll-total)); }
+  100%      { transform: translateY(0); }
 }
 
 /* ════════════════════════════════════════════════════════════════
-   VARIANT 2 — Slide-Rule Timeline
-   CONTINUOUS LOOP (no long pause) + ROLLING PROFIT TICKER:
-     • Indicator sweeps left → right at constant velocity 0 → 80%,
-       then retracts 80 → 100% smoothly with a symmetric ease so the
-       next cycle starts seamlessly.
-     • Every booked slot fires: expense dip + revenue spike (draw)
-       and green wash (scaleY from bottom). All ride the same 4.8s
-       master cycle.
-     • Profit readout is a vertical roll ticker using a CSS custom
-       property (--roll-total) for the destination translate.
+   VARIANT 2 — Orbital Ledger
+   Three concentric orbits rotating at Keplerian rates — inner
+   fastest. Never stops: motion is always continuous, loader feels
+   alive. Central total rolls up in perpetual accumulator.
    ════════════════════════════════════════════════════════════════ */
-body.paper-mode .lg2-indicator {
-  animation: lg2Slide 4.8s cubic-bezier(0.55, 0, 0.45, 1) infinite;
-}
-@keyframes lg2Slide {
-  0%    { transform: translateX(0);     }
-  80%   { transform: translateX(108px); }
-  100%  { transform: translateX(0);     }
-}
-body.paper-mode .lg2-dip,
-body.paper-mode .lg2-spike {
-  stroke-dasharray: 40;
-  stroke-dashoffset: 40;
-  animation: lg2Draw 4.8s cubic-bezier(0.22, 1, 0.36, 1) infinite;
-}
-@keyframes lg2Draw {
-  0%, 6%    { stroke-dashoffset: 40; }
-  20%, 78%  { stroke-dashoffset: 0;  }
-  98%, 100% { stroke-dashoffset: 40; }
-}
-body.paper-mode .lg2-wash {
-  transform: scaleY(0);
-  animation: lg2Wash 4.8s cubic-bezier(0.22, 1, 0.36, 1) infinite;
-}
-@keyframes lg2Wash {
-  0%, 10%   { transform: scaleY(0); }
-  26%, 78%  { transform: scaleY(1); }
-  98%, 100% { transform: scaleY(0); }
-}
-/* Rolling ticker — 8 values ride upward over the cycle */
+body.paper-mode .lg2-orbit { animation-timing-function: linear; }
+body.paper-mode .lg2-orbit--1 { animation: lg2Spin1 8s  linear infinite; }
+body.paper-mode .lg2-orbit--2 { animation: lg2Spin2 14s linear infinite reverse; }
+body.paper-mode .lg2-orbit--3 { animation: lg2Spin3 22s linear infinite; }
+@keyframes lg2Spin1 { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+@keyframes lg2Spin2 { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+@keyframes lg2Spin3 { from { transform: rotate(0); } to { transform: rotate(360deg); } }
 body.paper-mode .lg2-roll {
-  animation: lg2Roll 4.8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  animation: lg2Roll 22s linear infinite;
 }
 @keyframes lg2Roll {
-  0%    { transform: translateY(0); }
-  78%   { transform: translateY(var(--roll-total)); }
-  100%  { transform: translateY(0); }
+  0%   { transform: translateY(0); }
+  92%  { transform: translateY(var(--roll-total)); }
+  100% { transform: translateY(0); }
 }
 
 /* ════════════════════════════════════════════════════════════════
-   VARIANT 3 — Blueprint Calendar Tracker
-   Monthly 7×5 calendar grid with DOW header + day numbers. Booked
-   cells fill with diagonal charcoal crosshatch in sequence. Two
-   rolling tickers (COST + REVENUE) climb in lockstep with the
-   bookings — both share the same 5.2s cycle.
+   VARIANT 3 — Sine Wave Cash Flow
+   Wave scrolls left continuously via translateX, creating an
+   endless flow. Peak/trough markers pulse on their own staggered
+   schedule so the motion is layered. Ticker rolls with the phase.
    ════════════════════════════════════════════════════════════════ */
-body.paper-mode .lg3-hatch {
-  opacity: 0;
-  transform: scaleX(0);
-  transform-origin: left center;
-  transform-box: fill-box;
-  animation: lg3Hatch 5.2s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+body.paper-mode .lg3-scroll {
+  animation: lg3Scroll 8s linear infinite;
 }
-@keyframes lg3Hatch {
-  0%, 2%    { opacity: 0; transform: scaleX(0); }
-  8%        { opacity: 1; transform: scaleX(0); }
-  18%, 82%  { opacity: 1; transform: scaleX(1); }
-  96%, 100% { opacity: 0; transform: scaleX(0); }
+@keyframes lg3Scroll {
+  from { transform: translateX(0);     }
+  to   { transform: translateX(-80px); }
 }
-body.paper-mode .lg3-roll {
-  animation: lg3Roll 5.2s cubic-bezier(0.45, 0, 0.55, 1) infinite;
-}
-@keyframes lg3Roll {
-  0%, 6%    { transform: translateY(0); }
-  82%       { transform: translateY(var(--roll-total)); }
-  100%      { transform: translateY(0); }
-}
-
-/* ════════════════════════════════════════════════════════════════
-   VARIANT 4 — Expanding Ledger Node
-   Nodes inflate in sequence; expense arcs sweep first, profit arcs
-   chase. SMIL pulses (inline) fire hub→node. Profit roll climbs
-   monotonically $0 → $70,000 across the entire 6s cycle so there's
-   no hold — the money continuously ticks up.
-   ════════════════════════════════════════════════════════════════ */
-body.paper-mode .lg4-node {
+body.paper-mode .lg3-mark {
   transform: scale(0);
-  animation: lg4Node 6s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
-}
-@keyframes lg4Node {
-  0%, 2%    { transform: scale(0);    }
-  16%       { transform: scale(1.12); }
-  26%, 82%  { transform: scale(1);    }
-  96%, 100% { transform: scale(0);    }
-}
-body.paper-mode .lg4-expense {
-  stroke-dasharray: 8 36;
-  stroke-dashoffset: 44;
-  animation: lg4Expense 6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
-}
-@keyframes lg4Expense {
-  0%, 6%    { stroke-dashoffset: 44; }
-  20%, 82%  { stroke-dashoffset: 11; }
-  96%, 100% { stroke-dashoffset: 44; }
-}
-body.paper-mode .lg4-profit {
-  stroke-dasharray: 36 8;
-  stroke-dashoffset: 36;
-  animation: lg4Profit 6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
-}
-@keyframes lg4Profit {
-  0%, 14%   { stroke-dashoffset: 36; }
-  30%, 82%  { stroke-dashoffset: -8; }
-  96%, 100% { stroke-dashoffset: 36; }
-}
-/* Profit ticker — monotonic rise through 8 values, no hold */
-body.paper-mode .lg4-roll {
-  animation: lg4Roll 6s cubic-bezier(0.35, 0, 0.55, 1) infinite;
-}
-@keyframes lg4Roll {
-  0%    { transform: translateY(0); }
-  88%   { transform: translateY(var(--roll-total)); }
-  100%  { transform: translateY(0); }
-}
-
-/* ════════════════════════════════════════════════════════════════
-   VARIANT 5 — Dial & Notch Tracker
-   Ticks draw outward in sequence, terracotta inner ring breathes,
-   green revenue arc sweeps perimeter, a needle tracks the arc
-   rotating -90° (12 o'clock) → +46° (final margin position), and
-   the margin % rolls 0 → 38 in lockstep. Subtle green glow pulse
-   plays when the margin locks in. 5.5s cycle.
-   ════════════════════════════════════════════════════════════════ */
-body.paper-mode .lg5-tick {
-  stroke-dasharray: 8;
-  stroke-dashoffset: 8;
-  animation: lg5Tick 5.5s cubic-bezier(0.22, 1, 0.36, 1) infinite;
-}
-@keyframes lg5Tick {
-  0%, 4%    { stroke-dashoffset: 8; }
-  18%, 82%  { stroke-dashoffset: 0; }
-  98%, 100% { stroke-dashoffset: 8; }
-}
-body.paper-mode .lg5-expense {
   transform-box: fill-box;
   transform-origin: center;
-  animation: lg5Expense 5.5s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+  animation: lg3Mark 4s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
 }
-@keyframes lg5Expense {
-  0%, 100%   { transform: scale(1.08); opacity: 0.7;  }
-  30%        { transform: scale(0.88); opacity: 0.95; }
-  55%        { transform: scale(1);    opacity: 0.65; }
-  78%        { transform: scale(0.92); opacity: 0.85; }
+@keyframes lg3Mark {
+  0%, 10%   { transform: scale(0);   }
+  24%       { transform: scale(1.3); }
+  34%       { transform: scale(1);   }
+  72%       { transform: scale(1);   }
+  88%       { transform: scale(0);   }
+  100%      { transform: scale(0);   }
 }
-body.paper-mode .lg5-revenue {
-  /* stroke-dasharray set inline to circRing; offset to 62 = final sweep ≈ 73% */
-  animation: lg5Revenue 5.5s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+body.paper-mode .lg3-roll {
+  animation: lg3Roll 8s linear infinite;
 }
-@keyframes lg5Revenue {
-  0%, 10%   { stroke-dashoffset: 226.19; }
-  72%       { stroke-dashoffset: 62;     }
-  100%      { stroke-dashoffset: 226.19; }
+@keyframes lg3Roll {
+  0%   { transform: translateY(0); }
+  94%  { transform: translateY(var(--roll-total)); }
+  100% { transform: translateY(0); }
 }
-body.paper-mode .lg5-needle {
-  transform: rotate(-180deg);
-  animation: lg5Needle 5.5s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+
+/* ════════════════════════════════════════════════════════════════
+   VARIANT 4 — Voronoi Money Partition
+   Cells fade in with radial gradient bloom + gentle scale spring.
+   Per-cell delay via inline animation-delay. After full, cells
+   fade out in the same order for seamless restart. Cycle: 6.5s.
+   ════════════════════════════════════════════════════════════════ */
+body.paper-mode .lg4-cell {
+  opacity: 0;
+  transform: scale(0.6);
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: lg4Cell 6.5s cubic-bezier(0.34, 1.4, 0.64, 1) infinite;
 }
-@keyframes lg5Needle {
-  0%, 10%   { transform: rotate(-180deg); }
-  72%       { transform: rotate(46deg);   }
-  100%      { transform: rotate(-180deg); }
+@keyframes lg4Cell {
+  0%, 4%    { opacity: 0; transform: scale(0.6); }
+  16%       { opacity: 1; transform: scale(1.04); }
+  24%, 76%  { opacity: 1; transform: scale(1);    }
+  92%       { opacity: 0; transform: scale(0.6);  }
+  100%      { opacity: 0; transform: scale(0.6);  }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   VARIANT 5 — Unit Circle Trigonometry
+   Radius rotates continuously (linear). Revenue bar = |sin(θ)|,
+   Expense bar = |cos(θ)|, both via matching keyframe transforms.
+   Ticker rolls profit upward. Never stops — pure continuous loop.
+   ════════════════════════════════════════════════════════════════ */
+body.paper-mode .lg5-rotator {
+  animation: lg5Spin 6s linear infinite;
+}
+@keyframes lg5Spin {
+  from { transform: rotate(0);       }
+  to   { transform: rotate(360deg);  }
+}
+body.paper-mode .lg5-rev {
+  animation: lg5Sin 6s cubic-bezier(0.37, 0, 0.63, 1) infinite;
+  transform: scaleY(0);
+}
+@keyframes lg5Sin {
+  0%     { transform: scaleY(0);    }
+  25%    { transform: scaleY(1);    }
+  50%    { transform: scaleY(0);    }
+  75%    { transform: scaleY(1);    }
+  100%   { transform: scaleY(0);    }
+}
+body.paper-mode .lg5-exp {
+  animation: lg5Cos 6s cubic-bezier(0.37, 0, 0.63, 1) infinite;
+  transform: scaleY(1);
+}
+@keyframes lg5Cos {
+  0%     { transform: scaleY(1);    }
+  25%    { transform: scaleY(0);    }
+  50%    { transform: scaleY(1);    }
+  75%    { transform: scaleY(0);    }
+  100%   { transform: scaleY(1);    }
 }
 body.paper-mode .lg5-roll {
-  animation: lg5Roll 5.5s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  animation: lg5Roll 6s linear infinite;
 }
 @keyframes lg5Roll {
-  0%, 10%   { transform: translateY(0); }
-  72%       { transform: translateY(var(--roll-total)); }
+  0%   { transform: translateY(0); }
+  96%  { transform: translateY(var(--roll-total)); }
+  100% { transform: translateY(0); }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   VARIANT 6 — Pascal's Triangle Cascade
+   Nodes + edges cascade top-down with delays driven inline from JS.
+   Node uses spring scale from 0→1.1→1. Edges draw via stroke-dash.
+   Sum at the bottom emerges at the end. 6s cycle.
+   ════════════════════════════════════════════════════════════════ */
+body.paper-mode .lg6-node {
+  opacity: 0;
+  transform: scale(0);
+  animation: lg6Node 6s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+}
+@keyframes lg6Node {
+  0%, 4%    { opacity: 0; transform: scale(0);    }
+  12%       { opacity: 1; transform: scale(1.18); }
+  20%, 82%  { opacity: 1; transform: scale(1);    }
+  96%, 100% { opacity: 0; transform: scale(0);    }
+}
+body.paper-mode .lg6-edge {
+  stroke-dasharray: 20;
+  stroke-dashoffset: 20;
+  animation: lg6Edge 6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+@keyframes lg6Edge {
+  0%, 6%    { stroke-dashoffset: 20; }
+  18%, 82%  { stroke-dashoffset: 0;  }
+  96%, 100% { stroke-dashoffset: 20; }
+}
+body.paper-mode .lg6-sum {
+  opacity: 0;
+  transform: translateY(6px);
+  transform-box: fill-box;
+  animation: lg6Sum 6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+@keyframes lg6Sum {
+  0%, 68%   { opacity: 0; transform: translateY(6px); }
+  80%, 92%  { opacity: 1; transform: translateY(0);   }
+  100%      { opacity: 0; transform: translateY(6px); }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   VARIANT 7 — Hex Honeycomb Fill
+   Rings bloom outward: ring 0 first (center), then ring 1, then
+   ring 2. Per-cell stagger adds texture. Full honeycomb holds ~30%
+   of cycle, then drains outer-in. 6s cycle. Ticker climbs.
+   ════════════════════════════════════════════════════════════════ */
+body.paper-mode .lg7-hex {
+  opacity: 0;
+  transform: scale(0);
+  animation: lg7Hex 6s cubic-bezier(0.34, 1.5, 0.64, 1) infinite;
+}
+@keyframes lg7Hex {
+  0%, 4%    { opacity: 0; transform: scale(0);    }
+  20%       { opacity: 1; transform: scale(1.1);  }
+  30%, 78%  { opacity: 1; transform: scale(1);    }
+  94%, 100% { opacity: 0; transform: scale(0);    }
+}
+body.paper-mode .lg7-roll {
+  animation: lg7Roll 6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+@keyframes lg7Roll {
+  0%, 4%    { transform: translateY(0); }
+  76%, 90%  { transform: translateY(var(--roll-total)); }
   100%      { transform: translateY(0); }
 }
-body.paper-mode .lg5-glow {
-  animation: lg5Glow 5.5s ease-in-out infinite;
+
+/* ════════════════════════════════════════════════════════════════
+   VARIANT 8 — Vector Addition Chain
+   Each vector draws via stroke-dashoffset sequentially (delays inline
+   via @keyframes holds). Labels fade in as their arrow lands.
+   Resultant draws last, revealing the Profit. Cycle: 5.5s.
+   ════════════════════════════════════════════════════════════════ */
+body.paper-mode .lg8-v1 line,
+body.paper-mode .lg8-v2 line,
+body.paper-mode .lg8-v3 line {
+  animation: lg8Draw 5.5s cubic-bezier(0.22, 1, 0.36, 1) infinite;
 }
-@keyframes lg5Glow {
-  0%, 65%   { opacity: 0; }
-  74%       { opacity: 0.55; }
-  82%       { opacity: 0.22; }
-  100%      { opacity: 0; }
+body.paper-mode .lg8-v1 line { animation-delay: 0.2s;  }
+body.paper-mode .lg8-v2 line { animation-delay: 1.2s;  }
+body.paper-mode .lg8-v3 line { animation-delay: 2.0s;  }
+@keyframes lg8Draw {
+  0%, 8%    { stroke-dashoffset: 100; }
+  30%, 82%  { stroke-dashoffset: 0;   }
+  96%, 100% { stroke-dashoffset: 100; }
+}
+body.paper-mode .lg8-v1-head,
+body.paper-mode .lg8-v2-head,
+body.paper-mode .lg8-v3-head {
+  opacity: 0;
+  animation: lg8Head 5.5s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+body.paper-mode .lg8-v1-head { animation-delay: 0.7s; }
+body.paper-mode .lg8-v2-head { animation-delay: 1.6s; }
+body.paper-mode .lg8-v3-head { animation-delay: 2.4s; }
+@keyframes lg8Head {
+  0%, 12%   { opacity: 0; }
+  22%, 82%  { opacity: 1; }
+  96%, 100% { opacity: 0; }
+}
+body.paper-mode .lg8-l1,
+body.paper-mode .lg8-l2,
+body.paper-mode .lg8-l3 {
+  opacity: 0;
+  animation: lg8Label 5.5s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+body.paper-mode .lg8-l1 { animation-delay: 0.8s; }
+body.paper-mode .lg8-l2 { animation-delay: 1.7s; }
+body.paper-mode .lg8-l3 { animation-delay: 2.5s; }
+@keyframes lg8Label {
+  0%, 14%   { opacity: 0; }
+  26%, 82%  { opacity: 1; }
+  96%, 100% { opacity: 0; }
+}
+body.paper-mode .lg8-res {
+  opacity: 0;
+  animation: lg8Res 5.5s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+@keyframes lg8Res {
+  0%, 56%   { opacity: 0; transform: scale(0.96); }
+  68%, 82%  { opacity: 1; transform: scale(1);    }
+  96%, 100% { opacity: 0; transform: scale(0.96); }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   VARIANT 9 — Linear Regression Fit
+   Scatter points drop in sequentially with gravity ease. Best-fit
+   line draws via stroke-dashoffset after all 8 points are down. 6s
+   cycle. Clean, mathematical, continuous.
+   ════════════════════════════════════════════════════════════════ */
+body.paper-mode .lg9-dot {
+  opacity: 0;
+  transform: translateY(-30px);
+  transform-box: fill-box;
+  animation: lg9Dot 6s cubic-bezier(0.55, 0.04, 0.65, 0.7) infinite;
+}
+@keyframes lg9Dot {
+  0%, 2%    { opacity: 0; transform: translateY(-30px); }
+  6%        { opacity: 1; transform: translateY(-30px); }
+  12%       { opacity: 1; transform: translateY(4px);   }
+  16%, 82%  { opacity: 1; transform: translateY(0);     }
+  96%, 100% { opacity: 0; transform: translateY(-30px); }
+}
+body.paper-mode .lg9-fit {
+  stroke-dasharray: 120;
+  stroke-dashoffset: 120;
+  animation: lg9Fit 6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+@keyframes lg9Fit {
+  0%, 48%   { stroke-dashoffset: 120; }
+  68%, 82%  { stroke-dashoffset: 0;   }
+  96%, 100% { stroke-dashoffset: 120; }
+}
+body.paper-mode .lg9-roll {
+  animation: lg9Roll 6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+@keyframes lg9Roll {
+  0%, 6%    { transform: translateY(0); }
+  76%, 90%  { transform: translateY(var(--roll-total)); }
+  100%      { transform: translateY(0); }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   VARIANT 10 — Polar Rose Bloom
+   Rose curve draws via stroke-dashoffset (length ≈ 560). Petal
+   tips pop in staggered as the curve reaches each. Labels fade in
+   at petal centers. Cycle: 6s. Fades at end before restart.
+   ════════════════════════════════════════════════════════════════ */
+body.paper-mode .lg10-rose {
+  stroke-dasharray: 560;
+  stroke-dashoffset: 560;
+  animation: lg10Rose 6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+@keyframes lg10Rose {
+  0%, 4%    { stroke-dashoffset: 560; opacity: 1; }
+  72%       { stroke-dashoffset: 0;   opacity: 1; }
+  88%       { stroke-dashoffset: 0;   opacity: 1; }
+  100%      { stroke-dashoffset: 0;   opacity: 0; }
+}
+body.paper-mode .lg10-tip {
+  opacity: 0;
+  transform: scale(0);
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: lg10Tip 6s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+}
+@keyframes lg10Tip {
+  0%, 6%    { opacity: 0; transform: scale(0);   }
+  16%       { opacity: 1; transform: scale(1.2); }
+  22%, 82%  { opacity: 1; transform: scale(1);   }
+  94%, 100% { opacity: 0; transform: scale(0);   }
+}
+body.paper-mode .lg10-lbl {
+  opacity: 0;
+  animation: lg10Lbl 6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+@keyframes lg10Lbl {
+  0%, 14%   { opacity: 0; }
+  28%, 82%  { opacity: 1; }
+  94%, 100% { opacity: 0; }
+}
+body.paper-mode .lg10-roll {
+  animation: lg10Roll 6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+@keyframes lg10Roll {
+  0%, 4%    { transform: translateY(0); }
+  76%, 88%  { transform: translateY(var(--roll-total)); }
+  100%      { transform: translateY(0); }
+}
+
+/* ── Reduced motion — freeze each variant at a readable state ──── */
+@media (prefers-reduced-motion: reduce) {
+  body.paper-mode .lg1-spiral,
+  body.paper-mode .lg1-label,
+  body.paper-mode .lg1-roll,
+  body.paper-mode .lg2-orbit,
+  body.paper-mode .lg2-roll,
+  body.paper-mode .lg3-scroll,
+  body.paper-mode .lg3-mark,
+  body.paper-mode .lg3-roll,
+  body.paper-mode .lg4-cell,
+  body.paper-mode .lg5-rotator,
+  body.paper-mode .lg5-rev,
+  body.paper-mode .lg5-exp,
+  body.paper-mode .lg5-roll,
+  body.paper-mode .lg6-node,
+  body.paper-mode .lg6-edge,
+  body.paper-mode .lg6-sum,
+  body.paper-mode .lg7-hex,
+  body.paper-mode .lg7-roll,
+  body.paper-mode .lg8-v1 line,
+  body.paper-mode .lg8-v2 line,
+  body.paper-mode .lg8-v3 line,
+  body.paper-mode .lg8-v1-head,
+  body.paper-mode .lg8-v2-head,
+  body.paper-mode .lg8-v3-head,
+  body.paper-mode .lg8-l1,
+  body.paper-mode .lg8-l2,
+  body.paper-mode .lg8-l3,
+  body.paper-mode .lg8-res,
+  body.paper-mode .lg9-dot,
+  body.paper-mode .lg9-fit,
+  body.paper-mode .lg9-roll,
+  body.paper-mode .lg10-rose,
+  body.paper-mode .lg10-tip,
+  body.paper-mode .lg10-lbl,
+  body.paper-mode .lg10-roll {
+    animation: none !important;
+  }
+  body.paper-mode .lg1-spiral,
+  body.paper-mode .lg6-edge,
+  body.paper-mode .lg8-v1 line,
+  body.paper-mode .lg8-v2 line,
+  body.paper-mode .lg8-v3 line,
+  body.paper-mode .lg9-fit,
+  body.paper-mode .lg10-rose      { stroke-dashoffset: 0 !important; }
+  body.paper-mode .lg1-label,
+  body.paper-mode .lg4-cell,
+  body.paper-mode .lg6-node,
+  body.paper-mode .lg7-hex,
+  body.paper-mode .lg10-tip       { opacity: 1 !important; transform: scale(1) !important; }
+  body.paper-mode .lg6-sum,
+  body.paper-mode .lg8-v1-head,
+  body.paper-mode .lg8-v2-head,
+  body.paper-mode .lg8-v3-head,
+  body.paper-mode .lg8-l1,
+  body.paper-mode .lg8-l2,
+  body.paper-mode .lg8-l3,
+  body.paper-mode .lg8-res,
+  body.paper-mode .lg10-lbl       { opacity: 1 !important; transform: none !important; }
+  body.paper-mode .lg1-roll,
+  body.paper-mode .lg2-roll,
+  body.paper-mode .lg3-roll,
+  body.paper-mode .lg5-roll,
+  body.paper-mode .lg7-roll,
+  body.paper-mode .lg9-roll,
+  body.paper-mode .lg10-roll      { transform: translateY(var(--roll-total)) !important; }
+  body.paper-mode .lg2-orbit      { transform: rotate(0) !important; }
+  body.paper-mode .lg3-scroll     { transform: translateX(-40px) !important; }
+  body.paper-mode .lg3-mark       { transform: scale(1) !important; }
+  body.paper-mode .lg5-rotator    { transform: rotate(45deg) !important; }
+  body.paper-mode .lg5-rev        { transform: scaleY(0.7) !important; }
+  body.paper-mode .lg5-exp        { transform: scaleY(0.7) !important; }
+  body.paper-mode .lg9-dot        { opacity: 1 !important; transform: translateY(0) !important; }
 }
 
 /* ── Mount-in animation for the real dashboard ─────────────────── */
@@ -1572,47 +1806,6 @@ body.paper-mode #marketingContent.mkt-mount-in > * {
   body.paper-mode .lg-stage       { min-height: 120px; }
 }
 
-/* ── Reduced motion — freeze all variants at peak state ───────── */
-@media (prefers-reduced-motion: reduce) {
-  body.paper-mode .lg1-bar,
-  body.paper-mode .lg2-indicator,
-  body.paper-mode .lg2-dip,
-  body.paper-mode .lg2-spike,
-  body.paper-mode .lg2-wash,
-  body.paper-mode .lg2-roll,
-  body.paper-mode .lg3-hatch,
-  body.paper-mode .lg3-roll,
-  body.paper-mode .lg4-node,
-  body.paper-mode .lg4-expense,
-  body.paper-mode .lg4-profit,
-  body.paper-mode .lg4-roll,
-  body.paper-mode .lg5-tick,
-  body.paper-mode .lg5-expense,
-  body.paper-mode .lg5-revenue,
-  body.paper-mode .lg5-needle,
-  body.paper-mode .lg5-roll,
-  body.paper-mode .lg5-glow {
-    animation: none !important;
-  }
-  body.paper-mode .lg1-bar        { transform: scaleY(1) !important; }
-  body.paper-mode .lg2-indicator  { transform: translateX(108px) !important; }
-  body.paper-mode .lg2-dip,
-  body.paper-mode .lg2-spike,
-  body.paper-mode .lg5-tick       { stroke-dashoffset: 0 !important; }
-  body.paper-mode .lg2-wash       { transform: scaleY(1) !important; }
-  body.paper-mode .lg2-roll,
-  body.paper-mode .lg3-roll,
-  body.paper-mode .lg4-roll,
-  body.paper-mode .lg5-roll       { transform: translateY(var(--roll-total)) !important; }
-  body.paper-mode .lg3-hatch      { opacity: 1; transform: scaleX(1) !important; }
-  body.paper-mode .lg4-node       { transform: scale(1) !important; }
-  body.paper-mode .lg4-expense    { stroke-dashoffset: 11 !important; }
-  body.paper-mode .lg4-profit     { stroke-dashoffset: -8 !important; }
-  body.paper-mode .lg5-expense    { transform: scale(1) !important; opacity: 0.7 !important; }
-  body.paper-mode .lg5-revenue    { stroke-dashoffset: 62 !important; }
-  body.paper-mode .lg5-needle     { transform: rotate(46deg) !important; }
-  body.paper-mode .lg5-glow       { opacity: 0.3 !important; }
-}
 
 /* ════════════════════════════════════════════════════════════════
    Risograph ink accents (see palette vars at top of this file)
