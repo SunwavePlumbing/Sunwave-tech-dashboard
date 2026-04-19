@@ -362,7 +362,19 @@ function render() {
         rankHtml +
         '<span class="tech-name-label"' +
           ' data-reveal-name="' + esc(tech.name) + '"' +
-          ' data-reveal-html="' + esc(finalNameHtml) + '"></span>' +
+          ' data-reveal-html="' + esc(finalNameHtml) + '">' +
+          /* Invisible placeholder reserves the FINAL rendered width
+             from the very first paint — before the staggered reveal
+             begins. Without this, each row's name reveal lands 50ms
+             after the previous, and as each longer-named row finishes
+             the entire column widens, shoving the revenue column to
+             the right (desktop-visible glitch). The span contains
+             BOTH .tech-name-full and .tech-name-short, so at any
+             breakpoint the naturally-visible child sizes the cell.
+             revealName() overwrites this via textContent once the
+             scramble starts; by then the minWidth lock is in place. */
+          '<span class="tech-name-spacer" aria-hidden="true">' + finalNameHtml + '</span>' +
+        '</span>' +
       '</div></td>' +
       '<td><span class="row-count' + (idx === 0 ? ' is-winner' : '') + '" data-kind="dollar" data-val="' + tech.monthlyRevenue + '">$0</span></td>' +
       '<td class="' + ticketClass + '"><span class="row-count" data-kind="dollar" data-val="' + tech.averageTicket + '">$0</span></td>' +

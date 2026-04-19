@@ -139,33 +139,37 @@ function lgSvg_4() {
     'M70 26 C100 26, 116 50, 116 72 C116 96, 100 120, 70 120 C40 120, 24 96, 24 72 C24 50, 40 26, 70 26 Z',
     'M70 14 C108 14, 128 44, 128 72 C128 102, 108 130, 70 130 C32 130, 12 102, 12 72 C12 44, 32 14, 70 14 Z'
   ];
+  // Softer off-white ink for text + rings — sits clearly on the paper
+  // bg but reads as a warm, quiet gray rather than a hard charcoal.
+  var INK = '#A89F95';
   var paths = rings.map(function(d, i) {
     return '<path class="lg4-ring lg4-ring--' + i + '" d="' + d + '" pathLength="100" ' +
-           'fill="none" stroke="#2C2A28" stroke-width="0.9" stroke-linecap="round" ' +
+           'fill="none" stroke="' + INK + '" stroke-width="0.9" stroke-linecap="round" ' +
            'stroke-dasharray="100" stroke-dashoffset="100"/>';
   }).join('');
   return '<svg class="lg-svg" viewBox="0 0 140 140">' +
-    // Top title — charcoal (same ink as the rings), sits tight to the
-    // top edge of the canvas, just above the outermost ring.
-    '<text x="70" y="10" fill="#2C2A28" font-size="5" font-family="ui-monospace, monospace" ' +
-          'text-anchor="middle" letter-spacing="0.16em" font-weight="700">FINDING THE WHY</text>' +
+    // Top title — same off-white ink as the rings. Longer phrase
+    // ("FINDING THE WHY IN MARKETING") needs a smaller font-size
+    // and slightly tighter tracking so it still fits the canvas.
+    '<text x="70" y="10" fill="' + INK + '" font-size="3.6" font-family="ui-monospace, monospace" ' +
+          'text-anchor="middle" letter-spacing="0.14em" font-weight="700">FINDING THE WHY IN MARKETING</text>' +
     paths +
     // Center label — two compact lines, centered in the innermost
-    // ring, in the same charcoal ink as the rings. Orange is moved
-    // out from the old peak-dot position (which collided with the
-    // text) and lives below as a crisp drafting rule.
+    // ring. Font-size dropped from 5.8 → 4.3 so "TRANSFORMING" no
+    // longer crowds the ring edges; lines pulled closer together
+    // for a tighter stack. Same off-white ink as the rings.
     '<g class="lg4-label">' +
-      '<text x="70" y="70" fill="#2C2A28" font-size="5.8" ' +
+      '<text x="70" y="69" fill="' + INK + '" font-size="4.3" ' +
             'font-family="ui-monospace, monospace" font-weight="800" text-anchor="middle" ' +
-            'letter-spacing="0.06em">TRANSFORMING</text>' +
-      '<text x="70" y="79" fill="#2C2A28" font-size="5.8" ' +
+            'letter-spacing="0.05em">TRANSFORMING</text>' +
+      '<text x="70" y="75.5" fill="' + INK + '" font-size="4.3" ' +
             'font-family="ui-monospace, monospace" font-weight="800" text-anchor="middle" ' +
-            'letter-spacing="0.06em">PLUMBING</text>' +
-      // Orange drafting rule beneath the label — relocates the warm
-      // accent color to a place that doesn't collide with the text.
+            'letter-spacing="0.05em">PLUMBING</text>' +
+      // Orange drafting rule beneath the label — keeps the warm
+      // accent, repositioned lower to match the tighter label stack.
       // pathLength=100 so the draw animation reads cleanly.
-      '<line class="lg4-accent" x1="60" y1="85" x2="80" y2="85" pathLength="100" ' +
-            'stroke="#E88140" stroke-width="1.6" stroke-linecap="round" ' +
+      '<line class="lg4-accent" x1="62" y1="81" x2="78" y2="81" pathLength="100" ' +
+            'stroke="#E88140" stroke-width="1.4" stroke-linecap="round" ' +
             'stroke-dasharray="100" stroke-dashoffset="100"/>' +
     '</g>' +
   '</svg>';

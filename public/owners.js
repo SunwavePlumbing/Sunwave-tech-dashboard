@@ -1852,7 +1852,20 @@ function renderOwners() {
       '<div id="ufsNoiDetail" class="mf-zoom-detail mf-noi-detail ufs-zoom ufs-zoom--profit" hidden></div>' +
     '</div>'; // .ufs-card
 
-  document.getElementById('finCards').innerHTML = formulaHtml + unifiedHtml;
+  // The legacy mf-card (stacked REVENUE / COGS / Overhead / Profit
+  // rows with their own sub-bars) has been fully superseded by the
+  // UFS card above. We keep formulaHtml rendered but completely
+  // hidden so the embedded #mfCogsDetail / #mfOvhdDetail / #mfNoiDetail
+  // zoom-panel nodes still exist in the DOM — ufsCloneZoomPanels()
+  // reads their innerHTML to populate the UFS dropdowns. Nothing
+  // paints to the user.
+  document.getElementById('finCards').innerHTML =
+    '<div class="mf-card-legacy-sink" hidden aria-hidden="true" ' +
+         'style="display:none !important;position:absolute;left:-99999px;' +
+                'width:0;height:0;overflow:hidden;pointer-events:none;">' +
+      formulaHtml +
+    '</div>' +
+    unifiedHtml;
   // Deep-copy the mf-card zoom-panel content into the UFS panels
   // (same content, same handlers, remapped IDs). Must run AFTER the
   // outer innerHTML assignment so both source and destination panels

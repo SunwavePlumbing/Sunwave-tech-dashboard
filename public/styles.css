@@ -273,6 +273,13 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .tech-cell { display: flex; align-items: center; gap: 12px; }
 .avatar { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: white; flex-shrink: 0; letter-spacing: 0.5px; }
 .tech-name-label { font-size: 15px; font-weight: 600; color: #1a2d3a; letter-spacing: 0; }
+/* Invisible placeholder that pre-reserves the final rendered name width
+   at initial paint — prevents the revenue column from sliding right as
+   each row's staggered name-reveal lands. visibility:hidden keeps the
+   box in flow (unlike display:none) so the table column widths stabilize
+   from paint 1. nowrap guarantees a single-line measurement. The span is
+   overwritten by revealName() once the scramble animation starts. */
+.tech-name-spacer { visibility: hidden; white-space: nowrap; pointer-events: none; }
 .tech-name-short { display: none; } /* first-name-only span — shown on mobile */
 .rank-num { font-size: 13px; font-weight: 700; color: #bbb; min-width: 18px; text-align: center; }
 
