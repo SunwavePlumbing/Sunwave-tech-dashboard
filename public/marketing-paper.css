@@ -2175,19 +2175,25 @@ body.paper-mode .ufs-seg.is-active {
 }
 
 /* ── Dim siblings when one segment is active ───────────────────────
-   When the card has an active category, all OTHER segments fade back
-   to 30% opacity (per spec) so the user's eye is magnetized to the
-   chosen one. The transition on .ufs-seg above makes this buttery. */
+   When the card has an active category, all OTHER segments fade hard
+   so the user's eye is magnetized to the chosen one. We stack THREE
+   effects (opacity + desaturation + brightness cut) so the dim reads
+   unmistakably — a single opacity change alone can get lost on
+   vibrant fills. !important because .ufs-seg:hover above and the
+   .ufs-seg.is-active filter rule both target the same property and
+   can override in certain orderings. */
 body.paper-mode .ufs-card.is-active--cogs   .ufs-seg:not(.ufs-seg--cogs),
 body.paper-mode .ufs-card.is-active--ovhd   .ufs-seg:not(.ufs-seg--ovhd),
 body.paper-mode .ufs-card.is-active--profit .ufs-seg:not(.ufs-seg--profit) {
-  opacity: 0.30;
+  opacity: 0.22 !important;
+  filter: saturate(0.35) brightness(0.95) !important;
 }
 body.paper-mode .ufs-card.is-active--cogs   .ufs-seg:not(.ufs-seg--cogs):hover,
 body.paper-mode .ufs-card.is-active--ovhd   .ufs-seg:not(.ufs-seg--ovhd):hover,
 body.paper-mode .ufs-card.is-active--profit .ufs-seg:not(.ufs-seg--profit):hover {
   /* Raise dimmed siblings on hover so they remain discoverable */
-  opacity: 0.64;
+  opacity: 0.60 !important;
+  filter: saturate(0.75) brightness(1.0) !important;
 }
 
 /* ── V5: Target Goal vs Actual readout ───────────────────────────
@@ -2267,63 +2273,79 @@ body.paper-mode .ufs-zoom--profit .ufs-target-readout { border-left: 3px solid #
         bleeds outward and connects visually to the segment above. */
 body.paper-mode .ufs-zoom {
   position: relative;
-  margin-top: 18px;            /* room for the caret to live above */
-  padding: 18px 20px 6px;
-  border-radius: 12px;
+  margin-top: 22px;            /* room for the caret to live above */
+  padding: 22px 22px 10px;
+  border-radius: 14px;
   background: transparent;
-  transition: background-color 260ms cubic-bezier(0.4, 0, 0.2, 1),
-              box-shadow       320ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color 280ms cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow       360ms cubic-bezier(0.4, 0, 0.2, 1),
+              border-color     280ms cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid transparent;
 }
 
 /* Caret triangle — sits above the panel, flush with its top edge,
    pointing up at the main bar. `clip-path` instead of the border hack
    so the triangle scales cleanly with its container and we can drive
-   its color via background-color on the same element. Hidden on
-   inactive panels (transparent background) so closed panels show no
-   caret ghost. */
+   its color via background-color on the same element. Bigger than V6
+   v1 (28×14 vs 22×11) so the pointer reads unambiguously as a
+   connector, not decoration. Drop-shadow makes it pop off the paper. */
 body.paper-mode .ufs-zoom::before {
   content: '';
   position: absolute;
   left: 0; right: 0;
-  top: -10px;
+  top: -13px;
   margin: 0 auto;
-  width: 22px;
-  height: 11px;
+  width: 28px;
+  height: 14px;
   clip-path: polygon(50% 0, 100% 100%, 0 100%);
   background: transparent;
   transition: background-color 260ms cubic-bezier(0.4, 0, 0.2, 1),
-              left              380ms cubic-bezier(0.4, 0, 0.2, 1);
+              filter            260ms cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: none;
+  z-index: 3;
 }
 
-/* Active-state tint / glow / caret-color per category. The background
-   is a 5–7% wash of the category color, the glow is a larger spread
-   of the same color at ~15% so it bleeds outward without overwhelming
-   the paper texture, and the caret adopts the full saturated hue so
-   it reads as a printed mark extruding from the bar. */
+/* Active-state tint / glow / caret-color per category. These values
+   are deliberately BOLD — earlier passes with 5–7% bg / 15-20% shadow
+   alpha were too subtle to register. We bump bg to 10–14%, box-shadow
+   to 40-55% alpha on the outer layer, add an inset ring in the same
+   hue, and stamp a drop-shadow on the caret so the "ink wash" reads
+   as a clear visual bridge from segment to dropdown. */
 body.paper-mode .ufs-card.is-active--cogs   .ufs-zoom--cogs {
-  background-color: rgba(255, 91, 91, 0.06);
-  box-shadow: 0 10px 30px rgba(255, 91, 91, 0.18),
-              0 2px 8px  rgba(255, 91, 91, 0.10);
+  background-color: rgba(255, 91, 91, 0.12);
+  border-color: rgba(255, 91, 91, 0.35);
+  box-shadow: 0 0 0 1px rgba(255, 91, 91, 0.18),
+              0 14px 44px rgba(255, 91, 91, 0.42),
+              0 4px 14px  rgba(255, 91, 91, 0.24),
+              inset 0 0 24px rgba(255, 91, 91, 0.06);
 }
 body.paper-mode .ufs-card.is-active--cogs   .ufs-zoom--cogs::before {
   background-color: #FF5B5B;
+  filter: drop-shadow(0 2px 3px rgba(255, 91, 91, 0.45));
 }
 body.paper-mode .ufs-card.is-active--ovhd   .ufs-zoom--ovhd {
-  background-color: rgba(255, 138, 31, 0.07);
-  box-shadow: 0 10px 30px rgba(255, 138, 31, 0.20),
-              0 2px 8px  rgba(255, 138, 31, 0.10);
+  background-color: rgba(255, 138, 31, 0.13);
+  border-color: rgba(255, 138, 31, 0.38);
+  box-shadow: 0 0 0 1px rgba(255, 138, 31, 0.20),
+              0 14px 44px rgba(255, 138, 31, 0.45),
+              0 4px 14px  rgba(255, 138, 31, 0.26),
+              inset 0 0 24px rgba(255, 138, 31, 0.07);
 }
 body.paper-mode .ufs-card.is-active--ovhd   .ufs-zoom--ovhd::before {
   background-color: #FF8A1F;
+  filter: drop-shadow(0 2px 3px rgba(255, 138, 31, 0.50));
 }
 body.paper-mode .ufs-card.is-active--profit .ufs-zoom--profit {
-  background-color: rgba(46, 204, 113, 0.07);
-  box-shadow: 0 10px 30px rgba(46, 204, 113, 0.20),
-              0 2px 8px  rgba(46, 204, 113, 0.10);
+  background-color: rgba(46, 204, 113, 0.13);
+  border-color: rgba(46, 204, 113, 0.38);
+  box-shadow: 0 0 0 1px rgba(46, 204, 113, 0.20),
+              0 14px 44px rgba(46, 204, 113, 0.45),
+              0 4px 14px  rgba(46, 204, 113, 0.26),
+              inset 0 0 24px rgba(46, 204, 113, 0.07);
 }
 body.paper-mode .ufs-card.is-active--profit .ufs-zoom--profit::before {
   background-color: #2ECC71;
+  filter: drop-shadow(0 2px 3px rgba(46, 204, 113, 0.50));
 }
 
 /* Keep closed-panel collapse behavior identical to V5 — the ink-wash
