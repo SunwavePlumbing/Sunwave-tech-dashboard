@@ -2139,6 +2139,31 @@ body.paper-mode .ufs-card {
     0 2px 10px rgba(44, 42, 40, 0.04);
 }
 
+/* ── 0. Card title header ──────────────────────────────────────── */
+body.paper-mode .ufs-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding-bottom: 14px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid rgba(92, 84, 72, 0.14);
+  flex-wrap: wrap;
+}
+body.paper-mode .ufs-header-title {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: #1A1918;
+  line-height: 1.2;
+}
+body.paper-mode .ufs-header-period {
+  font-size: 14px;
+  font-weight: 600;
+  color: #7A7571;
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ── 1. Formula header ─────────────────────────────────────────── */
 body.paper-mode .ufs-formula {
   display: flex;
@@ -2287,112 +2312,27 @@ body.paper-mode .ufs-seg.is-active {
 }
 
 /* ── 3. Accordion panels ───────────────────────────────────────── */
-/* Uses the grid-template-rows 0fr → 1fr trick for a real-height
-   animated reveal. The cubic-bezier starts fast then heavily cushions
-   into place, mimicking a heavy paper sheet settling. */
-body.paper-mode .ufs-panel {
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows 420ms cubic-bezier(0.2, 0, 0.1, 1),
-              opacity 300ms ease,
-              margin-top 420ms cubic-bezier(0.2, 0, 0.1, 1);
-  opacity: 0;
-  margin-top: 0;
-}
-body.paper-mode .ufs-panel.is-open {
-  grid-template-rows: 1fr;
-  opacity: 1;
+/* ── Cloned zoom-panel dropdowns ──────────────────────────────────
+   Each .ufs-zoom panel is a clone of the corresponding mf-card zoom
+   panel (mfZoomDetail output for COGS/Overhead; noiDetailHtml "What
+   is Profit?" explainer for Profit). All inner styling (bars,
+   legends, gauge, etc.) is inherited from the existing .mf-zoom-detail
+   / .mf-noi-detail rules — we only need to handle positioning +
+   spacing inside the UFS card shell. */
+body.paper-mode .ufs-zoom {
   margin-top: 14px;
 }
-body.paper-mode .ufs-panel-inner {
+/* The original mf-zoom-detail selectors already handle
+   visibility via .is-open + animate via .mf-zoom-bar-anim — we don't
+   need to redefine anything, just ensure our panel can benefit from
+   those rules without layout surprises. */
+body.paper-mode .ufs-zoom[hidden] { display: none; }
+body.paper-mode .ufs-zoom:not(.is-open):not([hidden]) {
+  /* mfToggle strips hidden + adds is-open in two frames; this rule
+     covers the transition frame where the panel is neither hidden
+     nor is-open yet so it doesn't flash at full height. */
+  max-height: 0;
   overflow: hidden;
-  min-height: 0;
-  padding: 0;
-}
-body.paper-mode .ufs-panel.is-open > .ufs-panel-inner {
-  padding: 14px 4px 4px;
-}
-
-/* ── 4. Breakdown content ──────────────────────────────────────── */
-body.paper-mode .ufs-sub-bar {
-  display: flex;
-  height: 22px;
-  border-radius: 6px;
-  overflow: hidden;
-  background: rgba(92, 84, 72, 0.10);
-  box-shadow: inset 0 1px 2px rgba(44, 42, 40, 0.12);
-  gap: 1px;
-  margin-bottom: 14px;
-}
-body.paper-mode .ufs-sub-seg {
-  min-width: 0;
-  transition: filter 180ms ease;
-}
-body.paper-mode .ufs-sub-seg:hover {
-  filter: brightness(1.08) saturate(1.04);
-}
-
-body.paper-mode .ufs-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 2px;
-}
-body.paper-mode .ufs-li {
-  display: grid;
-  grid-template-columns: 14px 1fr auto auto;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 6px;
-  border-radius: 6px;
-  font-variant-numeric: tabular-nums;
-  transition: background 140ms ease;
-}
-body.paper-mode .ufs-li:hover {
-  background: rgba(255, 215, 0, 0.10);
-}
-body.paper-mode .ufs-li-dot {
-  width: 10px; height: 10px;
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 1px rgba(44, 42, 40, 0.18);
-}
-body.paper-mode .ufs-li-label {
-  font-size: 13.5px;
-  font-weight: 600;
-  color: #2C2A28;
-}
-body.paper-mode .ufs-li-pct {
-  font-size: 13px;
-  font-weight: 600;
-  color: #5C5448;
-  min-width: 48px;
-  text-align: right;
-}
-body.paper-mode .ufs-li-val {
-  font-size: 14px;
-  font-weight: 800;
-  color: #1A1918;
-  min-width: 62px;
-  text-align: right;
-  letter-spacing: -0.01em;
-}
-
-/* Profit panel note — narrative explanation */
-body.paper-mode .ufs-profit-note {
-  font-size: 13.5px;
-  line-height: 1.55;
-  color: #2C2A28;
-  padding: 12px 14px;
-  background: rgba(46, 204, 113, 0.08);
-  border-left: 3px solid #2ECC71;
-  border-radius: 4px;
-}
-body.paper-mode .ufs-profit-note strong {
-  color: #1E8749;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
 }
 
 /* ── Mobile ────────────────────────────────────────────────────── */
@@ -2413,17 +2353,12 @@ body.paper-mode .ufs-profit-note strong {
   body.paper-mode .ufs-seg     { padding: 0 8px; }
   body.paper-mode .ufs-seg-label { font-size: 11.5px; }
   body.paper-mode .ufs-seg-pct   { font-size: 13px; }
-  body.paper-mode .ufs-li      { grid-template-columns: 12px 1fr auto auto; gap: 8px; padding: 7px 4px; }
-  body.paper-mode .ufs-li-label { font-size: 12.5px; }
-  body.paper-mode .ufs-li-pct   { font-size: 12px; min-width: 42px; }
-  body.paper-mode .ufs-li-val   { font-size: 13px; min-width: 54px; }
+  body.paper-mode .ufs-header-title  { font-size: 15px; }
+  body.paper-mode .ufs-header-period { font-size: 12.5px; }
+  body.paper-mode .ufs-zoom      { margin-top: 10px; }
 }
 
 /* Reduced motion — instant expand/collapse */
 @media (prefers-reduced-motion: reduce) {
-  body.paper-mode .ufs-panel,
-  body.paper-mode .ufs-seg,
-  body.paper-mode .ufs-sub-seg {
-    transition: none !important;
-  }
+  body.paper-mode .ufs-seg { transition: none !important; }
 }

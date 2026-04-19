@@ -103,24 +103,60 @@ function mfZoomSel(zid) {
 
 // ── Unified Financial Summary accordion (strict one-open-at-a-time) ──
 // Called from the inline onclick on each .ufs-seg button. `key` is
-// 'cogs', 'ovhd', or 'profit'. If the clicked panel is already open
-// it closes (no panel open); otherwise the sibling panels close and
-// the target opens. CSS drives the smooth grid-row height transition.
+// 'cogs', 'ovhd', or 'profit'. The UFS card wraps CLONED copies of
+// the existing mf-card zoom panels (ufsCogsDetail / ufsOvhdDetail /
+// ufsNoiDetail), so we delegate the actual open/close mechanic to
+// mfToggle — which handles the is-open class + mf-zoom-bar-anim +
+// hidden attribute. We just add the strict one-open-at-a-time rule
+// by closing sibling panels first, then flipping the is-active
+// state on the clicked segment button.
 function ufsToggle(key) {
+  var idMap = { cogs: 'ufsCogsDetail', ovhd: 'ufsOvhdDetail', profit: 'ufsNoiDetail' };
+  var targetId = idMap[key];
+  if (!targetId) return;
   var card = document.querySelector('.ufs-card');
-  if (!card) return;
-  var panels = card.querySelectorAll('.ufs-panel');
-  var segs   = card.querySelectorAll('.ufs-seg');
-  var target = card.querySelector('.ufs-panel[data-panel="' + key + '"]');
-  var isOpen = target && target.classList.contains('is-open');
-  // Collapse everything first — strict accordion
-  for (var i = 0; i < panels.length; i++) panels[i].classList.remove('is-open');
-  for (var j = 0; j < segs.length;   j++) segs[j].classList.remove('is-active');
-  if (!isOpen && target) {
-    target.classList.add('is-open');
-    var seg = card.querySelector('.ufs-seg[data-key="' + key + '"]');
-    if (seg) seg.classList.add('is-active');
+  // Close any OTHER currently-open panel so only one is open at a time
+  Object.keys(idMap).forEach(function(k) {
+    if (k === key) return;
+    var el = document.getElementById(idMap[k]);
+    if (el && el.classList.contains('is-open')) {
+      var otherSeg = card ? card.querySelector('.ufs-seg[data-key="' + k + '"]') : null;
+      mfToggle(idMap[k], otherSeg);
+    }
+  });
+  // Clear all seg active states — we'll re-apply to the target below
+  var segs = card ? card.querySelectorAll('.ufs-seg') : [];
+  for (var i = 0; i < segs.length; i++) segs[i].classList.remove('is-active');
+  // Toggle target (mfToggle flips is-open — opens if closed, closes if open)
+  var seg = card ? card.querySelector('.ufs-seg[data-key="' + key + '"]') : null;
+  mfToggle(targetId, seg);
+  // If target is now open, flag its button active (yellow underline)
+  var targetEl = document.getElementById(targetId);
+  if (targetEl && targetEl.classList.contains('is-open') && seg) {
+    seg.classList.add('is-active');
   }
+}
+
+// After the mf-card and ufs-card are both rendered into #finCards,
+// clone the mf-card zoom-panel innerHTMLs into their UFS counterparts
+// so the UFS dropdowns have the exact same content + click handlers
+// as the original — with the `mfCogsDetail` / `mfOvhdDetail` /
+// `mfNoiDetail` ID tokens remapped to the UFS prefix so each card
+// manages its own open/close state independently. (The cloned
+// content's onclick handlers reference these IDs via string literals,
+// so we rewrite them at clone time.)
+function ufsCloneZoomPanels() {
+  ['Cogs', 'Ovhd', 'Noi'].forEach(function(k) {
+    var src = document.getElementById('mf' + k + 'Detail');
+    var dst = document.getElementById('ufs' + k + 'Detail');
+    if (!src || !dst) return;
+    var srcHtml = src.innerHTML;
+    // Remap any embedded IDs (data-zid, onclick(...) references) so
+    // the cloned handlers target the UFS panel's zids, not the mf
+    // panel's — keeps hover/select state scoped to the active card.
+    var re = new RegExp('mf' + k + 'Detail', 'g');
+    dst.innerHTML = srcHtml.replace(re, 'ufs' + k + 'Detail');
+  });
 }
 
 // Build a palette of N tints of a base hex color — used by the
@@ -1608,36 +1644,19 @@ function renderOwners() {
   // ═══════════════════════════════════════════════════════════════
   var ufsFmt = fmtDollar;
   var ufsProfitPct = curRev > 0 ? (curNOI / curRev * 100) : 0;
-  // Build inner list + sub-bar for a category.
-  function ufsBreakdown(items, categoryTotal, segColor) {
-    // Filter to positive-value items so we don't render empty rows
-    var real = items.filter(function(it) { return it.val > 0; });
-    // Inner horizontal bar — flex-based; each item's share of the category total.
-    // Keep contiguous color family (tints/shades of the segment color) so the
-    // breakdown reads as "inside" the parent segment.
-    var tints = ufsTintPalette(segColor, real.length);
-    var innerBar = real.map(function(it, i) {
-      var pct = categoryTotal > 0 ? (it.val / categoryTotal * 100) : 0;
-      if (pct < 0.1) pct = 0;
-      return '<div class="ufs-sub-seg" style="flex:' + pct.toFixed(2) + ';background:' + tints[i] + '" ' +
-             'title="' + esc(it.label) + ': ' + ufsFmt(it.val) + '"></div>';
-    }).join('');
-    var listRows = real.map(function(it, i) {
-      var pct = categoryTotal > 0 ? (it.val / categoryTotal * 100) : 0;
-      return '<li class="ufs-li">' +
-               '<span class="ufs-li-dot" style="background:' + tints[i] + '"></span>' +
-               '<span class="ufs-li-label">' + esc(it.label) + '</span>' +
-               '<span class="ufs-li-pct">' + pct.toFixed(1) + '%</span>' +
-               '<span class="ufs-li-val">' + ufsFmt(it.val) + '</span>' +
-             '</li>';
-    }).join('');
-    return '<div class="ufs-panel-inner">' +
-             '<div class="ufs-sub-bar">' + innerBar + '</div>' +
-             '<ul class="ufs-list">' + listRows + '</ul>' +
-           '</div>';
-  }
+  // Period label — matches the header logic in mf-card so both titles stay aligned
+  var ufsPeriod =
+    finGranularity === 'quarter' ? fmtQk(finQuarter) :
+    finGranularity === 'range' && finRange ? finRange.label :
+    fmtMk(finMonth);
+
   var unifiedHtml =
     '<div class="ufs-card">' +
+      // ── Title header: "Financial Summary of the Month" + period label ──
+      '<div class="ufs-header">' +
+        '<div class="ufs-header-title">Financial Summary of the Month</div>' +
+        '<div class="ufs-header-period">' + esc(ufsPeriod) + '</div>' +
+      '</div>' +
       // ── Formula header (single horizontal line) ────────────────
       '<div class="ufs-formula">' +
         '<div class="ufs-f-term">' +
@@ -1687,26 +1706,24 @@ function renderOwners() {
           '</span>' +
         '</button>' +
       '</div>' +
-      // ── Accordion panels (mutually exclusive) ──────────────────
-      '<div class="ufs-panel" data-panel="cogs">' +
-        ufsBreakdown(cogsItems, curCOGS, '#FF5B5B') +
-      '</div>' +
-      '<div class="ufs-panel" data-panel="ovhd">' +
-        ufsBreakdown(ovhdItems, curOvhd, '#FF8A1F') +
-      '</div>' +
-      '<div class="ufs-panel" data-panel="profit">' +
-        '<div class="ufs-panel-inner">' +
-          '<div class="ufs-profit-note">' +
-            'Profit is what remains after subtracting Cost of Goods Sold and Overhead from Total Revenue. ' +
-            'For this period: <strong>' + ufsFmt(curRev) + '</strong> \u2212 <strong>' + ufsFmt(curCOGS) + '</strong> ' +
-            '\u2212 <strong>' + ufsFmt(curOvhd) + '</strong> = <strong>' + ufsFmt(curNOI) + '</strong> ' +
-            '(' + ufsProfitPct.toFixed(1) + '% of revenue).' +
-          '</div>' +
-        '</div>' +
-      '</div>' +
+      // ── Dropdown panels — empty shells that ufsCloneZoomPanels()
+      //    populates after render by deep-copying the mf-card panels
+      //    (mfZoomDetail output for COGS/Overhead, the noiDetailHtml
+      //    "What is Profit?" explainer for Profit). This guarantees the
+      //    new card has identical content, click handlers, and color
+      //    coding as the existing one. IDs are ufs-prefixed so each
+      //    card owns its own open/close state.
+      '<div id="ufsCogsDetail" class="mf-zoom-detail ufs-zoom ufs-zoom--cogs" hidden></div>' +
+      '<div id="ufsOvhdDetail" class="mf-zoom-detail ufs-zoom ufs-zoom--ovhd" hidden></div>' +
+      '<div id="ufsNoiDetail" class="mf-zoom-detail mf-noi-detail ufs-zoom ufs-zoom--profit" hidden></div>' +
     '</div>'; // .ufs-card
 
   document.getElementById('finCards').innerHTML = formulaHtml + unifiedHtml;
+  // Deep-copy the mf-card zoom-panel content into the UFS panels
+  // (same content, same handlers, remapped IDs). Must run AFTER the
+  // outer innerHTML assignment so both source and destination panels
+  // exist in the DOM.
+  ufsCloneZoomPanels();
   requestAnimationFrame(mfFixNarrowLabels);
   /* Ticker animation on the big dollar totals — fires on every render
      (including month changes) for that "data refreshed" satisfaction. */
