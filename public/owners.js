@@ -158,9 +158,11 @@ function ufsToggle(key) {
 // so we rewrite them at clone time.)
 function ufsCloneZoomPanels() {
   // Per-category parent color (vibrant hex matching the bar segment).
-  // This is the single source of truth for the "no rainbow" rule inside
-  // each ufs-zoom panel: the breakdown bar uses this color at stepped
-  // opacities, and every legend row gets a 4px left edge in this color.
+  // Used only to beef the legend-row left edge to 4px in the parent
+  // color. The inner breakdown bar KEEPS its rainbow palette (each
+  // sub-category stays a distinct vivid color), and each legend row
+  // KEEPS its pastel rainbow-tinted background — these are the
+  // "colorful breakdown" the spec calls for.
   var cats = [
     { k: 'Cogs', color: '#FF5B5B' },  // Cost of Goods Sold (coral)
     { k: 'Ovhd', color: '#FF8A1F' },  // Overhead (vibrant orange)
@@ -177,27 +179,14 @@ function ufsCloneZoomPanels() {
     var re = new RegExp('mf' + cat.k + 'Detail', 'g');
     dst.innerHTML = srcHtml.replace(re, 'ufs' + cat.k + 'Detail');
 
-    // ── Rainbow → single-tone breakdown bar ─────────────────────────
-    // The cloned .mf-zoom-seg elements carry inline `background:<hex>`
-    // from the rainbow palette. Overwrite each to the parent category
-    // color at descending opacity (1.0 → 0.40) so the bar reads as one
-    // structured accent instead of Skittles.
-    var segs = dst.querySelectorAll('.mf-zoom-seg');
-    var segsCount = segs.length;
-    for (var i = 0; i < segsCount; i++) {
-      var op = segsCount > 1 ? 1 - (i / (segsCount - 1)) * 0.60 : 1;
-      segs[i].style.background = cat.color;
-      segs[i].style.opacity = op.toFixed(2);
-    }
-
-    // ── Pastel row tints → clean paper rows + 4px left edge ─────────
-    // The cloned legend rows carry inline `background:rgba(...)` +
-    // `border-left:3px solid <rainbowHex>`. Strip the tint, beef the
-    // stripe to 4px in the parent color, and let the CSS handle the
-    // dashed charcoal dividers between rows.
+    // ── Left-edge indicator: parent-category 4px stripe ─────────────
+    // Each legend row's inline `border-left:3px solid <rainbowHex>`
+    // is replaced with `4px solid <parentColor>` so every row in the
+    // Overhead dropdown gets a vibrant-orange edge (cogs gets coral,
+    // profit gets green). Row backgrounds + sub-bar colors are left
+    // untouched so the "colorful breakdown" aesthetic is preserved.
     var rows = dst.querySelectorAll('.mf-zoom-leg-row');
     for (var j = 0; j < rows.length; j++) {
-      rows[j].style.background = 'transparent';
       rows[j].style.borderLeft = '4px solid ' + cat.color;
     }
   });
@@ -1724,31 +1713,50 @@ function renderOwners() {
         '</div>' +
       '</div>' +
       // ── Unified 3-segment interactive bar ──────────────────────
-      '<div class="ufs-bar" role="tablist">' +
-        '<button type="button" class="ufs-seg ufs-seg--cogs" data-key="cogs" ' +
-                'onclick="ufsToggle(\'cogs\')" style="flex:' + Math.max(cogsPct, 0).toFixed(2) + '" ' +
-                'aria-label="Cost of Goods Sold ' + cogsPct.toFixed(1) + '%">' +
-          '<span class="ufs-seg-ink">' +
-            '<span class="ufs-seg-label">Cost of Goods Sold</span>' +
-            '<span class="ufs-seg-pct">' + cogsPct.toFixed(1) + '%</span>' +
-          '</span>' +
-        '</button>' +
-        '<button type="button" class="ufs-seg ufs-seg--ovhd" data-key="ovhd" ' +
-                'onclick="ufsToggle(\'ovhd\')" style="flex:' + Math.max(ovhdPct, 0).toFixed(2) + '" ' +
-                'aria-label="Overhead ' + ovhdPct.toFixed(1) + '%">' +
-          '<span class="ufs-seg-ink">' +
-            '<span class="ufs-seg-label">Overhead</span>' +
-            '<span class="ufs-seg-pct">' + ovhdPct.toFixed(1) + '%</span>' +
-          '</span>' +
-        '</button>' +
-        '<button type="button" class="ufs-seg ufs-seg--profit" data-key="profit" ' +
-                'onclick="ufsToggle(\'profit\')" style="flex:' + Math.max(ufsProfitPct, 0).toFixed(2) + '" ' +
-                'aria-label="Profit ' + ufsProfitPct.toFixed(1) + '%">' +
-          '<span class="ufs-seg-ink">' +
-            '<span class="ufs-seg-label">Profit</span>' +
-            '<span class="ufs-seg-pct">' + ufsProfitPct.toFixed(1) + '%</span>' +
-          '</span>' +
-        '</button>' +
+      // Wrapped in .ufs-bar-wrap so the drafting target markers
+      // (TARGET 50% + PROFIT GOAL 15%) can be positioned absolutely
+      // relative to the bar without being clipped by the bar's
+      // border-radius overflow:hidden.
+      '<div class="ufs-bar-wrap">' +
+        '<div class="ufs-bar" role="tablist">' +
+          '<button type="button" class="ufs-seg ufs-seg--cogs" data-key="cogs" ' +
+                  'onclick="ufsToggle(\'cogs\')" style="flex:' + Math.max(cogsPct, 0).toFixed(2) + '" ' +
+                  'aria-label="Cost of Goods Sold ' + cogsPct.toFixed(1) + '%">' +
+            '<span class="ufs-seg-ink">' +
+              '<span class="ufs-seg-label">Cost of Goods Sold</span>' +
+              '<span class="ufs-seg-pct">' + cogsPct.toFixed(1) + '%</span>' +
+            '</span>' +
+          '</button>' +
+          '<button type="button" class="ufs-seg ufs-seg--ovhd" data-key="ovhd" ' +
+                  'onclick="ufsToggle(\'ovhd\')" style="flex:' + Math.max(ovhdPct, 0).toFixed(2) + '" ' +
+                  'aria-label="Overhead ' + ovhdPct.toFixed(1) + '%">' +
+            '<span class="ufs-seg-ink">' +
+              '<span class="ufs-seg-label">Overhead</span>' +
+              '<span class="ufs-seg-pct">' + ovhdPct.toFixed(1) + '%</span>' +
+            '</span>' +
+          '</button>' +
+          '<button type="button" class="ufs-seg ufs-seg--profit" data-key="profit" ' +
+                  'onclick="ufsToggle(\'profit\')" style="flex:' + Math.max(ufsProfitPct, 0).toFixed(2) + '" ' +
+                  'aria-label="Profit ' + ufsProfitPct.toFixed(1) + '%">' +
+            '<span class="ufs-seg-ink">' +
+              '<span class="ufs-seg-label">Profit</span>' +
+              '<span class="ufs-seg-pct">' + ufsProfitPct.toFixed(1) + '%</span>' +
+            '</span>' +
+          '</button>' +
+        '</div>' +
+        // ── Drafting target markers (architectural tick + uppercase label)
+        //    COGS target at 50% (coral), Profit goal at 85% (vivid green).
+        //    Positioned as siblings of .ufs-bar so they can extrude above
+        //    AND below the bar; .ufs-bar-wrap is position:relative so
+        //    left:50% / left:85% key off the bar's full width.
+        '<div class="ufs-target ufs-target--cogs" style="left:50%">' +
+          '<div class="ufs-target-tick"></div>' +
+          '<div class="ufs-target-lbl">TARGET 50%</div>' +
+        '</div>' +
+        '<div class="ufs-target ufs-target--profit" style="left:85%">' +
+          '<div class="ufs-target-tick"></div>' +
+          '<div class="ufs-target-lbl">PROFIT GOAL 15%</div>' +
+        '</div>' +
       '</div>' +
       // ── Dropdown panels — empty shells that ufsCloneZoomPanels()
       //    populates after render by deep-copying the mf-card panels

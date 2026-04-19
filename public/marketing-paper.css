@@ -1334,454 +1334,396 @@ body.paper-mode .lg-svg {
 }
 
 /* ════════════════════════════════════════════════════════════════
-   VARIANT 1 — Golden Spiral Ledger
-   Spiral path draws via stroke-dashoffset (length ≈ 600). Fib
-   labels stagger in. Ticker rolls. Cycle: 7s. Retract via opacity
-   fade only — no reset snap because the path stays fully drawn
-   then fades as a whole. Always feels fluid.
+   VARIANT 1 — Drafting Pencil Circle Trace
+   Pencil rotates 360° over the first 60%, circle draws with it via
+   stroke-dashoffset. The coral dimension line fades in at ~62% and
+   holds; the date materializes at ~72%. Everything fades together
+   at 95→100%. Cycle 6s. pathLength="100" keeps math normalized.
    ════════════════════════════════════════════════════════════════ */
-body.paper-mode .lg1-spiral {
-  stroke-dasharray: 600;
-  stroke-dashoffset: 600;
-  animation: lg1Spiral 7s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+body.paper-mode .lg1-circle {
+  animation: lg1Circle 6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
-@keyframes lg1Spiral {
-  0%, 4%    { stroke-dashoffset: 600; opacity: 1; }
-  70%       { stroke-dashoffset: 0;   opacity: 1; }
+@keyframes lg1Circle {
+  0%, 3%    { stroke-dashoffset: 100; opacity: 1; }
+  60%       { stroke-dashoffset: 0;   opacity: 1; }
+  92%       { stroke-dashoffset: 0;   opacity: 1; }
+  100%      { stroke-dashoffset: 0;   opacity: 0; }
+}
+body.paper-mode .lg1-pencil {
+  animation: lg1Pencil 6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+@keyframes lg1Pencil {
+  0%, 3%    { transform: rotate(0);       opacity: 1; }
+  60%       { transform: rotate(360deg);  opacity: 1; }
+  72%       { transform: rotate(360deg);  opacity: 0; }
+  100%      { transform: rotate(360deg);  opacity: 0; }
+}
+body.paper-mode .lg1-dim {
+  opacity: 0;
+  animation: lg1Dim 6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes lg1Dim {
+  0%, 58%   { opacity: 0; }
+  68%, 92%  { opacity: 1; }
+  100%      { opacity: 0; }
+}
+body.paper-mode .lg1-date {
+  opacity: 0;
+  transform: scale(0.75);
+  transform-origin: 70px 74px;
+  animation: lg1Date 6s cubic-bezier(0.34, 1.4, 0.64, 1) infinite;
+}
+@keyframes lg1Date {
+  0%, 62%   { opacity: 0; transform: scale(0.75); }
+  72%, 92%  { opacity: 1; transform: scale(1); }
+  100%      { opacity: 0; transform: scale(0.75); }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   VARIANT 2 — Sequential Leaf Vein Pathing
+   Leaf outline draws, midrib follows, 8 veins cascade in pairs with
+   micro-staggered delays (applied inline on each .lg2-vein--N). All
+   share an 8s cycle so the final system fades out together at 88%.
+   ════════════════════════════════════════════════════════════════ */
+body.paper-mode .lg2-leaf {
+  animation: lg2Leaf 8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  fill-opacity: 0;
+}
+@keyframes lg2Leaf {
+  0%, 4%    { stroke-dashoffset: 100; fill-opacity: 0; opacity: 1; }
+  22%       { stroke-dashoffset: 0;   fill-opacity: 0.55; opacity: 1; }
+  88%       { stroke-dashoffset: 0;   fill-opacity: 0.55; opacity: 1; }
+  100%      { stroke-dashoffset: 0;   fill-opacity: 0;    opacity: 0; }
+}
+body.paper-mode .lg2-midrib {
+  animation: lg2Midrib 8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+@keyframes lg2Midrib {
+  0%, 22%   { stroke-dashoffset: 100; opacity: 1; }
+  34%       { stroke-dashoffset: 0;   opacity: 1; }
   88%       { stroke-dashoffset: 0;   opacity: 1; }
   100%      { stroke-dashoffset: 0;   opacity: 0; }
 }
-body.paper-mode .lg1-label {
+body.paper-mode .lg2-vein {
+  animation: lg2Vein 8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+@keyframes lg2Vein {
+  0%, 34%   { stroke-dashoffset: 100; opacity: 1; }
+  52%       { stroke-dashoffset: 0;   opacity: 1; }
+  88%       { stroke-dashoffset: 0;   opacity: 1; }
+  100%      { stroke-dashoffset: 0;   opacity: 0; }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   VARIANT 3 — Origami Pop-Up Fold
+   5-frame flip-book: flat → fold → triangle → crane → flattened
+   entry. Each frame gets a ~18% slice of a 6s cycle with steps-like
+   opacity transitions. Wings flap once during the crane frame.
+   ════════════════════════════════════════════════════════════════ */
+body.paper-mode .lg3-frame {
   opacity: 0;
-  transform: scale(0.6);
-  animation: lg1Label 7s cubic-bezier(0.34, 1.4, 0.64, 1) infinite;
+  animation: lg3Frame 6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
-@keyframes lg1Label {
-  0%, 6%    { opacity: 0; transform: scale(0.6); }
-  14%, 88%  { opacity: 1; transform: scale(1);   }
-  100%      { opacity: 0; transform: scale(0.6); }
+body.paper-mode .lg3-frame--0 { animation-delay: 0s; }
+body.paper-mode .lg3-frame--1 { animation-delay: 0.9s; }
+body.paper-mode .lg3-frame--2 { animation-delay: 1.7s; }
+body.paper-mode .lg3-frame--3 { animation-delay: 2.5s; }
+body.paper-mode .lg3-frame--4 { animation-delay: 3.9s; }
+@keyframes lg3Frame {
+  0%        { opacity: 0; }
+  2%, 16%   { opacity: 1; }
+  18%, 100% { opacity: 0; }
 }
-body.paper-mode .lg1-label--0 { animation-delay: 0.30s; }
-body.paper-mode .lg1-label--1 { animation-delay: 0.90s; }
-body.paper-mode .lg1-label--2 { animation-delay: 1.50s; }
-body.paper-mode .lg1-label--3 { animation-delay: 2.10s; }
-body.paper-mode .lg1-label--4 { animation-delay: 2.70s; }
-body.paper-mode .lg1-label--5 { animation-delay: 3.30s; }
-body.paper-mode .lg1-label--6 { animation-delay: 3.90s; }
-body.paper-mode .lg1-roll {
-  animation: lg1Roll 7s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+body.paper-mode .lg3-wing {
+  animation: lg3Wing 6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  animation-delay: 2.9s;
 }
-@keyframes lg1Roll {
-  0%, 4%    { transform: translateY(0); }
-  80%, 88%  { transform: translateY(var(--roll-total)); }
-  100%      { transform: translateY(0); }
-}
-
-/* ════════════════════════════════════════════════════════════════
-   VARIANT 2 — Orbital Ledger
-   Three concentric orbits rotating at Keplerian rates — inner
-   fastest. Never stops: motion is always continuous, loader feels
-   alive. Central total rolls up in perpetual accumulator.
-   ════════════════════════════════════════════════════════════════ */
-body.paper-mode .lg2-orbit { animation-timing-function: linear; }
-body.paper-mode .lg2-orbit--1 { animation: lg2Spin1 8s  linear infinite; }
-body.paper-mode .lg2-orbit--2 { animation: lg2Spin2 14s linear infinite reverse; }
-body.paper-mode .lg2-orbit--3 { animation: lg2Spin3 22s linear infinite; }
-@keyframes lg2Spin1 { from { transform: rotate(0); } to { transform: rotate(360deg); } }
-@keyframes lg2Spin2 { from { transform: rotate(0); } to { transform: rotate(360deg); } }
-@keyframes lg2Spin3 { from { transform: rotate(0); } to { transform: rotate(360deg); } }
-body.paper-mode .lg2-roll {
-  animation: lg2Roll 22s linear infinite;
-}
-@keyframes lg2Roll {
-  0%   { transform: translateY(0); }
-  92%  { transform: translateY(var(--roll-total)); }
-  100% { transform: translateY(0); }
+@keyframes lg3Wing {
+  0%, 8%    { transform: rotate(0); }
+  14%       { transform: rotate(-14deg); }
+  22%       { transform: rotate(0); }
+  100%      { transform: rotate(0); }
 }
 
 /* ════════════════════════════════════════════════════════════════
-   VARIANT 3 — Sine Wave Cash Flow
-   Wave scrolls left continuously via translateX, creating an
-   endless flow. Peak/trough markers pulse on their own staggered
-   schedule so the motion is layered. Ticker rolls with the phase.
+   VARIANT 4 — Topographical Ripple
+   4 concentric irregular contours draw outward with staggered delays
+   (set inline). Central peak pulses. All fade together at 88→100%.
    ════════════════════════════════════════════════════════════════ */
-body.paper-mode .lg3-scroll {
-  animation: lg3Scroll 8s linear infinite;
+body.paper-mode .lg4-ring {
+  animation: lg4Ring 7s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
-@keyframes lg3Scroll {
-  from { transform: translateX(0);     }
-  to   { transform: translateX(-80px); }
+@keyframes lg4Ring {
+  0%, 4%    { stroke-dashoffset: 100; opacity: 1; }
+  45%       { stroke-dashoffset: 0;   opacity: 1; }
+  82%       { stroke-dashoffset: 0;   opacity: 1; }
+  100%      { stroke-dashoffset: 0;   opacity: 0; }
 }
-body.paper-mode .lg3-mark {
-  transform: scale(0);
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: lg3Mark 4s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+body.paper-mode .lg4-peak {
+  animation: lg4Peak 2.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
-@keyframes lg3Mark {
-  0%, 10%   { transform: scale(0);   }
-  24%       { transform: scale(1.3); }
-  34%       { transform: scale(1);   }
-  72%       { transform: scale(1);   }
-  88%       { transform: scale(0);   }
-  100%      { transform: scale(0);   }
+@keyframes lg4Peak {
+  0%, 100%  { transform: scale(1); }
+  50%       { transform: scale(1.35); }
 }
-body.paper-mode .lg3-roll {
-  animation: lg3Roll 8s linear infinite;
-}
-@keyframes lg3Roll {
-  0%   { transform: translateY(0); }
-  94%  { transform: translateY(var(--roll-total)); }
-  100% { transform: translateY(0); }
-}
-
-/* ════════════════════════════════════════════════════════════════
-   VARIANT 4 — Voronoi Money Partition
-   Cells fade in with radial gradient bloom + gentle scale spring.
-   Per-cell delay via inline animation-delay. After full, cells
-   fade out in the same order for seamless restart. Cycle: 6.5s.
-   ════════════════════════════════════════════════════════════════ */
-body.paper-mode .lg4-cell {
+body.paper-mode .lg4-label {
   opacity: 0;
-  transform: scale(0.6);
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: lg4Cell 6.5s cubic-bezier(0.34, 1.4, 0.64, 1) infinite;
+  animation: lg4Label 7s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
-@keyframes lg4Cell {
-  0%, 4%    { opacity: 0; transform: scale(0.6); }
-  16%       { opacity: 1; transform: scale(1.04); }
-  24%, 76%  { opacity: 1; transform: scale(1);    }
-  92%       { opacity: 0; transform: scale(0.6);  }
-  100%      { opacity: 0; transform: scale(0.6);  }
-}
-
-/* ════════════════════════════════════════════════════════════════
-   VARIANT 5 — Unit Circle Trigonometry
-   Radius rotates continuously (linear). Revenue bar = |sin(θ)|,
-   Expense bar = |cos(θ)|, both via matching keyframe transforms.
-   Ticker rolls profit upward. Never stops — pure continuous loop.
-   ════════════════════════════════════════════════════════════════ */
-body.paper-mode .lg5-rotator {
-  animation: lg5Spin 6s linear infinite;
-}
-@keyframes lg5Spin {
-  from { transform: rotate(0);       }
-  to   { transform: rotate(360deg);  }
-}
-body.paper-mode .lg5-rev {
-  animation: lg5Sin 6s cubic-bezier(0.37, 0, 0.63, 1) infinite;
-  transform: scaleY(0);
-}
-@keyframes lg5Sin {
-  0%     { transform: scaleY(0);    }
-  25%    { transform: scaleY(1);    }
-  50%    { transform: scaleY(0);    }
-  75%    { transform: scaleY(1);    }
-  100%   { transform: scaleY(0);    }
-}
-body.paper-mode .lg5-exp {
-  animation: lg5Cos 6s cubic-bezier(0.37, 0, 0.63, 1) infinite;
-  transform: scaleY(1);
-}
-@keyframes lg5Cos {
-  0%     { transform: scaleY(1);    }
-  25%    { transform: scaleY(0);    }
-  50%    { transform: scaleY(1);    }
-  75%    { transform: scaleY(0);    }
-  100%   { transform: scaleY(1);    }
-}
-body.paper-mode .lg5-roll {
-  animation: lg5Roll 6s linear infinite;
-}
-@keyframes lg5Roll {
-  0%   { transform: translateY(0); }
-  96%  { transform: translateY(var(--roll-total)); }
-  100% { transform: translateY(0); }
-}
-
-/* ════════════════════════════════════════════════════════════════
-   VARIANT 6 — Pascal's Triangle Cascade
-   Nodes + edges cascade top-down with delays driven inline from JS.
-   Node uses spring scale from 0→1.1→1. Edges draw via stroke-dash.
-   Sum at the bottom emerges at the end. 6s cycle.
-   ════════════════════════════════════════════════════════════════ */
-body.paper-mode .lg6-node {
-  opacity: 0;
-  transform: scale(0);
-  animation: lg6Node 6s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
-}
-@keyframes lg6Node {
-  0%, 4%    { opacity: 0; transform: scale(0);    }
-  12%       { opacity: 1; transform: scale(1.18); }
-  20%, 82%  { opacity: 1; transform: scale(1);    }
-  96%, 100% { opacity: 0; transform: scale(0);    }
-}
-body.paper-mode .lg6-edge {
-  stroke-dasharray: 20;
-  stroke-dashoffset: 20;
-  animation: lg6Edge 6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
-}
-@keyframes lg6Edge {
-  0%, 6%    { stroke-dashoffset: 20; }
-  18%, 82%  { stroke-dashoffset: 0;  }
-  96%, 100% { stroke-dashoffset: 20; }
-}
-body.paper-mode .lg6-sum {
-  opacity: 0;
-  transform: translateY(6px);
-  transform-box: fill-box;
-  animation: lg6Sum 6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
-}
-@keyframes lg6Sum {
-  0%, 68%   { opacity: 0; transform: translateY(6px); }
-  80%, 92%  { opacity: 1; transform: translateY(0);   }
-  100%      { opacity: 0; transform: translateY(6px); }
-}
-
-/* ════════════════════════════════════════════════════════════════
-   VARIANT 7 — Hex Honeycomb Fill
-   Rings bloom outward: ring 0 first (center), then ring 1, then
-   ring 2. Per-cell stagger adds texture. Full honeycomb holds ~30%
-   of cycle, then drains outer-in. 6s cycle. Ticker climbs.
-   ════════════════════════════════════════════════════════════════ */
-body.paper-mode .lg7-hex {
-  opacity: 0;
-  transform: scale(0);
-  animation: lg7Hex 6s cubic-bezier(0.34, 1.5, 0.64, 1) infinite;
-}
-@keyframes lg7Hex {
-  0%, 4%    { opacity: 0; transform: scale(0);    }
-  20%       { opacity: 1; transform: scale(1.1);  }
-  30%, 78%  { opacity: 1; transform: scale(1);    }
-  94%, 100% { opacity: 0; transform: scale(0);    }
-}
-body.paper-mode .lg7-roll {
-  animation: lg7Roll 6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
-}
-@keyframes lg7Roll {
-  0%, 4%    { transform: translateY(0); }
-  76%, 90%  { transform: translateY(var(--roll-total)); }
-  100%      { transform: translateY(0); }
-}
-
-/* ════════════════════════════════════════════════════════════════
-   VARIANT 8 — Vector Addition Chain
-   Each vector draws via stroke-dashoffset sequentially (delays inline
-   via @keyframes holds). Labels fade in as their arrow lands.
-   Resultant draws last, revealing the Profit. Cycle: 5.5s.
-   ════════════════════════════════════════════════════════════════ */
-body.paper-mode .lg8-v1 line,
-body.paper-mode .lg8-v2 line,
-body.paper-mode .lg8-v3 line {
-  animation: lg8Draw 5.5s cubic-bezier(0.22, 1, 0.36, 1) infinite;
-}
-body.paper-mode .lg8-v1 line { animation-delay: 0.2s;  }
-body.paper-mode .lg8-v2 line { animation-delay: 1.2s;  }
-body.paper-mode .lg8-v3 line { animation-delay: 2.0s;  }
-@keyframes lg8Draw {
-  0%, 8%    { stroke-dashoffset: 100; }
-  30%, 82%  { stroke-dashoffset: 0;   }
-  96%, 100% { stroke-dashoffset: 100; }
-}
-body.paper-mode .lg8-v1-head,
-body.paper-mode .lg8-v2-head,
-body.paper-mode .lg8-v3-head {
-  opacity: 0;
-  animation: lg8Head 5.5s cubic-bezier(0.22, 1, 0.36, 1) infinite;
-}
-body.paper-mode .lg8-v1-head { animation-delay: 0.7s; }
-body.paper-mode .lg8-v2-head { animation-delay: 1.6s; }
-body.paper-mode .lg8-v3-head { animation-delay: 2.4s; }
-@keyframes lg8Head {
+@keyframes lg4Label {
   0%, 12%   { opacity: 0; }
-  22%, 82%  { opacity: 1; }
-  96%, 100% { opacity: 0; }
-}
-body.paper-mode .lg8-l1,
-body.paper-mode .lg8-l2,
-body.paper-mode .lg8-l3 {
-  opacity: 0;
-  animation: lg8Label 5.5s cubic-bezier(0.22, 1, 0.36, 1) infinite;
-}
-body.paper-mode .lg8-l1 { animation-delay: 0.8s; }
-body.paper-mode .lg8-l2 { animation-delay: 1.7s; }
-body.paper-mode .lg8-l3 { animation-delay: 2.5s; }
-@keyframes lg8Label {
-  0%, 14%   { opacity: 0; }
-  26%, 82%  { opacity: 1; }
-  96%, 100% { opacity: 0; }
-}
-body.paper-mode .lg8-res {
-  opacity: 0;
-  animation: lg8Res 5.5s cubic-bezier(0.22, 1, 0.36, 1) infinite;
-}
-@keyframes lg8Res {
-  0%, 56%   { opacity: 0; transform: scale(0.96); }
-  68%, 82%  { opacity: 1; transform: scale(1);    }
-  96%, 100% { opacity: 0; transform: scale(0.96); }
+  28%, 82%  { opacity: 1; }
+  100%      { opacity: 0; }
 }
 
 /* ════════════════════════════════════════════════════════════════
-   VARIANT 9 — Linear Regression Fit
-   Scatter points drop in sequentially with gravity ease. Best-fit
-   line draws via stroke-dashoffset after all 8 points are down. 6s
-   cycle. Clean, mathematical, continuous.
+   VARIANT 5 — Blueprint Grid Ripple
+   Dots sit static at ~50% opacity. Horizontal + vertical connector
+   lines scaleX/scaleY 0→1 outward in a wave from center, then ease
+   back to 0 on the return. Delay per line is computed by distance-
+   from-center (set inline on each line).
    ════════════════════════════════════════════════════════════════ */
-body.paper-mode .lg9-dot {
+body.paper-mode .lg5-line {
+  transform: scale(0);
+  animation: lg5Line 5.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+body.paper-mode .lg5-h { animation-name: lg5LineH; }
+body.paper-mode .lg5-v { animation-name: lg5LineV; }
+@keyframes lg5LineH {
+  0%, 6%    { transform: scaleX(0); }
+  46%       { transform: scaleX(1); }
+  58%       { transform: scaleX(1); }
+  94%       { transform: scaleX(0); }
+  100%      { transform: scaleX(0); }
+}
+@keyframes lg5LineV {
+  0%, 6%    { transform: scaleY(0); }
+  46%       { transform: scaleY(1); }
+  58%       { transform: scaleY(1); }
+  94%       { transform: scaleY(0); }
+  100%      { transform: scaleY(0); }
+}
+body.paper-mode .lg5-dot {
+  animation: lg5Dot 5.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes lg5Dot {
+  0%, 100%  { opacity: 0.5; }
+  52%       { opacity: 0.15; }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   VARIANT 6 — Paper Flip-Book Building
+   5 construction-stage frames: LOT → FOUNDATION → FRAMING →
+   CLADDING → COMPLETE. Step-like opacity jumps per frame for the
+   tactile analog flip-book feel. Cycle ~5s, frame visible for ~18%.
+   ════════════════════════════════════════════════════════════════ */
+body.paper-mode .lg6-frame {
+  opacity: 0;
+  animation: lg6Frame 5s steps(1, end) infinite;
+}
+body.paper-mode .lg6-frame--0 { animation-delay: 0s; }
+body.paper-mode .lg6-frame--1 { animation-delay: 0.8s; }
+body.paper-mode .lg6-frame--2 { animation-delay: 1.6s; }
+body.paper-mode .lg6-frame--3 { animation-delay: 2.4s; }
+body.paper-mode .lg6-frame--4 { animation-delay: 3.2s; }
+@keyframes lg6Frame {
+  0%        { opacity: 0; }
+  1%        { opacity: 1; }
+  16%       { opacity: 1; }
+  17%, 100% { opacity: 0; }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   VARIANT 7 — Laser-Cut Stencil Shadow Sweep
+   Shadow polygon translates left → right across the facade; sun
+   token translates in sync along the top edge. Both pause briefly
+   at the end before sweeping back. Continuous arc, 6s cycle.
+   ════════════════════════════════════════════════════════════════ */
+body.paper-mode .lg7-shadow {
+  animation: lg7Shadow 6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+@keyframes lg7Shadow {
+  0%        { transform: translateX(0); }
+  50%       { transform: translateX(180px); }
+  100%      { transform: translateX(0); }
+}
+body.paper-mode .lg7-sun {
+  animation: lg7Sun 6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  transform: translate(14px, 16px);
+}
+@keyframes lg7Sun {
+  0%        { transform: translate(14px, 16px); }
+  50%       { transform: translate(126px, 16px); }
+  100%      { transform: translate(14px, 16px); }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   VARIANT 8 — Stacked Data Column Fill
+   Blocks drop in from above with a gravitational ease, staggered per
+   column + per block. Riso teal highlight bleeds behind each bar
+   after it fills. Whole scene fades and restarts at 92→100%.
+   ════════════════════════════════════════════════════════════════ */
+body.paper-mode .lg8-block {
   opacity: 0;
   transform: translateY(-30px);
-  transform-box: fill-box;
-  animation: lg9Dot 6s cubic-bezier(0.55, 0.04, 0.65, 0.7) infinite;
+  animation: lg8Block 5s cubic-bezier(0.45, 1.3, 0.52, 1) infinite;
 }
-@keyframes lg9Dot {
-  0%, 2%    { opacity: 0; transform: translateY(-30px); }
-  6%        { opacity: 1; transform: translateY(-30px); }
-  12%       { opacity: 1; transform: translateY(4px);   }
-  16%, 82%  { opacity: 1; transform: translateY(0);     }
-  96%, 100% { opacity: 0; transform: translateY(-30px); }
+@keyframes lg8Block {
+  0%        { opacity: 0; transform: translateY(-30px); }
+  8%        { opacity: 1; }
+  16%       { transform: translateY(0); }
+  72%       { opacity: 1; transform: translateY(0); }
+  92%       { opacity: 1; transform: translateY(0); }
+  100%      { opacity: 0; transform: translateY(0); }
 }
-body.paper-mode .lg9-fit {
-  stroke-dasharray: 120;
-  stroke-dashoffset: 120;
-  animation: lg9Fit 6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+body.paper-mode .lg8-highlight {
+  opacity: 0;
+  animation: lg8Highlight 5s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
-@keyframes lg9Fit {
-  0%, 48%   { stroke-dashoffset: 120; }
-  68%, 82%  { stroke-dashoffset: 0;   }
-  96%, 100% { stroke-dashoffset: 120; }
-}
-body.paper-mode .lg9-roll {
-  animation: lg9Roll 6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
-}
-@keyframes lg9Roll {
-  0%, 6%    { transform: translateY(0); }
-  76%, 90%  { transform: translateY(var(--roll-total)); }
-  100%      { transform: translateY(0); }
+@keyframes lg8Highlight {
+  0%, 30%   { opacity: 0; }
+  45%       { opacity: 0.35; }
+  88%       { opacity: 0.35; }
+  100%      { opacity: 0; }
 }
 
 /* ════════════════════════════════════════════════════════════════
-   VARIANT 10 — Polar Rose Bloom
-   Rose curve draws via stroke-dashoffset (length ≈ 560). Petal
-   tips pop in staggered as the curve reaches each. Labels fade in
-   at petal centers. Cycle: 6s. Fades at end before restart.
+   VARIANT 9 — Connected Flow-Chart
+   Charcoal path draws progressively (stroke-dashoffset on pathLength
+   100). Each icon halo blooms yellow at the moment the line reaches
+   it (delay inline). Icons pulse at the same moment.
    ════════════════════════════════════════════════════════════════ */
-body.paper-mode .lg10-rose {
-  stroke-dasharray: 560;
-  stroke-dashoffset: 560;
-  animation: lg10Rose 6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+body.paper-mode .lg9-path {
+  animation: lg9Path 6s cubic-bezier(0.5, 0, 0.2, 1) infinite;
 }
-@keyframes lg10Rose {
-  0%, 4%    { stroke-dashoffset: 560; opacity: 1; }
-  72%       { stroke-dashoffset: 0;   opacity: 1; }
-  88%       { stroke-dashoffset: 0;   opacity: 1; }
+@keyframes lg9Path {
+  0%, 4%    { stroke-dashoffset: 100; opacity: 1; }
+  76%       { stroke-dashoffset: 0;   opacity: 1; }
+  92%       { stroke-dashoffset: 0;   opacity: 1; }
   100%      { stroke-dashoffset: 0;   opacity: 0; }
 }
-body.paper-mode .lg10-tip {
-  opacity: 0;
-  transform: scale(0);
-  transform-box: fill-box;
+body.paper-mode .lg9-halo {
+  animation: lg9Halo 6s cubic-bezier(0.34, 1.4, 0.64, 1) infinite;
+}
+@keyframes lg9Halo {
+  0%        { opacity: 0; transform: scale(0.4); transform-origin: center; }
+  8%        { opacity: 0.75; transform: scale(1); }
+  16%       { opacity: 0.45; }
+  72%       { opacity: 0.45; }
+  100%      { opacity: 0; }
+}
+body.paper-mode .lg9-icon {
+  animation: lg9Icon 6s cubic-bezier(0.34, 1.3, 0.64, 1) infinite;
   transform-origin: center;
-  animation: lg10Tip 6s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
 }
-@keyframes lg10Tip {
-  0%, 6%    { opacity: 0; transform: scale(0);   }
-  16%       { opacity: 1; transform: scale(1.2); }
-  22%, 82%  { opacity: 1; transform: scale(1);   }
-  94%, 100% { opacity: 0; transform: scale(0);   }
+@keyframes lg9Icon {
+  0%        { transform: scale(0.85); opacity: 0.5; }
+  8%        { transform: scale(1.12); opacity: 1; }
+  14%       { transform: scale(1); }
+  88%       { transform: scale(1); opacity: 1; }
+  100%      { opacity: 0; transform: scale(0.9); }
 }
-body.paper-mode .lg10-lbl {
-  opacity: 0;
-  animation: lg10Lbl 6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+
+/* ════════════════════════════════════════════════════════════════
+   VARIANT 10 — Terra Cotta Curing Bar
+   Width fills via transform: scaleX (transform-origin: left). Fill
+   color transitions from wet-clay sienna to baked terracotta. The
+   percentage ticker rolls through 0% → 100% in sync. Green check
+   badge pops in at the end; check stroke draws via dashoffset.
+   ════════════════════════════════════════════════════════════════ */
+body.paper-mode .lg10-fill {
+  transform: scaleX(0);
+  animation: lg10Fill 5.5s cubic-bezier(0.5, 0, 0.2, 1) infinite;
 }
-@keyframes lg10Lbl {
-  0%, 14%   { opacity: 0; }
-  28%, 82%  { opacity: 1; }
-  94%, 100% { opacity: 0; }
+@keyframes lg10Fill {
+  0%, 3%    { transform: scaleX(0);    fill: #8A3A1C; }
+  68%       { transform: scaleX(1);    fill: #D17036; }
+  88%       { transform: scaleX(1);    fill: #D17036; }
+  100%      { transform: scaleX(0);    fill: #8A3A1C; }
 }
-body.paper-mode .lg10-roll {
-  animation: lg10Roll 6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+body.paper-mode .lg10-pct {
+  animation: lg10Pct 5.5s cubic-bezier(0.5, 0, 0.2, 1) infinite;
 }
-@keyframes lg10Roll {
-  0%, 4%    { transform: translateY(0); }
-  76%, 88%  { transform: translateY(var(--roll-total)); }
+@keyframes lg10Pct {
+  0%, 3%    { transform: translateY(0); }
+  68%       { transform: translateY(var(--roll-total)); }
+  88%       { transform: translateY(var(--roll-total)); }
   100%      { transform: translateY(0); }
+}
+body.paper-mode .lg10-check {
+  opacity: 0;
+  transform: scale(0.3);
+  animation: lg10Check 5.5s cubic-bezier(0.34, 1.5, 0.64, 1) infinite;
+}
+@keyframes lg10Check {
+  0%, 64%   { opacity: 0; transform: scale(0.3); }
+  74%, 88%  { opacity: 1; transform: scale(1); }
+  100%      { opacity: 0; transform: scale(0.3); }
+}
+body.paper-mode .lg10-check-path {
+  animation: lg10CheckPath 5.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+@keyframes lg10CheckPath {
+  0%, 68%   { stroke-dashoffset: 100; }
+  82%, 88%  { stroke-dashoffset: 0; }
+  100%      { stroke-dashoffset: 100; }
 }
 
 /* ── Reduced motion — freeze each variant at a readable state ──── */
 @media (prefers-reduced-motion: reduce) {
-  body.paper-mode .lg1-spiral,
-  body.paper-mode .lg1-label,
-  body.paper-mode .lg1-roll,
-  body.paper-mode .lg2-orbit,
-  body.paper-mode .lg2-roll,
-  body.paper-mode .lg3-scroll,
-  body.paper-mode .lg3-mark,
-  body.paper-mode .lg3-roll,
-  body.paper-mode .lg4-cell,
-  body.paper-mode .lg5-rotator,
-  body.paper-mode .lg5-rev,
-  body.paper-mode .lg5-exp,
-  body.paper-mode .lg5-roll,
-  body.paper-mode .lg6-node,
-  body.paper-mode .lg6-edge,
-  body.paper-mode .lg6-sum,
-  body.paper-mode .lg7-hex,
-  body.paper-mode .lg7-roll,
-  body.paper-mode .lg8-v1 line,
-  body.paper-mode .lg8-v2 line,
-  body.paper-mode .lg8-v3 line,
-  body.paper-mode .lg8-v1-head,
-  body.paper-mode .lg8-v2-head,
-  body.paper-mode .lg8-v3-head,
-  body.paper-mode .lg8-l1,
-  body.paper-mode .lg8-l2,
-  body.paper-mode .lg8-l3,
-  body.paper-mode .lg8-res,
-  body.paper-mode .lg9-dot,
-  body.paper-mode .lg9-fit,
-  body.paper-mode .lg9-roll,
-  body.paper-mode .lg10-rose,
-  body.paper-mode .lg10-tip,
-  body.paper-mode .lg10-lbl,
-  body.paper-mode .lg10-roll {
+  body.paper-mode .lg1-circle,
+  body.paper-mode .lg1-pencil,
+  body.paper-mode .lg1-dim,
+  body.paper-mode .lg1-date,
+  body.paper-mode .lg2-leaf,
+  body.paper-mode .lg2-midrib,
+  body.paper-mode .lg2-vein,
+  body.paper-mode .lg3-frame,
+  body.paper-mode .lg3-wing,
+  body.paper-mode .lg4-ring,
+  body.paper-mode .lg4-peak,
+  body.paper-mode .lg4-label,
+  body.paper-mode .lg5-line,
+  body.paper-mode .lg5-dot,
+  body.paper-mode .lg6-frame,
+  body.paper-mode .lg7-shadow,
+  body.paper-mode .lg7-sun,
+  body.paper-mode .lg8-block,
+  body.paper-mode .lg8-highlight,
+  body.paper-mode .lg9-path,
+  body.paper-mode .lg9-halo,
+  body.paper-mode .lg9-icon,
+  body.paper-mode .lg10-fill,
+  body.paper-mode .lg10-pct,
+  body.paper-mode .lg10-check,
+  body.paper-mode .lg10-check-path {
     animation: none !important;
   }
-  body.paper-mode .lg1-spiral,
-  body.paper-mode .lg6-edge,
-  body.paper-mode .lg8-v1 line,
-  body.paper-mode .lg8-v2 line,
-  body.paper-mode .lg8-v3 line,
-  body.paper-mode .lg9-fit,
-  body.paper-mode .lg10-rose      { stroke-dashoffset: 0 !important; }
-  body.paper-mode .lg1-label,
-  body.paper-mode .lg4-cell,
-  body.paper-mode .lg6-node,
-  body.paper-mode .lg7-hex,
-  body.paper-mode .lg10-tip       { opacity: 1 !important; transform: scale(1) !important; }
-  body.paper-mode .lg6-sum,
-  body.paper-mode .lg8-v1-head,
-  body.paper-mode .lg8-v2-head,
-  body.paper-mode .lg8-v3-head,
-  body.paper-mode .lg8-l1,
-  body.paper-mode .lg8-l2,
-  body.paper-mode .lg8-l3,
-  body.paper-mode .lg8-res,
-  body.paper-mode .lg10-lbl       { opacity: 1 !important; transform: none !important; }
-  body.paper-mode .lg1-roll,
-  body.paper-mode .lg2-roll,
-  body.paper-mode .lg3-roll,
-  body.paper-mode .lg5-roll,
-  body.paper-mode .lg7-roll,
-  body.paper-mode .lg9-roll,
-  body.paper-mode .lg10-roll      { transform: translateY(var(--roll-total)) !important; }
-  body.paper-mode .lg2-orbit      { transform: rotate(0) !important; }
-  body.paper-mode .lg3-scroll     { transform: translateX(-40px) !important; }
-  body.paper-mode .lg3-mark       { transform: scale(1) !important; }
-  body.paper-mode .lg5-rotator    { transform: rotate(45deg) !important; }
-  body.paper-mode .lg5-rev        { transform: scaleY(0.7) !important; }
-  body.paper-mode .lg5-exp        { transform: scaleY(0.7) !important; }
-  body.paper-mode .lg9-dot        { opacity: 1 !important; transform: translateY(0) !important; }
+  body.paper-mode .lg1-circle,
+  body.paper-mode .lg2-leaf,
+  body.paper-mode .lg2-midrib,
+  body.paper-mode .lg2-vein,
+  body.paper-mode .lg4-ring,
+  body.paper-mode .lg9-path,
+  body.paper-mode .lg10-check-path { stroke-dashoffset: 0 !important; }
+  body.paper-mode .lg1-dim,
+  body.paper-mode .lg1-date,
+  body.paper-mode .lg3-frame--3,
+  body.paper-mode .lg4-label,
+  body.paper-mode .lg6-frame--4,
+  body.paper-mode .lg8-block,
+  body.paper-mode .lg9-halo,
+  body.paper-mode .lg9-icon,
+  body.paper-mode .lg10-check { opacity: 1 !important; transform: none !important; }
+  body.paper-mode .lg2-leaf        { fill-opacity: 0.55 !important; }
+  body.paper-mode .lg3-frame,
+  body.paper-mode .lg6-frame       { opacity: 0 !important; }
+  body.paper-mode .lg3-frame--3,
+  body.paper-mode .lg6-frame--4    { opacity: 1 !important; }
+  body.paper-mode .lg5-line,
+  body.paper-mode .lg8-highlight   { transform: scale(1) !important; opacity: 0.25 !important; }
+  body.paper-mode .lg10-fill       { transform: scaleX(1) !important; fill: #D17036 !important; }
+  body.paper-mode .lg10-pct        { transform: translateY(var(--roll-total)) !important; }
 }
 
 /* ── Mount-in animation for the real dashboard ─────────────────── */
@@ -2237,10 +2179,22 @@ body.paper-mode .ufs-f-op--eq {
 }
 
 /* ── 2. Unified interactive bar ────────────────────────────────── */
+/* The wrap reserves room above + below the bar so the target markers
+   (TARGET 50% coral tick / PROFIT GOAL 15% green tick) can extrude
+   slightly above the bar and hang their uppercase labels below. */
+body.paper-mode .ufs-bar-wrap {
+  position: relative;
+  padding: 8px 0 32px;
+  margin-bottom: 4px;
+}
 body.paper-mode .ufs-bar {
   display: flex;
   width: 100%;
-  height: 62px;
+  /* Min-height 68px: large enough for a thumb tap on mobile while
+     the narrow Profit segment (~15% width) still has plenty of
+     vertical surface area. */
+  min-height: 68px;
+  height: 68px;
   border-radius: 10px;
   overflow: hidden;
   background: #E8E0CF;
@@ -2249,6 +2203,8 @@ body.paper-mode .ufs-bar {
     0 1px 0 rgba(255, 255, 255, 0.5);
   gap: 2px;          /* tiny separator between segments */
   padding: 0;
+  position: relative;
+  z-index: 1;
 }
 body.paper-mode .ufs-seg {
   position: relative;
@@ -2352,19 +2308,59 @@ body.paper-mode .ufs-seg.is-active {
 
 /* ── Dim siblings when one segment is active ───────────────────────
    When the card has an active category, all OTHER segments fade back
-   to 38% opacity so the user's eye is magnetized to the chosen one.
-   The transition on .ufs-seg above makes this fade buttery-smooth. */
+   to 30% opacity (per spec) so the user's eye is magnetized to the
+   chosen one. The transition on .ufs-seg above makes this buttery. */
 body.paper-mode .ufs-card.is-active--cogs   .ufs-seg:not(.ufs-seg--cogs),
 body.paper-mode .ufs-card.is-active--ovhd   .ufs-seg:not(.ufs-seg--ovhd),
 body.paper-mode .ufs-card.is-active--profit .ufs-seg:not(.ufs-seg--profit) {
-  opacity: 0.38;
+  opacity: 0.30;
 }
 body.paper-mode .ufs-card.is-active--cogs   .ufs-seg:not(.ufs-seg--cogs):hover,
 body.paper-mode .ufs-card.is-active--ovhd   .ufs-seg:not(.ufs-seg--ovhd):hover,
 body.paper-mode .ufs-card.is-active--profit .ufs-seg:not(.ufs-seg--profit):hover {
   /* Raise dimmed siblings on hover so they remain discoverable */
-  opacity: 0.72;
+  opacity: 0.64;
 }
+
+/* ── Drafting target markers (TARGET 50% / PROFIT GOAL 15%) ────────
+   Architectural tick + uppercase caption, positioned absolutely
+   inside .ufs-bar-wrap. The vertical tick spans the full bar
+   height plus ~6px above and ~6px below, mimicking a crisp drafting
+   guideline. The label sits directly below the tick in the matching
+   category color. pointer-events:none so taps still reach the bar. */
+body.paper-mode .ufs-target {
+  position: absolute;
+  top: 2px;                 /* 6px above the bar's top edge */
+  bottom: 20px;             /* stops with room for the label below */
+  width: 2px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 2;               /* above bar segments, below active caret */
+}
+body.paper-mode .ufs-target-tick {
+  position: absolute;
+  inset: 0;
+  border-radius: 1px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.45);
+}
+body.paper-mode .ufs-target-lbl {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+  font-variant-numeric: tabular-nums;
+}
+body.paper-mode .ufs-target--cogs   .ufs-target-tick { background: #FF5B5B; }
+body.paper-mode .ufs-target--cogs   .ufs-target-lbl  { color:      #B83E3E; }
+body.paper-mode .ufs-target--profit .ufs-target-tick { background: #2ECC71; }
+body.paper-mode .ufs-target--profit .ufs-target-lbl  { color:      #1E8749; }
 
 /* ── 3. Accordion panels ───────────────────────────────────────── */
 /* ── Cloned zoom-panel dropdowns ──────────────────────────────────
@@ -2406,57 +2402,21 @@ body.paper-mode .ufs-zoom:not(.is-open):not([hidden]) {
   border-top-width: 0;
 }
 
-/* ── Cloned-panel cleanup: remove rainbow clutter inside .ufs-zoom ──
-   The cloned .mf-zoom-detail content is used BOTH in the original
-   mf-card (where rainbow tints + pastel row backgrounds are OK) and
-   here in the UFS card (where we want the stricter paper aesthetic).
-   These overrides scope ONLY to .ufs-zoom so the mf-card variants
-   are untouched. */
-
-/* Hide the inner "Details" connector divider — we already have the
-   4px colored top border above, and the uppercase label. Double
-   rules would clutter the header. */
-body.paper-mode .ufs-zoom .mf-zoom-conn-divider { display: none; }
-body.paper-mode .ufs-zoom .mf-zoom-connector-wrap {
-  /* With the flex:1 divider hidden, right-align the uppercase label so
-     "OVERHEAD DETAILS" still sits on the right edge (matches the
-     original layout + the screenshot reference). */
-  justify-content: flex-end;
-  padding-top: 2px;
-  margin-top: 4px;
-}
-/* Label uses the active-category color so the section header reads as
-   a continuation of the colored top border + caret. */
+/* ── Cloned-panel styling inside .ufs-zoom ─────────────────────────
+   Per spec: the dropdown keeps the "fun, multi-colored, segmented
+   horizontal breakdown bar" and the "distinct colored backgrounds
+   for each individual list row" from the original mf-card design.
+   The ONE dropdown override we make is changing the left-edge
+   stripe from 3px rainbow → 4px PARENT category color — done at
+   clone time by ufsCloneZoomPanels() in owners.js via inline style.
+   The only CSS additions here are:
+     (a) tint the uppercase section label to match the active cat
+     (b) give rows a bit more breathing room under the 4px edge */
 body.paper-mode .ufs-zoom--cogs   .mf-zoom-conn-label { color: #B83E3E; }
 body.paper-mode .ufs-zoom--ovhd   .mf-zoom-conn-label { color: #C76810; }
 body.paper-mode .ufs-zoom--profit .mf-zoom-conn-label { color: #1E8749; }
-
-/* Breakdown bar: inline opacity is applied per-segment by
-   ufsCloneZoomPanels() in owners.js. The rows of the cloned bar
-   keep their flex widths — no CSS change needed here — but we
-   remove the percent-label white stroke since segments are all the
-   same hue now (varying opacity). */
-body.paper-mode .ufs-zoom .mf-zoom-seg-pct {
-  color: #1A1918;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
-}
-
-/* Legend rows: faint charcoal dashed dividers (pencil-guideline feel)
-   between rows. Inline background:transparent + borderLeft:4px in
-   parent color are set by ufsCloneZoomPanels in owners.js. */
 body.paper-mode .ufs-zoom .mf-zoom-leg-row {
-  border-bottom: 1px dashed rgba(42, 42, 42, 0.15);
-  /* Slightly more vertical breathing room now that the pastel row
-     tint is gone — lets the dashed dividers read as deliberate. */
-  padding-top: 10px;
-  padding-bottom: 10px;
-}
-body.paper-mode .ufs-zoom .mf-zoom-leg-row:last-child {
-  border-bottom: none;
-}
-/* Hover state for rows: subtle charcoal wash — no pastel flash */
-body.paper-mode .ufs-zoom .mf-zoom-leg-row:hover {
-  background: rgba(44, 42, 40, 0.04) !important;
+  padding-left: 12px;   /* clears the 4px stripe with breathing room */
 }
 
 /* ── Mobile ────────────────────────────────────────────────────── */
@@ -2473,10 +2433,12 @@ body.paper-mode .ufs-zoom .mf-zoom-leg-row:hover {
   body.paper-mode .ufs-f-label { font-size: 11.5px; }
   body.paper-mode .ufs-f-val   { font-size: 14.5px; }
   body.paper-mode .ufs-f-op    { width: 20px; height: 20px; font-size: 12px; }
-  body.paper-mode .ufs-bar     { height: 54px; }
+  body.paper-mode .ufs-bar     { height: 64px; min-height: 64px; }
+  body.paper-mode .ufs-bar-wrap { padding: 6px 0 28px; }
   body.paper-mode .ufs-seg     { padding: 0 8px; }
   body.paper-mode .ufs-seg-label { font-size: 11.5px; }
   body.paper-mode .ufs-seg-pct   { font-size: 13px; }
+  body.paper-mode .ufs-target-lbl { font-size: 9px; letter-spacing: 0.1em; }
   body.paper-mode .ufs-header-title  { font-size: 15px; }
   body.paper-mode .ufs-header-period { font-size: 12.5px; }
   body.paper-mode .ufs-zoom      { margin-top: 10px; }
