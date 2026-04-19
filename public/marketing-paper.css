@@ -1721,20 +1721,26 @@ body.paper-mode .fin-donut-wrap::after {
      between 30% and 50% of the container's smaller axis. We size the mask
      to a square tied to the wrap's HEIGHT (340px), centered horizontally,
      and cut a ring via a radial-gradient alpha mask. */
+  /* Hard-edged ring mask. Previous version used soft 4% ramps on both
+     sides (28→32% inner, 49→52% outer) — but chart.js's donut with
+     cutout:'58%' occupies ~29–50% of the mask, so the mask's gradient
+     bands landed INSIDE the ring itself, making the inner edge of the
+     ring read brighter than the middle (partial mask alpha = less
+     texture = brighter color). Using hard edges placed JUST outside
+     the donut's inner + outer radii keeps the mask fully opaque across
+     the entire colored ring, so texture density is uniform edge-to-
+     edge. The tiny 1% feather at each boundary survives only in the
+     anti-aliasing zone the donut itself has. */
   -webkit-mask-image: radial-gradient(circle at center,
-      transparent 0,
-      transparent 28%,
-      #000 32%,
-      #000 49%,
-      transparent 52%,
-      transparent 100%);
+      transparent 27%,
+      #000 28%,
+      #000 51%,
+      transparent 52%);
           mask-image: radial-gradient(circle at center,
-      transparent 0,
-      transparent 28%,
-      #000 32%,
-      #000 49%,
-      transparent 52%,
-      transparent 100%);
+      transparent 27%,
+      #000 28%,
+      #000 51%,
+      transparent 52%);
   -webkit-mask-size: 340px 340px;
           mask-size: 340px 340px;
   -webkit-mask-repeat: no-repeat;
