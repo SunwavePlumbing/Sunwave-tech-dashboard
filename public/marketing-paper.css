@@ -1868,11 +1868,10 @@ body.paper-mode .ufs-card {
   /* Generous inner padding + bottom margin per spec so the card
      breathes and doesn't crowd what sits below it. */
   padding: 36px 40px 32px;
-  /* V5: Match standard card vertical rhythm on the page. The
-     legacy .mf-card uses margin-bottom: 1.2rem; the earlier V4
-     value of 48px was too airy and broke the shared grid. */
+  /* V6: Generous bottom margin per spec so the glow/ink-wash on an
+     open dropdown can breathe without crowding the next card. */
   margin-top: 1.2rem;
-  margin-bottom: 1.2rem;
+  margin-bottom: 48px;
   font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   color: #373B4D;
   position: relative;
@@ -2037,9 +2036,10 @@ body.paper-mode .ufs-amount--profit { animation-delay: 840ms; }
    goal-vs-actual readout now lives inside the dropdown panels
    (see .ufs-target-readout). No tick-slice animation needed. */
 
-/* The funnel's reveal animation inherits from .ufs-funnel-container
-   transitions above — its appearance is USER-triggered (click),
-   not part of initial load, so no keyframe here. */
+/* V6: The funnel has been replaced by the CSS ink-wash treatment on
+   .ufs-zoom (caret + sheer bg tint + category glow). That treatment
+   is USER-triggered (click), not part of initial load, so no
+   keyframe here. */
 body.paper-mode .ufs-bar {
   display: flex;
   width: 100%;
@@ -2235,11 +2235,12 @@ body.paper-mode .ufs-target-readout-sep {
    category color is echoed in the readout. */
 body.paper-mode .ufs-zoom--cogs   .ufs-target-readout-val:last-of-type { color: #B83E3E; }
 body.paper-mode .ufs-zoom--profit .ufs-target-readout-val:last-of-type { color: #1E8749; }
-/* On-target / off-target glyph — a subtle left-border cue so a
-   scan read tells you whether you're inside the goal without
-   having to parse the numbers. */
-body.paper-mode .ufs-target-readout.is-on-target  { border-left: 3px solid #2ECC71; }
-body.paper-mode .ufs-target-readout.is-off-target { border-left: 3px solid #FF8A1F; }
+/* V6 bug fix: the readout's left border is driven by the PARENT
+   panel's category class, NOT by whether we hit the goal. So COGS
+   always reads as coral, Profit always reads as green — matching
+   the tint of the segment the user clicked on the main bar. */
+body.paper-mode .ufs-zoom--cogs   .ufs-target-readout { border-left: 3px solid #FF5B5B; }
+body.paper-mode .ufs-zoom--profit .ufs-target-readout { border-left: 3px solid #2ECC71; }
 
 /* ── 3. Accordion panels ───────────────────────────────────────── */
 /* ── Cloned zoom-panel dropdowns ──────────────────────────────────
@@ -2249,67 +2250,94 @@ body.paper-mode .ufs-target-readout.is-off-target { border-left: 3px solid #FF8A
    legends, gauge, etc.) is inherited from the existing .mf-zoom-detail
    / .mf-noi-detail rules — we only need to handle positioning +
    spacing inside the UFS card shell. */
+/* ── V6: Ink-Wash Connection ──────────────────────────────────────
+   Replaces the SVG trapezoid funnel with a pure-CSS treatment that
+   reads like a highlighter wash bleeding down from the active
+   segment. Three layers combine to prove the connection without any
+   geometry computation:
+     1) Caret ::before — an upward-pointing triangle on the dropdown
+        that points at whichever segment the user clicked. Colored
+        per active category so it visually "extrudes" from that
+        segment's color.
+     2) Sheer bg wash — 5–7% of the active color tints the entire
+        panel surface, so the dropdown reads as a faint colored paper
+        rather than a neutral grey box.
+     3) Category-colored glow — box-shadow with the active color at
+        low alpha, giving the panel a soft "printed ink" halo that
+        bleeds outward and connects visually to the segment above. */
 body.paper-mode .ufs-zoom {
-  margin-top: 6px;
-  padding-top: 10px;
-  /* No colored top border on the zoom panel — the Expansion Funnel
-     (.ufs-funnel-container) above it provides the geometric
-     connection between the active segment and the unpacked data.
-     This reads as a physical spotlight rather than a drawn line. */
+  position: relative;
+  margin-top: 18px;            /* room for the caret to live above */
+  padding: 18px 20px 6px;
+  border-radius: 12px;
+  background: transparent;
+  transition: background-color 260ms cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow       320ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* The original mf-zoom-detail selectors already handle visibility via
-   .is-open + animate via .mf-zoom-bar-anim — we don't need to
-   redefine anything, just ensure our panel can benefit from those
-   rules without layout surprises. */
+/* Caret triangle — sits above the panel, flush with its top edge,
+   pointing up at the main bar. `clip-path` instead of the border hack
+   so the triangle scales cleanly with its container and we can drive
+   its color via background-color on the same element. Hidden on
+   inactive panels (transparent background) so closed panels show no
+   caret ghost. */
+body.paper-mode .ufs-zoom::before {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  top: -10px;
+  margin: 0 auto;
+  width: 22px;
+  height: 11px;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  background: transparent;
+  transition: background-color 260ms cubic-bezier(0.4, 0, 0.2, 1),
+              left              380ms cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+/* Active-state tint / glow / caret-color per category. The background
+   is a 5–7% wash of the category color, the glow is a larger spread
+   of the same color at ~15% so it bleeds outward without overwhelming
+   the paper texture, and the caret adopts the full saturated hue so
+   it reads as a printed mark extruding from the bar. */
+body.paper-mode .ufs-card.is-active--cogs   .ufs-zoom--cogs {
+  background-color: rgba(255, 91, 91, 0.06);
+  box-shadow: 0 10px 30px rgba(255, 91, 91, 0.18),
+              0 2px 8px  rgba(255, 91, 91, 0.10);
+}
+body.paper-mode .ufs-card.is-active--cogs   .ufs-zoom--cogs::before {
+  background-color: #FF5B5B;
+}
+body.paper-mode .ufs-card.is-active--ovhd   .ufs-zoom--ovhd {
+  background-color: rgba(255, 138, 31, 0.07);
+  box-shadow: 0 10px 30px rgba(255, 138, 31, 0.20),
+              0 2px 8px  rgba(255, 138, 31, 0.10);
+}
+body.paper-mode .ufs-card.is-active--ovhd   .ufs-zoom--ovhd::before {
+  background-color: #FF8A1F;
+}
+body.paper-mode .ufs-card.is-active--profit .ufs-zoom--profit {
+  background-color: rgba(46, 204, 113, 0.07);
+  box-shadow: 0 10px 30px rgba(46, 204, 113, 0.20),
+              0 2px 8px  rgba(46, 204, 113, 0.10);
+}
+body.paper-mode .ufs-card.is-active--profit .ufs-zoom--profit::before {
+  background-color: #2ECC71;
+}
+
+/* Keep closed-panel collapse behavior identical to V5 — the ink-wash
+   only engages on the currently-open panel, everything else is
+   neutral + height-collapsed. */
 body.paper-mode .ufs-zoom[hidden] { display: none; }
 body.paper-mode .ufs-zoom:not(.is-open):not([hidden]) {
-  /* mfToggle strips hidden + adds is-open in two frames; this rule
-     covers the transition frame where the panel is neither hidden
-     nor is-open yet so it doesn't flash at full height. */
   max-height: 0;
   overflow: hidden;
   padding-top: 0;
   margin-top: 0;
+  background: transparent;
+  box-shadow: none;
 }
-
-/* ── Expansion Funnel — trapezoid from segment → dropdown ─────────
-   A geometric "spotlight" linking the clicked segment at the top
-   to the full-width dropdown below. Hidden by default (height: 0);
-   reveals when the card carries an is-active--<key> class. The
-   polygon's fill color is swapped per active category so the wash
-   reads as the category's light cast. */
-body.paper-mode .ufs-funnel-container {
-  width: 100%;
-  height: 0;
-  position: relative;
-  pointer-events: none;
-  opacity: 0;
-  overflow: visible;
-  transition: height 320ms cubic-bezier(0.4, 0, 0.2, 1),
-              opacity 320ms cubic-bezier(0.4, 0, 0.2, 1);
-  margin-top: 0;
-}
-body.paper-mode .ufs-card.is-active--cogs   .ufs-funnel-container,
-body.paper-mode .ufs-card.is-active--ovhd   .ufs-funnel-container,
-body.paper-mode .ufs-card.is-active--profit .ufs-funnel-container {
-  height: 28px;
-  opacity: 1;
-}
-body.paper-mode .ufs-funnel {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-body.paper-mode .ufs-funnel-poly {
-  opacity: 0.09;              /* faint translucent wash per spec */
-  fill: #2C2A28;
-  transition: fill 260ms cubic-bezier(0.4, 0, 0.2, 1),
-              points 260ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-body.paper-mode .ufs-card.is-active--cogs   .ufs-funnel-poly { fill: #FF5B5B; }
-body.paper-mode .ufs-card.is-active--ovhd   .ufs-funnel-poly { fill: #FF8A1F; }
-body.paper-mode .ufs-card.is-active--profit .ufs-funnel-poly { fill: #2ECC71; }
 
 /* ── Cloned-panel styling inside .ufs-zoom ─────────────────────────
    Per spec: the dropdown keeps the "fun, multi-colored, segmented
@@ -2374,12 +2402,8 @@ body.paper-mode .ufs-zoom .mf-zoom-seg-pct {
   body.paper-mode .ufs-target-readout-val { font-size: 14px; }
   body.paper-mode .ufs-header-title  { font-size: 15px; }
   body.paper-mode .ufs-header-period { font-size: 12.5px; }
-  body.paper-mode .ufs-zoom      { margin-top: 4px; }
-  body.paper-mode .ufs-card.is-active--cogs   .ufs-funnel-container,
-  body.paper-mode .ufs-card.is-active--ovhd   .ufs-funnel-container,
-  body.paper-mode .ufs-card.is-active--profit .ufs-funnel-container {
-    height: 22px;
-  }
+  body.paper-mode .ufs-zoom      { margin-top: 14px; padding: 14px 14px 4px; }
+  body.paper-mode .ufs-zoom::before { top: -8px; width: 18px; height: 9px; }
 }
 
 /* Reduced motion — instant expand/collapse */

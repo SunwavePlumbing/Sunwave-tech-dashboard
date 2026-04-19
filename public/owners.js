@@ -140,41 +140,16 @@ function ufsToggle(key) {
   // Toggle target (mfToggle flips is-open — opens if closed, closes if open)
   var seg = card ? card.querySelector('.ufs-seg[data-key="' + key + '"]') : null;
   mfToggle(targetId, seg);
-  // If target is now open, flag its button active + draw the funnel
+  // If target is now open, flag its button active. The card's
+  // .is-active--<key> class drives the V6 ink-wash treatment: a
+  // category-colored caret at the top of the dropdown, a sheer
+  // background tint on the panel, and a soft glow box-shadow —
+  // all handled in CSS with no geometry computation required.
   var targetEl = document.getElementById(targetId);
   if (targetEl && targetEl.classList.contains('is-open') && seg) {
     seg.classList.add('is-active');
     if (card) card.classList.add('is-active--' + key);
-    ufsUpdateFunnel(key);
   }
-}
-
-// ── Expansion Funnel geometry ────────────────────────────────────
-// Computes a trapezoidal polygon connecting the clicked segment's
-// x-range on the main bar to the full width of the dropdown below.
-//   Top edge:    matches the active segment (leftPct → rightPct)
-//   Bottom edge: spans the full container (0% → 100%)
-// The result is a "spotlight" shape proving the dropdown is an
-// unpacked view of exactly that segment. SVG polygon because it's
-// the cleanest way to animate changes in shape smoothly + read the
-// geometry exactly (no pixel rounding mystery).
-function ufsUpdateFunnel(key) {
-  var card = document.querySelector('.ufs-card');
-  if (!card) return;
-  var bar  = card.querySelector('.ufs-bar');
-  var seg  = card.querySelector('.ufs-seg[data-key="' + key + '"]');
-  var poly = card.querySelector('.ufs-funnel-poly');
-  if (!bar || !seg || !poly) return;
-  var barRect = bar.getBoundingClientRect();
-  var segRect = seg.getBoundingClientRect();
-  if (!barRect.width) return;
-  var leftPct  = ((segRect.left  - barRect.left) / barRect.width * 100).toFixed(3);
-  var rightPct = ((segRect.right - barRect.left) / barRect.width * 100).toFixed(3);
-  // Using viewBox 0 0 100 100 with preserveAspectRatio="none" so the
-  // coords are already in percent. Points are: top-left, top-right,
-  // bottom-right, bottom-left.
-  poly.setAttribute('points',
-    leftPct + ',0 ' + rightPct + ',0 100,100 0,100');
 }
 
 // ── Initial $-tally animation ────────────────────────────────────
@@ -248,14 +223,12 @@ function ufsCloneZoomPanels() {
     var goal   = dst.getAttribute('data-target-goal');
     var actual = dst.getAttribute('data-actual');
     if (goal && actual) {
-      var hitCls = (parseFloat(actual) >= parseFloat(goal)) ? ' is-on-target' : ' is-off-target';
-      // Profit is "above goal = good"; COGS is "below goal = good".
-      // Flip semantics for COGS so "under 50%" reads as on-target.
-      if (k === 'Cogs') {
-        hitCls = (parseFloat(actual) <= parseFloat(goal)) ? ' is-on-target' : ' is-off-target';
-      }
+      // V6: The readout's left border is now keyed off the PARENT panel's
+      // category class (.ufs-zoom--cogs / --profit) in CSS — so COGS
+      // always gets coral, Profit always gets green. No more hardcoded
+      // orange / on-target-vs-off-target color logic.
       var readout = document.createElement('div');
-      readout.className = 'ufs-target-readout' + hitCls;
+      readout.className = 'ufs-target-readout';
       readout.innerHTML =
         '<span class="ufs-target-readout-lbl">Target Goal</span>' +
         '<span class="ufs-target-readout-val">' + goal + '%</span>' +
@@ -1851,17 +1824,12 @@ function renderOwners() {
         // the COGS and Profit dropdown panels instead — see
         // ufsCloneZoomPanels() where .ufs-target-readout is injected.
       '</div>' +
-      // ── Expansion funnel — trapezoidal SVG polygon drawn between
-      //    the clicked segment on the bar and the dropdown panel
-      //    below. Top edge matches the active segment's x-range;
-      //    bottom edge spans the full container. Invisible until a
-      //    segment is opened (see .ufs-card.is-active--<key>).
-      //    ufsUpdateFunnel(key) sets the polygon points on open.
-      '<div class="ufs-funnel-container" aria-hidden="true">' +
-        '<svg class="ufs-funnel" viewBox="0 0 100 100" preserveAspectRatio="none">' +
-          '<polygon class="ufs-funnel-poly" points="40,0 60,0 100,100 0,100"/>' +
-        '</svg>' +
-      '</div>' +
+      // V6: The SVG funnel trapezoid has been removed. The connection
+      // between the active segment and its dropdown is now CSS-only —
+      // an upward caret on the panel, a sheer category-color wash, and
+      // a soft glow box-shadow. See .ufs-zoom ink-wash block in
+      // marketing-paper.css. This reads more tactile + paper-like than
+      // the geometric trapezoid and can't drift on layout changes.
       // ── Dropdown panels — empty shells that ufsCloneZoomPanels()
       //    populates after render by deep-copying the mf-card panels.
       //    V5: COGS and Profit shells carry data-target-goal / data-actual
