@@ -1690,24 +1690,76 @@ body.paper-mode .fin-donut-wrap {
   position: relative;
 }
 /* ── Paper texture overlay on donut segments ──────────────────────
-   Chart.js draws the donut as flat colored fills on a canvas. To make
-   the slices feel like they're printed on the same paper as the rest
-   of the card, we overlay the same fractalNoise SVG used by the page
-   background with mix-blend-mode: multiply — this tints only the
-   colored segments (transparent canvas pixels don't get darkened in
-   any meaningful way against the card's paper bg). Opacity tuned so
-   the fiber grain reads clearly without muddying the categorical
-   color palette. pointer-events:none so slice clicks still land. */
+   Chart.js draws the donut as flat colored fills on a canvas. To give
+   the slices the same paper-fiber grain as the rest of the page, we
+   overlay the SAME fractalNoise SVG that body.paper-mode::before uses
+   for the page background — and clip it to a ring shape matching the
+   donut's geometry so the texture paints ONLY over the colored slices,
+   not the empty rectangle around them.
+
+   Two safeguards keep the bg clean:
+     1) `mask-image: radial-gradient(...)` — a ring-shaped alpha mask
+        centered on the donut. Transparent outside the outer edge and
+        inside the inner hole; opaque through the ring band.
+     2) `mix-blend-mode: soft-light` — preserves base luminance so
+        the paper pixels outside the mask stay paper-toned even if the
+        mask edge bleeds slightly. Multiply would darken the bg into
+        a grey rectangle (which is what the previous pass did).
+
+   Opacity matches the subtlety of the body::before texture (0.04) but
+   is bumped to ~0.55 so the grain actually reads on the saturated
+   donut colors — soft-light is much gentler than multiply and needs
+   more alpha to show. pointer-events:none so slice clicks still land. */
 body.paper-mode .fin-donut-wrap::after {
   content: '';
   position: absolute;
   inset: 0;
   background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-size: 180px 180px;
-  mix-blend-mode: multiply;
-  opacity: 0.42;
+  background-size: 220px 220px;          /* match the body bg texture exactly */
+  /* Ring mask: chart.js donut fills a centered square of min(width,height)
+     and uses cutout:'60%' for the inner hole. So the ring lives roughly
+     between 30% and 50% of the container's smaller axis. We size the mask
+     to a square tied to the wrap's HEIGHT (340px), centered horizontally,
+     and cut a ring via a radial-gradient alpha mask. */
+  -webkit-mask-image: radial-gradient(circle at center,
+      transparent 0,
+      transparent 28%,
+      #000 32%,
+      #000 49%,
+      transparent 52%,
+      transparent 100%);
+          mask-image: radial-gradient(circle at center,
+      transparent 0,
+      transparent 28%,
+      #000 32%,
+      #000 49%,
+      transparent 52%,
+      transparent 100%);
+  -webkit-mask-size: 340px 340px;
+          mask-size: 340px 340px;
+  -webkit-mask-repeat: no-repeat;
+          mask-repeat: no-repeat;
+  -webkit-mask-position: center center;
+          mask-position: center center;
+  mix-blend-mode: soft-light;
+  opacity: 0.55;
   pointer-events: none;
   z-index: 1;
+}
+/* Responsive: the donut height shrinks at narrower breakpoints
+   (styles.css: 320px at one bp, 290px at the next). Shrink the
+   mask square in lockstep so the ring keeps hugging the donut. */
+@media (max-width: 900px) {
+  body.paper-mode .fin-donut-wrap::after {
+    -webkit-mask-size: 320px 320px;
+            mask-size: 320px 320px;
+  }
+}
+@media (max-width: 600px) {
+  body.paper-mode .fin-donut-wrap::after {
+    -webkit-mask-size: 290px 290px;
+            mask-size: 290px 290px;
+  }
 }
 body.paper-mode .fin-donut-center {
   position: absolute;
@@ -2305,43 +2357,37 @@ body.paper-mode .ufs-zoom::before {
   z-index: 3;
 }
 
-/* Active-state tint / glow / caret-color per category. These values
-   are deliberately BOLD — earlier passes with 5–7% bg / 15-20% shadow
-   alpha were too subtle to register. We bump bg to 10–14%, box-shadow
-   to 40-55% alpha on the outer layer, add an inset ring in the same
-   hue, and stamp a drop-shadow on the caret so the "ink wash" reads
-   as a clear visual bridge from segment to dropdown. */
+/* Active-state glow / border / caret per category. The panel
+   background stays neutral paper — NO color wash over the top — so
+   the Tech Labor / Parts / Subcontractors rows read cleanly. The
+   visual connection is carried entirely by three EXTERIOR cues:
+     1) Outer glow (box-shadow) in the category hue, bleeding outward
+     2) A 1px border in the category hue so the panel edge reads tinted
+     3) The upward caret pointing at the active segment
+   No inset shadows, no background-color fill. The cloned panel
+   internals (rainbow sub-bar, pastel row tints) come through unmuddied. */
 body.paper-mode .ufs-card.is-active--cogs   .ufs-zoom--cogs {
-  background-color: rgba(255, 91, 91, 0.12);
-  border-color: rgba(255, 91, 91, 0.35);
-  box-shadow: 0 0 0 1px rgba(255, 91, 91, 0.18),
-              0 14px 44px rgba(255, 91, 91, 0.42),
-              0 4px 14px  rgba(255, 91, 91, 0.24),
-              inset 0 0 24px rgba(255, 91, 91, 0.06);
+  border-color: rgba(255, 91, 91, 0.45);
+  box-shadow: 0 14px 44px rgba(255, 91, 91, 0.32),
+              0 4px 14px  rgba(255, 91, 91, 0.20);
 }
 body.paper-mode .ufs-card.is-active--cogs   .ufs-zoom--cogs::before {
   background-color: #FF5B5B;
   filter: drop-shadow(0 2px 3px rgba(255, 91, 91, 0.45));
 }
 body.paper-mode .ufs-card.is-active--ovhd   .ufs-zoom--ovhd {
-  background-color: rgba(255, 138, 31, 0.13);
-  border-color: rgba(255, 138, 31, 0.38);
-  box-shadow: 0 0 0 1px rgba(255, 138, 31, 0.20),
-              0 14px 44px rgba(255, 138, 31, 0.45),
-              0 4px 14px  rgba(255, 138, 31, 0.26),
-              inset 0 0 24px rgba(255, 138, 31, 0.07);
+  border-color: rgba(255, 138, 31, 0.48);
+  box-shadow: 0 14px 44px rgba(255, 138, 31, 0.34),
+              0 4px 14px  rgba(255, 138, 31, 0.22);
 }
 body.paper-mode .ufs-card.is-active--ovhd   .ufs-zoom--ovhd::before {
   background-color: #FF8A1F;
   filter: drop-shadow(0 2px 3px rgba(255, 138, 31, 0.50));
 }
 body.paper-mode .ufs-card.is-active--profit .ufs-zoom--profit {
-  background-color: rgba(46, 204, 113, 0.13);
-  border-color: rgba(46, 204, 113, 0.38);
-  box-shadow: 0 0 0 1px rgba(46, 204, 113, 0.20),
-              0 14px 44px rgba(46, 204, 113, 0.45),
-              0 4px 14px  rgba(46, 204, 113, 0.26),
-              inset 0 0 24px rgba(46, 204, 113, 0.07);
+  border-color: rgba(46, 204, 113, 0.48);
+  box-shadow: 0 14px 44px rgba(46, 204, 113, 0.34),
+              0 4px 14px  rgba(46, 204, 113, 0.22);
 }
 body.paper-mode .ufs-card.is-active--profit .ufs-zoom--profit::before {
   background-color: #2ECC71;
