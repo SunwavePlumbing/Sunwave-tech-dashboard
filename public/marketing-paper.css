@@ -1242,21 +1242,26 @@ body.paper-mode .ledger-loader--solo {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 18px;
-  min-height: 420px;
+  gap: 22px;
+  min-height: 580px;
 }
 body.paper-mode .lg-stage--solo {
   width: 100%;
-  max-width: 420px;
+  max-width: 600px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 body.paper-mode .lg-stage--solo .lg-svg {
   width: 100%;
-  max-width: 360px;
+  max-width: 560px;
   height: auto;
   aspect-ratio: 1 / 1;
+}
+@media (max-width: 768px) {
+  body.paper-mode .ledger-loader--solo { min-height: 380px; gap: 16px; }
+  body.paper-mode .lg-stage--solo      { max-width: 360px; }
+  body.paper-mode .lg-stage--solo .lg-svg { max-width: 320px; }
 }
 
 /* ── Gallery intro strip ─────────────────────────────────────── */
@@ -1376,45 +1381,85 @@ body.paper-mode .lg-svg {
      58–90% — label + peak fully visible (hold state)
      90–100% — rings + label fade together for a clean loop
    ════════════════════════════════════════════════════════════════ */
-body.paper-mode .lg4-ring {
-  animation: lg4Ring 12s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+/* Cycle 20s. Each ring draws in its OWN non-overlapping 20% slot of
+   the cycle, so ring N+1 never starts until ring N is fully drawn.
+   Per-ring unique keyframes are necessary because animation-delay
+   only shifts — it can't gate a ring's draw to "hidden until slot,
+   drawn after." Order: outermost first (--3), innermost last (--0). */
+body.paper-mode .lg4-ring--3 {
+  animation: lg4Ring3 20s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
-@keyframes lg4Ring {
-  0%, 3%    { stroke-dashoffset: 100; opacity: 1; }
-  36%       { stroke-dashoffset: 0;   opacity: 1; }
-  90%       { stroke-dashoffset: 0;   opacity: 1; }
+@keyframes lg4Ring3 {
+  0%, 2%    { stroke-dashoffset: 100; opacity: 1; }
+  20%       { stroke-dashoffset: 0;   opacity: 1; }
+  95%       { stroke-dashoffset: 0;   opacity: 1; }
   100%      { stroke-dashoffset: 0;   opacity: 0; }
 }
-body.paper-mode .lg4-peak {
-  animation: lg4Peak 3s cubic-bezier(0.45, 0, 0.55, 1) infinite;
-  opacity: 0;
-  animation-delay: 6.8s;
+body.paper-mode .lg4-ring--2 {
+  animation: lg4Ring2 20s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
-@keyframes lg4Peak {
-  0%        { opacity: 0; transform: scale(0.4); }
-  10%       { opacity: 1; transform: scale(1.35); }
-  20%       { transform: scale(1); }
-  100%      { opacity: 1; transform: scale(1); }
+@keyframes lg4Ring2 {
+  0%, 20%   { stroke-dashoffset: 100; opacity: 1; }
+  40%       { stroke-dashoffset: 0;   opacity: 1; }
+  95%       { stroke-dashoffset: 0;   opacity: 1; }
+  100%      { stroke-dashoffset: 0;   opacity: 0; }
 }
+body.paper-mode .lg4-ring--1 {
+  animation: lg4Ring1 20s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+@keyframes lg4Ring1 {
+  0%, 40%   { stroke-dashoffset: 100; opacity: 1; }
+  60%       { stroke-dashoffset: 0;   opacity: 1; }
+  95%       { stroke-dashoffset: 0;   opacity: 1; }
+  100%      { stroke-dashoffset: 0;   opacity: 0; }
+}
+body.paper-mode .lg4-ring--0 {
+  animation: lg4Ring0 20s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+@keyframes lg4Ring0 {
+  0%, 60%   { stroke-dashoffset: 100; opacity: 1; }
+  80%       { stroke-dashoffset: 0;   opacity: 1; }
+  95%       { stroke-dashoffset: 0;   opacity: 1; }
+  100%      { stroke-dashoffset: 0;   opacity: 0; }
+}
+/* Center label: reveals only AFTER all 4 rings are drawn (≥80%) */
 body.paper-mode .lg4-label {
   opacity: 0;
   transform: translateY(3px);
-  animation: lg4Label 12s cubic-bezier(0.34, 1.3, 0.64, 1) infinite;
+  animation: lg4Label 20s cubic-bezier(0.34, 1.3, 0.64, 1) infinite;
 }
 @keyframes lg4Label {
-  0%, 56%   { opacity: 0; transform: translateY(3px); }
-  64%, 90%  { opacity: 1; transform: translateY(0); }
+  0%, 80%   { opacity: 0; transform: translateY(3px); }
+  86%, 94%  { opacity: 1; transform: translateY(0); }
   100%      { opacity: 0; transform: translateY(0); }
+}
+/* Orange drafting rule beneath the label — draws in last, after the
+   label has settled, as a finishing flourish that carries the warm
+   accent color without colliding with the text. */
+body.paper-mode .lg4-accent {
+  animation: lg4Accent 20s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+@keyframes lg4Accent {
+  0%, 86%   { stroke-dashoffset: 100; opacity: 0; }
+  89%       { opacity: 1; }
+  92%, 94%  { stroke-dashoffset: 0;   opacity: 1; }
+  100%      { stroke-dashoffset: 0;   opacity: 0; }
 }
 
 /* ── Reduced motion — freeze at a readable end-state ──────────── */
 @media (prefers-reduced-motion: reduce) {
-  body.paper-mode .lg4-ring,
-  body.paper-mode .lg4-peak,
-  body.paper-mode .lg4-label { animation: none !important; }
-  body.paper-mode .lg4-ring  { stroke-dashoffset: 0 !important; opacity: 1 !important; }
-  body.paper-mode .lg4-peak,
-  body.paper-mode .lg4-label { opacity: 1 !important; transform: none !important; }
+  body.paper-mode .lg4-ring--0,
+  body.paper-mode .lg4-ring--1,
+  body.paper-mode .lg4-ring--2,
+  body.paper-mode .lg4-ring--3,
+  body.paper-mode .lg4-label,
+  body.paper-mode .lg4-accent { animation: none !important; }
+  body.paper-mode .lg4-ring--0,
+  body.paper-mode .lg4-ring--1,
+  body.paper-mode .lg4-ring--2,
+  body.paper-mode .lg4-ring--3,
+  body.paper-mode .lg4-accent { stroke-dashoffset: 0 !important; opacity: 1 !important; }
+  body.paper-mode .lg4-label  { opacity: 1 !important; transform: none !important; }
 }
 
 /* ── Mount-in animation for the real dashboard ─────────────────── */
@@ -1761,9 +1806,12 @@ body.paper-mode .tech-name-label.is-revealing::after {
 body.paper-mode .ufs-card {
   background: var(--paper-bg, #F4F1EA);
   border: 1px solid rgba(92, 84, 72, 0.14);
-  border-radius: 14px;
-  padding: 22px 24px 20px;
+  border-radius: 16px;
+  /* Generous inner padding + bottom margin per spec so the card
+     breathes and doesn't crowd what sits below it. */
+  padding: 36px 40px 32px;
   margin-top: 18px;
+  margin-bottom: 48px;
   font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   color: #1A1918;
   position: relative;
@@ -1797,32 +1845,35 @@ body.paper-mode .ufs-header-period {
   font-variant-numeric: tabular-nums;
 }
 
-/* ── 1. Main revenue header ────────────────────────────────────── */
-/* Replaces the old formula line. "Total Revenue:" label in regular
-   weight + big charcoal figure. Sits full-width with a dashed
-   underline for a tactile "ledger page" feel — no operators or pills. */
+/* ── 1. Main revenue header (stacked typographic hierarchy) ──────
+   Eyebrow label "TOTAL REVENUE" in small highly-tracked charcoal
+   above a massive $ figure. Creates a dominant anchor so the eye
+   lands on the revenue total the moment the card renders. */
 body.paper-mode .ufs-main-header {
   display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: 14px;
-  padding: 6px 4px 18px;
-  margin-bottom: 20px;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px 26px;
+  margin-bottom: 24px;
   border-bottom: 1px dashed rgba(92, 84, 72, 0.28);
   font-variant-numeric: tabular-nums;
 }
-body.paper-mode .ufs-main-label {
-  font-size: 16px;
-  font-weight: 600;
+body.paper-mode .ufs-main-eyebrow {
+  font-size: 11px;
+  font-weight: 800;
   color: #2C2A28;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  line-height: 1;
 }
 body.paper-mode .ufs-main-value {
-  font-size: 26px;
+  font-size: 52px;
   font-weight: 800;
   color: #1A1918;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
   line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── 1b. Per-segment $ amount labels (above the bar) ───────────── */
@@ -1862,24 +1913,98 @@ body.paper-mode .ufs-amount--profit { color: #1E8749; }
    slightly above the bar and hang their uppercase labels below. */
 body.paper-mode .ufs-bar-wrap {
   position: relative;
-  padding: 8px 0 32px;
+  padding: 8px 0 38px;
   margin-bottom: 4px;
 }
+/* Dashed-charcoal bar outline that shows through before the colored
+   segments drop in. Sits behind the segments at the same border-
+   radius, fades out as the segments land (850ms). */
+body.paper-mode .ufs-bar-wrap::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  left: 0;
+  right: 0;
+  height: 72px;
+  border-radius: 10px;
+  border: 2px dashed rgba(44, 42, 40, 0.32);
+  pointer-events: none;
+  z-index: 0;
+  animation: ufsOutlineFade 1600ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+@keyframes ufsOutlineFade {
+  0%    { opacity: 0; }
+  6%    { opacity: 1; }
+  26%   { opacity: 1; }
+  55%   { opacity: 0.4; }
+  75%   { opacity: 0; }
+  100%  { opacity: 0; }
+}
+
+/* ── "Calculation Slam" entrance for the bar segments ────────────
+   Each segment drops in from ~28px above the bar and slams into
+   place with a gravitational bezier, staggered left → right so the
+   reader reads the progression: COGS → OVHD → PROFIT. */
+body.paper-mode .ufs-seg {
+  animation: ufsSegDrop 640ms cubic-bezier(0.55, 1.65, 0.3, 1) both;
+}
+body.paper-mode .ufs-seg--cogs   { animation-delay: 220ms; }
+body.paper-mode .ufs-seg--ovhd   { animation-delay: 380ms; }
+body.paper-mode .ufs-seg--profit { animation-delay: 540ms; }
+@keyframes ufsSegDrop {
+  0%    { transform: translateY(-28px); opacity: 0; }
+  55%   { opacity: 1; }
+  72%   { transform: translateY(3px); }
+  88%   { transform: translateY(-1px); }
+  100%  { transform: translateY(0); opacity: 1; }
+}
+
+/* The per-segment $ amounts fade in right after their segment lands */
+body.paper-mode .ufs-amount {
+  animation: ufsAmountRise 460ms cubic-bezier(0.34, 1.3, 0.64, 1) both;
+}
+body.paper-mode .ufs-amount--cogs   { animation-delay: 520ms; }
+body.paper-mode .ufs-amount--ovhd   { animation-delay: 680ms; }
+body.paper-mode .ufs-amount--profit { animation-delay: 840ms; }
+@keyframes ufsAmountRise {
+  0%    { opacity: 0; transform: translateY(-6px); }
+  100%  { opacity: 1; transform: translateY(0); }
+}
+
+/* Target ticks slice down from the top after all segments have
+   landed — a subtle "locking the data in" punctuation mark. */
+body.paper-mode .ufs-target {
+  transform-origin: top center;
+  animation: ufsTickSlice 480ms cubic-bezier(0.34, 1.5, 0.64, 1) both;
+  animation-delay: 1080ms;
+}
+@keyframes ufsTickSlice {
+  0%    { transform: translateX(-50%) scaleY(0); opacity: 0; }
+  60%   { opacity: 1; }
+  100%  { transform: translateX(-50%) scaleY(1); opacity: 1; }
+}
+
+/* The funnel's reveal animation inherits from .ufs-funnel-container
+   transitions above — its appearance is USER-triggered (click),
+   not part of initial load, so no keyframe here. */
 body.paper-mode .ufs-bar {
   display: flex;
   width: 100%;
-  /* Min-height 68px: large enough for a thumb tap on mobile while
+  /* Min-height 72px: large enough for a thumb tap on mobile while
      the narrow Profit segment (~15% width) still has plenty of
      vertical surface area. */
-  min-height: 68px;
-  height: 68px;
+  min-height: 72px;
+  height: 72px;
   border-radius: 10px;
-  overflow: hidden;
-  background: #E8E0CF;
-  box-shadow:
-    inset 0 1px 2px rgba(44, 42, 40, 0.12),
-    0 1px 0 rgba(255, 255, 255, 0.5);
-  gap: 2px;          /* tiny separator between segments */
+  /* Background transparent so the CARD's paper color shows through
+     the inter-segment gap — reads as physical separation between
+     the colored blocks, not a drawn line. */
+  background: transparent;
+  /* Drop the inset shadow — the bar should look like segments
+     resting on paper, not a recessed well. */
+  box-shadow: none;
+  overflow: visible;    /* allow the drop-slam animation to peek */
+  gap: 4px;             /* 4px of paper showing between blocks */
   padding: 0;
   position: relative;
   z-index: 1;
@@ -1906,6 +2031,13 @@ body.paper-mode .ufs-seg {
 body.paper-mode .ufs-seg--cogs   { background: #FF5B5B; }
 body.paper-mode .ufs-seg--ovhd   { background: #FF8A1F; }
 body.paper-mode .ufs-seg--profit { background: #2ECC71; }
+/* With overflow:visible on the bar (so segments can drop-slam on
+   load), each segment needs to carry its own corner radius. First
+   + last get the outer bar rounding; middle stays square so the
+   gap reads cleanly. */
+body.paper-mode .ufs-seg--cogs   { border-radius: 10px 2px 2px 10px; }
+body.paper-mode .ufs-seg--ovhd   { border-radius: 2px; }
+body.paper-mode .ufs-seg--profit { border-radius: 2px 10px 10px 2px; }
 
 body.paper-mode .ufs-seg-ink {
   display: flex;
@@ -1919,8 +2051,11 @@ body.paper-mode .ufs-seg-ink {
   max-width: 100%;
 }
 body.paper-mode .ufs-seg-label {
-  font-size: 13px;
-  font-weight: 700;
+  /* Category name is the PRIMARY inside the block: larger + heavier
+     than the percentage below it. Deep charcoal ink for legibility
+     on every vibrant color. */
+  font-size: 15px;
+  font-weight: 800;
   letter-spacing: 0.01em;
   color: #1A1918;                /* dark ink — NO white text anywhere */
   white-space: nowrap;
@@ -1929,8 +2064,10 @@ body.paper-mode .ufs-seg-label {
   max-width: 100%;
 }
 body.paper-mode .ufs-seg-pct {
-  font-size: 15px;
-  font-weight: 800;
+  /* Percentage is the SECONDARY inside the block — slightly smaller
+     so the category name reads as the lead. */
+  font-size: 13px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
   color: #1A1918;
@@ -2001,19 +2138,18 @@ body.paper-mode .ufs-card.is-active--profit .ufs-seg:not(.ufs-seg--profit):hover
 }
 
 /* ── Drafting target markers (TARGET 50% / PROFIT GOAL 15%) ────────
-   Architectural tick + uppercase caption, positioned absolutely
-   inside .ufs-bar-wrap. The vertical tick spans the full bar
-   height plus ~6px above and ~6px below, mimicking a crisp drafting
-   guideline. The label sits directly below the tick in the matching
-   category color. pointer-events:none so taps still reach the bar. */
+   Tightened per V3 spec: tick now extends only ~6–7px above AND
+   below the bar — acting as subtle notches, not full dividing walls.
+   Labels sit directly under each tick in the matching category
+   color. pointer-events:none so taps still reach the bar. */
 body.paper-mode .ufs-target {
   position: absolute;
-  top: 2px;                 /* 6px above the bar's top edge */
-  bottom: 20px;             /* stops with room for the label below */
+  top: 2px;                 /* ~6px above the bar's top edge */
+  bottom: 28px;             /* tick ends ~6px below bar + label slot */
   width: 2px;
   transform: translateX(-50%);
   pointer-events: none;
-  z-index: 2;               /* above bar segments, below active caret */
+  z-index: 2;
 }
 body.paper-mode .ufs-target-tick {
   position: absolute;
@@ -2049,20 +2185,13 @@ body.paper-mode .ufs-target--profit .ufs-target-lbl  { color:      #1E8749; }
    / .mf-noi-detail rules — we only need to handle positioning +
    spacing inside the UFS card shell. */
 body.paper-mode .ufs-zoom {
-  margin-top: 18px;
-  padding-top: 14px;
-  /* Reserve the 4px border slot even when closed so the open-state
-     border doesn't cause a layout shift when toggled. */
-  border-top: 4px solid transparent;
-  transition: border-top-color 220ms cubic-bezier(0.4, 0, 0.2, 1);
+  margin-top: 6px;
+  padding-top: 10px;
+  /* No colored top border on the zoom panel — the Expansion Funnel
+     (.ufs-funnel-container) above it provides the geometric
+     connection between the active segment and the unpacked data.
+     This reads as a physical spotlight rather than a drawn line. */
 }
-/* ── Active dropdown: 4px solid top border matching the category ──
-   Creates the continuous visual line from the bar → caret → data.
-   Only applied when the panel is open (is-open) so the bar stays
-   uncluttered in the default resting state. */
-body.paper-mode .ufs-zoom--cogs.is-open   { border-top-color: #FF5B5B; }
-body.paper-mode .ufs-zoom--ovhd.is-open   { border-top-color: #FF8A1F; }
-body.paper-mode .ufs-zoom--profit.is-open { border-top-color: #2ECC71; }
 
 /* The original mf-zoom-detail selectors already handle visibility via
    .is-open + animate via .mf-zoom-bar-anim — we don't need to
@@ -2077,8 +2206,45 @@ body.paper-mode .ufs-zoom:not(.is-open):not([hidden]) {
   overflow: hidden;
   padding-top: 0;
   margin-top: 0;
-  border-top-width: 0;
 }
+
+/* ── Expansion Funnel — trapezoid from segment → dropdown ─────────
+   A geometric "spotlight" linking the clicked segment at the top
+   to the full-width dropdown below. Hidden by default (height: 0);
+   reveals when the card carries an is-active--<key> class. The
+   polygon's fill color is swapped per active category so the wash
+   reads as the category's light cast. */
+body.paper-mode .ufs-funnel-container {
+  width: 100%;
+  height: 0;
+  position: relative;
+  pointer-events: none;
+  opacity: 0;
+  overflow: visible;
+  transition: height 320ms cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 320ms cubic-bezier(0.4, 0, 0.2, 1);
+  margin-top: 0;
+}
+body.paper-mode .ufs-card.is-active--cogs   .ufs-funnel-container,
+body.paper-mode .ufs-card.is-active--ovhd   .ufs-funnel-container,
+body.paper-mode .ufs-card.is-active--profit .ufs-funnel-container {
+  height: 28px;
+  opacity: 1;
+}
+body.paper-mode .ufs-funnel {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+body.paper-mode .ufs-funnel-poly {
+  opacity: 0.09;              /* faint translucent wash per spec */
+  fill: #2C2A28;
+  transition: fill 260ms cubic-bezier(0.4, 0, 0.2, 1),
+              points 260ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+body.paper-mode .ufs-card.is-active--cogs   .ufs-funnel-poly { fill: #FF5B5B; }
+body.paper-mode .ufs-card.is-active--ovhd   .ufs-funnel-poly { fill: #FF8A1F; }
+body.paper-mode .ufs-card.is-active--profit .ufs-funnel-poly { fill: #2ECC71; }
 
 /* ── Cloned-panel styling inside .ufs-zoom ─────────────────────────
    Per spec: the dropdown keeps the "fun, multi-colored, segmented
@@ -2118,24 +2284,34 @@ body.paper-mode .ufs-zoom .mf-zoom-seg-pct {
     padding: 16px 14px 14px;
     margin-top: 14px;
   }
-  body.paper-mode .ufs-main-header {
-    gap: 8px;
-    padding-bottom: 12px;
-    margin-bottom: 14px;
+  body.paper-mode .ufs-card {
+    padding: 22px 18px 18px;
+    margin-bottom: 28px;
   }
-  body.paper-mode .ufs-main-label { font-size: 12.5px; }
-  body.paper-mode .ufs-main-value { font-size: 20px; }
+  body.paper-mode .ufs-main-header {
+    gap: 6px;
+    padding-bottom: 18px;
+    margin-bottom: 16px;
+  }
+  body.paper-mode .ufs-main-eyebrow { font-size: 9.5px; letter-spacing: 0.22em; }
+  body.paper-mode .ufs-main-value   { font-size: 34px; }
   body.paper-mode .ufs-amounts    { margin-bottom: 6px; }
   body.paper-mode .ufs-amount     { font-size: 13px; padding: 0 4px; }
   body.paper-mode .ufs-bar     { height: 64px; min-height: 64px; }
-  body.paper-mode .ufs-bar-wrap { padding: 6px 0 28px; }
+  body.paper-mode .ufs-bar-wrap { padding: 6px 0 30px; }
+  body.paper-mode .ufs-bar-wrap::before { height: 64px; }
   body.paper-mode .ufs-seg     { padding: 0 8px; }
-  body.paper-mode .ufs-seg-label { font-size: 11.5px; }
-  body.paper-mode .ufs-seg-pct   { font-size: 13px; }
+  body.paper-mode .ufs-seg-label { font-size: 12.5px; }
+  body.paper-mode .ufs-seg-pct   { font-size: 11px; }
   body.paper-mode .ufs-target-lbl { font-size: 9px; letter-spacing: 0.1em; }
   body.paper-mode .ufs-header-title  { font-size: 15px; }
   body.paper-mode .ufs-header-period { font-size: 12.5px; }
-  body.paper-mode .ufs-zoom      { margin-top: 10px; }
+  body.paper-mode .ufs-zoom      { margin-top: 4px; }
+  body.paper-mode .ufs-card.is-active--cogs   .ufs-funnel-container,
+  body.paper-mode .ufs-card.is-active--ovhd   .ufs-funnel-container,
+  body.paper-mode .ufs-card.is-active--profit .ufs-funnel-container {
+    height: 22px;
+  }
 }
 
 /* Reduced motion — instant expand/collapse */

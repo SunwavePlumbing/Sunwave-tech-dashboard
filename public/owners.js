@@ -129,9 +129,9 @@ function ufsToggle(key) {
   for (var i = 0; i < segs.length; i++) segs[i].classList.remove('is-active');
   // Clear active-category class on the card — we'll re-apply below if the
   // target ends up open. This class drives:
-  //   (a) the dim-siblings rule (inactive segments fade to ~38% opacity),
+  //   (a) the dim-siblings rule (inactive segments fade to 30% opacity),
   //   (b) the downward caret extruding from the active segment,
-  //   (c) the 4px colored top border on the active .ufs-zoom panel.
+  //   (c) the expansion funnel reveal + its fill color.
   if (card) {
     card.classList.remove('is-active--cogs');
     card.classList.remove('is-active--ovhd');
@@ -140,12 +140,77 @@ function ufsToggle(key) {
   // Toggle target (mfToggle flips is-open — opens if closed, closes if open)
   var seg = card ? card.querySelector('.ufs-seg[data-key="' + key + '"]') : null;
   mfToggle(targetId, seg);
-  // If target is now open, flag its button active (caret + top border bloom)
+  // If target is now open, flag its button active + draw the funnel
   var targetEl = document.getElementById(targetId);
   if (targetEl && targetEl.classList.contains('is-open') && seg) {
     seg.classList.add('is-active');
     if (card) card.classList.add('is-active--' + key);
+    ufsUpdateFunnel(key);
   }
+}
+
+// ── Expansion Funnel geometry ────────────────────────────────────
+// Computes a trapezoidal polygon connecting the clicked segment's
+// x-range on the main bar to the full width of the dropdown below.
+//   Top edge:    matches the active segment (leftPct → rightPct)
+//   Bottom edge: spans the full container (0% → 100%)
+// The result is a "spotlight" shape proving the dropdown is an
+// unpacked view of exactly that segment. SVG polygon because it's
+// the cleanest way to animate changes in shape smoothly + read the
+// geometry exactly (no pixel rounding mystery).
+function ufsUpdateFunnel(key) {
+  var card = document.querySelector('.ufs-card');
+  if (!card) return;
+  var bar  = card.querySelector('.ufs-bar');
+  var seg  = card.querySelector('.ufs-seg[data-key="' + key + '"]');
+  var poly = card.querySelector('.ufs-funnel-poly');
+  if (!bar || !seg || !poly) return;
+  var barRect = bar.getBoundingClientRect();
+  var segRect = seg.getBoundingClientRect();
+  if (!barRect.width) return;
+  var leftPct  = ((segRect.left  - barRect.left) / barRect.width * 100).toFixed(3);
+  var rightPct = ((segRect.right - barRect.left) / barRect.width * 100).toFixed(3);
+  // Using viewBox 0 0 100 100 with preserveAspectRatio="none" so the
+  // coords are already in percent. Points are: top-left, top-right,
+  // bottom-right, bottom-left.
+  poly.setAttribute('points',
+    leftPct + ',0 ' + rightPct + ',0 100,100 0,100');
+}
+
+// ── Initial $-tally animation ────────────────────────────────────
+// Rolls the main Total Revenue value from $0 → actual over ~900ms
+// with ease-out cubic, so the card lands with a "calculating" feel
+// on first render. Called after renderFinancial mounts the UFS card.
+function ufsAnimateTally() {
+  var el = document.querySelector('.ufs-main-value');
+  if (!el) return;
+  var target = parseFloat(el.getAttribute('data-ufs-tally'));
+  if (!isFinite(target) || target <= 0) return;
+  var finalText = el.textContent;       // "$273K" / "$1.2M" / etc.
+  var start = performance.now();
+  var duration = 900;
+  function format(v) {
+    if (v >= 1000) return '$' + (v / 1000).toFixed(v < 10000 ? 1 : 0) + 'K';
+    return '$' + Math.round(v);
+  }
+  // Grab the suffix (K or M) from the final formatted text so our
+  // animated frames visually match it.
+  var suffixMatch = finalText.match(/[KM]$/);
+  var suffix = suffixMatch ? suffixMatch[0] : '';
+  // Display base-10 scaling based on suffix so the ticker reads naturally
+  function fmtFrame(v) {
+    if (suffix === 'M') return '$' + (v / 1000000).toFixed(v < 10000000 ? 1 : 0) + 'M';
+    if (suffix === 'K') return '$' + Math.round(v / 1000) + 'K';
+    return '$' + Math.round(v);
+  }
+  function tick(now) {
+    var t = Math.min((now - start) / duration, 1);
+    var eased = 1 - Math.pow(1 - t, 3);   // ease-out cubic
+    el.textContent = fmtFrame(target * eased);
+    if (t < 1) requestAnimationFrame(tick);
+    else el.textContent = finalText;       // snap to exact formatted
+  }
+  requestAnimationFrame(tick);
 }
 
 // After the mf-card and ufs-card are both rendered into #finCards,
@@ -1704,13 +1769,15 @@ function renderOwners() {
         '<div class="ufs-header-title">Financial Summary of the Month</div>' +
         '<div class="ufs-header-period">' + esc(ufsPeriod) + '</div>' +
       '</div>' +
-      // ── Main revenue header (replaces the old formula line) ────
-      // Large, prominent deep-charcoal header. "Total Revenue:" as a
-      // regular-weight label; the amount itself in a heavier weight
-      // so the eye lands on the dollar figure.
+      // ── Main revenue header (stacked typographic hierarchy) ────
+      // "TOTAL REVENUE" rides as a small, heavily-tracked eyebrow
+      // above a massive deep-charcoal $ figure. This anchors the
+      // entire card so the eye lands on the revenue total first.
+      // data-ufs-tally: consumed by ufsAnimateTally() which rolls
+      // the value from $0 → actual on initial render.
       '<div class="ufs-main-header">' +
-        '<span class="ufs-main-label">Total Revenue:</span>' +
-        '<span class="ufs-main-value">' + ufsFmt(curRev) + '</span>' +
+        '<div class="ufs-main-eyebrow">TOTAL REVENUE</div>' +
+        '<div class="ufs-main-value" data-ufs-tally="' + curRev + '">' + ufsFmt(curRev) + '</div>' +
       '</div>' +
       // ── Unified 3-segment interactive bar ──────────────────────
       // Wrapped in .ufs-bar-wrap so the drafting target markers AND
@@ -1767,13 +1834,19 @@ function renderOwners() {
           '<div class="ufs-target-lbl">PROFIT GOAL 15%</div>' +
         '</div>' +
       '</div>' +
+      // ── Expansion funnel — trapezoidal SVG polygon drawn between
+      //    the clicked segment on the bar and the dropdown panel
+      //    below. Top edge matches the active segment's x-range;
+      //    bottom edge spans the full container. Invisible until a
+      //    segment is opened (see .ufs-card.is-active--<key>).
+      //    ufsUpdateFunnel(key) sets the polygon points on open.
+      '<div class="ufs-funnel-container" aria-hidden="true">' +
+        '<svg class="ufs-funnel" viewBox="0 0 100 100" preserveAspectRatio="none">' +
+          '<polygon class="ufs-funnel-poly" points="40,0 60,0 100,100 0,100"/>' +
+        '</svg>' +
+      '</div>' +
       // ── Dropdown panels — empty shells that ufsCloneZoomPanels()
-      //    populates after render by deep-copying the mf-card panels
-      //    (mfZoomDetail output for COGS/Overhead, the noiDetailHtml
-      //    "What is Profit?" explainer for Profit). This guarantees the
-      //    new card has identical content, click handlers, and color
-      //    coding as the existing one. IDs are ufs-prefixed so each
-      //    card owns its own open/close state.
+      //    populates after render by deep-copying the mf-card panels.
       '<div id="ufsCogsDetail" class="mf-zoom-detail ufs-zoom ufs-zoom--cogs" hidden></div>' +
       '<div id="ufsOvhdDetail" class="mf-zoom-detail ufs-zoom ufs-zoom--ovhd" hidden></div>' +
       '<div id="ufsNoiDetail" class="mf-zoom-detail mf-noi-detail ufs-zoom ufs-zoom--profit" hidden></div>' +
@@ -1785,6 +1858,10 @@ function renderOwners() {
   // outer innerHTML assignment so both source and destination panels
   // exist in the DOM.
   ufsCloneZoomPanels();
+  // Kick off the "calculation slam" entrance: roll the Total Revenue
+  // figure from $0 → actual. CSS handles the segment drop-slam, the
+  // dashed outline fade, and the target ticks slicing down.
+  ufsAnimateTally();
   requestAnimationFrame(mfFixNarrowLabels);
   /* Ticker animation on the big dollar totals — fires on every render
      (including month changes) for that "data refreshed" satisfaction. */

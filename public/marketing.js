@@ -127,40 +127,46 @@ function rollingTicker(opts) {
    drives the draw regardless of real path length.
    ══════════════════════════════════════════════════════════════════ */
 function lgSvg_4() {
-  // Rings ordered inner → outer. To reveal OUTERMOST first and
-  // innermost LAST, we invert the delay index (ringsCount - 1 - i).
+  // Rings ordered inner → outer in the array. Keyframes (CSS) run
+  // each ring in a NON-overlapping slice of the cycle: outer draws
+  // fully, then next, then next, then innermost — so ring N+1 never
+  // starts drawing while ring N is still drawing. That means we don't
+  // need per-ring animation-delay anymore; each ring's unique keyframe
+  // handles its draw window directly.
   var rings = [
     'M70 50 C86 50, 96 60, 96 72 C96 86, 86 96, 70 96 C54 96, 44 86, 44 72 C44 60, 54 50, 70 50 Z',
     'M70 38 C94 38, 106 56, 106 72 C106 90, 92 108, 70 108 C48 108, 34 90, 34 72 C34 56, 46 38, 70 38 Z',
     'M70 26 C100 26, 116 50, 116 72 C116 96, 100 120, 70 120 C40 120, 24 96, 24 72 C24 50, 40 26, 70 26 Z',
     'M70 14 C108 14, 128 44, 128 72 C128 102, 108 130, 70 130 C32 130, 12 102, 12 72 C12 44, 32 14, 70 14 Z'
   ];
-  var ringsCount = rings.length;
   var paths = rings.map(function(d, i) {
-    // Outermost (i = ringsCount - 1) draws first (delay 0).
-    // Innermost (i = 0) draws last (delay (ringsCount-1) * stagger).
-    var delay = (ringsCount - 1 - i) * 0.9;
     return '<path class="lg4-ring lg4-ring--' + i + '" d="' + d + '" pathLength="100" ' +
            'fill="none" stroke="#2C2A28" stroke-width="0.9" stroke-linecap="round" ' +
-           'stroke-dasharray="100" stroke-dashoffset="100" ' +
-           'style="animation-delay:' + delay.toFixed(2) + 's"/>';
+           'stroke-dasharray="100" stroke-dashoffset="100"/>';
   }).join('');
   return '<svg class="lg-svg" viewBox="0 0 140 140">' +
-    // Top title
-    '<text x="70" y="14" fill="#7A7571" font-size="5" font-family="ui-monospace, monospace" ' +
-          'text-anchor="middle" letter-spacing="0.14em" font-weight="700">FINDING THE WHY</text>' +
+    // Top title — charcoal (same ink as the rings), sits tight to the
+    // top edge of the canvas, just above the outermost ring.
+    '<text x="70" y="10" fill="#2C2A28" font-size="5" font-family="ui-monospace, monospace" ' +
+          'text-anchor="middle" letter-spacing="0.16em" font-weight="700">FINDING THE WHY</text>' +
     paths +
-    // Central peak (pulses continuously)
-    '<circle class="lg4-peak" cx="70" cy="72" r="2.6" fill="#E88140" stroke="#2C2A28" ' +
-           'stroke-width="0.5" style="transform-origin:70px 72px"/>' +
-    // Center label: two lines so it reads cleanly at small scale
+    // Center label — two compact lines, centered in the innermost
+    // ring, in the same charcoal ink as the rings. Orange is moved
+    // out from the old peak-dot position (which collided with the
+    // text) and lives below as a crisp drafting rule.
     '<g class="lg4-label">' +
-      '<text x="70" y="66" fill="#2C2A28" font-size="5.2" ' +
+      '<text x="70" y="70" fill="#2C2A28" font-size="5.8" ' +
             'font-family="ui-monospace, monospace" font-weight="800" text-anchor="middle" ' +
-            'letter-spacing="0.08em">TRANSFORMING</text>' +
-      '<text x="70" y="80" fill="#2C2A28" font-size="5.2" ' +
+            'letter-spacing="0.06em">TRANSFORMING</text>' +
+      '<text x="70" y="79" fill="#2C2A28" font-size="5.8" ' +
             'font-family="ui-monospace, monospace" font-weight="800" text-anchor="middle" ' +
-            'letter-spacing="0.08em">PLUMBING</text>' +
+            'letter-spacing="0.06em">PLUMBING</text>' +
+      // Orange drafting rule beneath the label — relocates the warm
+      // accent color to a place that doesn't collide with the text.
+      // pathLength=100 so the draw animation reads cleanly.
+      '<line class="lg4-accent" x1="60" y1="85" x2="80" y2="85" pathLength="100" ' +
+            'stroke="#E88140" stroke-width="1.6" stroke-linecap="round" ' +
+            'stroke-dasharray="100" stroke-dashoffset="100"/>' +
     '</g>' +
   '</svg>';
 }
