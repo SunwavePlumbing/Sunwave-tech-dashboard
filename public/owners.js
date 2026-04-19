@@ -101,6 +101,49 @@ function mfZoomSel(zid) {
   }
 }
 
+// ── Unified Financial Summary accordion (strict one-open-at-a-time) ──
+// Called from the inline onclick on each .ufs-seg button. `key` is
+// 'cogs', 'ovhd', or 'profit'. If the clicked panel is already open
+// it closes (no panel open); otherwise the sibling panels close and
+// the target opens. CSS drives the smooth grid-row height transition.
+function ufsToggle(key) {
+  var card = document.querySelector('.ufs-card');
+  if (!card) return;
+  var panels = card.querySelectorAll('.ufs-panel');
+  var segs   = card.querySelectorAll('.ufs-seg');
+  var target = card.querySelector('.ufs-panel[data-panel="' + key + '"]');
+  var isOpen = target && target.classList.contains('is-open');
+  // Collapse everything first — strict accordion
+  for (var i = 0; i < panels.length; i++) panels[i].classList.remove('is-open');
+  for (var j = 0; j < segs.length;   j++) segs[j].classList.remove('is-active');
+  if (!isOpen && target) {
+    target.classList.add('is-open');
+    var seg = card.querySelector('.ufs-seg[data-key="' + key + '"]');
+    if (seg) seg.classList.add('is-active');
+  }
+}
+
+// Build a palette of N tints of a base hex color — used by the
+// Unified Financial Summary sub-bars so each breakdown segment is a
+// distinguishable shade of its parent category color (no random
+// rainbow). Lightens linearly from ~100% of the base to ~65%.
+function ufsTintPalette(baseHex, n) {
+  var r = parseInt(baseHex.slice(1,3), 16);
+  var g = parseInt(baseHex.slice(3,5), 16);
+  var b = parseInt(baseHex.slice(5,7), 16);
+  var out = [];
+  if (n <= 1) return [baseHex];
+  for (var i = 0; i < n; i++) {
+    // t: 0 → full saturation, 1 → 45% lightened (mixed with white)
+    var t = i / (n - 1) * 0.55;
+    var rr = Math.round(r + (255 - r) * t);
+    var gg = Math.round(g + (255 - g) * t);
+    var bb = Math.round(b + (255 - b) * t);
+    out.push('#' + ((1 << 24) + (rr << 16) + (gg << 8) + bb).toString(16).slice(1));
+  }
+  return out;
+}
+
 // Hex color → rgba(r,g,b,a) string — used by mfZoomDetail and GP panel
 function hexAlpha(hex, a) {
   var rv = parseInt(hex.slice(1,3),16), gv = parseInt(hex.slice(3,5),16), bv = parseInt(hex.slice(5,7),16);
@@ -1552,7 +1595,118 @@ function renderOwners() {
 
     '</div>'; // .mf-card
 
-  document.getElementById('finCards').innerHTML = formulaHtml;
+  // ═══════════════════════════════════════════════════════════════
+  // NEW: Unified Financial Summary card (sibling, lives directly
+  // below the existing mf-card — does NOT replace it).
+  //   • Formula header: Revenue − COGS − Overhead = Profit on one line
+  //   • Tall 3-segment unified bar (coral / orange / green)
+  //   • Mutually-exclusive accordion: click a segment to reveal its
+  //     breakdown directly below; clicking another closes the first.
+  // Data sourced from the same variables used above (curRev, curCOGS,
+  // curOvhd, curNOI, cogsPct, ovhdPct, noiPct, cogsItems, ovhdItems)
+  // so both cards always stay in sync for whatever period is active.
+  // ═══════════════════════════════════════════════════════════════
+  var ufsFmt = fmtDollar;
+  var ufsProfitPct = curRev > 0 ? (curNOI / curRev * 100) : 0;
+  // Build inner list + sub-bar for a category.
+  function ufsBreakdown(items, categoryTotal, segColor) {
+    // Filter to positive-value items so we don't render empty rows
+    var real = items.filter(function(it) { return it.val > 0; });
+    // Inner horizontal bar — flex-based; each item's share of the category total.
+    // Keep contiguous color family (tints/shades of the segment color) so the
+    // breakdown reads as "inside" the parent segment.
+    var tints = ufsTintPalette(segColor, real.length);
+    var innerBar = real.map(function(it, i) {
+      var pct = categoryTotal > 0 ? (it.val / categoryTotal * 100) : 0;
+      if (pct < 0.1) pct = 0;
+      return '<div class="ufs-sub-seg" style="flex:' + pct.toFixed(2) + ';background:' + tints[i] + '" ' +
+             'title="' + esc(it.label) + ': ' + ufsFmt(it.val) + '"></div>';
+    }).join('');
+    var listRows = real.map(function(it, i) {
+      var pct = categoryTotal > 0 ? (it.val / categoryTotal * 100) : 0;
+      return '<li class="ufs-li">' +
+               '<span class="ufs-li-dot" style="background:' + tints[i] + '"></span>' +
+               '<span class="ufs-li-label">' + esc(it.label) + '</span>' +
+               '<span class="ufs-li-pct">' + pct.toFixed(1) + '%</span>' +
+               '<span class="ufs-li-val">' + ufsFmt(it.val) + '</span>' +
+             '</li>';
+    }).join('');
+    return '<div class="ufs-panel-inner">' +
+             '<div class="ufs-sub-bar">' + innerBar + '</div>' +
+             '<ul class="ufs-list">' + listRows + '</ul>' +
+           '</div>';
+  }
+  var unifiedHtml =
+    '<div class="ufs-card">' +
+      // ── Formula header (single horizontal line) ────────────────
+      '<div class="ufs-formula">' +
+        '<div class="ufs-f-term">' +
+          '<span class="ufs-f-label">Total Revenue</span>' +
+          '<span class="ufs-f-val">(' + ufsFmt(curRev) + ')</span>' +
+        '</div>' +
+        '<div class="ufs-f-op" aria-hidden="true">\u2212</div>' +
+        '<div class="ufs-f-term ufs-f-term--cogs">' +
+          '<span class="ufs-f-label">Cost of Goods Sold</span>' +
+          '<span class="ufs-f-val">(' + ufsFmt(curCOGS) + ')</span>' +
+        '</div>' +
+        '<div class="ufs-f-op" aria-hidden="true">\u2212</div>' +
+        '<div class="ufs-f-term ufs-f-term--ovhd">' +
+          '<span class="ufs-f-label">Overhead</span>' +
+          '<span class="ufs-f-val">(' + ufsFmt(curOvhd) + ')</span>' +
+        '</div>' +
+        '<div class="ufs-f-op ufs-f-op--eq" aria-hidden="true">=</div>' +
+        '<div class="ufs-f-term ufs-f-term--profit">' +
+          '<span class="ufs-f-label">Profit</span>' +
+          '<span class="ufs-f-val">(' + ufsFmt(curNOI) + ')</span>' +
+        '</div>' +
+      '</div>' +
+      // ── Unified 3-segment interactive bar ──────────────────────
+      '<div class="ufs-bar" role="tablist">' +
+        '<button type="button" class="ufs-seg ufs-seg--cogs" data-key="cogs" ' +
+                'onclick="ufsToggle(\'cogs\')" style="flex:' + Math.max(cogsPct, 0).toFixed(2) + '" ' +
+                'aria-label="Cost of Goods Sold ' + cogsPct.toFixed(1) + '%">' +
+          '<span class="ufs-seg-ink">' +
+            '<span class="ufs-seg-label">Cost of Goods Sold</span>' +
+            '<span class="ufs-seg-pct">' + cogsPct.toFixed(1) + '%</span>' +
+          '</span>' +
+        '</button>' +
+        '<button type="button" class="ufs-seg ufs-seg--ovhd" data-key="ovhd" ' +
+                'onclick="ufsToggle(\'ovhd\')" style="flex:' + Math.max(ovhdPct, 0).toFixed(2) + '" ' +
+                'aria-label="Overhead ' + ovhdPct.toFixed(1) + '%">' +
+          '<span class="ufs-seg-ink">' +
+            '<span class="ufs-seg-label">Overhead</span>' +
+            '<span class="ufs-seg-pct">' + ovhdPct.toFixed(1) + '%</span>' +
+          '</span>' +
+        '</button>' +
+        '<button type="button" class="ufs-seg ufs-seg--profit" data-key="profit" ' +
+                'onclick="ufsToggle(\'profit\')" style="flex:' + Math.max(ufsProfitPct, 0).toFixed(2) + '" ' +
+                'aria-label="Profit ' + ufsProfitPct.toFixed(1) + '%">' +
+          '<span class="ufs-seg-ink">' +
+            '<span class="ufs-seg-label">Profit</span>' +
+            '<span class="ufs-seg-pct">' + ufsProfitPct.toFixed(1) + '%</span>' +
+          '</span>' +
+        '</button>' +
+      '</div>' +
+      // ── Accordion panels (mutually exclusive) ──────────────────
+      '<div class="ufs-panel" data-panel="cogs">' +
+        ufsBreakdown(cogsItems, curCOGS, '#FF5B5B') +
+      '</div>' +
+      '<div class="ufs-panel" data-panel="ovhd">' +
+        ufsBreakdown(ovhdItems, curOvhd, '#FF8A1F') +
+      '</div>' +
+      '<div class="ufs-panel" data-panel="profit">' +
+        '<div class="ufs-panel-inner">' +
+          '<div class="ufs-profit-note">' +
+            'Profit is what remains after subtracting Cost of Goods Sold and Overhead from Total Revenue. ' +
+            'For this period: <strong>' + ufsFmt(curRev) + '</strong> \u2212 <strong>' + ufsFmt(curCOGS) + '</strong> ' +
+            '\u2212 <strong>' + ufsFmt(curOvhd) + '</strong> = <strong>' + ufsFmt(curNOI) + '</strong> ' +
+            '(' + ufsProfitPct.toFixed(1) + '% of revenue).' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>'; // .ufs-card
+
+  document.getElementById('finCards').innerHTML = formulaHtml + unifiedHtml;
   requestAnimationFrame(mfFixNarrowLabels);
   /* Ticker animation on the big dollar totals — fires on every render
      (including month changes) for that "data refreshed" satisfaction. */

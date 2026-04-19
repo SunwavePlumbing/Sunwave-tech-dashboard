@@ -1334,515 +1334,220 @@ body.paper-mode .lg-svg {
 }
 
 /* ════════════════════════════════════════════════════════════════
-   VARIANT 1 — Drafting Pencil Circle Trace
-   Circle circumference = 2π·42 ≈ 264. Stroke-dashoffset animates
-   264 → 0 with asymmetric easing (fast start, slow finish) so the
-   pencil "lands" gracefully as it closes the loop. The yellow
-   dimension line fades in after the circle completes.
+   VARIANT 1 — Isometric Bar Chart Ripple
+   SMOOTH COLLAPSE: uses per-step `animation-timing-function` so the
+   rise is elastic (bouncy overshoot) but the retract is a clean
+   symmetric ease — no overshoot-back-to-0 wobble. 5.2s cycle.
    ════════════════════════════════════════════════════════════════ */
-body.paper-mode .lg1-circle {
-  stroke-dasharray: 264;
-  stroke-dashoffset: 264;
-  animation: lg1Draw 3s cubic-bezier(0.1, 0, 0.3, 1) infinite;
-}
-@keyframes lg1Draw {
-  0%   { stroke-dashoffset: 264; }
-  70%  { stroke-dashoffset: 0;   }
-  92%  { stroke-dashoffset: 0;   }
-  100% { stroke-dashoffset: 264; }
-}
-body.paper-mode .lg1-dim {
-  opacity: 0;
-  animation: lg1DimIn 3s ease-in-out infinite;
-}
-@keyframes lg1DimIn {
-  0%, 60%  { opacity: 0; }
-  75%, 92% { opacity: 1; }
-  100%     { opacity: 0; }
-}
-
-/* ════════════════════════════════════════════════════════════════
-   VARIANT 2 — Isometric Bar Chart Ripple (KEPT)
-   Each bar scales vertically 0 → 1 with an elastic cubic-bezier
-   that overshoots, wobbles, and settles. Bar delays come inline
-   via JS (diagonal (col + row) sweep). 4.5s cycle holds the peak
-   long enough to read the full grid before retracting for loop.
-   ════════════════════════════════════════════════════════════════ */
-body.paper-mode .lg2-bar {
+body.paper-mode .lg1-bar {
   transform: scaleY(0);
-  animation: lg2Rise 4.5s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+  animation: lg1Rise 5.2s infinite;
 }
-@keyframes lg2Rise {
-  0%, 4%    { transform: scaleY(0);    }
-  18%       { transform: scaleY(1.15); }
-  28%       { transform: scaleY(0.94); }
-  38%       { transform: scaleY(1.04); }
-  48%, 78%  { transform: scaleY(1);    }
-  94%, 100% { transform: scaleY(0);    }
-}
-
-/* ════════════════════════════════════════════════════════════════
-   VARIANT 3 — Terra Cotta Curing Bar (KEPT)
-   Width fills 0 → 100% while the clay color bakes from wet (sienna)
-   to fired (sandstone). Fades out at the end to reset cleanly.
-   ════════════════════════════════════════════════════════════════ */
-body.paper-mode .lg3-wrap {
-  width: 85%;
-  height: 14px;
-  border-radius: 8px;
-  background: rgba(92, 84, 72, 0.10);
-  box-shadow:
-    inset 0 1px 2px rgba(92, 84, 72, 0.22),
-    inset 0 -1px 1px rgba(255, 255, 255, 0.45);
-  overflow: hidden;
-}
-body.paper-mode .lg3-fill {
-  height: 100%;
-  width: 0;
-  border-radius: 8px;
-  background: #A0522D;
-  background-image:
-    radial-gradient(rgba(0,0,0,0.10) 1px, transparent 1.2px),
-    radial-gradient(rgba(0,0,0,0.06) 1px, transparent 1.2px);
-  background-size: 4px 4px, 7px 7px;
-  animation: lg3Fill 3.2s cubic-bezier(0.25, 0.1, 0.25, 1) infinite;
-}
-@keyframes lg3Fill {
-  0%   { width: 0;    background-color: #A0522D; opacity: 1; }
-  75%  { width: 100%; background-color: #CD853F; opacity: 1; }
-  90%  { width: 100%; background-color: #CD853F; opacity: 1; }
-  100% { width: 100%; background-color: #CD853F; opacity: 0; }
+@keyframes lg1Rise {
+  0%        { transform: scaleY(0);
+              animation-timing-function: cubic-bezier(0.34, 1.5, 0.64, 1); }
+  18%       { transform: scaleY(1.12);
+              animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1); }
+  28%       { transform: scaleY(0.96);
+              animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1); }
+  38%       { transform: scaleY(1.03);
+              animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1); }
+  48%       { transform: scaleY(1);
+              animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
+  65%       { transform: scaleY(1);
+              animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1); }
+  100%      { transform: scaleY(0); }
 }
 
 /* ════════════════════════════════════════════════════════════════
-   VARIANT 4 — Isometric Extrusion & Segment
-   Grid cells extrude vertically with an elastic ripple cubic-bezier
-   that overshoots → wobbles → settles. Revenue ticker fades in as
-   the bar reaches full height, holds, then fades at loop end. 5s
-   cycle feels unhurried but productive.
+   VARIANT 2 — Slide-Rule Timeline
+   CONTINUOUS LOOP (no long pause) + ROLLING PROFIT TICKER:
+     • Indicator sweeps left → right at constant velocity 0 → 80%,
+       then retracts 80 → 100% smoothly with a symmetric ease so the
+       next cycle starts seamlessly.
+     • Every booked slot fires: expense dip + revenue spike (draw)
+       and green wash (scaleY from bottom). All ride the same 4.8s
+       master cycle.
+     • Profit readout is a vertical roll ticker using a CSS custom
+       property (--roll-total) for the destination translate.
    ════════════════════════════════════════════════════════════════ */
-body.paper-mode .lg4-cell {
-  transform: scaleY(0);
-  animation: lg4Extrude 5s cubic-bezier(0.34, 1.45, 0.64, 1) infinite;
+body.paper-mode .lg2-indicator {
+  animation: lg2Slide 4.8s cubic-bezier(0.55, 0, 0.45, 1) infinite;
 }
-@keyframes lg4Extrude {
-  0%, 4%    { transform: scaleY(0);    }
-  22%       { transform: scaleY(1.12); }
-  32%       { transform: scaleY(0.95); }
-  42%, 82%  { transform: scaleY(1);    }
-  96%, 100% { transform: scaleY(0);    }
+@keyframes lg2Slide {
+  0%    { transform: translateX(0);     }
+  80%   { transform: translateX(108px); }
+  100%  { transform: translateX(0);     }
 }
-body.paper-mode .lg4-tick {
-  opacity: 0;
-  transform: translateY(4px);
-  animation: lg4Tick 5s cubic-bezier(0.22, 1, 0.36, 1) infinite;
-}
-@keyframes lg4Tick {
-  0%, 30%   { opacity: 0; transform: translateY(4px); }
-  46%, 82%  { opacity: 1; transform: translateY(0);   }
-  96%, 100% { opacity: 0; transform: translateY(4px); }
-}
-
-/* ════════════════════════════════════════════════════════════════
-   VARIANT 5 — Slide-Rule Timeline
-   The indicator traces the ruler 0 → full width with a linear
-   constant-velocity motion (so it reads as a continuous scan).
-   Per-booked-slot: green wash expands from 0 height, expense dip
-   and revenue spike draw simultaneously via stroke-dashoffset.
-   Readout number pulses subtly as events fire. Cycle: 5s.
-   ════════════════════════════════════════════════════════════════ */
-body.paper-mode .lg5-indicator {
-  animation: lg5Slide 5s linear infinite;
-}
-@keyframes lg5Slide {
-  0%        { transform: translateX(0);    }
-  82%       { transform: translateX(108px); }
-  95%       { transform: translateX(108px); opacity: 1; }
-  100%      { transform: translateX(0);    opacity: 0; }
-}
-body.paper-mode .lg5-dip,
-body.paper-mode .lg5-spike {
+body.paper-mode .lg2-dip,
+body.paper-mode .lg2-spike {
   stroke-dasharray: 40;
   stroke-dashoffset: 40;
-  animation: lg5Draw 5s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  animation: lg2Draw 4.8s cubic-bezier(0.22, 1, 0.36, 1) infinite;
 }
-@keyframes lg5Draw {
-  0%, 8%    { stroke-dashoffset: 40; }
-  22%, 82%  { stroke-dashoffset: 0;  }
-  96%, 100% { stroke-dashoffset: 40; }
+@keyframes lg2Draw {
+  0%, 6%    { stroke-dashoffset: 40; }
+  20%, 78%  { stroke-dashoffset: 0;  }
+  98%, 100% { stroke-dashoffset: 40; }
 }
-body.paper-mode .lg5-wash {
+body.paper-mode .lg2-wash {
   transform: scaleY(0);
-  transform-origin: bottom;
-  animation: lg5Wash 5s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  animation: lg2Wash 4.8s cubic-bezier(0.22, 1, 0.36, 1) infinite;
 }
-@keyframes lg5Wash {
+@keyframes lg2Wash {
   0%, 10%   { transform: scaleY(0); }
-  28%, 82%  { transform: scaleY(1); }
-  96%, 100% { transform: scaleY(0); }
+  26%, 78%  { transform: scaleY(1); }
+  98%, 100% { transform: scaleY(0); }
 }
-body.paper-mode .lg5-readout-num {
-  animation: lg5Readout 5s ease-in-out infinite;
+/* Rolling ticker — 8 values ride upward over the cycle */
+body.paper-mode .lg2-roll {
+  animation: lg2Roll 4.8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
-@keyframes lg5Readout {
-  0%, 100%    { opacity: 0.55; }
-  30%, 82%    { opacity: 1;    }
+@keyframes lg2Roll {
+  0%    { transform: translateY(0); }
+  78%   { transform: translateY(var(--roll-total)); }
+  100%  { transform: translateY(0); }
 }
 
 /* ════════════════════════════════════════════════════════════════
-   VARIANT 6 — Blueprint Area Tracker
-   Cells get hatched sequentially. The clipPath hides the hatch lines
-   outside each cell — CSS fades + scales the hatch group in. The
-   revenue and cost numbers subtly glow during the fill phase.
+   VARIANT 3 — Blueprint Calendar Tracker
+   Monthly 7×5 calendar grid with DOW header + day numbers. Booked
+   cells fill with diagonal charcoal crosshatch in sequence. Two
+   rolling tickers (COST + REVENUE) climb in lockstep with the
+   bookings — both share the same 5.2s cycle.
    ════════════════════════════════════════════════════════════════ */
-body.paper-mode .lg6-hatch {
+body.paper-mode .lg3-hatch {
   opacity: 0;
-  transform-box: fill-box;
   transform: scaleX(0);
   transform-origin: left center;
-  animation: lg6Hatch 5.5s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  transform-box: fill-box;
+  animation: lg3Hatch 5.2s cubic-bezier(0.22, 1, 0.36, 1) infinite;
 }
-@keyframes lg6Hatch {
+@keyframes lg3Hatch {
   0%, 2%    { opacity: 0; transform: scaleX(0); }
   8%        { opacity: 1; transform: scaleX(0); }
   18%, 82%  { opacity: 1; transform: scaleX(1); }
   96%, 100% { opacity: 0; transform: scaleX(0); }
 }
-body.paper-mode .lg6-revenue-num,
-body.paper-mode .lg6-cost-num {
-  animation: lg6Num 5.5s ease-in-out infinite;
+body.paper-mode .lg3-roll {
+  animation: lg3Roll 5.2s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
-@keyframes lg6Num {
-  0%, 100%   { opacity: 0.4; }
-  20%, 82%   { opacity: 1;   }
+@keyframes lg3Roll {
+  0%, 6%    { transform: translateY(0); }
+  82%       { transform: translateY(var(--roll-total)); }
+  100%      { transform: translateY(0); }
 }
 
 /* ════════════════════════════════════════════════════════════════
-   VARIANT 7 — Expanding Ledger Node
-   Nodes scale from 0 → 1.1 → 1 (ink-drop spring). Expense arc
-   sweeps first (stroke-dashoffset on a partial circle), profit arc
-   chases it. Pulses travel hub → node via SMIL (inline in JS). Hub
-   number scales elastically when all nodes finish. Cycle: 5s.
+   VARIANT 4 — Expanding Ledger Node
+   Nodes inflate in sequence; expense arcs sweep first, profit arcs
+   chase. SMIL pulses (inline) fire hub→node. Profit roll climbs
+   monotonically $0 → $70,000 across the entire 6s cycle so there's
+   no hold — the money continuously ticks up.
    ════════════════════════════════════════════════════════════════ */
-body.paper-mode .lg7-node {
+body.paper-mode .lg4-node {
   transform: scale(0);
-  animation: lg7Node 5s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+  animation: lg4Node 6s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
 }
-@keyframes lg7Node {
-  0%, 4%    { transform: scale(0);    }
-  22%       { transform: scale(1.15); }
-  34%, 82%  { transform: scale(1);    }
+@keyframes lg4Node {
+  0%, 2%    { transform: scale(0);    }
+  16%       { transform: scale(1.12); }
+  26%, 82%  { transform: scale(1);    }
   96%, 100% { transform: scale(0);    }
 }
-body.paper-mode .lg7-expense {
+body.paper-mode .lg4-expense {
   stroke-dasharray: 8 36;
   stroke-dashoffset: 44;
-  animation: lg7Expense 5s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  animation: lg4Expense 6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
 }
-@keyframes lg7Expense {
-  0%, 10%   { stroke-dashoffset: 44; }
-  24%, 82%  { stroke-dashoffset: 11; }
+@keyframes lg4Expense {
+  0%, 6%    { stroke-dashoffset: 44; }
+  20%, 82%  { stroke-dashoffset: 11; }
   96%, 100% { stroke-dashoffset: 44; }
 }
-body.paper-mode .lg7-profit {
+body.paper-mode .lg4-profit {
   stroke-dasharray: 36 8;
   stroke-dashoffset: 36;
-  animation: lg7Profit 5s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  animation: lg4Profit 6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
 }
-@keyframes lg7Profit {
-  0%, 18%   { stroke-dashoffset: 36; }
-  34%, 82%  { stroke-dashoffset: -8; }
+@keyframes lg4Profit {
+  0%, 14%   { stroke-dashoffset: 36; }
+  30%, 82%  { stroke-dashoffset: -8; }
   96%, 100% { stroke-dashoffset: 36; }
 }
-body.paper-mode .lg7-hub-num {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: lg7Hub 5s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+/* Profit ticker — monotonic rise through 8 values, no hold */
+body.paper-mode .lg4-roll {
+  animation: lg4Roll 6s cubic-bezier(0.35, 0, 0.55, 1) infinite;
 }
-@keyframes lg7Hub {
-  0%, 60%   { transform: scale(1);    }
-  72%       { transform: scale(1.18); }
-  82%       { transform: scale(1);    }
-  100%      { transform: scale(1);    }
+@keyframes lg4Roll {
+  0%    { transform: translateY(0); }
+  88%   { transform: translateY(var(--roll-total)); }
+  100%  { transform: translateY(0); }
 }
 
 /* ════════════════════════════════════════════════════════════════
-   VARIANT 8 — Receipt Roll Matrix
-   The receipt scrolls upward slowly (translateY). Per row: stamp
-   pops in elastically; Revenue / Spend / Profit numbers fade in in
-   sequence via per-element animation-delay. Bottom total pulses when
-   a new row completes. 7s cycle.
+   VARIANT 5 — Dial & Notch Tracker
+   Ticks draw outward in sequence, terracotta inner ring breathes,
+   green revenue arc sweeps perimeter, a needle tracks the arc
+   rotating -90° (12 o'clock) → +46° (final margin position), and
+   the margin % rolls 0 → 38 in lockstep. Subtle green glow pulse
+   plays when the margin locks in. 5.5s cycle.
    ════════════════════════════════════════════════════════════════ */
-body.paper-mode .lg8-scroll {
-  animation: lg8Scroll 7s linear infinite;
-}
-@keyframes lg8Scroll {
-  0%       { transform: translateY(0);     }
-  82%      { transform: translateY(-12px); }
-  100%     { transform: translateY(0);     }
-}
-body.paper-mode .lg8-stamp {
-  transform: scale(0) rotate(-8deg);
-  transform-box: fill-box;
-  animation: lg8Stamp 7s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
-}
-@keyframes lg8Stamp {
-  0%, 2%    { transform: scale(0) rotate(-8deg); }
-  8%        { transform: scale(1.15) rotate(0);  }
-  14%, 82%  { transform: scale(1) rotate(0);     }
-  96%, 100% { transform: scale(0) rotate(-8deg); }
-}
-body.paper-mode .lg8-rev,
-body.paper-mode .lg8-sp,
-body.paper-mode .lg8-pr {
-  opacity: 0;
-  transform: translateX(-4px);
-  animation: lg8Line 7s cubic-bezier(0.22, 1, 0.36, 1) infinite;
-}
-@keyframes lg8Line {
-  0%, 6%    { opacity: 0; transform: translateX(-4px); }
-  14%, 82%  { opacity: 1; transform: translateX(0);    }
-  96%, 100% { opacity: 0; transform: translateX(-4px); }
-}
-body.paper-mode .lg8-total {
-  animation: lg8Total 7s ease-in-out infinite;
-}
-@keyframes lg8Total {
-  0%, 100%   { opacity: 0.6; }
-  30%, 82%   { opacity: 1;   }
-}
-
-/* ════════════════════════════════════════════════════════════════
-   VARIANT 9 — Shifting Topography
-   Grid cells push DOWN into pits (translateY + vertical shrink) with
-   heavy gravitational ease. Green liquid rises FROM the pit floor,
-   overflowing the original rim — transform-origin baked at the pit
-   bottom so the liquid grows upward. 5.5s cycle. Physical feel.
-   ════════════════════════════════════════════════════════════════ */
-body.paper-mode .lg9-pit {
-  transform: translateY(0);
-  animation: lg9Pit 5.5s cubic-bezier(0.65, 0, 0.35, 1) infinite;
-}
-@keyframes lg9Pit {
-  0%, 4%    { transform: translateY(0);   }
-  22%, 82%  { transform: translateY(8px); }
-  96%, 100% { transform: translateY(0);   }
-}
-body.paper-mode .lg9-liquid {
-  transform: scaleY(0);
-  animation: lg9Liquid 5.5s cubic-bezier(0.34, 1.3, 0.64, 1) infinite;
-}
-@keyframes lg9Liquid {
-  0%, 18%   { transform: scaleY(0);    }
-  38%       { transform: scaleY(1.08); }
-  48%, 82%  { transform: scaleY(1);    }
-  96%, 100% { transform: scaleY(0);    }
-}
-body.paper-mode .lg9-tally {
-  animation: lg9Tally 5.5s ease-in-out infinite;
-}
-@keyframes lg9Tally {
-  0%, 100%   { opacity: 0.5; }
-  40%, 82%   { opacity: 1;   }
-}
-
-/* ════════════════════════════════════════════════════════════════
-   VARIANT 10 — Dial & Notch Tracker
-   Ticks draw outward via stroke-dashoffset (16 → 0) staggered around
-   the perimeter (inline animation-delay). Expense ring pulses
-   inward with scale breathing. Revenue arc sweeps the perimeter
-   over 3 seconds. Central margin number snaps in at the end. 5s.
-   ════════════════════════════════════════════════════════════════ */
-body.paper-mode .lg10-tick {
+body.paper-mode .lg5-tick {
   stroke-dasharray: 8;
   stroke-dashoffset: 8;
-  animation: lg10Tick 5s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  animation: lg5Tick 5.5s cubic-bezier(0.22, 1, 0.36, 1) infinite;
 }
-@keyframes lg10Tick {
+@keyframes lg5Tick {
   0%, 4%    { stroke-dashoffset: 8; }
-  16%, 82%  { stroke-dashoffset: 0; }
-  96%, 100% { stroke-dashoffset: 8; }
+  18%, 82%  { stroke-dashoffset: 0; }
+  98%, 100% { stroke-dashoffset: 8; }
 }
-body.paper-mode .lg10-expense {
+body.paper-mode .lg5-expense {
   transform-box: fill-box;
   transform-origin: center;
-  animation: lg10Expense 5s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+  animation: lg5Expense 5.5s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
 }
-@keyframes lg10Expense {
-  0%, 8%    { transform: scale(1.08); opacity: 0.7; }
-  28%       { transform: scale(0.88); opacity: 0.9; }
-  48%       { transform: scale(1);    opacity: 0.6; }
-  68%       { transform: scale(0.92); opacity: 0.85; }
-  82%       { transform: scale(1);    opacity: 0.55; }
-  100%      { transform: scale(1.08); opacity: 0.7; }
+@keyframes lg5Expense {
+  0%, 100%   { transform: scale(1.08); opacity: 0.7;  }
+  30%        { transform: scale(0.88); opacity: 0.95; }
+  55%        { transform: scale(1);    opacity: 0.65; }
+  78%        { transform: scale(0.92); opacity: 0.85; }
 }
-body.paper-mode .lg10-revenue {
-  animation: lg10Revenue 5s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+body.paper-mode .lg5-revenue {
+  /* stroke-dasharray set inline to circRing; offset to 62 = final sweep ≈ 73% */
+  animation: lg5Revenue 5.5s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
-@keyframes lg10Revenue {
-  0%, 12%   { stroke-dashoffset: 226.19; }
-  62%, 82%  { stroke-dashoffset: 62;     }
-  96%, 100% { stroke-dashoffset: 226.19; }
+@keyframes lg5Revenue {
+  0%, 10%   { stroke-dashoffset: 226.19; }
+  72%       { stroke-dashoffset: 62;     }
+  100%      { stroke-dashoffset: 226.19; }
 }
-body.paper-mode .lg10-margin {
-  animation: lg10Margin 5s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+body.paper-mode .lg5-needle {
+  transform: rotate(-180deg);
+  animation: lg5Needle 5.5s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
-@keyframes lg10Margin {
-  0%, 55%   { opacity: 0.3; filter: blur(1.5px); }
-  68%       { opacity: 1;   filter: blur(0);     }
-  82%       { opacity: 1;   filter: blur(0);     }
-  96%, 100% { opacity: 0.3; filter: blur(1.5px); }
+@keyframes lg5Needle {
+  0%, 10%   { transform: rotate(-180deg); }
+  72%       { transform: rotate(46deg);   }
+  100%      { transform: rotate(-180deg); }
 }
-
-/* ════════════════════════════════════════════════════════════════
-   VARIANT 11 — Balance-Scale Blocks
-   The expense block drops first + tilts the beam slightly negative,
-   then the heavier revenue block drops and overrides — the beam
-   settles at a favorable positive tilt. Profit margin number slides
-   up from the pivot. 4.8s cycle. Heavy physical easing.
-   ════════════════════════════════════════════════════════════════ */
-body.paper-mode .lg11-beam {
-  transform: rotate(0);
-  animation: lg11Beam 4.8s cubic-bezier(0.34, 1.3, 0.64, 1) infinite;
+body.paper-mode .lg5-roll {
+  animation: lg5Roll 5.5s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
-@keyframes lg11Beam {
-  0%, 4%    { transform: rotate(0);     }
-  22%       { transform: rotate(4deg);  }
-  40%       { transform: rotate(-10deg); }
-  55%, 82%  { transform: rotate(-7deg);  }
-  96%, 100% { transform: rotate(0);     }
+@keyframes lg5Roll {
+  0%, 10%   { transform: translateY(0); }
+  72%       { transform: translateY(var(--roll-total)); }
+  100%      { transform: translateY(0); }
 }
-body.paper-mode .lg11-expense {
-  transform: translateY(-50px) scale(0.6);
-  opacity: 0;
-  animation: lg11Expense 4.8s cubic-bezier(0.7, 0.04, 0.98, 0.34) infinite;
+body.paper-mode .lg5-glow {
+  animation: lg5Glow 5.5s ease-in-out infinite;
 }
-@keyframes lg11Expense {
-  0%, 2%    { transform: translateY(-50px) scale(0.6); opacity: 0; }
-  10%       { transform: translateY(-50px) scale(0.8); opacity: 1; }
-  22%       { transform: translateY(0)     scale(1);   opacity: 1; }
-  82%       { transform: translateY(0)     scale(1);   opacity: 1; }
-  96%, 100% { transform: translateY(-50px) scale(0.6); opacity: 0; }
-}
-body.paper-mode .lg11-revenue {
-  transform: translateY(-60px) scale(0.6);
-  opacity: 0;
-  animation: lg11Revenue 4.8s cubic-bezier(0.7, 0.04, 0.98, 0.34) infinite;
-}
-@keyframes lg11Revenue {
-  0%, 18%   { transform: translateY(-60px) scale(0.6); opacity: 0; }
-  28%       { transform: translateY(-60px) scale(0.9); opacity: 1; }
-  40%       { transform: translateY(0)     scale(1);   opacity: 1; }
-  82%       { transform: translateY(0)     scale(1);   opacity: 1; }
-  96%, 100% { transform: translateY(-60px) scale(0.6); opacity: 0; }
-}
-body.paper-mode .lg11-margin {
-  opacity: 0;
-  transform: translateY(8px);
-  animation: lg11Margin 4.8s cubic-bezier(0.22, 1, 0.36, 1) infinite;
-}
-@keyframes lg11Margin {
-  0%, 42%   { opacity: 0; transform: translateY(8px); }
-  58%, 82%  { opacity: 1; transform: translateY(0);   }
-  96%, 100% { opacity: 0; transform: translateY(8px); }
-}
-
-/* ════════════════════════════════════════════════════════════════
-   VARIANT 12 — Connected Flow-Chart
-   A charcoal line draws through the blocks (stroke-dashoffset on
-   a pre-computed path of length ~160). As the line reaches each
-   block, the block's charcoal shell fades out, revealing the
-   terracotta/green split underneath. Total profit fades in last.
-   ════════════════════════════════════════════════════════════════ */
-body.paper-mode .lg12-line {
-  stroke-dasharray: 220;
-  stroke-dashoffset: 220;
-  animation: lg12Line 5.5s cubic-bezier(0.22, 1, 0.36, 1) infinite;
-}
-@keyframes lg12Line {
-  0%, 4%    { stroke-dashoffset: 220; }
-  80%       { stroke-dashoffset: 0;   }
-  96%, 100% { stroke-dashoffset: 220; }
-}
-body.paper-mode .lg12-shell {
-  opacity: 1;
-  animation: lg12Shell 5.5s cubic-bezier(0.22, 1, 0.36, 1) infinite;
-}
-@keyframes lg12Shell {
-  0%, 20%   { opacity: 1; }
-  30%, 82%  { opacity: 0; }
-  96%, 100% { opacity: 1; }
-}
-body.paper-mode .lg12-total {
-  opacity: 0;
-  transform: translateX(6px);
-  transform-box: fill-box;
-  animation: lg12Total 5.5s cubic-bezier(0.22, 1, 0.36, 1) infinite;
-}
-@keyframes lg12Total {
-  0%, 64%   { opacity: 0; transform: translateX(6px); }
-  78%, 82%  { opacity: 1; transform: translateX(0);   }
-  96%, 100% { opacity: 0; transform: translateX(6px); }
-}
-
-/* ════════════════════════════════════════════════════════════════
-   VARIANT 13 — Waterfall Stack
-   Per shelf: the charcoal cover retracts from left-to-right (scaleX
-   from 1 → 0) revealing terracotta expense + green profit underneath.
-   The expense slice then scales down and fades out (it "falls away").
-   The green profit slice persists. The cumulative profit bar on the
-   right grows segment by segment with each shelf completion.
-   ════════════════════════════════════════════════════════════════ */
-body.paper-mode .lg13-cover {
-  animation: lg13Cover 6.5s cubic-bezier(0.22, 1, 0.36, 1) infinite;
-  transform: scaleX(1);
-  transform-box: fill-box;
-}
-@keyframes lg13Cover {
-  0%, 8%    { transform: scaleX(1); }
-  22%, 82%  { transform: scaleX(0); }
-  96%, 100% { transform: scaleX(1); }
-}
-body.paper-mode .lg13-expense {
-  opacity: 1;
-  transform: scaleY(1);
-  transform-box: fill-box;
-  animation: lg13Expense 6.5s cubic-bezier(0.7, 0.04, 0.98, 0.34) infinite;
-}
-@keyframes lg13Expense {
-  0%, 22%   { opacity: 1; transform: scaleY(1) translateY(0); }
-  34%       { opacity: 1; transform: scaleY(1) translateY(0); }
-  46%       { opacity: 0; transform: scaleY(0.4) translateY(6px); }
-  82%       { opacity: 0; transform: scaleY(0.4) translateY(6px); }
-  96%, 100% { opacity: 1; transform: scaleY(1) translateY(0); }
-}
-body.paper-mode .lg13-profit {
-  opacity: 0;
-  animation: lg13Profit 6.5s cubic-bezier(0.22, 1, 0.36, 1) infinite;
-}
-@keyframes lg13Profit {
-  0%, 22%   { opacity: 0; }
-  34%, 82%  { opacity: 1; }
-  96%, 100% { opacity: 0; }
-}
-body.paper-mode .lg13-seg {
-  transform: scaleY(0);
-  transform-box: fill-box;
-  transform-origin: bottom;
-  animation: lg13Seg 6.5s cubic-bezier(0.34, 1.3, 0.64, 1) infinite;
-}
-@keyframes lg13Seg {
-  0%, 30%   { transform: scaleY(0);    }
-  48%       { transform: scaleY(1.08); }
-  58%, 82%  { transform: scaleY(1);    }
-  96%, 100% { transform: scaleY(0);    }
-}
-body.paper-mode .lg13-ticker {
-  animation: lg13Ticker 6.5s ease-in-out infinite;
-}
-@keyframes lg13Ticker {
-  0%, 100%   { opacity: 0.4; }
-  50%, 82%   { opacity: 1;   }
+@keyframes lg5Glow {
+  0%, 65%   { opacity: 0; }
+  74%       { opacity: 0.55; }
+  82%       { opacity: 0.22; }
+  100%      { opacity: 0; }
 }
 
 /* ── Mount-in animation for the real dashboard ─────────────────── */
@@ -1867,97 +1572,46 @@ body.paper-mode #marketingContent.mkt-mount-in > * {
   body.paper-mode .lg-stage       { min-height: 120px; }
 }
 
-/* ── Reduced motion ─────────────────────────────────────────────
-   For every CSS-driven variant in the gallery, freeze animations
-   and render the resting "peak" state so the concept is still
-   legible. Variant 1 (pencil trace) freezes at the completed circle. */
+/* ── Reduced motion — freeze all variants at peak state ───────── */
 @media (prefers-reduced-motion: reduce) {
-  body.paper-mode .lg1-circle,
-  body.paper-mode .lg1-dim,
-  body.paper-mode .lg2-bar,
-  body.paper-mode .lg3-fill,
-  body.paper-mode .lg4-cell,
-  body.paper-mode .lg4-tick,
-  body.paper-mode .lg5-indicator,
-  body.paper-mode .lg5-dip,
-  body.paper-mode .lg5-spike,
-  body.paper-mode .lg5-wash,
-  body.paper-mode .lg5-readout-num,
-  body.paper-mode .lg6-hatch,
-  body.paper-mode .lg6-revenue-num,
-  body.paper-mode .lg6-cost-num,
-  body.paper-mode .lg7-node,
-  body.paper-mode .lg7-expense,
-  body.paper-mode .lg7-profit,
-  body.paper-mode .lg7-hub-num,
-  body.paper-mode .lg8-scroll,
-  body.paper-mode .lg8-stamp,
-  body.paper-mode .lg8-rev,
-  body.paper-mode .lg8-sp,
-  body.paper-mode .lg8-pr,
-  body.paper-mode .lg8-total,
-  body.paper-mode .lg9-pit,
-  body.paper-mode .lg9-liquid,
-  body.paper-mode .lg9-tally,
-  body.paper-mode .lg10-tick,
-  body.paper-mode .lg10-expense,
-  body.paper-mode .lg10-revenue,
-  body.paper-mode .lg10-margin,
-  body.paper-mode .lg11-beam,
-  body.paper-mode .lg11-expense,
-  body.paper-mode .lg11-revenue,
-  body.paper-mode .lg11-margin,
-  body.paper-mode .lg12-line,
-  body.paper-mode .lg12-shell,
-  body.paper-mode .lg12-total,
-  body.paper-mode .lg13-cover,
-  body.paper-mode .lg13-expense,
-  body.paper-mode .lg13-profit,
-  body.paper-mode .lg13-seg,
-  body.paper-mode .lg13-ticker {
+  body.paper-mode .lg1-bar,
+  body.paper-mode .lg2-indicator,
+  body.paper-mode .lg2-dip,
+  body.paper-mode .lg2-spike,
+  body.paper-mode .lg2-wash,
+  body.paper-mode .lg2-roll,
+  body.paper-mode .lg3-hatch,
+  body.paper-mode .lg3-roll,
+  body.paper-mode .lg4-node,
+  body.paper-mode .lg4-expense,
+  body.paper-mode .lg4-profit,
+  body.paper-mode .lg4-roll,
+  body.paper-mode .lg5-tick,
+  body.paper-mode .lg5-expense,
+  body.paper-mode .lg5-revenue,
+  body.paper-mode .lg5-needle,
+  body.paper-mode .lg5-roll,
+  body.paper-mode .lg5-glow {
     animation: none !important;
   }
-  /* Frozen "resting" states — show the peak state so the concept is legible */
-  body.paper-mode .lg1-circle     { stroke-dashoffset: 0 !important; }
-  body.paper-mode .lg1-dim        { opacity: 1; }
-  body.paper-mode .lg2-bar,
-  body.paper-mode .lg4-cell       { transform: scaleY(1) !important; }
-  body.paper-mode .lg3-fill       { width: 60%; background-color: #B5672E; opacity: 1; }
-  body.paper-mode .lg4-tick,
-  body.paper-mode .lg5-readout-num,
-  body.paper-mode .lg6-revenue-num,
-  body.paper-mode .lg6-cost-num,
-  body.paper-mode .lg7-hub-num,
-  body.paper-mode .lg8-rev,
-  body.paper-mode .lg8-sp,
-  body.paper-mode .lg8-pr,
-  body.paper-mode .lg8-total,
-  body.paper-mode .lg9-tally,
-  body.paper-mode .lg11-margin,
-  body.paper-mode .lg12-total,
-  body.paper-mode .lg13-ticker    { opacity: 1; transform: none; }
-  body.paper-mode .lg5-dip,
-  body.paper-mode .lg5-spike      { stroke-dashoffset: 0; }
-  body.paper-mode .lg5-wash       { transform: scaleY(1); }
-  body.paper-mode .lg6-hatch      { opacity: 1; transform: scaleX(1); }
-  body.paper-mode .lg7-node       { transform: scale(1) !important; }
-  body.paper-mode .lg7-expense    { stroke-dashoffset: 11 !important; }
-  body.paper-mode .lg7-profit     { stroke-dashoffset: -8 !important; }
-  body.paper-mode .lg8-stamp      { transform: scale(1) rotate(0) !important; }
-  body.paper-mode .lg9-pit        { transform: translateY(8px); }
-  body.paper-mode .lg9-liquid     { transform: scaleY(1); }
-  body.paper-mode .lg10-tick      { stroke-dashoffset: 0; }
-  body.paper-mode .lg10-expense   { transform: scale(1) !important; opacity: 0.7 !important; }
-  body.paper-mode .lg10-revenue   { stroke-dashoffset: 62 !important; }
-  body.paper-mode .lg11-beam      { transform: rotate(-7deg) !important; }
-  body.paper-mode .lg11-expense   { transform: translateY(0) scale(1) !important; opacity: 1 !important; }
-  body.paper-mode .lg11-revenue   { transform: translateY(0) scale(1) !important; opacity: 1 !important; }
-  body.paper-mode .lg12-line      { stroke-dashoffset: 0 !important; }
-  body.paper-mode .lg12-shell     { opacity: 0 !important; }
-  body.paper-mode .lg13-cover     { transform: scaleX(0) !important; }
-  body.paper-mode .lg13-expense   { opacity: 0 !important; transform: scaleY(0.4) translateY(6px) !important; }
-  body.paper-mode .lg13-profit    { opacity: 1 !important; }
-  body.paper-mode .lg13-seg       { transform: scaleY(1) !important; }
+  body.paper-mode .lg1-bar        { transform: scaleY(1) !important; }
+  body.paper-mode .lg2-indicator  { transform: translateX(108px) !important; }
+  body.paper-mode .lg2-dip,
+  body.paper-mode .lg2-spike,
+  body.paper-mode .lg5-tick       { stroke-dashoffset: 0 !important; }
+  body.paper-mode .lg2-wash       { transform: scaleY(1) !important; }
+  body.paper-mode .lg2-roll,
+  body.paper-mode .lg3-roll,
+  body.paper-mode .lg4-roll,
+  body.paper-mode .lg5-roll       { transform: translateY(var(--roll-total)) !important; }
+  body.paper-mode .lg3-hatch      { opacity: 1; transform: scaleX(1) !important; }
+  body.paper-mode .lg4-node       { transform: scale(1) !important; }
+  body.paper-mode .lg4-expense    { stroke-dashoffset: 11 !important; }
+  body.paper-mode .lg4-profit     { stroke-dashoffset: -8 !important; }
+  body.paper-mode .lg5-expense    { transform: scale(1) !important; opacity: 0.7 !important; }
+  body.paper-mode .lg5-revenue    { stroke-dashoffset: 62 !important; }
+  body.paper-mode .lg5-needle     { transform: rotate(46deg) !important; }
+  body.paper-mode .lg5-glow       { opacity: 0.3 !important; }
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -2265,4 +1919,318 @@ body.paper-mode .tech-name-label.is-revealing::after {
   body.paper-mode #marketingContent.mkt-mount-in > * { animation: none; }
   /* Skeleton shimmer also stops — block stays at base tone. */
   body.paper-mode .skel { animation: none; background-image: none; }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Unified Financial Summary card (.ufs-card)
+   ────────────────────────────────────────────────────────────────
+   A new sibling card that lives directly below the existing
+   "<Month> Financial Summary" (.mf-card). Same warm paper aesthetic
+   + deep charcoal ink, with three vibrant category colors driving a
+   single tactile interactive bar. Accordion expansion uses the
+   grid-template-rows 0fr → 1fr trick for a real-height transition
+   (no max-height approximation) so the panel slides like paper.
+   ════════════════════════════════════════════════════════════════ */
+
+body.paper-mode .ufs-card {
+  background: var(--paper-bg, #F4F1EA);
+  border: 1px solid rgba(92, 84, 72, 0.14);
+  border-radius: 14px;
+  padding: 22px 24px 20px;
+  margin-top: 18px;
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: #1A1918;
+  position: relative;
+  box-shadow:
+    0 1px 1px rgba(44, 42, 40, 0.04),
+    0 2px 10px rgba(44, 42, 40, 0.04);
+}
+
+/* ── 1. Formula header ─────────────────────────────────────────── */
+body.paper-mode .ufs-formula {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px 14px;
+  padding: 4px 4px 18px;
+  border-bottom: 1px dashed rgba(92, 84, 72, 0.28);
+  margin-bottom: 18px;
+  font-variant-numeric: tabular-nums;
+}
+body.paper-mode .ufs-f-term {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  white-space: nowrap;
+  line-height: 1.15;
+}
+body.paper-mode .ufs-f-label {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: #2C2A28;
+}
+body.paper-mode .ufs-f-val {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  color: #1A1918;
+}
+/* Category-tinted labels so formula reads semantically */
+body.paper-mode .ufs-f-term--cogs   .ufs-f-label { color: #B83E3E; }
+body.paper-mode .ufs-f-term--ovhd   .ufs-f-label { color: #C76810; }
+body.paper-mode .ufs-f-term--profit .ufs-f-label { color: #1E8749; }
+body.paper-mode .ufs-f-term--cogs   .ufs-f-val   { color: #B83E3E; }
+body.paper-mode .ufs-f-term--ovhd   .ufs-f-val   { color: #C76810; }
+body.paper-mode .ufs-f-term--profit .ufs-f-val   { color: #1E8749; }
+/* Operator pills — visual dividers */
+body.paper-mode .ufs-f-op {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: rgba(92, 84, 72, 0.10);
+  color: #2C2A28;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+  line-height: 1;
+  flex-shrink: 0;
+}
+body.paper-mode .ufs-f-op--eq {
+  background: rgba(30, 135, 73, 0.14);
+  color: #1E8749;
+}
+
+/* ── 2. Unified interactive bar ────────────────────────────────── */
+body.paper-mode .ufs-bar {
+  display: flex;
+  width: 100%;
+  height: 62px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #E8E0CF;
+  box-shadow:
+    inset 0 1px 2px rgba(44, 42, 40, 0.12),
+    0 1px 0 rgba(255, 255, 255, 0.5);
+  gap: 2px;          /* tiny separator between segments */
+  padding: 0;
+}
+body.paper-mode .ufs-seg {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 0 14px;
+  border: none;
+  color: #1A1918;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+  transition: filter 180ms cubic-bezier(0.2, 0, 0.1, 1),
+              transform 180ms cubic-bezier(0.2, 0, 0.1, 1);
+  user-select: none;
+}
+body.paper-mode .ufs-seg--cogs   { background: #FF5B5B; }
+body.paper-mode .ufs-seg--ovhd   { background: #FF8A1F; }
+body.paper-mode .ufs-seg--profit { background: #2ECC71; }
+
+body.paper-mode .ufs-seg-ink {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  line-height: 1.1;
+  text-align: center;
+  pointer-events: none;
+  min-width: 0;
+  max-width: 100%;
+}
+body.paper-mode .ufs-seg-label {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #1A1918;                /* dark ink — NO white text anywhere */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+body.paper-mode .ufs-seg-pct {
+  font-size: 15px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  color: #1A1918;
+}
+
+/* Hover: ONE clean effect — subtle brightness lift. No multi-tone. */
+body.paper-mode .ufs-seg:hover {
+  filter: brightness(1.08) saturate(1.04);
+}
+body.paper-mode .ufs-seg:active {
+  transform: translateY(1px);
+}
+body.paper-mode .ufs-seg:focus-visible {
+  outline: 2px solid #FFD700;
+  outline-offset: 2px;
+  z-index: 2;
+}
+/* Active / open segment — crisp yellow underline ONLY (no color shifts) */
+body.paper-mode .ufs-seg.is-active::after {
+  content: '';
+  position: absolute;
+  left: 6px; right: 6px; bottom: -6px;
+  height: 4px;
+  background: #FFD700;
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(255, 215, 0, 0.35);
+}
+body.paper-mode .ufs-seg.is-active {
+  filter: brightness(1.05);
+}
+
+/* ── 3. Accordion panels ───────────────────────────────────────── */
+/* Uses the grid-template-rows 0fr → 1fr trick for a real-height
+   animated reveal. The cubic-bezier starts fast then heavily cushions
+   into place, mimicking a heavy paper sheet settling. */
+body.paper-mode .ufs-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 420ms cubic-bezier(0.2, 0, 0.1, 1),
+              opacity 300ms ease,
+              margin-top 420ms cubic-bezier(0.2, 0, 0.1, 1);
+  opacity: 0;
+  margin-top: 0;
+}
+body.paper-mode .ufs-panel.is-open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  margin-top: 14px;
+}
+body.paper-mode .ufs-panel-inner {
+  overflow: hidden;
+  min-height: 0;
+  padding: 0;
+}
+body.paper-mode .ufs-panel.is-open > .ufs-panel-inner {
+  padding: 14px 4px 4px;
+}
+
+/* ── 4. Breakdown content ──────────────────────────────────────── */
+body.paper-mode .ufs-sub-bar {
+  display: flex;
+  height: 22px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: rgba(92, 84, 72, 0.10);
+  box-shadow: inset 0 1px 2px rgba(44, 42, 40, 0.12);
+  gap: 1px;
+  margin-bottom: 14px;
+}
+body.paper-mode .ufs-sub-seg {
+  min-width: 0;
+  transition: filter 180ms ease;
+}
+body.paper-mode .ufs-sub-seg:hover {
+  filter: brightness(1.08) saturate(1.04);
+}
+
+body.paper-mode .ufs-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2px;
+}
+body.paper-mode .ufs-li {
+  display: grid;
+  grid-template-columns: 14px 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 6px;
+  border-radius: 6px;
+  font-variant-numeric: tabular-nums;
+  transition: background 140ms ease;
+}
+body.paper-mode .ufs-li:hover {
+  background: rgba(255, 215, 0, 0.10);
+}
+body.paper-mode .ufs-li-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(44, 42, 40, 0.18);
+}
+body.paper-mode .ufs-li-label {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #2C2A28;
+}
+body.paper-mode .ufs-li-pct {
+  font-size: 13px;
+  font-weight: 600;
+  color: #5C5448;
+  min-width: 48px;
+  text-align: right;
+}
+body.paper-mode .ufs-li-val {
+  font-size: 14px;
+  font-weight: 800;
+  color: #1A1918;
+  min-width: 62px;
+  text-align: right;
+  letter-spacing: -0.01em;
+}
+
+/* Profit panel note — narrative explanation */
+body.paper-mode .ufs-profit-note {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: #2C2A28;
+  padding: 12px 14px;
+  background: rgba(46, 204, 113, 0.08);
+  border-left: 3px solid #2ECC71;
+  border-radius: 4px;
+}
+body.paper-mode .ufs-profit-note strong {
+  color: #1E8749;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Mobile ────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  body.paper-mode .ufs-card {
+    padding: 16px 14px 14px;
+    margin-top: 14px;
+  }
+  body.paper-mode .ufs-formula {
+    gap: 8px 10px;
+    padding-bottom: 14px;
+    margin-bottom: 14px;
+  }
+  body.paper-mode .ufs-f-label { font-size: 11.5px; }
+  body.paper-mode .ufs-f-val   { font-size: 14.5px; }
+  body.paper-mode .ufs-f-op    { width: 20px; height: 20px; font-size: 12px; }
+  body.paper-mode .ufs-bar     { height: 54px; }
+  body.paper-mode .ufs-seg     { padding: 0 8px; }
+  body.paper-mode .ufs-seg-label { font-size: 11.5px; }
+  body.paper-mode .ufs-seg-pct   { font-size: 13px; }
+  body.paper-mode .ufs-li      { grid-template-columns: 12px 1fr auto auto; gap: 8px; padding: 7px 4px; }
+  body.paper-mode .ufs-li-label { font-size: 12.5px; }
+  body.paper-mode .ufs-li-pct   { font-size: 12px; min-width: 42px; }
+  body.paper-mode .ufs-li-val   { font-size: 13px; min-width: 54px; }
+}
+
+/* Reduced motion — instant expand/collapse */
+@media (prefers-reduced-motion: reduce) {
+  body.paper-mode .ufs-panel,
+  body.paper-mode .ufs-seg,
+  body.paper-mode .ufs-sub-seg {
+    transition: none !important;
+  }
 }
