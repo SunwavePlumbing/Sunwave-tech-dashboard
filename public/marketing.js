@@ -41,37 +41,14 @@ async function fetchQBOMarketing() {
 function startLedgerLoader(container) {
   if (_ttLoader) _ttLoader.destroy();
 
-  var cells = [
-    { n:  1, name: 'Drafting Pencil Circle Trace', svg: lgSvg_1()  },
-    { n:  2, name: 'Sequential Leaf Vein Pathing', svg: lgSvg_2()  },
-    { n:  3, name: 'Origami Pop-Up Fold',          svg: lgSvg_3()  },
-    { n:  4, name: 'Topographical Ripple',         svg: lgSvg_4()  },
-    { n:  5, name: 'Blueprint Grid Ripple',        svg: lgSvg_5()  },
-    { n:  6, name: 'Paper Flip-Book Building',     svg: lgSvg_6()  },
-    { n:  7, name: 'Laser-Cut Stencil Shadow',     svg: lgSvg_7()  },
-    { n:  8, name: 'Stacked Data Column Fill',     svg: lgSvg_8()  },
-    { n:  9, name: 'Connected Flow-Chart',         svg: lgSvg_9()  },
-    { n: 10, name: 'Terra Cotta Curing Bar',       svg: lgSvg_10() }
-  ];
-
-  var gridHtml = cells.map(function(c) {
-    return '<div class="lg-cell lg-cell--' + c.n + '">' +
-      '<div class="lg-head">' +
-        '<span class="lg-num">' + c.n + '</span>' +
-        '<span class="lg-name">' + esc(c.name) + '</span>' +
-      '</div>' +
-      '<div class="lg-stage">' + c.svg + '</div>' +
-    '</div>';
-  }).join('');
-
+  // Single-animation loader (Topographical Ripple, chosen from the
+  // prior evaluation gallery). The grid layout still works with one
+  // cell; we just drop the "pick a favorite" chrome and let the
+  // single animation fill the stage.
   container.innerHTML =
-    '<div class="ledger-loader ledger-loader--gallery" id="ttLoader">' +
-      '<div class="lg-intro">' +
-        '<div class="lg-intro-title">Loading animation — pick a favorite</div>' +
-        '<div class="lg-intro-sub">Each cell plays its animation continuously. Tell me which number you like and I\u2019ll wire it up as the real loader.</div>' +
-        '<button type="button" class="lg-continue" id="lgContinue" onclick="_dismissLoaderGallery()">Continue to dashboard \u2192</button>' +
-      '</div>' +
-      '<div class="lg-grid">' + gridHtml + '</div>' +
+    '<div class="ledger-loader ledger-loader--solo" id="ttLoader">' +
+      '<div class="lg-stage lg-stage--solo">' + lgSvg_4() + '</div>' +
+      '<button type="button" class="lg-continue" id="lgContinue" onclick="_dismissLoaderGallery()">Continue to dashboard \u2192</button>' +
     '</div>';
 
   var rootEl      = container.querySelector('#ttLoader');
@@ -140,454 +117,50 @@ function rollingTicker(opts) {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   10 paper / ink / tactile loading animations — digital paper calendar
-   Every variant reads as smooth, continuous, fountain-pen + risograph.
-   Class prefix lgN — CSS scoped per-variant in marketing-paper.css.
-   Drawn strokes use pathLength="100" so a single dasharray=100 keyframe
-   works across paths of any real length.
+   Topographical Ripple loader — the single chosen animation.
+   Four concentric irregular contours draw outward from the center,
+   largest-to-smallest. Only after all four rings have fully drawn
+   does the central "Transforming Plumbing" label + peak pulse
+   reveal itself. Cycle: 12s, slow + meditative.
+   Class prefix lg4 — CSS scoped in marketing-paper.css.
+   Paths use pathLength="100" so a normalized dasharray=100 keyframe
+   drives the draw regardless of real path length.
    ══════════════════════════════════════════════════════════════════ */
-
-/* 1 — Drafting Pencil Circle Trace
-   A single pencil tip rotates around center, tracing a perfect charcoal
-   circle via stroke-dashoffset. A coral dimension line with R=60.00%
-   appears near completion; the date materializes in the center;
-   everything fades and restarts smoothly. */
-function lgSvg_1() {
-  var cx = 70, cy = 74, R = 36;
-  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
-    // Traced circle
-    '<circle class="lg1-circle" cx="' + cx + '" cy="' + cy + '" r="' + R + '" ' +
-           'pathLength="100" fill="none" stroke="#2C2A28" stroke-width="1.3" ' +
-           'stroke-linecap="round" stroke-dasharray="100" stroke-dashoffset="100"/>' +
-    // Rotating pencil (tip sits at 3 o'clock, rotates around center)
-    '<g class="lg1-pencil" style="transform-origin:' + cx + 'px ' + cy + 'px">' +
-      '<g transform="translate(' + (cx + R) + ' ' + cy + ')">' +
-        // Graphite tip
-        '<polygon points="0,0 3.5,-2 3.5,2" fill="#2C2A28"/>' +
-        // Wood body
-        '<polygon points="3.5,-2 14,-3.2 14,3.2 3.5,2" fill="#D9A86B" stroke="#2C2A28" stroke-width="0.4"/>' +
-        // Ferrule
-        '<rect x="14" y="-3.2" width="3" height="6.4" fill="#A79D8B" stroke="#2C2A28" stroke-width="0.3"/>' +
-        // Eraser
-        '<rect x="17" y="-3.2" width="5" height="6.4" fill="#E88140" stroke="#2C2A28" stroke-width="0.3"/>' +
-      '</g>' +
-    '</g>' +
-    // Center pivot mark (subtle)
-    '<circle cx="' + cx + '" cy="' + cy + '" r="0.8" fill="#7A7571"/>' +
-    // Dimension line (bottom)
-    '<g class="lg1-dim">' +
-      '<line x1="' + (cx - R) + '" y1="' + (cy + R + 12) + '" x2="' + (cx + R) + '" y2="' + (cy + R + 12) + '" ' +
-            'stroke="#E88140" stroke-width="0.6" stroke-dasharray="2 2"/>' +
-      '<polyline points="' + (cx - R + 3) + ',' + (cy + R + 10) + ' ' + (cx - R) + ',' + (cy + R + 12) + ' ' + (cx - R + 3) + ',' + (cy + R + 14) + '" fill="none" stroke="#E88140" stroke-width="0.6"/>' +
-      '<polyline points="' + (cx + R - 3) + ',' + (cy + R + 10) + ' ' + (cx + R) + ',' + (cy + R + 12) + ' ' + (cx + R - 3) + ',' + (cy + R + 14) + '" fill="none" stroke="#E88140" stroke-width="0.6"/>' +
-      '<text x="' + cx + '" y="' + (cy + R + 22) + '" fill="#E88140" font-size="6" ' +
-            'font-family="ui-monospace, monospace" font-weight="700" text-anchor="middle" ' +
-            'letter-spacing="0.05em" style="font-variant-numeric: tabular-nums">R = 60.00%</text>' +
-    '</g>' +
-    // Date inside circle
-    '<text class="lg1-date" x="' + cx + '" y="' + (cy + 3) + '" fill="#2C2A28" font-size="11" ' +
-          'font-family="ui-monospace, monospace" font-weight="800" text-anchor="middle" ' +
-          'letter-spacing="0.04em">Apr 18</text>' +
-  '</svg>';
-}
-
-/* 2 — Sequential Leaf Vein Pathing
-   A leaf outline draws itself; midrib follows; 8 lateral veins cascade
-   out in staggered pairs. Whole leaf fades and redraws seamlessly. */
-function lgSvg_2() {
-  var leaf   = 'M70 18 C96 32, 110 62, 96 108 C90 118, 80 124, 70 126 C60 124, 50 118, 44 108 C30 62, 44 32, 70 18 Z';
-  var midrib = 'M70 22 L70 124';
-  var veins = [
-    'M70 36 L50 50', 'M70 36 L90 50',
-    'M70 56 L44 70', 'M70 56 L96 70',
-    'M70 76 L46 90', 'M70 76 L94 90',
-    'M70 96 L54 108','M70 96 L86 108'
-  ];
-  var veinSvg = veins.map(function(d, i) {
-    return '<path class="lg2-vein lg2-vein--' + i + '" d="' + d + '" pathLength="100" ' +
-           'fill="none" stroke="#2C2A28" stroke-width="0.8" stroke-linecap="round" ' +
-           'stroke-dasharray="100" stroke-dashoffset="100" ' +
-           'style="animation-delay:' + (i * 0.12).toFixed(2) + 's"/>';
-  }).join('');
-  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
-    '<path class="lg2-leaf" d="' + leaf + '" pathLength="100" fill="#F3EBD7" stroke="#2C2A28" ' +
-          'stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" ' +
-          'stroke-dasharray="100" stroke-dashoffset="100"/>' +
-    '<path class="lg2-midrib" d="' + midrib + '" pathLength="100" fill="none" stroke="#2C2A28" ' +
-          'stroke-width="1.1" stroke-linecap="round" stroke-dasharray="100" stroke-dashoffset="100"/>' +
-    veinSvg +
-    '<text x="70" y="14" fill="#7A7571" font-size="4.5" font-family="ui-monospace, monospace" ' +
-          'text-anchor="middle" letter-spacing="0.1em">DAYS 1 \u2013 5</text>' +
-  '</svg>';
-}
-
-/* 3 — Origami Pop-Up Fold
-   5-frame flip-book: flat square → diagonal fold → triangle → paper
-   crane (with a wing flap) → flattened entry bar "10 AM MEETING".
-   Frames swap via steps-like opacity, crane flaps once, then collapses. */
-function lgSvg_3() {
-  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
-    // Title
-    '<text x="70" y="22" fill="#7A7571" font-size="4.5" font-family="ui-monospace, monospace" ' +
-          'text-anchor="middle" letter-spacing="0.1em">ORIGAMI SCHEDULE</text>' +
-    // Shadow plate (static)
-    '<ellipse cx="70" cy="116" rx="32" ry="3" fill="#2C2A28" opacity="0.12"/>' +
-    // Frame 0 — flat cardstock
-    '<g class="lg3-frame lg3-frame--0">' +
-      '<rect x="44" y="54" width="52" height="52" fill="#FAF0D5" stroke="#2C2A28" stroke-width="1.1"/>' +
-    '</g>' +
-    // Frame 1 — diagonal fold
-    '<g class="lg3-frame lg3-frame--1">' +
-      '<polygon points="44,54 96,54 70,106" fill="#F3EBD7" stroke="#2C2A28" stroke-width="1.1"/>' +
-      '<polygon points="44,54 70,106 44,106" fill="#E8DBB8" stroke="#2C2A28" stroke-width="1.1"/>' +
-    '</g>' +
-    // Frame 2 — triangle
-    '<g class="lg3-frame lg3-frame--2">' +
-      '<polygon points="70,38 98,96 42,96" fill="#F3EBD7" stroke="#2C2A28" stroke-width="1.1"/>' +
-      '<line x1="70" y1="38" x2="70" y2="96" stroke="#2C2A28" stroke-width="0.6" stroke-dasharray="1.5 1.5"/>' +
-    '</g>' +
-    // Frame 3 — crane
-    '<g class="lg3-frame lg3-frame--3">' +
-      // body
-      '<polygon points="60,80 80,80 94,94 46,94" fill="#FAF0D5" stroke="#2C2A28" stroke-width="1.1"/>' +
-      // left wing
-      '<polygon class="lg3-wing lg3-wing--l" points="60,80 28,52 48,86" fill="#F3EBD7" stroke="#2C2A28" stroke-width="1.1" style="transform-origin:60px 82px"/>' +
-      // right wing
-      '<polygon class="lg3-wing lg3-wing--r" points="80,80 112,52 92,86" fill="#F3EBD7" stroke="#2C2A28" stroke-width="1.1" style="transform-origin:80px 82px"/>' +
-      // beak
-      '<polyline points="80,80 96,68 105,72" fill="none" stroke="#2C2A28" stroke-width="1" stroke-linejoin="round"/>' +
-      // tail
-      '<polyline points="60,80 40,70 32,74" fill="none" stroke="#2C2A28" stroke-width="1" stroke-linejoin="round"/>' +
-    '</g>' +
-    // Frame 4 — flattened entry
-    '<g class="lg3-frame lg3-frame--4">' +
-      '<rect x="26" y="78" width="88" height="16" rx="2.5" fill="#FAF0D5" stroke="#2C2A28" stroke-width="1.1"/>' +
-      '<text x="70" y="89" fill="#2C2A28" font-size="7" font-family="ui-monospace, monospace" ' +
-            'font-weight="700" text-anchor="middle" letter-spacing="0.05em">10 AM MEETING</text>' +
-    '</g>' +
-  '</svg>';
-}
-
-/* 4 — Topographical Ripple
-   4 concentric irregular contours draw outward via stroke-dashoffset.
-   Central peak pulses. On retract, all contours fade and restart from
-   a quiet dot. Slow, meditative rhythm. */
 function lgSvg_4() {
+  // Rings ordered inner → outer. To reveal OUTERMOST first and
+  // innermost LAST, we invert the delay index (ringsCount - 1 - i).
   var rings = [
     'M70 50 C86 50, 96 60, 96 72 C96 86, 86 96, 70 96 C54 96, 44 86, 44 72 C44 60, 54 50, 70 50 Z',
     'M70 38 C94 38, 106 56, 106 72 C106 90, 92 108, 70 108 C48 108, 34 90, 34 72 C34 56, 46 38, 70 38 Z',
     'M70 26 C100 26, 116 50, 116 72 C116 96, 100 120, 70 120 C40 120, 24 96, 24 72 C24 50, 40 26, 70 26 Z',
     'M70 14 C108 14, 128 44, 128 72 C128 102, 108 130, 70 130 C32 130, 12 102, 12 72 C12 44, 32 14, 70 14 Z'
   ];
+  var ringsCount = rings.length;
   var paths = rings.map(function(d, i) {
+    // Outermost (i = ringsCount - 1) draws first (delay 0).
+    // Innermost (i = 0) draws last (delay (ringsCount-1) * stagger).
+    var delay = (ringsCount - 1 - i) * 0.9;
     return '<path class="lg4-ring lg4-ring--' + i + '" d="' + d + '" pathLength="100" ' +
            'fill="none" stroke="#2C2A28" stroke-width="0.9" stroke-linecap="round" ' +
            'stroke-dasharray="100" stroke-dashoffset="100" ' +
-           'style="animation-delay:' + (i * 0.35).toFixed(2) + 's"/>';
+           'style="animation-delay:' + delay.toFixed(2) + 's"/>';
   }).join('');
   return '<svg class="lg-svg" viewBox="0 0 140 140">' +
-    // Title
-    '<text x="70" y="14" fill="#7A7571" font-size="4.5" font-family="ui-monospace, monospace" ' +
-          'text-anchor="middle" letter-spacing="0.12em">TOPOGRAPHY</text>' +
+    // Top title
+    '<text x="70" y="14" fill="#7A7571" font-size="5" font-family="ui-monospace, monospace" ' +
+          'text-anchor="middle" letter-spacing="0.14em" font-weight="700">FINDING THE WHY</text>' +
     paths +
-    // Central peak
+    // Central peak (pulses continuously)
     '<circle class="lg4-peak" cx="70" cy="72" r="2.6" fill="#E88140" stroke="#2C2A28" ' +
            'stroke-width="0.5" style="transform-origin:70px 72px"/>' +
-    // Meeting label
-    '<text class="lg4-label" x="70" y="64" fill="#2C2A28" font-size="4.5" ' +
-          'font-family="ui-monospace, monospace" font-weight="700" text-anchor="middle" ' +
-          'letter-spacing="0.08em">MEET</text>' +
-  '</svg>';
-}
-
-/* 5 — Blueprint Grid Ripple
-   A 7×7 field of faint isometric dots. A radial wave expands from
-   center, transforming dots into solid horizontal+vertical line
-   segments (a blueprint grid). Wave reaches edges, reverses back to
-   dots. Continuous breath. */
-function lgSvg_5() {
-  var cols = 7, rows = 7;
-  var dx = 16, dy = 16;
-  var startX = 14, startY = 16;
-  var dots = '', hLines = '', vLines = '';
-  var cc = 3, cr = 3;
-  for (var r = 0; r < rows; r++) {
-    for (var c = 0; c < cols; c++) {
-      var x = startX + c * dx;
-      var y = startY + r * dy;
-      var gd = Math.sqrt((r - cr) * (r - cr) + (c - cc) * (c - cc));
-      var delay = gd * 0.18;
-      dots += '<circle class="lg5-dot" cx="' + x + '" cy="' + y + '" r="1.1" fill="#7A7571" opacity="0.5"/>';
-      if (c < cols - 1) {
-        hLines += '<line class="lg5-line lg5-h" x1="' + x + '" y1="' + y + '" ' +
-                  'x2="' + (x + dx) + '" y2="' + y + '" stroke="#2C2A28" stroke-width="0.9" ' +
-                  'stroke-linecap="round" style="transform-origin:' + x + 'px ' + y + 'px;' +
-                  'animation-delay:' + delay.toFixed(2) + 's"/>';
-      }
-      if (r < rows - 1) {
-        vLines += '<line class="lg5-line lg5-v" x1="' + x + '" y1="' + y + '" ' +
-                  'x2="' + x + '" y2="' + (y + dy) + '" stroke="#2C2A28" stroke-width="0.9" ' +
-                  'stroke-linecap="round" style="transform-origin:' + x + 'px ' + y + 'px;' +
-                  'animation-delay:' + delay.toFixed(2) + 's"/>';
-      }
-    }
-  }
-  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
-    hLines + vLines + dots +
-    '<text x="70" y="134" fill="#7A7571" font-size="4.5" font-family="ui-monospace, monospace" ' +
-          'text-anchor="middle" letter-spacing="0.12em">BLUEPRINT GRID</text>' +
-  '</svg>';
-}
-
-/* 6 — Paper Flip-Book of a Building
-   5 construction-stage frames cycle via steps-like opacity: LOT →
-   FOUNDATION → FRAMING → CLADDING → COMPLETE. Tactile analog flip-
-   book feel; distinct rhythm per stage. */
-function lgSvg_6() {
-  var base = '<line x1="20" y1="108" x2="120" y2="108" stroke="#2C2A28" stroke-width="0.6" stroke-dasharray="2 2"/>';
-  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
-    '<text x="70" y="18" fill="#7A7571" font-size="4.5" font-family="ui-monospace, monospace" ' +
-          'text-anchor="middle" letter-spacing="0.12em">FLIP-BOOK BUILD</text>' +
-    base +
-    // 0 — empty lot
-    '<g class="lg6-frame lg6-frame--0">' +
-      '<text x="70" y="82" fill="#7A7571" font-size="5" font-family="ui-monospace, monospace" ' +
-            'text-anchor="middle" letter-spacing="0.1em">LOT READY</text>' +
-    '</g>' +
-    // 1 — foundation
-    '<g class="lg6-frame lg6-frame--1">' +
-      '<rect x="36" y="100" width="68" height="8" fill="#A79D8B" stroke="#2C2A28" stroke-width="0.8"/>' +
-      '<text x="70" y="88" fill="#7A7571" font-size="4.5" font-family="ui-monospace, monospace" ' +
-            'text-anchor="middle" letter-spacing="0.1em">FOUNDATION</text>' +
-    '</g>' +
-    // 2 — framing
-    '<g class="lg6-frame lg6-frame--2">' +
-      '<rect x="36" y="100" width="68" height="8" fill="#A79D8B" stroke="#2C2A28" stroke-width="0.8"/>' +
-      '<g stroke="#2C2A28" stroke-width="0.9" fill="none">' +
-        '<line x1="40" y1="100" x2="40" y2="52"/>' +
-        '<line x1="60" y1="100" x2="60" y2="52"/>' +
-        '<line x1="80" y1="100" x2="80" y2="52"/>' +
-        '<line x1="100" y1="100" x2="100" y2="52"/>' +
-        '<line x1="40" y1="52"  x2="100" y2="52"/>' +
-        '<line x1="40" y1="76"  x2="100" y2="76"/>' +
-      '</g>' +
-      '<text x="70" y="42" fill="#7A7571" font-size="4.5" font-family="ui-monospace, monospace" ' +
-            'text-anchor="middle" letter-spacing="0.1em">FRAMING</text>' +
-    '</g>' +
-    // 3 — cladding + windows
-    '<g class="lg6-frame lg6-frame--3">' +
-      '<rect x="36" y="100" width="68" height="8" fill="#A79D8B" stroke="#2C2A28" stroke-width="0.8"/>' +
-      '<rect x="40" y="52"  width="60" height="48" fill="#F3EBD7" stroke="#2C2A28" stroke-width="1"/>' +
-      '<rect x="48" y="60" width="10" height="10" fill="#4A7CB8" stroke="#2C2A28" stroke-width="0.6"/>' +
-      '<rect x="65" y="60" width="10" height="10" fill="#4A7CB8" stroke="#2C2A28" stroke-width="0.6"/>' +
-      '<rect x="82" y="60" width="10" height="10" fill="#4A7CB8" stroke="#2C2A28" stroke-width="0.6"/>' +
-      '<rect x="48" y="80" width="10" height="10" fill="#4A7CB8" stroke="#2C2A28" stroke-width="0.6"/>' +
-      '<rect x="82" y="80" width="10" height="10" fill="#4A7CB8" stroke="#2C2A28" stroke-width="0.6"/>' +
-      '<rect x="65" y="80" width="10" height="20" fill="#E88140" stroke="#2C2A28" stroke-width="0.6"/>' +
-      '<text x="70" y="42" fill="#7A7571" font-size="4.5" font-family="ui-monospace, monospace" ' +
-            'text-anchor="middle" letter-spacing="0.1em">CLADDING</text>' +
-    '</g>' +
-    // 4 — complete
-    '<g class="lg6-frame lg6-frame--4">' +
-      '<rect x="36" y="100" width="68" height="8" fill="#A79D8B" stroke="#2C2A28" stroke-width="0.8"/>' +
-      '<rect x="40" y="52"  width="60" height="48" fill="#F3EBD7" stroke="#2C2A28" stroke-width="1"/>' +
-      '<polygon points="34,52 106,52 70,30" fill="#D17036" stroke="#2C2A28" stroke-width="1"/>' +
-      '<rect x="48" y="60" width="10" height="10" fill="#4A7CB8" stroke="#2C2A28" stroke-width="0.6"/>' +
-      '<rect x="65" y="60" width="10" height="10" fill="#4A7CB8" stroke="#2C2A28" stroke-width="0.6"/>' +
-      '<rect x="82" y="60" width="10" height="10" fill="#4A7CB8" stroke="#2C2A28" stroke-width="0.6"/>' +
-      '<rect x="48" y="80" width="10" height="10" fill="#4A7CB8" stroke="#2C2A28" stroke-width="0.6"/>' +
-      '<rect x="82" y="80" width="10" height="10" fill="#4A7CB8" stroke="#2C2A28" stroke-width="0.6"/>' +
-      '<rect x="65" y="80" width="10" height="20" fill="#E88140" stroke="#2C2A28" stroke-width="0.6"/>' +
-      '<rect x="84" y="34" width="5.5" height="10" fill="#2C2A28"/>' +
-      '<text x="70" y="42" fill="#3CA04A" font-size="5" font-family="ui-monospace, monospace" ' +
-            'font-weight="800" text-anchor="middle" letter-spacing="0.1em">COMPLETE</text>' +
-    '</g>' +
-  '</svg>';
-}
-
-/* 7 — Laser-Cut Stencil Shadow Sweep
-   A 5×5 grid of windows punched out of an off-white facade. A light
-   source sweeps left → right; a skewed shadow band cast across the
-   facade elongates and retracts, landing precisely on the "current"
-   time column at the end of each cycle. Clean, continuous arc. */
-function lgSvg_7() {
-  var windows = '';
-  var rows = 5, cols = 5;
-  var startX = 28, startY = 34;
-  var wW = 10, wH = 12, gap = 5;
-  for (var r = 0; r < rows; r++) {
-    for (var c = 0; c < cols; c++) {
-      var x = startX + c * (wW + gap);
-      var y = startY + r * (wH + gap);
-      windows += '<rect x="' + x + '" y="' + y + '" width="' + wW + '" height="' + wH + '" ' +
-                 'fill="#FAF0D5" stroke="#2C2A28" stroke-width="0.6"/>';
-    }
-  }
-  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
-    '<defs>' +
-      '<clipPath id="lg7-clip">' +
-        '<rect x="22" y="28" width="96" height="94"/>' +
-      '</clipPath>' +
-    '</defs>' +
-    // Title
-    '<text x="70" y="18" fill="#7A7571" font-size="4.5" font-family="ui-monospace, monospace" ' +
-          'text-anchor="middle" letter-spacing="0.12em">SOLAR TRACK</text>' +
-    // Facade base
-    '<rect x="22" y="28" width="96" height="94" fill="#E8DBB8" stroke="#2C2A28" stroke-width="1"/>' +
-    windows +
-    // Shadow band (clipped)
-    '<g clip-path="url(#lg7-clip)">' +
-      '<polygon class="lg7-shadow" points="-50,28 10,28 -14,122 -74,122" fill="#2C2A28" opacity="0.32"/>' +
-    '</g>' +
-    // Sun token
-    '<g class="lg7-sun">' +
-      '<circle cx="0" cy="0" r="4.5" fill="#F3C670" stroke="#2C2A28" stroke-width="0.6"/>' +
-    '</g>' +
-  '</svg>';
-}
-
-/* 8 — Stacked Data Column Fill
-   4 vertical bars. Colored blocks cascade in from top, slamming into
-   place to form the bars. Once each bar fills, a risograph teal
-   highlight bleeds behind it. Every cycle: blocks fade, restart. */
-function lgSvg_8() {
-  var bars = [
-    { x: 22,  h: 5, color: '#3CA04A' },
-    { x: 54,  h: 4, color: '#D17036' },
-    { x: 86,  h: 5, color: '#2C2A28' },
-    { x: 118, h: 3, color: '#4A7CB8' }
-  ];
-  var highlights = '', outlines = '', blocks = '';
-  var barBottom = 108, blockH = 10, barW = 16;
-  bars.forEach(function(b, bi) {
-    var topY = barBottom - b.h * blockH;
-    // Riso highlight (teal bleed) behind bar
-    highlights += '<rect class="lg8-highlight lg8-highlight--' + bi + '" ' +
-                  'x="' + (b.x - 2) + '" y="' + (topY - 2) + '" ' +
-                  'width="' + (barW + 4) + '" height="' + (b.h * blockH + 4) + '" rx="1.5" ' +
-                  'fill="#5DC4C0" ' +
-                  'style="animation-delay:' + (bi * 0.25 + b.h * 0.15 + 0.2).toFixed(2) + 's"/>';
-    outlines += '<rect x="' + b.x + '" y="' + topY + '" width="' + barW + '" ' +
-                'height="' + (b.h * blockH) + '" fill="none" stroke="#2C2A28" stroke-width="0.8"/>';
-    for (var i = 0; i < b.h; i++) {
-      var blockY = barBottom - (i + 1) * blockH;
-      var col = (i % 2 === 0) ? b.color : '#2C2A28';
-      var delay = bi * 0.25 + i * 0.16;
-      blocks += '<rect class="lg8-block" x="' + b.x + '" y="' + blockY + '" ' +
-                'width="' + barW + '" height="' + blockH + '" fill="' + col + '" ' +
-                'stroke="#2C2A28" stroke-width="0.5" ' +
-                'style="animation-delay:' + delay.toFixed(2) + 's"/>';
-    }
-  });
-  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
-    '<text x="70" y="18" fill="#7A7571" font-size="4.5" font-family="ui-monospace, monospace" ' +
-          'text-anchor="middle" letter-spacing="0.12em">TEAM ALLOCATION</text>' +
-    '<line x1="14" y1="108" x2="140" y2="108" stroke="#2C2A28" stroke-width="0.8"/>' +
-    highlights + outlines + blocks +
-  '</svg>';
-}
-
-/* 9 — Connected Flow-Chart
-   4 icons on a dashed grid (IDEA → MEET → BUY → UP). A charcoal data
-   line paths tip-to-tip between them; each icon is highlighted with a
-   risograph-yellow halo the instant the line reaches it. */
-function lgSvg_9() {
-  var nodes = [
-    { x: 24,  y: 46,  label: 'IDEA' },
-    { x: 54,  y: 94,  label: 'MEET' },
-    { x: 92,  y: 54,  label: 'BUY'  },
-    { x: 116, y: 100, label: 'GROW' }
-  ];
-  var pathD = 'M' + nodes.map(function(n) { return n.x + ' ' + n.y; }).join(' L');
-  // Grid dots
-  var grid = '';
-  for (var gx = 10; gx <= 130; gx += 12) {
-    for (var gy = 14; gy <= 122; gy += 12) {
-      grid += '<circle cx="' + gx + '" cy="' + gy + '" r="0.55" fill="#7A7571" opacity="0.32"/>';
-    }
-  }
-  var halos = nodes.map(function(n, i) {
-    return '<circle class="lg9-halo lg9-halo--' + i + '" cx="' + n.x + '" cy="' + n.y + '" r="11" ' +
-           'fill="#FFD700" opacity="0" ' +
-           'style="animation-delay:' + (0.2 + i * 0.8).toFixed(2) + 's"/>';
-  }).join('');
-  function iconAt(n, i) {
-    switch (i) {
-      case 0: // lightbulb
-        return '<circle cx="' + n.x + '" cy="' + (n.y - 1) + '" r="5.5" fill="#FAF0D5" stroke="#2C2A28" stroke-width="0.9"/>' +
-               '<rect x="' + (n.x - 2.5) + '" y="' + (n.y + 4) + '" width="5" height="2.5" fill="#2C2A28"/>';
-      case 1: // handshake
-        return '<path d="M' + (n.x - 6) + ' ' + n.y + ' Q' + (n.x - 3) + ' ' + (n.y - 4) + ' ' + n.x + ' ' + n.y + '" fill="none" stroke="#2C2A28" stroke-width="1.1" stroke-linecap="round"/>' +
-               '<path d="M' + n.x + ' ' + n.y + ' Q' + (n.x + 3) + ' ' + (n.y - 4) + ' ' + (n.x + 6) + ' ' + n.y + '" fill="none" stroke="#2C2A28" stroke-width="1.1" stroke-linecap="round"/>' +
-               '<line x1="' + (n.x - 7) + '" y1="' + n.y + '" x2="' + (n.x + 7) + '" y2="' + n.y + '" stroke="#2C2A28" stroke-width="0.8"/>';
-      case 2: // cart
-        return '<rect x="' + (n.x - 5) + '" y="' + (n.y - 4) + '" width="10" height="6" fill="#FAF0D5" stroke="#2C2A28" stroke-width="0.9"/>' +
-               '<circle cx="' + (n.x - 3) + '" cy="' + (n.y + 4) + '" r="1.4" fill="#2C2A28"/>' +
-               '<circle cx="' + (n.x + 3) + '" cy="' + (n.y + 4) + '" r="1.4" fill="#2C2A28"/>';
-      case 3: // upward arrow
-        return '<polygon points="' + n.x + ',' + (n.y - 6) + ' ' + (n.x + 5) + ',' + n.y + ' ' + (n.x + 2) + ',' + n.y + ' ' + (n.x + 2) + ',' + (n.y + 5) + ' ' + (n.x - 2) + ',' + (n.y + 5) + ' ' + (n.x - 2) + ',' + n.y + ' ' + (n.x - 5) + ',' + n.y + '" fill="#3CA04A" stroke="#2C2A28" stroke-width="0.7"/>';
-    }
-    return '';
-  }
-  var icons = nodes.map(function(n, i) {
-    return '<g class="lg9-icon lg9-icon--' + i + '" style="animation-delay:' + (0.2 + i * 0.8).toFixed(2) + 's">' +
-             iconAt(n, i) +
-             '<text x="' + n.x + '" y="' + (n.y + 16) + '" fill="#2C2A28" font-size="4.5" ' +
-                   'font-family="ui-monospace, monospace" font-weight="700" text-anchor="middle" ' +
-                   'letter-spacing="0.06em">' + n.label + '</text>' +
-           '</g>';
-  }).join('');
-  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
-    grid +
-    '<path class="lg9-path" d="' + pathD + '" pathLength="100" fill="none" stroke="#2C2A28" ' +
-          'stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" ' +
-          'stroke-dasharray="100" stroke-dashoffset="100"/>' +
-    halos + icons +
-    '<text x="70" y="14" fill="#7A7571" font-size="4.5" font-family="ui-monospace, monospace" ' +
-          'text-anchor="middle" letter-spacing="0.12em">PROJECT FLOW</text>' +
-  '</svg>';
-}
-
-/* 10 — Terra Cotta Curing Bar
-   A rounded horizontal bar fills smoothly from 0% → 100%, color
-   transitioning from dark wet-clay (sienna) to baked terracotta.
-   Paper grain overlaid across the bar. A green check draws in at the
-   end; cycle fades back to 0%. */
-function lgSvg_10() {
-  return '<svg class="lg-svg" viewBox="0 0 140 140">' +
-    '<defs>' +
-      '<pattern id="lg10-grain" x="0" y="0" width="3" height="3" patternUnits="userSpaceOnUse">' +
-        '<circle cx="1" cy="1" r="0.35" fill="#2C2A28" opacity="0.22"/>' +
-      '</pattern>' +
-      '<clipPath id="lg10-clipbar">' +
-        '<rect x="14" y="60" width="112" height="28" rx="14"/>' +
-      '</clipPath>' +
-    '</defs>' +
-    // Label
-    '<text x="16" y="50" fill="#7A7571" font-size="5" font-family="ui-monospace, monospace" ' +
-          'text-anchor="start" letter-spacing="0.1em">CURING</text>' +
-    // Percentage readout (right side, rolling)
-    rollingTicker({
-      id: 'lg10-clip', x: 124, y: 51, w: 28, h: 9,
-      values: ['0%','20%','40%','60%','80%','100%'],
-      fill: '#2C2A28', size: 8, anchor: 'end', className: 'lg10-pct'
-    }) +
-    // Bar frame (clay well)
-    '<rect x="14" y="60" width="112" height="28" rx="14" fill="#E8DBB8" stroke="#2C2A28" stroke-width="1"/>' +
-    // Fill bar (scaleX animated, clipped to bar rounded shape)
-    '<g clip-path="url(#lg10-clipbar)">' +
-      '<rect class="lg10-fill" x="14" y="60" width="112" height="28" ' +
-            'fill="#8A3A1C" style="transform-origin:14px 74px"/>' +
-      '<rect x="14" y="60" width="112" height="28" fill="url(#lg10-grain)" opacity="0.65" pointer-events="none"/>' +
-    '</g>' +
-    // Frame stroke back on top so it's crisp
-    '<rect x="14" y="60" width="112" height="28" rx="14" fill="none" stroke="#2C2A28" stroke-width="1"/>' +
-    // Check badge
-    '<g class="lg10-check" style="transform-origin:70px 112px">' +
-      '<circle cx="70" cy="112" r="10" fill="#FAF0D5" stroke="#3CA04A" stroke-width="1.3"/>' +
-      '<polyline class="lg10-check-path" points="64,112 69,117 76,106" pathLength="100" ' +
-                'fill="none" stroke="#3CA04A" stroke-width="2" stroke-linecap="round" ' +
-                'stroke-linejoin="round" stroke-dasharray="100" stroke-dashoffset="100"/>' +
+    // Center label: two lines so it reads cleanly at small scale
+    '<g class="lg4-label">' +
+      '<text x="70" y="66" fill="#2C2A28" font-size="5.2" ' +
+            'font-family="ui-monospace, monospace" font-weight="800" text-anchor="middle" ' +
+            'letter-spacing="0.08em">TRANSFORMING</text>' +
+      '<text x="70" y="80" fill="#2C2A28" font-size="5.2" ' +
+            'font-family="ui-monospace, monospace" font-weight="800" text-anchor="middle" ' +
+            'letter-spacing="0.08em">PLUMBING</text>' +
     '</g>' +
   '</svg>';
 }

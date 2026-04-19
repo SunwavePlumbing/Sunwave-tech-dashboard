@@ -157,37 +157,51 @@ function ufsToggle(key) {
 // content's onclick handlers reference these IDs via string literals,
 // so we rewrite them at clone time.)
 function ufsCloneZoomPanels() {
-  // Per-category parent color (vibrant hex matching the bar segment).
-  // Used only to beef the legend-row left edge to 4px in the parent
-  // color. The inner breakdown bar KEEPS its rainbow palette (each
-  // sub-category stays a distinct vivid color), and each legend row
-  // KEEPS its pastel rainbow-tinted background — these are the
-  // "colorful breakdown" the spec calls for.
-  var cats = [
-    { k: 'Cogs', color: '#FF5B5B' },  // Cost of Goods Sold (coral)
-    { k: 'Ovhd', color: '#FF8A1F' },  // Overhead (vibrant orange)
-    { k: 'Noi',  color: '#2ECC71' }   // Profit (green)
-  ];
-  cats.forEach(function(cat) {
-    var src = document.getElementById('mf' + cat.k + 'Detail');
-    var dst = document.getElementById('ufs' + cat.k + 'Detail');
+  // The cloned dropdown content keeps its rainbow breakdown bar AND
+  // its pastel row tints as authored by mfZoomDetail(). We make two
+  // minimal post-clone tweaks per the spec:
+  //   (a) bump the row left-edge stripe from 3px → 4px, PRESERVING
+  //       the specific rainbow color (so Admin Payroll's border is
+  //       dark slate, Marketing's is teal, Rent's is purple, etc.)
+  //   (b) inject a percentage label into every sub-bar segment that's
+  //       wide enough to fit it (threshold ≥ 3.5%) — including the
+  //       narrower purple/pink slices the original 8% threshold hid.
+  ['Cogs', 'Ovhd', 'Noi'].forEach(function(k) {
+    var src = document.getElementById('mf' + k + 'Detail');
+    var dst = document.getElementById('ufs' + k + 'Detail');
     if (!src || !dst) return;
     var srcHtml = src.innerHTML;
     // Remap any embedded IDs (data-zid, onclick references) so the
-    // cloned handlers target the UFS panel's zids, not the mf panel's —
-    // keeps hover/select state scoped to the active card.
-    var re = new RegExp('mf' + cat.k + 'Detail', 'g');
-    dst.innerHTML = srcHtml.replace(re, 'ufs' + cat.k + 'Detail');
+    // cloned handlers target the UFS panel's zids, not the mf panel's.
+    var re = new RegExp('mf' + k + 'Detail', 'g');
+    dst.innerHTML = srcHtml.replace(re, 'ufs' + k + 'Detail');
 
-    // ── Left-edge indicator: parent-category 4px stripe ─────────────
-    // Each legend row's inline `border-left:3px solid <rainbowHex>`
-    // is replaced with `4px solid <parentColor>` so every row in the
-    // Overhead dropdown gets a vibrant-orange edge (cogs gets coral,
-    // profit gets green). Row backgrounds + sub-bar colors are left
-    // untouched so the "colorful breakdown" aesthetic is preserved.
+    // (a) Bump border-LEFT-WIDTH only, leaving color+style from inline
+    // alone. This preserves the per-row rainbow color that mfZoomDetail
+    // assigned from the palette — exactly what the spec asks for.
     var rows = dst.querySelectorAll('.mf-zoom-leg-row');
     for (var j = 0; j < rows.length; j++) {
-      rows[j].style.borderLeft = '4px solid ' + cat.color;
+      rows[j].style.borderLeftWidth = '4px';
+    }
+
+    // (b) Inject pct labels into segments ≥ 3.5% that don't have one.
+    // mfZoomDetail() only renders the inline % span for segments ≥8%;
+    // the UFS version surfaces the smaller ones too (purple + pink
+    // pockets etc.) so every visible block reads its own share.
+    var segs = dst.querySelectorAll('.mf-zoom-seg');
+    var totalFlex = 0;
+    for (var si = 0; si < segs.length; si++) {
+      totalFlex += parseFloat(segs[si].style.flex) || 0;
+    }
+    for (var s = 0; s < segs.length; s++) {
+      var rawFlex = parseFloat(segs[s].style.flex) || 0;
+      var rawPct  = totalFlex > 0 ? (rawFlex / totalFlex * 100) : 0;
+      if (rawPct >= 3.5 && !segs[s].querySelector('.mf-zoom-seg-pct')) {
+        var span = document.createElement('span');
+        span.className = 'mf-zoom-seg-pct';
+        span.textContent = Math.round(rawPct) + '%';
+        segs[s].appendChild(span);
+      }
     }
   });
 }
@@ -1690,34 +1704,29 @@ function renderOwners() {
         '<div class="ufs-header-title">Financial Summary of the Month</div>' +
         '<div class="ufs-header-period">' + esc(ufsPeriod) + '</div>' +
       '</div>' +
-      // ── Formula header (single horizontal line) ────────────────
-      '<div class="ufs-formula">' +
-        '<div class="ufs-f-term">' +
-          '<span class="ufs-f-label">Total Revenue</span>' +
-          '<span class="ufs-f-val">(' + ufsFmt(curRev) + ')</span>' +
-        '</div>' +
-        '<div class="ufs-f-op" aria-hidden="true">\u2212</div>' +
-        '<div class="ufs-f-term ufs-f-term--cogs">' +
-          '<span class="ufs-f-label">Cost of Goods Sold</span>' +
-          '<span class="ufs-f-val">(' + ufsFmt(curCOGS) + ')</span>' +
-        '</div>' +
-        '<div class="ufs-f-op" aria-hidden="true">\u2212</div>' +
-        '<div class="ufs-f-term ufs-f-term--ovhd">' +
-          '<span class="ufs-f-label">Overhead</span>' +
-          '<span class="ufs-f-val">(' + ufsFmt(curOvhd) + ')</span>' +
-        '</div>' +
-        '<div class="ufs-f-op ufs-f-op--eq" aria-hidden="true">=</div>' +
-        '<div class="ufs-f-term ufs-f-term--profit">' +
-          '<span class="ufs-f-label">Profit</span>' +
-          '<span class="ufs-f-val">(' + ufsFmt(curNOI) + ')</span>' +
-        '</div>' +
+      // ── Main revenue header (replaces the old formula line) ────
+      // Large, prominent deep-charcoal header. "Total Revenue:" as a
+      // regular-weight label; the amount itself in a heavier weight
+      // so the eye lands on the dollar figure.
+      '<div class="ufs-main-header">' +
+        '<span class="ufs-main-label">Total Revenue:</span>' +
+        '<span class="ufs-main-value">' + ufsFmt(curRev) + '</span>' +
       '</div>' +
       // ── Unified 3-segment interactive bar ──────────────────────
-      // Wrapped in .ufs-bar-wrap so the drafting target markers
-      // (TARGET 50% + PROFIT GOAL 15%) can be positioned absolutely
-      // relative to the bar without being clipped by the bar's
-      // border-radius overflow:hidden.
+      // Wrapped in .ufs-bar-wrap so the drafting target markers AND
+      // the per-segment $ amount labels (above the bar) can key off
+      // the same flex weights as the bar itself.
       '<div class="ufs-bar-wrap">' +
+        // Per-segment dollar amount labels — positioned above the bar
+        // via a flex row with matching flex weights, so $144K sits
+        // centered above COGS, $88K above Overhead, $41K above Profit.
+        // Each is colored with its vibrant category hex so the label
+        // reads as a direct title for its segment below.
+        '<div class="ufs-amounts">' +
+          '<div class="ufs-amount ufs-amount--cogs" style="flex:' + Math.max(cogsPct, 0).toFixed(2) + '">' + ufsFmt(curCOGS) + '</div>' +
+          '<div class="ufs-amount ufs-amount--ovhd" style="flex:' + Math.max(ovhdPct, 0).toFixed(2) + '">' + ufsFmt(curOvhd) + '</div>' +
+          '<div class="ufs-amount ufs-amount--profit" style="flex:' + Math.max(ufsProfitPct, 0).toFixed(2) + '">' + ufsFmt(curNOI) + '</div>' +
+        '</div>' +
         '<div class="ufs-bar" role="tablist">' +
           '<button type="button" class="ufs-seg ufs-seg--cogs" data-key="cogs" ' +
                   'onclick="ufsToggle(\'cogs\')" style="flex:' + Math.max(cogsPct, 0).toFixed(2) + '" ' +
