@@ -137,16 +137,20 @@ function ufsToggle(key) {
     card.classList.remove('is-active--ovhd');
     card.classList.remove('is-active--profit');
   }
-  // Toggle target (mfToggle flips is-open — opens if closed, closes if open)
+  // Toggle target (mfToggle flips is-open — opens if closed, closes if open).
+  // IMPORTANT: mfToggle adds `is-open` inside a double requestAnimationFrame,
+  // so checking `targetEl.classList.contains('is-open')` immediately after
+  // returns the OLD state, not the new one. We instead compute the new state
+  // BEFORE calling mfToggle — the same way mfToggle itself does on its first
+  // line — so the card's .is-active--<key> class is flipped synchronously in
+  // lockstep with the click. That class drives the V6 ink-wash treatment
+  // (caret + sheer bg tint + glow) + the dim-siblings + the seg's downward
+  // caret — without it, none of those effects ever fire.
   var seg = card ? card.querySelector('.ufs-seg[data-key="' + key + '"]') : null;
-  mfToggle(targetId, seg);
-  // If target is now open, flag its button active. The card's
-  // .is-active--<key> class drives the V6 ink-wash treatment: a
-  // category-colored caret at the top of the dropdown, a sheer
-  // background tint on the panel, and a soft glow box-shadow —
-  // all handled in CSS with no geometry computation required.
   var targetEl = document.getElementById(targetId);
-  if (targetEl && targetEl.classList.contains('is-open') && seg) {
+  var willBeOpen = targetEl ? !targetEl.classList.contains('is-open') : false;
+  mfToggle(targetId, seg);
+  if (willBeOpen && seg) {
     seg.classList.add('is-active');
     if (card) card.classList.add('is-active--' + key);
   }
