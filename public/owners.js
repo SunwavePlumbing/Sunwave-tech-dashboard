@@ -157,21 +157,25 @@ function ufsToggle(key) {
 }
 
 // ── Initial $-tally animation ────────────────────────────────────
-// Rolls the main Total Revenue value from $0 → actual over ~900ms
-// with ease-out cubic, so the card lands with a "calculating" feel
-// on first render. Called after renderFinancial mounts the UFS card.
+// Rolls the main Total Revenue value from $0 → actual over 700ms
+// with ease-out cubic. TIMING is synchronized with the CSS
+// "Ink Fill Sequence" on the bar segments: both start at 420ms
+// (after the 400ms "Cardstock Placement" entrance settles) and
+// run for 700ms. The number and the bar advance together so the
+// data and visualization validate each other in real time — when
+// the last pixel of ink lands, the figure snaps to its final
+// formatted value. Called by renderFinancial after mounting the
+// UFS card. Hold the displayed value at $0 until the 420ms delay
+// elapses so the figure doesn't briefly flash its final value
+// before the entrance settles.
 function ufsAnimateTally() {
   var el = document.querySelector('.ufs-main-value');
   if (!el) return;
   var target = parseFloat(el.getAttribute('data-ufs-tally'));
   if (!isFinite(target) || target <= 0) return;
   var finalText = el.textContent;       // "$273K" / "$1.2M" / etc.
-  var start = performance.now();
-  var duration = 900;
-  function format(v) {
-    if (v >= 1000) return '$' + (v / 1000).toFixed(v < 10000 ? 1 : 0) + 'K';
-    return '$' + Math.round(v);
-  }
+  var delay = 420;                       // matches CSS ink-fill delay
+  var duration = 700;                    // matches CSS ink-fill duration
   // Grab the suffix (K or M) from the final formatted text so our
   // animated frames visually match it.
   var suffixMatch = finalText.match(/[KM]$/);
@@ -182,14 +186,21 @@ function ufsAnimateTally() {
     if (suffix === 'K') return '$' + Math.round(v / 1000) + 'K';
     return '$' + Math.round(v);
   }
-  function tick(now) {
-    var t = Math.min((now - start) / duration, 1);
-    var eased = 1 - Math.pow(1 - t, 3);   // ease-out cubic
-    el.textContent = fmtFrame(target * eased);
-    if (t < 1) requestAnimationFrame(tick);
-    else el.textContent = finalText;       // snap to exact formatted
-  }
-  requestAnimationFrame(tick);
+  // Hold the element at $0 during the card-placement window so the
+  // count-up actually starts from $0 (not from the rendered value)
+  // and doesn't flicker during the 420ms entrance.
+  el.textContent = fmtFrame(0);
+  setTimeout(function() {
+    var start = performance.now();
+    function tick(now) {
+      var t = Math.min((now - start) / duration, 1);
+      var eased = 1 - Math.pow(1 - t, 3);   // ease-out cubic
+      el.textContent = fmtFrame(target * eased);
+      if (t < 1) requestAnimationFrame(tick);
+      else el.textContent = finalText;       // snap to exact formatted
+    }
+    requestAnimationFrame(tick);
+  }, delay);
 }
 
 // After the mf-card and ufs-card are both rendered into #finCards,

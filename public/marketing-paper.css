@@ -1721,26 +1721,33 @@ body.paper-mode .fin-donut-wrap::after {
      between 30% and 50% of the container's smaller axis. We size the mask
      to a square tied to the wrap's HEIGHT (340px), centered horizontally,
      and cut a ring via a radial-gradient alpha mask. */
-  /* Hard-edged ring mask. Previous version used soft 4% ramps on both
-     sides (28→32% inner, 49→52% outer) — but chart.js's donut with
-     cutout:'58%' occupies ~29–50% of the mask, so the mask's gradient
-     bands landed INSIDE the ring itself, making the inner edge of the
-     ring read brighter than the middle (partial mask alpha = less
-     texture = brighter color). Using hard edges placed JUST outside
-     the donut's inner + outer radii keeps the mask fully opaque across
-     the entire colored ring, so texture density is uniform edge-to-
-     edge. The tiny 1% feather at each boundary survives only in the
-     anti-aliasing zone the donut itself has. */
-  -webkit-mask-image: radial-gradient(circle at center,
-      transparent 27%,
-      #000 28%,
-      #000 51%,
-      transparent 52%);
-          mask-image: radial-gradient(circle at center,
-      transparent 27%,
-      #000 28%,
-      #000 51%,
-      transparent 52%);
+  /* Ring mask sized to the donut. CRITICAL: use `circle closest-side`
+     so 100% of the gradient = half the mask's shorter axis (170px on a
+     340x340 mask = the donut's actual outer radius). Without
+     closest-side, radial-gradient defaults to farthest-corner sizing
+     (100% ≈ 240px), and percentage stops land WAY inside the donut's
+     geometry — producing the "darker inner half / brighter outer half"
+     artifact where the opaque mask band only covers the inner half of
+     the ring and the outer half receives no texture.
+
+     With closest-side:
+       100% = 170px = donut outer edge (cutout:58% ⇒ outer ≈ height/2)
+       58%  ≈ 98.6px = donut inner edge
+     The gradient is fully opaque across the ENTIRE donut ring width
+     (58–100%), with gentle feathers that land in the hole (50→57%)
+     and at the outer anti-aliasing edge (99→100%). Corners of the
+     340x340 mask square stay transparent (beyond 100% extrapolates
+     the last `transparent` stop). */
+  -webkit-mask-image: radial-gradient(circle closest-side at center,
+      transparent 50%,
+      #000 57%,
+      #000 99%,
+      transparent 100%);
+          mask-image: radial-gradient(circle closest-side at center,
+      transparent 50%,
+      #000 57%,
+      #000 99%,
+      transparent 100%);
   -webkit-mask-size: 340px 340px;
           mask-size: 340px 340px;
   -webkit-mask-repeat: no-repeat;
@@ -1936,6 +1943,19 @@ body.paper-mode .ufs-card {
   box-shadow:
     0 1px 1px rgba(44, 42, 40, 0.04),
     0 2px 10px rgba(44, 42, 40, 0.04);
+  /* "Cardstock Placement" entrance — the card descends gently onto
+     the paper with a strong ease-out, mimicking the physical action
+     of setting a heavy piece of matte cardstock down on a desk. The
+     0.2, 0.8, 0.2, 1 bezier gives the settle the friction feel of
+     something heavy coming to rest. Everything inside the card
+     (ink-fill segments, count-up, amount labels) starts AFTER this
+     400ms window closes, so the card is fully landed before any ink
+     appears on it. */
+  animation: ufsCardPlace 400ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes ufsCardPlace {
+  0%   { opacity: 0; transform: translateY(12px); }
+  100% { opacity: 1; transform: translateY(0); }
 }
 
 /* ── 0. Card title header ──────────────────────────────────────── */
@@ -2034,58 +2054,53 @@ body.paper-mode .ufs-bar-wrap {
   padding: 8px 0 38px;
   margin-bottom: 4px;
 }
-/* Dashed-charcoal bar outline that shows through before the colored
-   segments drop in. Sits behind the segments at the same border-
-   radius, fades out as the segments land (850ms). */
-body.paper-mode .ufs-bar-wrap::before {
-  content: '';
-  position: absolute;
-  top: 8px;
-  left: 0;
-  right: 0;
-  height: 72px;
-  border-radius: 10px;
-  border: 2px dashed rgba(44, 42, 40, 0.32);
-  pointer-events: none;
-  z-index: 0;
-  animation: ufsOutlineFade 1600ms cubic-bezier(0.4, 0, 0.2, 1) both;
-}
-@keyframes ufsOutlineFade {
-  0%    { opacity: 0; }
-  6%    { opacity: 1; }
-  26%   { opacity: 1; }
-  55%   { opacity: 0.4; }
-  75%   { opacity: 0; }
-  100%  { opacity: 0; }
-}
+/* The old ufsOutlineFade dashed-charcoal rectangle that outlined the
+   bar during the entrance has been removed. It was flashing a dotted
+   line across the bar during the animation and reading as a rendering
+   artifact (a rogue outline during CSS repaints) rather than an
+   intentional ink mark on paper. Nothing replaces it — the empty bar
+   track now shows through as paper-color gaps between segments,
+   which is visible during the left-to-right ink fill below and fades
+   in cleanly with the card placement. */
 
-/* ── "Calculation Slam" entrance for the bar segments ────────────
-   Each segment drops in from ~28px above the bar and slams into
-   place with a gravitational bezier, staggered left → right so the
-   reader reads the progression: COGS → OVHD → PROFIT. */
+/* ── "Ink Fill Sequence" entrance for the bar segments ──────────
+   Each segment reveals left → right via clip-path, like a fountain
+   pen drawing a thick line of ink across the paper. clip-path lets
+   us preserve the flex layout (each seg reserves its target flex
+   width from the start) while progressively revealing the colored
+   fill horizontally — no layout thrash, no mid-flight re-measurement.
+
+   Durations are proportional to segment width so the "pen speed"
+   feels constant as it travels across the bar: COGS is the widest so
+   takes the longest, PROFIT is the narrowest so finishes fastest.
+   Delays overlap slightly so the pen appears to flow continuously
+   through the inter-segment gaps rather than lifting + restarting.
+
+   Delay 420ms = card placement animation (400ms) + 20ms settle.
+   Full bar is inked by ~1020ms, matching the count-up duration
+   in ufsAnimateTally (700ms starting at 420ms ⇒ finishes at 1120ms). */
 body.paper-mode .ufs-seg {
-  animation: ufsSegDrop 640ms cubic-bezier(0.55, 1.65, 0.3, 1) both;
+  animation: ufsInkFill 420ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
-body.paper-mode .ufs-seg--cogs   { animation-delay: 220ms; }
-body.paper-mode .ufs-seg--ovhd   { animation-delay: 380ms; }
-body.paper-mode .ufs-seg--profit { animation-delay: 540ms; }
-@keyframes ufsSegDrop {
-  0%    { transform: translateY(-28px); opacity: 0; }
-  55%   { opacity: 1; }
-  72%   { transform: translateY(3px); }
-  88%   { transform: translateY(-1px); }
-  100%  { transform: translateY(0); opacity: 1; }
+body.paper-mode .ufs-seg--cogs   { animation-delay: 420ms; animation-duration: 420ms; }
+body.paper-mode .ufs-seg--ovhd   { animation-delay: 720ms; animation-duration: 260ms; }
+body.paper-mode .ufs-seg--profit { animation-delay: 860ms; animation-duration: 160ms; }
+@keyframes ufsInkFill {
+  0%   { clip-path: inset(0 100% 0 0); -webkit-clip-path: inset(0 100% 0 0); }
+  100% { clip-path: inset(0 0 0 0);    -webkit-clip-path: inset(0 0 0 0); }
 }
 
-/* The per-segment $ amounts fade in right after their segment lands */
+/* Per-segment $ amount labels fade in as the pen reaches the end
+   of their segment — a "finish line" marker for each column. Each
+   amount arrives just after its colored seg below is fully inked. */
 body.paper-mode .ufs-amount {
-  animation: ufsAmountRise 460ms cubic-bezier(0.34, 1.3, 0.64, 1) both;
+  animation: ufsAmountRise 280ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
-body.paper-mode .ufs-amount--cogs   { animation-delay: 520ms; }
-body.paper-mode .ufs-amount--ovhd   { animation-delay: 680ms; }
-body.paper-mode .ufs-amount--profit { animation-delay: 840ms; }
+body.paper-mode .ufs-amount--cogs   { animation-delay: 820ms; }
+body.paper-mode .ufs-amount--ovhd   { animation-delay: 960ms; }
+body.paper-mode .ufs-amount--profit { animation-delay: 1000ms; }
 @keyframes ufsAmountRise {
-  0%    { opacity: 0; transform: translateY(-6px); }
+  0%    { opacity: 0; transform: translateY(-4px); }
   100%  { opacity: 1; transform: translateY(0); }
 }
 
@@ -2480,7 +2495,13 @@ body.paper-mode .ufs-zoom .mf-zoom-seg-pct {
   body.paper-mode .ufs-zoom::before { top: -8px; width: 18px; height: 9px; }
 }
 
-/* Reduced motion — instant expand/collapse */
+/* Reduced motion — instant expand/collapse + skip entrance animations.
+   Cardstock placement, ink fill, and amount rise all freeze at their
+   100% keyframe so the final layout is reached instantly without any
+   motion. */
 @media (prefers-reduced-motion: reduce) {
-  body.paper-mode .ufs-seg { transition: none !important; }
+  body.paper-mode .ufs-seg    { transition: none !important; }
+  body.paper-mode .ufs-card,
+  body.paper-mode .ufs-seg,
+  body.paper-mode .ufs-amount { animation: none !important; }
 }
