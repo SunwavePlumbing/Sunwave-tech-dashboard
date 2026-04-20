@@ -2553,6 +2553,14 @@ function renderOwners() {
     afterDatasetsDraw: function(chart) { chart.ctx.restore(); }
   };
 
+  // Snap the trend-chart scroll viewport to its far-right edge AFTER
+  // Chart.js lays out the canvas. wireChartScroll() handles the scroll
+  // pin + fade-mask toggling; on desktop the scroll container isn't
+  // overflowing (the inner div is 100% via CSS), so scrollLeft becomes
+  // a no-op and the call is safe to make unconditionally.
+  setTimeout(function() {
+    wireChartScroll('trendScrollEl', 'trendScrollWrap');
+  }, 0);
   trendChartInst = new Chart(tCtx, {
     type: 'line',
     data: { labels: mLabels, datasets: tDatasets },

@@ -177,7 +177,13 @@ async function fetchMarketing() {
     _ttLoader.finalize(function() {
       renderMarketing();
       container.classList.add('mkt-mount-in');
-      setTimeout(function() { container.classList.remove('mkt-mount-in'); }, 650);
+      // The "Unfolding Ledger" cascade ends around 1500ms (last table
+      // row lands at 1152ms delay + 300ms duration, footer at 1200ms
+      // delay + 300ms = 1500ms). Hold the class long enough for every
+      // row to finish animating, plus a small buffer, before removing
+      // it — otherwise the late-cascading rows snap to invisible
+      // mid-animation and then pop back in.
+      setTimeout(function() { container.classList.remove('mkt-mount-in'); }, 1700);
     });
   } catch(e) {
     if (_ttLoader) _ttLoader.destroy();

@@ -283,14 +283,18 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .tech-name-short { display: none; } /* first-name-only span — shown on mobile */
 .rank-num { font-size: 13px; font-weight: 700; color: #bbb; min-width: 18px; text-align: center; }
 
-.modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 100; align-items: center; justify-content: center; }
+.modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 100; align-items: center; justify-content: center; overscroll-behavior: contain; }
 .modal-backdrop.open { display: flex; }
-.modal { background: white; border-radius: 12px; width: 90%; max-width: 660px; max-height: 80vh; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+.modal { background: white; border-radius: 12px; width: 90%; max-width: 660px; max-height: 80vh; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,0.2); overscroll-behavior: contain; }
 .modal-header { padding: 1.2rem 1.4rem; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
 .modal-title { font-size: 16px; font-weight: 700; color: #1a2d3a; }
 .modal-close { background: none; border: none; font-size: 24px; color: #bbb; cursor: pointer; line-height: 1; padding: 0 2px; }
 .modal-close:hover { color: #555; }
-.modal-body { overflow-y: auto; flex: 1; }
+/* overscroll-behavior: contain — when the list hits its top/bottom,
+   the scroll does NOT chain through to the page behind the modal.
+   -webkit-overflow-scrolling: touch gives iOS the momentum feel the
+   default hidden-overflow body would otherwise have had. */
+.modal-body { overflow-y: auto; flex: 1; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 .modal-table { width: 100%; border-collapse: collapse; }
 .modal-table thead th { padding: 10px 16px; font-size: 11px; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1px solid #f0f0f0; text-align: left; position: sticky; top: 0; background: white; }
 .modal-table thead th:nth-child(4), .modal-table thead th:nth-child(5) { text-align: right; }
@@ -637,6 +641,24 @@ body.exp-modal-lock {
 
   /* Lock background scroll while the sheet is open */
   body.date-bs-open { overflow: hidden; touch-action: none; }
+
+/* Body-level scroll lock while the tech-jobs modal is open. iOS
+   Safari ignores `overflow: hidden` on <body> for touch gestures —
+   users can still scroll the page by swiping anywhere inside a modal,
+   which is the bug here. The bulletproof fix is `position: fixed`
+   with `width: 100%`, which genuinely removes the body from the
+   scroll graph. The JS side captures `window.scrollY` BEFORE locking
+   and restores it on close (via `top: -<y>px` while locked, then
+   `window.scrollTo(0, y)` on unlock). touch-action: none on the body
+   prevents iOS rubber-band scrolling on the page itself. */
+  body.modal-open {
+    position: fixed;
+    left: 0;
+    right: 0;
+    width: 100%;
+    overflow: hidden;
+    touch-action: none;
+  }
   .content { padding: 1.2rem; }  /* was 0.85rem - much tighter */
   .sort-section { gap: 8px; margin-bottom: 1.5rem; }
   .sort-label { display: none; }
@@ -2200,6 +2222,43 @@ body.exp-modal-lock {
 .fin-chart-wrap--scroll .fin-chart-inner-wide {
   width: 150%; height: 100%; min-width: 150%;
   position: relative;
+}
+
+/* ── Mobile-only horizontal-scroll modifier ────────────────────
+   Used by the Key Ratios trend chart, which is readable on desktop
+   but unreadable when 24 months are crammed into a 360px phone
+   viewport. On desktop this modifier is a no-op — the inner scroll
+   + wide divs both fill 100% of the wrap so Chart.js renders a
+   normal-width canvas. On mobile (≤768px) the wrap becomes
+   horizontally scrollable and the inner div expands to 400% so
+   each month gets ~4× its default horizontal space. Initial
+   scroll position is pinned to the right edge (most-recent months
+   visible first) via wireChartScroll() in owners.js after render. */
+.fin-chart-wrap--mobile-scroll .fin-chart-scroll,
+.fin-chart-wrap--mobile-scroll .fin-chart-inner-wide-mobile {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+@media (max-width: 768px) {
+  .fin-chart-wrap--mobile-scroll { overflow: hidden; }
+  .fin-chart-wrap--mobile-scroll .fin-chart-scroll {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    /* Hide the scrollbar; swipe momentum + the partial-bisected
+       leftmost month-label are the affordances. */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    /* Prevent the horizontal swipe from triggering iOS back/forward
+       gestures when it hits the end of the scroll range. */
+    overscroll-behavior-x: contain;
+  }
+  .fin-chart-wrap--mobile-scroll .fin-chart-scroll::-webkit-scrollbar { display: none; }
+  .fin-chart-wrap--mobile-scroll .fin-chart-inner-wide-mobile {
+    width: 400%;
+    min-width: 400%;
+  }
 }
 
 /* No edge decoration. Both left and right are hard-cuts against the

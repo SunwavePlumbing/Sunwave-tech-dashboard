@@ -249,11 +249,42 @@ body.paper-mode .mkt-jobs-delta .delta { margin-left: 0; font-size: inherit; }
 body.paper-mode .mkt-table tfoot td {
   font-variant-numeric: tabular-nums;
 }
-/* ── Vibrant delta ink — brighter, more saturated Kelly Green /
-   Coral Crimson per spec §4 "Enhancing Color & Life". Scoped to
-   paper-mode so the default dashboard keeps its muted teal/red. */
-body.paper-mode .delta-up   { color: #4CBB17; }   /* Kelly Green */
-body.paper-mode .delta-down { color: #E34234; }   /* Coral Crimson */
+/* ── Delta highlighter pills ─────────────────────────────────────
+   The % change cell reads as a HIGHLIGHTED PILL rather than plain
+   colored text — a tactile "highlighter swipe" behind the number,
+   same visual vocabulary as the sunflower highlighter behind the
+   projected month. This makes the Variance/Delta the most visually
+   prominent column (per spec: "visually prioritize the Variance
+   over raw historical totals") without requiring bold weight or
+   size changes that would fight the rest of the table's typography.
+
+   mix-blend-mode: multiply makes the wash look like it's soaking
+   into the paper texture behind it, rather than sitting on top as
+   a digital overlay. border-radius + inline-block lets the pill
+   hug the number with a tiny bit of breathing room on either side. */
+body.paper-mode .delta-up,
+body.paper-mode .delta-down {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-weight: 700;
+  mix-blend-mode: multiply;
+  line-height: 1.25;
+}
+body.paper-mode .delta-up {
+  color: #15803D;                        /* Kelly Green ink */
+  background: rgba(34, 197, 94, 0.14);   /* vibrant green wash */
+}
+body.paper-mode .delta-down {
+  color: #B91C1C;                        /* Crimson ink */
+  background: rgba(239, 68, 68, 0.14);   /* crimson wash */
+}
+/* Widen the reserved slot so the padded pill doesn't bump the
+   number left — the column geometry was tuned for plain-text
+   percentages (5.5ch) and the pill needs ~1ch more breathing room. */
+body.paper-mode .mkt-jobs-delta {
+  min-width: 6.5ch;
+}
 
 /* ── Softened ink typography ──────────────────────────────────── */
 body.paper-mode h1,
@@ -349,7 +380,18 @@ body.paper-mode .progress-bar-fill { background: linear-gradient(90deg, var(--br
 
 /* Marketing projection cards — big number + track softened to brand tones */
 body.paper-mode .proj-card-value { color: var(--brand-orange-soft); }
-body.paper-mode .proj-card-label,
+/* The uppercase eyebrow labels ("JOBS THIS MONTH", "PROJECTED JOBS",
+   etc.) are the page's small-type section anchors — they benefit from
+   Oxford Blue fountain-pen ink instead of the default muted gray.
+   Blue reads as a deliberate chosen ink color on a real ledger,
+   breaks the page out of the "drab grey feel" without competing
+   with the orange primary numerals. Sub-text + progress label stay
+   muted so only the anchor labels carry the rich ink color. */
+body.paper-mode .proj-card-label {
+  color: var(--riso-oxford);             /* Oxford Blue fountain pen */
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
 body.paper-mode .proj-card-sub,
 body.paper-mode .progress-label-row { color: var(--brand-ink-muted); }
 /* Progress track was `#f0f0f0` — looks like a hard gray block against
@@ -1497,13 +1539,82 @@ body.paper-mode .ledger-loader.ll-finishing .lg4-label {
   body.paper-mode .lg4-label  { opacity: 1 !important; transform: none !important; }
 }
 
-/* ── Mount-in animation for the real dashboard ─────────────────── */
+/* ── "Unfolding Ledger" staggered mount-in ─────────────────────
+   Top-down cascade: stat cards land first, then progress bar, then
+   each section title immediately followed by its card. Each step
+   uses the same "Cardstock Placement" easing (0.2, 0.8, 0.2, 1 —
+   decelerating like a matte card settling onto a desk) so the
+   whole page reads as one physical unfolding motion.
+
+   Using nth-child rather than explicit class names so the cascade
+   stays robust when an optional QBO-banner row is prepended (every
+   position just shifts one slot, delays still sequence correctly).
+   The ~720ms last-sibling delay + 420ms duration = page fully
+   settled by ~1140ms, comfortably inside the 1500–2000ms budget. */
 body.paper-mode #marketingContent.mkt-mount-in > * {
-  animation: mktMountIn 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: mktMountIn 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
+body.paper-mode #marketingContent.mkt-mount-in > *:nth-child(1) { animation-delay: 0ms;   }
+body.paper-mode #marketingContent.mkt-mount-in > *:nth-child(2) { animation-delay: 120ms; }
+body.paper-mode #marketingContent.mkt-mount-in > *:nth-child(3) { animation-delay: 240ms; }
+body.paper-mode #marketingContent.mkt-mount-in > *:nth-child(4) { animation-delay: 360ms; }
+body.paper-mode #marketingContent.mkt-mount-in > *:nth-child(5) { animation-delay: 480ms; }
+body.paper-mode #marketingContent.mkt-mount-in > *:nth-child(6) { animation-delay: 600ms; }
+body.paper-mode #marketingContent.mkt-mount-in > *:nth-child(7) { animation-delay: 720ms; }
+
+/* Phase 1 sub-cascade — the four stat cards lift in one at a time
+   inside the .proj-cards container. Short 60ms delta between each
+   so the row reads as a quick left-to-right unfurl, not four
+   simultaneous pops. The container itself fades in at delay 0ms
+   (from the > * rule above); the cards layer their own animation
+   on top with micro-staggered delays. */
+body.paper-mode #marketingContent.mkt-mount-in .proj-card {
+  animation: mktMountIn 360ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+body.paper-mode #marketingContent.mkt-mount-in .proj-card:nth-child(1) { animation-delay: 40ms;  }
+body.paper-mode #marketingContent.mkt-mount-in .proj-card:nth-child(2) { animation-delay: 100ms; }
+body.paper-mode #marketingContent.mkt-mount-in .proj-card:nth-child(3) { animation-delay: 160ms; }
+body.paper-mode #marketingContent.mkt-mount-in .proj-card:nth-child(4) { animation-delay: 220ms; }
+
+/* Phase 3 sub-cascade — Monthly History table rows flow in after the
+   table container lands (~720ms via the > * rule). Each row stags
+   36ms after the previous so a 12-row history takes ~432ms to
+   complete, landing the last row around 1150ms. The footer total
+   arrives right after the last body row. */
+body.paper-mode #marketingContent.mkt-mount-in .mkt-table tbody tr {
+  animation: mktMountIn 300ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+body.paper-mode #marketingContent.mkt-mount-in .mkt-table tbody tr:nth-child(1)  { animation-delay: 720ms; }
+body.paper-mode #marketingContent.mkt-mount-in .mkt-table tbody tr:nth-child(2)  { animation-delay: 756ms; }
+body.paper-mode #marketingContent.mkt-mount-in .mkt-table tbody tr:nth-child(3)  { animation-delay: 792ms; }
+body.paper-mode #marketingContent.mkt-mount-in .mkt-table tbody tr:nth-child(4)  { animation-delay: 828ms; }
+body.paper-mode #marketingContent.mkt-mount-in .mkt-table tbody tr:nth-child(5)  { animation-delay: 864ms; }
+body.paper-mode #marketingContent.mkt-mount-in .mkt-table tbody tr:nth-child(6)  { animation-delay: 900ms; }
+body.paper-mode #marketingContent.mkt-mount-in .mkt-table tbody tr:nth-child(7)  { animation-delay: 936ms; }
+body.paper-mode #marketingContent.mkt-mount-in .mkt-table tbody tr:nth-child(8)  { animation-delay: 972ms; }
+body.paper-mode #marketingContent.mkt-mount-in .mkt-table tbody tr:nth-child(9)  { animation-delay: 1008ms; }
+body.paper-mode #marketingContent.mkt-mount-in .mkt-table tbody tr:nth-child(10) { animation-delay: 1044ms; }
+body.paper-mode #marketingContent.mkt-mount-in .mkt-table tbody tr:nth-child(11) { animation-delay: 1080ms; }
+body.paper-mode #marketingContent.mkt-mount-in .mkt-table tbody tr:nth-child(12) { animation-delay: 1116ms; }
+body.paper-mode #marketingContent.mkt-mount-in .mkt-table tbody tr:nth-child(n+13) { animation-delay: 1152ms; }
+body.paper-mode #marketingContent.mkt-mount-in .mkt-table tfoot tr { animation-delay: 1200ms; }
+body.paper-mode #marketingContent.mkt-mount-in .mkt-table tfoot tr {
+  animation: mktMountIn 300ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
 @keyframes mktMountIn {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(12px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Respect reduced-motion — skip the entire cascade, show the page instantly. */
+@media (prefers-reduced-motion: reduce) {
+  body.paper-mode #marketingContent.mkt-mount-in > *,
+  body.paper-mode #marketingContent.mkt-mount-in .proj-card,
+  body.paper-mode #marketingContent.mkt-mount-in .mkt-table tbody tr,
+  body.paper-mode #marketingContent.mkt-mount-in .mkt-table tfoot tr {
+    animation: none !important;
+  }
 }
 
 /* ── Mobile ───────────────────────────────────────────────────── */
@@ -1644,6 +1755,27 @@ body.paper-mode tbody tr:hover td {
    to background-color so nothing else animates on hover. */
 body.paper-mode .mkt-table tbody td {
   transition: background-color 0.1s ease;
+  /* Accounting-pad ledger lines — replaces the default light-grey
+     underlines with pale "Accounting Red" dashed rows. Physical
+     accounting paper uses these muted red lines to guide the eye
+     across wide columnar rows; the dashed style reinforces the
+     "soft pencil guide" feel rather than a hard digital border. */
+  border-bottom: 1px dashed rgba(139, 58, 58, 0.32) !important;
+}
+/* Thead underline + tfoot overline get a deeper accounting-red
+   solid line — the "subtotal rule" you draw in ledger books above
+   and below a totals row. Still muted enough to read as pencil, not
+   as a harsh digital divider. */
+body.paper-mode .mkt-table thead th {
+  border-bottom: 1.5px solid rgba(139, 58, 58, 0.45);
+}
+body.paper-mode .mkt-table tfoot td {
+  border-top: 2px double rgba(139, 58, 58, 0.50);   /* double rule — the classic "grand total" accounting mark */
+}
+/* Drop the last-row underline so the body ends cleanly before the
+   tfoot's double rule takes over. */
+body.paper-mode .mkt-table tbody tr:last-child td {
+  border-bottom-color: transparent !important;
 }
 body.paper-mode .mkt-table tbody tr:hover td,
 body.paper-mode .mkt-table tbody tr:hover td:first-child {
@@ -2387,32 +2519,38 @@ body.paper-mode .ufs-zoom::before {
      3) The upward caret pointing at the active segment
    No inset shadows, no background-color fill. The cloned panel
    internals (rainbow sub-bar, pastel row tints) come through unmuddied. */
+/* Thinner rim-glow. Previous values (44px spread at 0.32 alpha)
+   bled ~50px outside the panel and read as an overwhelming flood.
+   Halved the spread (44→14px) AND the alpha (0.32→0.15) so the
+   halo now hugs the panel's edge as a restrained rim light —
+   still enough to signal "this panel belongs to the active
+   category" without swallowing the screen real estate around it. */
 body.paper-mode .ufs-card.is-active--cogs   .ufs-zoom--cogs {
-  border-color: rgba(255, 91, 91, 0.45);
-  box-shadow: 0 14px 44px rgba(255, 91, 91, 0.32),
-              0 4px 14px  rgba(255, 91, 91, 0.20);
+  border-color: rgba(255, 91, 91, 0.42);
+  box-shadow: 0 4px 14px rgba(255, 91, 91, 0.15),
+              0 1px 3px  rgba(255, 91, 91, 0.10);
 }
 body.paper-mode .ufs-card.is-active--cogs   .ufs-zoom--cogs::before {
   background-color: #FF5B5B;
-  filter: drop-shadow(0 2px 3px rgba(255, 91, 91, 0.45));
+  filter: drop-shadow(0 1px 2px rgba(255, 91, 91, 0.35));
 }
 body.paper-mode .ufs-card.is-active--ovhd   .ufs-zoom--ovhd {
-  border-color: rgba(255, 138, 31, 0.48);
-  box-shadow: 0 14px 44px rgba(255, 138, 31, 0.34),
-              0 4px 14px  rgba(255, 138, 31, 0.22);
+  border-color: rgba(255, 138, 31, 0.45);
+  box-shadow: 0 4px 14px rgba(255, 138, 31, 0.16),
+              0 1px 3px  rgba(255, 138, 31, 0.11);
 }
 body.paper-mode .ufs-card.is-active--ovhd   .ufs-zoom--ovhd::before {
   background-color: #FF8A1F;
-  filter: drop-shadow(0 2px 3px rgba(255, 138, 31, 0.50));
+  filter: drop-shadow(0 1px 2px rgba(255, 138, 31, 0.38));
 }
 body.paper-mode .ufs-card.is-active--profit .ufs-zoom--profit {
-  border-color: rgba(46, 204, 113, 0.48);
-  box-shadow: 0 14px 44px rgba(46, 204, 113, 0.34),
-              0 4px 14px  rgba(46, 204, 113, 0.22);
+  border-color: rgba(46, 204, 113, 0.45);
+  box-shadow: 0 4px 14px rgba(46, 204, 113, 0.16),
+              0 1px 3px  rgba(46, 204, 113, 0.11);
 }
 body.paper-mode .ufs-card.is-active--profit .ufs-zoom--profit::before {
   background-color: #2ECC71;
-  filter: drop-shadow(0 2px 3px rgba(46, 204, 113, 0.50));
+  filter: drop-shadow(0 1px 2px rgba(46, 204, 113, 0.38));
 }
 
 /* Keep closed-panel collapse behavior identical to V5 — the ink-wash

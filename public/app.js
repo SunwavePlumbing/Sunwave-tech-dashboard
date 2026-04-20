@@ -349,12 +349,35 @@ function openModal(tech) {
   document.getElementById('modalJobCount').textContent = jobs.length + ' job' + (jobs.length !== 1 ? 's' : '');
   document.getElementById('modalTotal').textContent = fmt(tech.monthlyRevenue) + ' credited';
   document.getElementById('modalBackdrop').classList.add('open');
-  document.body.style.overflow = 'hidden';
+  lockBodyScroll();
 }
 
 function closeModal() {
   document.getElementById('modalBackdrop').classList.remove('open');
-  document.body.style.overflow = '';
+  unlockBodyScroll();
+}
+
+// ── Mobile-safe body scroll lock ─────────────────────────────────
+// Simply setting `document.body.style.overflow = 'hidden'` does NOT
+// prevent scrolling on iOS Safari — iOS ignores overflow:hidden for
+// touch gestures. The only reliable fix is `position: fixed` on the
+// body with `top: -<currentScrollY>px`, which genuinely removes the
+// body from the scroll graph. We save the scroll offset before
+// locking and restore it on unlock so the page doesn't jump to the
+// top when the modal closes.
+var _bodyLockScrollY = 0;
+function lockBodyScroll() {
+  _bodyLockScrollY = window.scrollY || window.pageYOffset || 0;
+  document.body.style.top = '-' + _bodyLockScrollY + 'px';
+  document.body.classList.add('modal-open');
+}
+function unlockBodyScroll() {
+  document.body.classList.remove('modal-open');
+  document.body.style.top = '';
+  // Restore scroll position AFTER removing the class, otherwise the
+  // browser sees the position:fixed→static transition at a non-zero
+  // top and briefly scrolls to the wrong place.
+  window.scrollTo(0, _bodyLockScrollY);
 }
 
 // ── Sliding tab indicator ───────────────────────────────────────

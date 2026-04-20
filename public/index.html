@@ -126,8 +126,16 @@
           <div class="fin-trend-toggles" id="trendToggles"></div>
           <div id="trendLegendOverlay" class="tcl-overlay"></div>
         </div>
-        <div class="fin-chart-wrap" style="height:260px;margin-top:14px">
-          <canvas id="trendChart"></canvas>
+        <!-- Mobile-only horizontal scroll: the 24-month trend line is
+             unreadable when crammed into a ~360px phone viewport. The
+             `fin-chart-wrap--mobile-scroll` modifier widens the inner
+             canvas to 400% of viewport on mobile + makes the wrap
+             horizontally scrollable; on desktop the modifier is a
+             no-op and the chart fills normally. wireChartScroll()
+             snaps the viewport to the far right after render so the
+             most recent months are visible on load. -->
+        <div class="fin-chart-wrap fin-chart-wrap--mobile-scroll" id="trendScrollWrap" style="height:260px;margin-top:14px">
+          <div class="fin-chart-scroll" id="trendScrollEl"><div class="fin-chart-inner-wide-mobile"><canvas id="trendChart"></canvas></div></div>
         </div>
       </div>
 
