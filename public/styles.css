@@ -448,6 +448,91 @@ body.exp-modal-lock {
 .exp-empty { padding: 24px 18px; font-size: 13px; color: #aaa; text-align: center; }
 .exp-loading { padding: 32px 18px; text-align: center; }
 
+/* ── Vendor summary at top of the expense modal ──────────────────
+   A "Top vendors" summary card that sits above the transaction list.
+   Scrolls with the rest of the sheet — not sticky — so the modal
+   reads as one continuous document (glance for who got paid, then
+   scroll for the receipts). */
+.exp-summary {
+  padding: 14px 18px 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.exp-section-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  margin-bottom: 8px;
+}
+/* "Details" label above the transaction list — same typographic
+   treatment, but with its own padding since it's not wrapped in
+   .exp-summary. Extra top margin separates it from the summary block. */
+.exp-section-label--details {
+  padding: 14px 18px 8px;
+  margin-bottom: 0;
+}
+.exp-stacked-bar {
+  display: flex;
+  width: 100%;
+  height: 14px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #f0f0f0;
+  margin-bottom: 12px;
+}
+.exp-stacked-seg {
+  height: 100%;
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 0;
+}
+.exp-vlegend {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 7px;
+}
+.exp-vlegend-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  column-gap: 10px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+.exp-vlegend-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+.exp-vlegend-name {
+  color: #1a2d3a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.exp-vlegend-pct {
+  color: #94a3b8;
+  font-size: 11.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.exp-vlegend-val {
+  font-weight: 700;
+  color: #1a2d3a;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* On narrow phones, tighten the legend typography so "Other (23)" +
+   big $ values don't crowd past the right edge. The grid still holds
+   the shape — just smaller numerics. */
+@media (max-width: 380px) {
+  .exp-vlegend-row { font-size: 12px; column-gap: 8px; }
+  .exp-vlegend-val { font-size: 12.5px; }
+  .exp-vlegend-pct { display: none; } /* drop the % on the narrowest devices */
+}
+
 /* Transaction row sub-elements */
 .exp-txn-date {
   display: inline-block; font-size: 11px; font-weight: 600; color: #fff;

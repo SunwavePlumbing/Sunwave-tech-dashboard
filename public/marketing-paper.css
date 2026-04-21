@@ -428,6 +428,30 @@ body.paper-mode .tab-btn {
   border-color: var(--paper-border);
 }
 
+/* ── Expense-modal vendor summary in paper mode ─────────────────
+   Oxford-blue ink on names + values, softer borders on the track
+   and section divider so the summary feels like the same stationery
+   as the rest of the sheet. Section labels use Oxford Blue at a
+   lower opacity to read as the "small caps" layer. */
+body.paper-mode .exp-summary {
+  border-bottom-color: var(--paper-border);
+}
+body.paper-mode .exp-section-label {
+  color: var(--riso-oxford);
+  opacity: 0.62;
+}
+body.paper-mode .exp-stacked-bar {
+  background: var(--paper-border);
+}
+body.paper-mode .exp-vlegend-name,
+body.paper-mode .exp-vlegend-val {
+  color: var(--riso-oxford);
+}
+body.paper-mode .exp-vlegend-pct {
+  color: var(--riso-oxford);
+  opacity: 0.55;
+}
+
 /* ── Kill hardcoded white dividers throughout the app ──────────
    Several legacy rules use `#fff` / `white` as the "cut" between
    stacked bar segments, the sticky first column of the Full Picture

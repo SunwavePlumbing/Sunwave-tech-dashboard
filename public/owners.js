@@ -3902,8 +3902,8 @@ async function mfDrillDown(label, acctKey) {
     }
 
     if (allTxns.length) {
-      // Sort largest amount first
-      allTxns.sort(function(a, b) { return Math.abs(b.amount) - Math.abs(a.amount); });
+      // Order-independent: showExpModalTxns owns the display order
+      // (vendor summary first, then transactions sorted by date asc).
       showExpModalTxns(label, periodLabel, allTxns, color);
       return;
     }
@@ -4051,7 +4051,13 @@ function showExpModalLoading(title, monthLabel, color) {
   requestAnimationFrame(function() { backdrop.classList.add('exp-open'); });
 }
 
-// Show individual transactions in the already-open expense sheet
+// Show individual transactions in the already-open expense sheet.
+// Layout:
+//   [Top vendors · summary]   — stacked bar + legend (Top 3 + Other)
+//   [Details · N transactions] — per-txn rows sorted by date ascending
+// The summary scrolls with the content (not sticky) so the whole modal
+// reads as a single document: glance at the top for "who got paid",
+// scroll down for the line-item receipts.
 function showExpModalTxns(title, monthLabel, txns, color) {
   var bodyEl = document.getElementById('expSheetBody');
   var footEl = document.getElementById('expSheetFooter');
@@ -4059,7 +4065,73 @@ function showExpModalTxns(title, monthLabel, txns, color) {
 
   var total = txns.reduce(function(s, t) { return s + Math.abs(t.amount); }, 0);
 
-  var rowsHtml = txns.map(function(t) {
+  // ── Build vendor summary: Top 3 by $ descending + "Other" ──────
+  // t.name is the QBO payee (the vendor); fall back to a sentinel
+  // so un-named payees collapse into one bucket rather than each
+  // becoming its own "vendor".
+  var byVendor = {};
+  txns.forEach(function(t) {
+    var key = (t.name && t.name.trim()) ? t.name.trim() : '(Unspecified payee)';
+    byVendor[key] = (byVendor[key] || 0) + Math.abs(t.amount);
+  });
+  var vendors = Object.keys(byVendor).map(function(k) {
+    return { name: k, val: byVendor[k] };
+  }).sort(function(a, b) { return b.val - a.val; });
+
+  var top = vendors.slice(0, 3);
+  var rest = vendors.slice(3);
+  if (rest.length > 0) {
+    var otherVal = rest.reduce(function(s, v) { return s + v.val; }, 0);
+    if (otherVal > 0) {
+      top.push({ name: 'Other (' + rest.length + ')', val: otherVal, isOther: true });
+    }
+  }
+
+  // Riso inks: distinct hues that hold up on both white and paper mode.
+  // Warm graphite for "Other" so the residual reads as neutral, not competing.
+  var vendorColors = ['#00A3E0', '#E30074', '#7C4DFF', '#8A8680'];
+
+  var summaryHtml = '';
+  if (top.length >= 1 && total > 0) {
+    var segsHtml = top.map(function(v, i) {
+      var pct = (v.val / total) * 100;
+      return '<div class="exp-stacked-seg" style="width:' + pct.toFixed(2) +
+        '%;background:' + vendorColors[i] + '" title="' + esc(v.name) +
+        ': ' + fmtDollar(v.val) + '"></div>';
+    }).join('');
+
+    var legendHtml = top.map(function(v, i) {
+      var pct = (v.val / total) * 100;
+      return '<div class="exp-vlegend-row">' +
+        '<span class="exp-vlegend-swatch" style="background:' + vendorColors[i] + '"></span>' +
+        '<span class="exp-vlegend-name">' + esc(v.name) + '</span>' +
+        '<span class="exp-vlegend-pct">' + pct.toFixed(0) + '%</span>' +
+        '<span class="exp-vlegend-val">' + fmtDollar(v.val) + '</span>' +
+      '</div>';
+    }).join('');
+
+    summaryHtml =
+      '<div class="exp-summary">' +
+        '<div class="exp-section-label">Top vendors · summary</div>' +
+        '<div class="exp-stacked-bar">' + segsHtml + '</div>' +
+        '<div class="exp-vlegend">' + legendHtml + '</div>' +
+      '</div>';
+  }
+
+  // ── Transactions — sorted by date ascending (start of month first) ──
+  // Use a string compare on the YYYY-MM-DD date; stable on equal dates
+  // by preserving insertion order via the index fallback. Rows without
+  // dates sink to the bottom so they don't disrupt the chronological read.
+  var txnsSorted = txns.map(function(t, i) { return { t: t, i: i }; })
+    .sort(function(a, b) {
+      var ad = a.t.date || '\uffff';
+      var bd = b.t.date || '\uffff';
+      if (ad !== bd) return ad < bd ? -1 : 1;
+      return a.i - b.i;
+    })
+    .map(function(x) { return x.t; });
+
+  var rowsHtml = txnsSorted.map(function(t) {
     var dateStr = '';
     if (t.date) {
       var d = new Date(t.date + 'T12:00:00');
@@ -4083,7 +4155,14 @@ function showExpModalTxns(title, monthLabel, txns, color) {
     '</div>';
   }).join('');
 
-  bodyEl.innerHTML = rowsHtml || '<div class="exp-empty">No transactions found for this month.</div>';
+  var detailsLabel = rowsHtml
+    ? '<div class="exp-section-label exp-section-label--details">Details · ' +
+        txnsSorted.length + ' transaction' + (txnsSorted.length !== 1 ? 's' : '') +
+      '</div>'
+    : '';
+
+  bodyEl.innerHTML = summaryHtml + detailsLabel +
+    (rowsHtml || '<div class="exp-empty">No transactions found for this month.</div>');
   footEl.innerHTML = '<span class="exp-foot-label">' + txns.length + ' transaction' + (txns.length !== 1 ? 's' : '') + '</span>' +
                      '<span class="exp-foot-val">' + fmtDollar(total) + '</span>';
 }
