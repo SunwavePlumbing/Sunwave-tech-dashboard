@@ -1412,6 +1412,11 @@ app.get('/api/qbo-balance', async (req, res) => {
     const bankAccts      = [];
     const creditCardAccts= [];
     const notesAccts     = [];
+    // Per-bank-account history — same shape as bankHistory (one value per
+    // month), keyed by exact account name. Lets the client chart a single
+    // account (e.g. the "Planning Ahead" savings account) instead of the
+    // combined bank-accounts total.
+    const bankHistoryByAccount = {};
 
     // Walk the tree, tracking which section we're inside
     (function walk(rows, ctx) {
@@ -1444,6 +1449,10 @@ app.get('/api/qbo-balance', async (req, res) => {
             if      (childCtx === 'bank'    && cur !== 0) bankAccts.push({ name: n, balance: cur });
             else if (childCtx === 'cards'   && cur !== 0) creditCardAccts.push({ name: n, balance: cur });
             else if (childCtx === 'notes'   && cur !== 0) notesAccts.push({ name: n, balance: cur });
+            // Capture per-bank-account history regardless of current-month
+            // balance (a savings account might legitimately be flat at $0
+            // in one column but have history we want to chart).
+            if (childCtx === 'bank') bankHistoryByAccount[n] = vals;
           }
         }
 
@@ -1498,7 +1507,8 @@ app.get('/api/qbo-balance', async (req, res) => {
       notesPayable:    notesAccts,
       // Multi-month history
       months:      colTitles.map(toMonthKey),
-      bankHistory: bankHistoryArr
+      bankHistory: bankHistoryArr,
+      bankHistoryByAccount
     };
     cacheSet('qbo-balance', payload);
     res.json(payload);

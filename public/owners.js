@@ -3441,18 +3441,48 @@ function renderOwners() {
     wireChartScroll('revScrollEl', 'revScrollWrap');
   }
 
-  // ── Cash in the Bank Over Time ───────────────────────────────
-  // Uses balance sheet bank history (from /api/qbo-balance) rather than
-  // P&L data, so it shows the actual end-of-month bank balance.
+  // ── Planning Ahead Account Over Time ─────────────────────────
+  // Tracks ONLY the "Planning Ahead" savings account (not the combined
+  // bank total), since that's the balance the user cares about watching
+  // month-over-month. Falls back to the combined bank history if the
+  // Planning Ahead account isn't found by name — keeps the chart alive
+  // if QBO ever renames or removes the account.
   var cfCard = document.getElementById('finCashFlowCard');
+  var byAcct = (ownersBalance && ownersBalance.bankHistoryByAccount) || {};
+  // Case-insensitive match on "Planning Ahead" anywhere in the account
+  // name, so it still works if QBO prefixes the name with an account
+  // number or adds a suffix like "— Savings".
+  var planningKey = Object.keys(byAcct).find(function(k) {
+    return /planning\s*ahead/i.test(k);
+  });
+  var planningHistory = planningKey ? byAcct[planningKey] : null;
+  var hasPlanningHistory = planningHistory && planningHistory.length > 1;
   var hasBankHistory = ownersBalance && ownersBalance.connected &&
-                       ownersBalance.bankHistory && ownersBalance.bankHistory.length > 1;
+                       ((planningHistory && planningHistory.length > 1) ||
+                        (ownersBalance.bankHistory && ownersBalance.bankHistory.length > 1));
 
   if (cfCard && hasBankHistory) {
     cfCard.style.display = '';
 
+    // Retitle the card so the user knows this is the savings account
+    // specifically, not the combined bank total. Fallback title used
+    // when we couldn't find the Planning Ahead account by name.
+    var cfTitleEl = cfCard.querySelector('.fin-chart-title');
+    if (cfTitleEl) {
+      cfTitleEl.innerHTML = (hasPlanningHistory ? 'Planning Ahead Account Over Time' : 'Cash in the Bank Over Time') +
+        ' <span id="cfSubtitle"></span>';
+    }
+    var cfBlurbEl = cfCard.querySelector('.fin-chart-title + div');
+    if (cfBlurbEl) {
+      cfBlurbEl.textContent = hasPlanningHistory
+        ? 'End-of-month balance in the Planning Ahead savings account. Tap or scrub any bar to see that month\u2019s closing balance.'
+        : 'End-of-month bank account balance. Tap or scrub any bar to see that month\u2019s closing balance.';
+    }
+
     var bsMonths  = ownersBalance.months      || [];
-    var bsHistory = ownersBalance.bankHistory || [];
+    // Prefer the Planning Ahead history if we found one; otherwise fall
+    // back to the combined bank total (legacy behavior).
+    var bsHistory = hasPlanningHistory ? planningHistory : (ownersBalance.bankHistory || []);
 
     // Trim to last 13 months max, skip trailing months with no data
     var bsEnd = bsHistory.length - 1;

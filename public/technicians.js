@@ -388,6 +388,46 @@ function render() {
   // Run FLIP animation on the NEW DOM using the OLD positions
   playFlipReorder(oldRects);
 
+  /* Pre-lock every name label's width to its FINAL rendered name size in
+     a single synchronous pass, BEFORE any per-row timeouts fire. This is
+     what keeps the Value Created column from jitter-shifting during the
+     staggered reveal.
+
+     Why we can't rely on the .tech-name-spacer alone: the spacer reserves
+     width inside the label, but during scramble we write directly to the
+     label's textContent, which wipes the spacer out. At that point only
+     the currently-typed substring + the typewriter caret (::after) size
+     the label. Near the end of each row's scramble, "near-full-name" +
+     caret can exceed the would-be final width, pushing the label past
+     its min-width lock and widening the column.
+
+     The fix is twofold:
+       (1) Do the measurement up front, once per row, in the same tick
+           that we set innerHTML — no per-row setTimeout races, no
+           measuring while font metrics are still settling under the
+           FLIP reorder's forced reflow.
+       (2) Use a FIXED `width` (not `min-width`) so the box is capped,
+           not just floored. Overflow stays visible, so the caret can
+           extend past the box visually without triggering layout. The
+           column width is determined entirely by these locked boxes
+           and never changes during the reveal. */
+  document.querySelectorAll('#leaderboardBody tr[data-idx] .tech-name-label').forEach(function(lbl) {
+    var spacer = lbl.querySelector('.tech-name-spacer');
+    // The spacer already holds the final nested responsive HTML (full +
+    // short spans) and inherits identical typography from the label. Its
+    // offsetWidth is the exact width the label will occupy once the real
+    // name is rendered — on desktop or mobile, whichever span the media
+    // query currently shows.
+    var w = spacer ? spacer.offsetWidth : 0;
+    if (w > 0) {
+      lbl.style.width       = w + 'px';
+      lbl.style.display     = 'inline-block';
+      lbl.style.whiteSpace  = 'nowrap';
+      // overflow defaults to visible — caret can render past the locked
+      // box without shifting the column.
+    }
+  });
+
   /* Staggered row reveal: each row starts 50ms after the previous.
      Runs TWO animations in parallel per row —
        (1) Name scramble-and-lock: flash a random A–Z at each slot,
@@ -400,6 +440,8 @@ function render() {
       // During scramble its textContent is overwritten directly; once
       // the final char locks, innerHTML is replaced with the proper
       // nested responsive spans (tech-name-full + tech-name-short).
+      // The label's width was already locked above, so scramble can
+      // freely overwrite textContent without affecting column width.
       var lbl = row.querySelector('.tech-name-label');
       if (lbl) {
         var fullNm = lbl.getAttribute('data-reveal-name') || '';
@@ -412,40 +454,20 @@ function render() {
         var isMobile = window.innerWidth <= 768;
         var nm = isMobile ? fullNm.trim().split(/\s+/)[0] : fullNm;
 
-        // Lock the label's width to the FINAL rendered name width so
-        // the revenue column doesn't slide right as characters pile in.
-        // Measure via an off-screen clone that inherits the same classes
-        // (and therefore the same font + responsive span visibility) —
-        // so this works correctly on both mobile and desktop viewports.
-        var measurer = document.createElement('span');
-        measurer.className = lbl.className;
-        measurer.innerHTML = htm;
-        measurer.style.position   = 'absolute';
-        measurer.style.visibility = 'hidden';
-        measurer.style.whiteSpace = 'nowrap';
-        measurer.style.pointerEvents = 'none';
-        measurer.style.left = '-9999px';
-        lbl.parentNode.appendChild(measurer);
-        var finalW = measurer.offsetWidth;
-        lbl.parentNode.removeChild(measurer);
-        if (finalW > 0) {
-          lbl.style.minWidth  = finalW + 'px';
-          lbl.style.display   = 'inline-block';  /* min-width only kicks in for block-level */
-          lbl.style.whiteSpace = 'nowrap';
-        }
-
         // Apply cipher-style monospace ON the label during reveal,
         // removed at completion via innerHTML replace (nested spans
         // don't carry the reveal class so the style drops off).
         lbl.classList.add('is-revealing');
         revealName(lbl, nm, htm);
-        // Strip the reveal styling once the swap completes
+        // Strip the reveal styling once the swap completes. Release
+        // the width lock too, so subsequent viewport resizes (rotation,
+        // window drag) can reflow naturally — by this point the final
+        // nested-span HTML is in place and its natural width matches
+        // the locked width, so the release is seamless.
         var totalMs = (nm.length + 1) * 90 + 60;
         setTimeout(function() {
           lbl.classList.remove('is-revealing');
-          // Release the hard width lock so subsequent viewport resizes
-          // (rotation, window drag) can reflow naturally.
-          lbl.style.minWidth   = '';
+          lbl.style.width      = '';
           lbl.style.display    = '';
           lbl.style.whiteSpace = '';
         }, totalMs);
