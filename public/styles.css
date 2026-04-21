@@ -245,6 +245,23 @@ body.anim-entrance #techView > .stats         { animation-delay: 240ms; }
 body.anim-entrance #techView > .sort-section  { animation-delay: 320ms; }
 body.anim-entrance #techView > .table-wrapper { animation-delay: 400ms; }
 
+/* Tab re-entry cascade — scoped to the Technicians view's own children
+   so re-clicking the Technicians tab replays the same staggered fade-up
+   the user saw on first paint, without re-animating the shared header
+   or tab-nav chrome. Toggled by replayTechAnimations() in app.js via
+   an rAF pair. */
+body.tech-mount-in #techView > .sidebar,
+body.tech-mount-in #techView > .stats,
+body.tech-mount-in #techView > .sort-section,
+body.tech-mount-in #techView > .table-wrapper {
+  opacity: 0;
+  animation: fadeSlideUp 0.5s cubic-bezier(0.2, 0.65, 0.3, 1) both;
+}
+body.tech-mount-in #techView > .sidebar       { animation-delay: 0ms;   }
+body.tech-mount-in #techView > .stats         { animation-delay: 80ms;  }
+body.tech-mount-in #techView > .sort-section  { animation-delay: 160ms; }
+body.tech-mount-in #techView > .table-wrapper { animation-delay: 240ms; }
+
 /* Micro-interaction: press-compress on tappable pills. A quick scale
    dip + spring-back confirms the tap before the API even starts. */
 .tab-btn:active,

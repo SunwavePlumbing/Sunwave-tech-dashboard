@@ -418,10 +418,35 @@ window.addEventListener('resize', function() {
   if (activeBtn) updateTabIndicator(activeBtn.dataset.tab, true);
 });
 
+/* Replay the Technicians view's mount-in cascade. Mirrors the pattern
+   from replayMarketingAnimations(): drop the class so any in-flight
+   animations reset, then re-add on the next frame so the browser sees
+   a fresh class transition and re-fires the keyframes. The second rAF
+   is defensive — some engines coalesce class toggles within a single
+   frame, and the double-rAF guarantees a paint between remove and add.
+   Auto-cleanup after the longest delay + duration so the class doesn't
+   linger and accidentally hide content during a later reflow. */
+function replayTechAnimations() {
+  var body = document.body;
+  body.classList.remove('tech-mount-in');
+  requestAnimationFrame(function() {
+    requestAnimationFrame(function() {
+      body.classList.add('tech-mount-in');
+      // Longest delay (240ms) + duration (500ms) + safety margin.
+      setTimeout(function() { body.classList.remove('tech-mount-in'); }, 900);
+    });
+  });
+}
+
 // ── Tab navigation with hash-based URLs ────────────────────────
 // URLs: /#technicians  /#marketing  /#owners
 var marketingLoaded = false;
 var ownersLoaded = false;
+// First activation of the Technicians tab is handled by the one-shot
+// `anim-entrance` cascade on init(). Subsequent activations call
+// replayTechAnimations() so the user gets the same fade-up every time
+// they land back on the tab.
+var techsActivated = false;
 
 var TAB_MAP = {
   'technicians': { view: 'techView' },
@@ -452,6 +477,17 @@ function activateTab(tab) {
   // the indicator slides smoothly on every switch.
   updateTabIndicator(tab, false);
   // Lazy-load tab data
+  if (tab === 'technicians') {
+    if (!techsActivated) {
+      // First activation — init()'s `anim-entrance` cascade is already
+      // running (or about to), so don't double-fire our own class.
+      techsActivated = true;
+    } else {
+      // Re-entry — replay the same staggered fade-up (sidebar, stats,
+      // sort pills, table) every time the user comes back to the tab.
+      replayTechAnimations();
+    }
+  }
   if (tab === 'marketing') {
     if (!marketingLoaded) {
       // First visit: kick off the real fetch + full loader → cascade.
