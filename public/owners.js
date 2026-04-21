@@ -290,20 +290,28 @@ function buildEducationHtml(rev, cogs, ovhd, noi) {
         '</div>' +
         '<div class="edu-bar-row">' +
           '<div class="edu-bar-lbl">Where every revenue dollar goes</div>' +
-          // Wrapper reserves space ABOVE the segmented bar for the
-          // blue gross-profit bracket. The bracket is absolutely
-          // positioned; its `left` tracks (cogs / rev) so it always
-          // spans the same horizontal range as the Overhead + Profit
-          // segments combined — visually proving Gross Profit =
-          // everything right of COGS.
+          // The bracket row is a flex container that MIRRORS the bar's
+          // exact layout — same flex values, same per-item min-widths,
+          // same gap. That means the spacer renders at precisely the
+          // COGS segment's width and the bracket at precisely the
+          // (Overhead + Profit) span, no matter how the flex values
+          // interact with min-width clamping. Pixel-perfect alignment
+          // falls out of flex layout; no measurement needed.
+          //
+          // When Profit goes negative we clamp its flex to 0.1 on the
+          // bar (keeps the red/green sliver visible) and use the same
+          // clamped value for the bracket — so they stay in lockstep.
           '<div class="edu-bar-bracket-wrap">' +
-            '<div class="edu-bracket" id="eduGmBracket" style="left:' + (cogs / rev * 100).toFixed(2) + '%">' +
-              '<div class="edu-bracket-lbl">Gross profit: <span id="eduGmBracketV">' + eduFmt(grossProfit) + '</span></div>' +
+            '<div class="edu-bracket-row" aria-hidden="true">' +
+              '<div class="edu-bracket-spacer" id="eduGmBracketSpacer" style="flex:' + cogsK.toFixed(2) + '"></div>' +
+              '<div class="edu-bracket' + (grossProfit < 0 ? ' is-negative' : '') + '" id="eduGmBracket" style="flex:' + (ovhdK + Math.max(0.1, noiK)).toFixed(2) + '">' +
+                '<div class="edu-bracket-lbl">Gross profit: <span id="eduGmBracketV">' + eduFmt(grossProfit) + '</span></div>' +
+              '</div>' +
             '</div>' +
             '<div class="edu-bar">' +
               '<div class="edu-seg edu-seg--cogs"   id="eduGmC" style="flex:' + cogsK.toFixed(2) + '"><span>COGS</span><span class="edu-seg-sub" id="eduGmCV">' + eduFmt(cogs) + '</span></div>' +
               '<div class="edu-seg edu-seg--ovhd"                  style="flex:' + ovhdK.toFixed(2) + '"><span>Overhead</span><span class="edu-seg-sub">' + eduFmt(ovhd) + '</span></div>' +
-              '<div class="edu-seg edu-seg--profit" id="eduGmP" style="flex:' + noiK.toFixed(2)  + '"><span>Profit</span><span class="edu-seg-sub" id="eduGmPV">' + eduFmt(profit) + '</span></div>' +
+              '<div class="edu-seg edu-seg--profit' + (profit < 0 ? ' is-negative' : '') + '" id="eduGmP" style="flex:' + Math.max(0.1, noiK).toFixed(2) + '"><span>Profit</span><span class="edu-seg-sub" id="eduGmPV">' + eduFmt(profit) + '</span></div>' +
             '</div>' +
           '</div>' +
         '</div>' +
@@ -539,20 +547,30 @@ function eduInit() {
       document.getElementById('eduGmC').style.flex    = (newCogs / 1000).toFixed(2);
       document.getElementById('eduGmCV').textContent  = eduFmt(newCogs);
       // Clamp profit seg to min 0.1 flex so it never disappears when
-      // gross margin dips below overhead (still shows a red sliver).
-      document.getElementById('eduGmP').style.flex    = Math.max(0.1, newProfit / 1000).toFixed(2);
+      // gross margin dips below overhead (still shows a sliver).
+      var clampedProfitK = Math.max(0.1, newProfit / 1000);
+      var profitSeg = document.getElementById('eduGmP');
+      profitSeg.style.flex = clampedProfitK.toFixed(2);
+      profitSeg.classList.toggle('is-negative', newProfit < 0);
       document.getElementById('eduGmPV').textContent  = eduFmt(newProfit);
       document.getElementById('eduGmGp').textContent  = eduFmt(newGP);
       document.getElementById('eduGmProfit').textContent = eduFmt(newProfit);
       var sub = document.getElementById('eduGmProfitSub');
       sub.textContent = newMargin.toFixed(1) + '% margin';
       sub.classList.toggle('is-negative', newProfit < 0);
-      // Gross-profit bracket above the bar. Its `left` edge tracks
-      // the right edge of the COGS segment, so the bracket width =
-      // (1 - cogs/rev) = gross margin. The bracket's label shows
-      // the current gross profit in dollars.
+      // Gross-profit bracket — mirrors the bar's flex values exactly.
+      // Spacer flex = COGS flex; bracket flex = overhead + clamped-profit
+      // flex. Combined with matching min-widths + gap in CSS, this
+      // guarantees the bracket's left edge lands on Overhead's left
+      // edge and its right edge on Profit's right edge, under all
+      // profit conditions (positive, zero, and negative).
+      var spacer = document.getElementById('eduGmBracketSpacer');
+      if (spacer) spacer.style.flex = (newCogs / 1000).toFixed(2);
       var bracket = document.getElementById('eduGmBracket');
-      if (bracket) bracket.style.left = (newCogs / REV * 100).toFixed(2) + '%';
+      if (bracket) {
+        bracket.style.flex = (OVHD / 1000 + clampedProfitK).toFixed(2);
+        bracket.classList.toggle('is-negative', newGP < 0);
+      }
       var bracketV = document.getElementById('eduGmBracketV');
       if (bracketV) bracketV.textContent = eduFmt(newGP);
     };
@@ -1096,6 +1114,18 @@ function fmtDollar(v) {
     : abs >= 1000
     ? '$' + Math.round(abs/1000) + 'K'
     : '$' + abs;
+  return v < 0 ? '-' + s : s;
+}
+
+// Full-precision dollar formatter — shows every dollar with thousands
+// separators, no K/M abbreviation. Used inside the expense detail
+// modal where the whole point is to see the exact number
+// ($2,147 instead of "$2K"). Rounded to whole dollars since our
+// QBO transactions arrive as dollars-with-cents but the dashboard
+// reads in whole-dollar units everywhere else.
+function fmtDollarFull(v) {
+  var abs = Math.abs(Math.round(v));
+  var s = '$' + abs.toLocaleString('en-US');
   return v < 0 ? '-' + s : s;
 }
 
@@ -2974,8 +3004,11 @@ function renderOwners() {
     var fillCfg = false;
     var bgColor = 'transparent';
     if (s.goal != null && s.dir) {
-      var goodColor = 'rgba(34,197,94,0.07)';   // lighter green
-      var badColor  = 'rgba(239,68,68,0.06)';   // lighter red
+      // Darker pigment + slightly lower opacity — reads more obviously
+      // "green"/"red" than a washed-out bright tint, while still feeling
+      // like ink on paper rather than a saturated highlight.
+      var goodColor = 'rgba(22, 101, 52, 0.10)';   // deep hunter/forest green
+      var badColor  = 'rgba(153, 27, 27, 0.09)';   // deep burgundy red
       fillCfg = {
         target: { value: s.goal },
         above:  s.dir === 'above' ? goodColor : badColor,
@@ -3777,13 +3810,10 @@ function buildTrendLegend(series, curIdx) {
       '<span class="tcl-val" style="color:' + active.color + '">' + curVal + '</span>' +
     '</div>';
   if (active.goal != null) {
-    // Neutral, non-judgmental framing — "≤ 25%" / "≥ 50%" reads as a
-    // benchmark, not a warning. No red, no aggressive arrows.
-    var targetText = active.dir === 'below'
-      ? 'Target: \u2264 ' + active.goal + '%'
-      : active.dir === 'above'
-      ? 'Target: \u2265 ' + active.goal + '%'
-      : 'Target: ' + active.goal + '%';
+    // Just "Target X%" — the red/green fill below the line already
+    // communicates direction (good vs. bad side of the target), so
+    // the legend doesn't need ≤ / ≥ markers to re-explain it.
+    var targetText = 'Target ' + active.goal + '%';
     html +=
       '<div class="tcl-item">' +
         '<span class="tcl-swatch tcl-swatch--target"></span>' +
@@ -4097,24 +4127,48 @@ function showExpModalTxns(title, monthLabel, txns, color) {
       var pct = (v.val / total) * 100;
       return '<div class="exp-stacked-seg" style="width:' + pct.toFixed(2) +
         '%;background:' + vendorColors[i] + '" title="' + esc(v.name) +
-        ': ' + fmtDollar(v.val) + '"></div>';
+        ': ' + fmtDollarFull(v.val) + '"></div>';
     }).join('');
 
+    // Legend rows. The "Other (N)" row becomes a click-to-expand
+    // disclosure when there are 4+ vendors — reveals an indented
+    // sub-list of the residual vendors right below it.
+    var canExpandOther = rest.length > 0;
     var legendHtml = top.map(function(v, i) {
       var pct = (v.val / total) * 100;
-      return '<div class="exp-vlegend-row">' +
+      var expandable = v.isOther && canExpandOther;
+      return '<div class="exp-vlegend-row' +
+        (expandable ? ' exp-vlegend-row--expandable' : '') +
+        '"' + (expandable ? ' data-exp-other="1" role="button" tabindex="0" aria-expanded="false"' : '') + '>' +
         '<span class="exp-vlegend-swatch" style="background:' + vendorColors[i] + '"></span>' +
-        '<span class="exp-vlegend-name">' + esc(v.name) + '</span>' +
+        '<span class="exp-vlegend-name">' + esc(v.name) +
+          (expandable ? '<span class="exp-vlegend-caret" aria-hidden="true">\u25B8</span>' : '') +
+        '</span>' +
         '<span class="exp-vlegend-pct">' + pct.toFixed(0) + '%</span>' +
-        '<span class="exp-vlegend-val">' + fmtDollar(v.val) + '</span>' +
+        '<span class="exp-vlegend-val">' + fmtDollarFull(v.val) + '</span>' +
       '</div>';
     }).join('');
+
+    // Residual-vendor sub-list — rendered hidden; toggled by the
+    // click handler wired up after innerHTML lands.
+    var otherSubHtml = '';
+    if (canExpandOther) {
+      var subRows = rest.map(function(v) {
+        var pct = (v.val / total) * 100;
+        return '<div class="exp-vlegend-row exp-vlegend-row--sub">' +
+          '<span class="exp-vlegend-name">' + esc(v.name) + '</span>' +
+          '<span class="exp-vlegend-pct">' + pct.toFixed(0) + '%</span>' +
+          '<span class="exp-vlegend-val">' + fmtDollarFull(v.val) + '</span>' +
+        '</div>';
+      }).join('');
+      otherSubHtml = '<div class="exp-other-sublist" hidden>' + subRows + '</div>';
+    }
 
     summaryHtml =
       '<div class="exp-summary">' +
         '<div class="exp-section-label">Top vendors · summary</div>' +
         '<div class="exp-stacked-bar">' + segsHtml + '</div>' +
-        '<div class="exp-vlegend">' + legendHtml + '</div>' +
+        '<div class="exp-vlegend">' + legendHtml + otherSubHtml + '</div>' +
       '</div>';
   }
 
@@ -4147,7 +4201,7 @@ function showExpModalTxns(title, monthLabel, txns, color) {
           '<span class="exp-txn-desc">' + esc(desc) + '</span>' +
           (memo ? '<span class="exp-txn-memo">' + esc(memo) + '</span>' : '') +
         '</span>' +
-        '<span class="exp-row-val">' + fmtDollar(Math.abs(t.amount)) + '</span>' +
+        '<span class="exp-row-val">' + fmtDollarFull(Math.abs(t.amount)) + '</span>' +
       '</div>' +
       '<div class="exp-bar-track">' +
         '<div class="exp-bar-fill" style="width:' + barPct.toFixed(1) + '%;background:' + (color || '#f97316') + '"></div>' +
@@ -4164,7 +4218,28 @@ function showExpModalTxns(title, monthLabel, txns, color) {
   bodyEl.innerHTML = summaryHtml + detailsLabel +
     (rowsHtml || '<div class="exp-empty">No transactions found for this month.</div>');
   footEl.innerHTML = '<span class="exp-foot-label">' + txns.length + ' transaction' + (txns.length !== 1 ? 's' : '') + '</span>' +
-                     '<span class="exp-foot-val">' + fmtDollar(total) + '</span>';
+                     '<span class="exp-foot-val">' + fmtDollarFull(total) + '</span>';
+
+  // ── Wire up "Other" click-to-expand ─────────────────────────────
+  // Reveals the residual vendors (ranks 4+) as an indented sub-list
+  // right under the Other row. Both click and Enter/Space work (the
+  // row carries role=button + tabindex for keyboard access).
+  var otherRow = bodyEl.querySelector('[data-exp-other]');
+  var otherSub = bodyEl.querySelector('.exp-other-sublist');
+  if (otherRow && otherSub) {
+    var toggleOther = function() {
+      var nowOpen = otherRow.classList.toggle('exp-vlegend-row--open');
+      otherSub.hidden = !nowOpen;
+      otherRow.setAttribute('aria-expanded', nowOpen ? 'true' : 'false');
+    };
+    otherRow.addEventListener('click', toggleOther);
+    otherRow.addEventListener('keydown', function(ev) {
+      if (ev.key === 'Enter' || ev.key === ' ') {
+        ev.preventDefault();
+        toggleOther();
+      }
+    });
+  }
 }
 
 // Fallback: show sub-account totals (when transaction detail isn't available)
@@ -4188,7 +4263,7 @@ function showExpModal(title, monthLabel, items, total, color) {
       return '<div class="exp-row">' +
         '<div class="exp-row-top">' +
           '<span class="exp-row-name">' + esc(item.name) + '</span>' +
-          '<span class="exp-row-val">' + fmtDollar(item.val) + '</span>' +
+          '<span class="exp-row-val">' + fmtDollarFull(item.val) + '</span>' +
         '</div>' +
         '<div class="exp-bar-track">' +
           '<div class="exp-bar-fill" style="width:' + barPct.toFixed(1) + '%;background:' + (color || '#f97316') + '"></div>' +
@@ -4199,7 +4274,7 @@ function showExpModal(title, monthLabel, items, total, color) {
   }
 
   footEl.innerHTML = '<span class="exp-foot-label">Total</span>' +
-                     '<span class="exp-foot-val">' + fmtDollar(total) + '</span>';
+                     '<span class="exp-foot-val">' + fmtDollarFull(total) + '</span>';
 
   backdrop.style.display = 'flex';  // make it flex before animating
   // Lock body scroll so swipes on the backdrop / sheet can't bubble

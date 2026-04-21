@@ -451,6 +451,25 @@ body.paper-mode .exp-vlegend-pct {
   color: var(--riso-oxford);
   opacity: 0.55;
 }
+body.paper-mode .exp-vlegend-caret {
+  color: var(--riso-oxford);
+  opacity: 0.6;
+}
+body.paper-mode .exp-vlegend-row--expandable:hover,
+body.paper-mode .exp-vlegend-row--expandable:focus-visible {
+  background: rgba(0, 33, 71, 0.06);  /* Oxford-blue wash on hover */
+}
+body.paper-mode .exp-other-sublist {
+  border-left-color: var(--paper-border-firm);
+}
+body.paper-mode .exp-vlegend-row--sub {
+  color: var(--riso-oxford);
+  opacity: 0.78;
+}
+body.paper-mode .exp-vlegend-row--sub .exp-vlegend-val {
+  color: var(--riso-oxford);
+  opacity: 1;
+}
 
 /* ── Kill hardcoded white dividers throughout the app ──────────
    Several legacy rules use `#fff` / `white` as the "cut" between
@@ -2994,15 +3013,31 @@ body.paper-mode .edu-bar-outer--dynamic {
    segments below it. */
 body.paper-mode .edu-bar-bracket-wrap {
   position: relative;
-  padding-top: 42px;   /* room for the bracket + its 6px down-legs */
+}
+/* The bracket row is a flex container that MIRRORS the bar below
+   it: same gap, per-item min-widths matching the segments they span,
+   and flex values driven by the same math. That guarantees pixel-
+   perfect alignment of the bracket's edges with the Overhead and
+   Profit segments — no percentage math, no JS measurement. */
+body.paper-mode .edu-bracket-row {
+  display: flex;
+  gap: 3px;               /* matches .edu-bar gap exactly */
+  margin-bottom: 6px;     /* room for the bracket's down-legs */
+  position: relative;
+}
+body.paper-mode .edu-bracket-spacer {
+  min-width: 52px;        /* matches .edu-seg min-width */
+  visibility: hidden;
+  pointer-events: none;
 }
 body.paper-mode .edu-bracket {
-  position: absolute;
-  top: 0;
-  right: 0;
+  /* min-width covers ovhd's 52 + gap 3 + profit's 52, so even when
+     profit goes negative (clamped flex 0.1) the bracket can't shrink
+     below the actual rendered Overhead + Profit span below it. */
+  min-width: 107px;
   height: 30px;
-  background: rgba(0, 33, 71, 0.10);         /* Oxford Blue wash */
-  border: 1.5px solid rgba(0, 33, 71, 0.55);
+  background: rgba(0, 33, 71, 0.18);         /* stronger Oxford-blue wash — reads as blue */
+  border: 1.5px solid #002147;                /* solid Oxford Blue border */
   border-bottom: none;                        /* legs continue downward via ::before/::after */
   border-radius: 6px 6px 0 0;
   display: flex;
@@ -3011,7 +3046,8 @@ body.paper-mode .edu-bracket {
   padding: 0 12px;
   box-sizing: border-box;
   pointer-events: none;
-  transition: left 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+  position: relative;                          /* anchor for down-legs */
+  transition: flex 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);   /* match bar seg transition */
 }
 /* Down-legs — the vertical ticks that hang toward the bar, making
    the element read as a bracket rather than a floating plaque. */
@@ -3022,7 +3058,7 @@ body.paper-mode .edu-bracket::after {
   top: 100%;
   width: 1.5px;
   height: 6px;
-  background: rgba(0, 33, 71, 0.55);
+  background: #002147;
 }
 body.paper-mode .edu-bracket::before { left:  -1.5px; }
 body.paper-mode .edu-bracket::after  { right: -1.5px; }
@@ -3070,6 +3106,10 @@ body.paper-mode .edu-seg-sub {
 body.paper-mode .edu-seg--cogs   { background: #FF5B5B; }
 body.paper-mode .edu-seg--ovhd   { background: #FF8A1F; }
 body.paper-mode .edu-seg--profit { background: #2ECC71; }
+/* Negative profit — paint red so the visual matches the math.
+   Green + minus-sign reads as contradictory; red + minus reads as
+   "you're underwater." Slightly deeper than cogs red to distinguish. */
+body.paper-mode .edu-seg--profit.is-negative { background: #C0392B; }
 
 /* Segment shape — first + last get outer rounding so 3-segment bars
    read as one unit with paper gaps between pieces. */
@@ -3246,12 +3286,13 @@ body.paper-mode .edu-insight b {
   body.paper-mode .edu-seg         { font-size: 11.5px; padding: 0 4px; min-width: 38px; }
   body.paper-mode .edu-seg-sub     { font-size: 10.5px; margin-top: 1px; }
 
-  /* Gross-profit bracket (Tab 1) — shrink + clip. When gross margin
-     is low the bracket gets narrow; ellipsis prevents the label
-     from forcing the bracket wider than its true geometric width. */
-  body.paper-mode .edu-bar-bracket-wrap { padding-top: 36px; }
-  body.paper-mode .edu-bracket     { height: 26px; padding: 0 8px; border-radius: 5px 5px 0 0; }
-  body.paper-mode .edu-bracket-lbl { font-size: 10.5px; }
+  /* Gross-profit bracket (Tab 1) — shrink + clip. Mobile bar has
+     2px gap and 38px seg min-width, so the bracket row must match:
+     spacer min 38, bracket min 78 (= 38 + 2 + 38). */
+  body.paper-mode .edu-bracket-row    { gap: 2px; margin-bottom: 5px; }
+  body.paper-mode .edu-bracket-spacer { min-width: 38px; }
+  body.paper-mode .edu-bracket        { min-width: 78px; height: 26px; padding: 0 8px; border-radius: 5px 5px 0 0; }
+  body.paper-mode .edu-bracket-lbl    { font-size: 10.5px; }
 
   /* Tab 4 dynamic-width "After" bar — slight override so the
      growing bar transitions remain smooth even on mobile. */

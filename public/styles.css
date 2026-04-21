@@ -524,6 +524,63 @@ body.exp-modal-lock {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+/* Expandable "Other" row — click to reveal the residual vendor list.
+   The caret rotates 90° on open. Tap-highlight is suppressed so the
+   interaction feels native on iOS. */
+.exp-vlegend-row--expandable {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  border-radius: 4px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  transition: background 0.15s;
+}
+.exp-vlegend-row--expandable:hover,
+.exp-vlegend-row--expandable:focus-visible {
+  background: rgba(148, 163, 184, 0.10);
+  outline: none;
+}
+.exp-vlegend-caret {
+  display: inline-block;
+  font-size: 10px;
+  margin-left: 5px;
+  color: #94a3b8;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  vertical-align: middle;
+  line-height: 1;
+}
+.exp-vlegend-row--open .exp-vlegend-caret {
+  transform: rotate(90deg);
+}
+/* Indented sub-list of residual vendors (ranks 4+) revealed when
+   "Other" is expanded. A thin left rail visually binds it to the
+   parent row, and the typography drops a notch to read as a detail
+   layer rather than a peer of the Top 3. */
+.exp-other-sublist {
+  display: grid;
+  grid-auto-rows: min-content;
+  gap: 6px;
+  margin: 6px 0 2px 10px;
+  padding: 6px 0 4px 14px;
+  border-left: 2px solid #e5e7eb;
+}
+.exp-other-sublist[hidden] { display: none; }
+.exp-vlegend-row--sub {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  font-size: 12px;
+  color: #64748b;
+}
+.exp-vlegend-row--sub .exp-vlegend-name {
+  color: inherit;
+  font-size: 12px;
+}
+.exp-vlegend-row--sub .exp-vlegend-val {
+  font-weight: 600;
+  font-size: 12.5px;
+  color: #1a2d3a;
+}
+.exp-vlegend-row--sub .exp-vlegend-pct { font-size: 11px; }
+
 /* On narrow phones, tighten the legend typography so "Other (23)" +
    big $ values don't crowd past the right edge. The grid still holds
    the shape — just smaller numerics. */
@@ -531,6 +588,7 @@ body.exp-modal-lock {
   .exp-vlegend-row { font-size: 12px; column-gap: 8px; }
   .exp-vlegend-val { font-size: 12.5px; }
   .exp-vlegend-pct { display: none; } /* drop the % on the narrowest devices */
+  .exp-vlegend-row--sub .exp-vlegend-pct { display: none; }
 }
 
 /* Transaction row sub-elements */
