@@ -264,10 +264,10 @@ function buildEducationHtml(rev, cogs, ovhd, noi) {
       '</div>' +
 
       '<div class="edu-tabs" role="tablist">' +
-        '<button type="button" class="edu-tab is-active" role="tab" aria-selected="true"  data-panel="gross" onclick="eduTab(this)">What is gross profit?</button>' +
         '<button type="button" class="edu-tab"           role="tab" aria-selected="false" data-panel="cogs"  onclick="eduTab(this)">Reducing COGS</button>' +
         '<button type="button" class="edu-tab"           role="tab" aria-selected="false" data-panel="ovhd"  onclick="eduTab(this)">Reducing overhead</button>' +
         '<button type="button" class="edu-tab"           role="tab" aria-selected="false" data-panel="price" onclick="eduTab(this)">Raising prices</button>' +
+        '<button type="button" class="edu-tab is-active" role="tab" aria-selected="true"  data-panel="gross" onclick="eduTab(this)">What is gross profit?</button>' +
       '</div>' +
 
       // ── TAB 1: What is gross profit? ──────────────────────────

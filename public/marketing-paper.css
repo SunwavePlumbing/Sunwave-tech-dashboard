@@ -2802,34 +2802,64 @@ body.paper-mode .edu-subtitle {
 }
 
 /* ── Tab bar ─────────────────────────────────────────────────── */
+/* Folder-style tabs — each tab is a top-rounded chip with its own
+   subtle fill; the active tab uses the paper card's own background,
+   erases its bottom border, and appears to "attach" to the panel
+   below. The row's bottom border acts as the spine that inactive
+   tabs sit above and the active tab breaks through. */
 body.paper-mode .edu-tabs {
   display: flex;
-  gap: 4px;
+  gap: 3px;
   margin-bottom: 20px;
-  border-bottom: 1px solid rgba(92, 84, 72, 0.14);
+  border-bottom: 1.5px solid rgba(92, 84, 72, 0.22);
   flex-wrap: wrap;
+  padding-left: 2px;
 }
 body.paper-mode .edu-tab {
   font-family: inherit;
   font-size: 13.5px;
   font-weight: 600;
   color: var(--brand-ink-muted, #6B7280);
-  background: transparent;
-  border: none;
-  border-bottom: 2px solid transparent;
-  padding: 12px 16px;
-  margin-bottom: -1px;
+  background: rgba(92, 84, 72, 0.06);
+  border: 1.5px solid rgba(92, 84, 72, 0.18);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  padding: 10px 18px;
+  margin-bottom: -1.5px;
   cursor: pointer;
-  transition: color 160ms ease, border-color 160ms ease;
+  transition: color 160ms ease, background 160ms ease, border-color 160ms ease;
   letter-spacing: 0.01em;
+  position: relative;
+  top: 2px;               /* inactive tabs sit slightly lower, like folder tabs */
 }
 body.paper-mode .edu-tab:hover {
   color: #373B4D;
+  background: rgba(92, 84, 72, 0.10);
 }
 body.paper-mode .edu-tab.is-active {
   color: #373B4D;
   font-weight: 700;
-  border-bottom-color: var(--brand-orange-soft, #E88140);
+  background: var(--paper-card, #FBFAF6);
+  border-color: rgba(92, 84, 72, 0.22);
+  /* Paint the active tab's bottom-edge in the card color so it erases
+     the row's bottom border where the tab meets the panel — classic
+     "tab attached to content" folder trick. */
+  box-shadow: 0 1.5px 0 0 var(--paper-card, #FBFAF6);
+  top: 0;                  /* active tab rises flush with the spine */
+  z-index: 1;
+}
+/* Accent strip on the active tab — a slim orange underline under the
+   label, inside the tab, that reinforces which one is picked without
+   clashing with the folder silhouette. */
+body.paper-mode .edu-tab.is-active::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 6px;
+  height: 2px;
+  background: var(--brand-orange-soft, #E88140);
+  border-radius: 1px;
 }
 
 /* ── Panels ──────────────────────────────────────────────────── */
@@ -3270,7 +3300,32 @@ body.paper-mode .edu-insight b {
   body.paper-mode .edu-ctrl        { margin: 0 0 16px; }
   body.paper-mode .edu-ctrl-row    { gap: 10px; margin-bottom: 10px; row-gap: 6px; }
   body.paper-mode .edu-ctrl-lbl    { flex: 1 1 100%; font-size: 12.5px; }
-  body.paper-mode .edu-slider      { flex: 1 1 auto; min-width: 0; }
+  /* Taller track + fatter thumb + a vertical tap buffer so the slider
+     is an easy thumb target on mobile. Previous 18px thumb + 4px track
+     was basically a sniper rifle — bump the thumb to 28px and add 10px
+     of vertical padding via the wrapping row so the hit area clears the
+     iOS 44pt guideline without changing the track's visual size much. */
+  body.paper-mode .edu-slider      {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 6px;                    /* was 4px */
+    padding: 12px 0;                /* vertical tap buffer around the thin track */
+    background-clip: content-box;   /* keeps the track's painted color in its 6px band */
+    box-sizing: content-box;
+    touch-action: pan-x;            /* grab dragging without page-scroll fights */
+  }
+  body.paper-mode .edu-slider::-webkit-slider-thumb {
+    width: 28px;                    /* was 18px — easy thumb hit */
+    height: 28px;
+    border-width: 3px;              /* thicker white halo so it reads big */
+    box-shadow: 0 1.5px 4px rgba(44, 42, 40, 0.28);
+  }
+  body.paper-mode .edu-slider::-moz-range-thumb {
+    width: 28px;
+    height: 28px;
+    border-width: 3px;
+    box-shadow: 0 1.5px 4px rgba(44, 42, 40, 0.28);
+  }
   body.paper-mode .edu-ctrl-val    { font-size: 14.5px; min-width: 58px; }
 
   /* Preset chips — un-indent (desktop aligned them with slider start) */
