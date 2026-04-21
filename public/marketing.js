@@ -193,6 +193,13 @@ async function fetchMarketing() {
       // dashboard, not on top of the loader.
       marketingRendered = true;
       container.classList.add('mkt-mount-in');
+      // Kick off JS-driven number count-ups on the next animation
+      // frame so they run in sync with the CSS cascade (cards/progress
+      // bar fading + filling in). Delay chosen so the digits start
+      // ticking just as the stat cards become visible, and land at
+      // their final value right when the progress bar finishes its
+      // fill — one unified "dashboard waking up" beat.
+      requestAnimationFrame(runMarketingCountUps);
       // The "Unfolding Ledger" cascade ends around 1500ms (last table
       // row lands at 1152ms delay + 300ms duration, footer at 1200ms
       // delay + 300ms = 1500ms). Hold the class long enough for every
@@ -237,16 +244,23 @@ function renderMarketing() {
   var wdElapsed = proj.wdElapsed || proj.daysElapsed;
   var wdTotal   = proj.wdTotal   || proj.totalDays;
   var wdLeft    = proj.wdLeft    != null ? proj.wdLeft : proj.daysLeft;
+  // Stat card values carry `data-countup` so the mount-in pass can
+  // animate them from 0 → final. `data-countup-fmt="decimal"` signals
+  // one-decimal formatting (for the Daily Rate tile only).
   var projHTML =
     '<div class="proj-cards">' +
-      '<div class="proj-card"><div class="proj-card-label">Jobs This Month</div><div class="proj-card-value">' + proj.jobsMtd + '</div><div class="proj-card-sub">' + wdElapsed + ' of ' + wdTotal + ' workdays</div></div>' +
-      '<div class="proj-card"><div class="proj-card-label">Projected Jobs</div><div class="proj-card-value">' + proj.projectedJobs + '</div><div class="proj-card-sub">by end of month</div></div>' +
-      '<div class="proj-card"><div class="proj-card-label">Daily Rate</div><div class="proj-card-value">' + proj.dailyRate.toFixed(1) + '</div><div class="proj-card-sub">jobs / workday</div></div>' +
-      '<div class="proj-card"><div class="proj-card-label">Workdays Left</div><div class="proj-card-value">' + wdLeft + '</div><div class="proj-card-sub">this month</div></div>' +
+      '<div class="proj-card"><div class="proj-card-label">Jobs This Month</div><div class="proj-card-value" data-countup="' + proj.jobsMtd + '">' + proj.jobsMtd + '</div><div class="proj-card-sub">' + wdElapsed + ' of ' + wdTotal + ' workdays</div></div>' +
+      '<div class="proj-card"><div class="proj-card-label">Projected Jobs</div><div class="proj-card-value" data-countup="' + proj.projectedJobs + '">' + proj.projectedJobs + '</div><div class="proj-card-sub">by end of month</div></div>' +
+      '<div class="proj-card"><div class="proj-card-label">Daily Rate</div><div class="proj-card-value" data-countup="' + proj.dailyRate.toFixed(1) + '" data-countup-fmt="decimal">' + proj.dailyRate.toFixed(1) + '</div><div class="proj-card-sub">jobs / workday</div></div>' +
+      '<div class="proj-card"><div class="proj-card-label">Workdays Left</div><div class="proj-card-value" data-countup="' + wdLeft + '">' + wdLeft + '</div><div class="proj-card-sub">this month</div></div>' +
     '</div>' +
+    // Progress bar: render with width:0% and a CSS custom property
+    // carrying the target width so the mount-in animation can animate
+    // from 0 → target. The label's percentage span gets data-countup
+    // so the number ticks up in sync with the fill.
     '<div class="progress-wrap">' +
-      '<div class="progress-label-row"><span>Month Progress</span><span>' + pct + '%</span></div>' +
-      '<div class="progress-bar-bg"><div class="progress-bar-fill" style="width:' + pct + '%"></div></div>' +
+      '<div class="progress-label-row"><span>Month Progress</span><span class="progress-pct" data-countup="' + pct + '" data-countup-fmt="pct">' + pct + '%</span></div>' +
+      '<div class="progress-bar-bg"><div class="progress-bar-fill" style="--fill-target:' + pct + '%;width:' + pct + '%"></div></div>' +
     '</div>';
 
   // Bar chart — max bar height is smaller on mobile so values + labels fit inside the card
@@ -268,7 +282,11 @@ function renderMarketing() {
     var valHtml  = m.isCurrent
       ? displayJobs + '<div class="bar-proj-tag">PROJ</div>'
       : (m.jobs > 0 ? m.jobs : '');
-    return '<div class="bar-col">' +
+    // --bar-delay: staggered delay per column for the mount-in grow
+    // animation. 40ms between bars reads as a single left-to-right
+    // sweep rather than N simultaneous jumps.
+    var barDelay = 480 + idx * 50;
+    return '<div class="bar-col" style="--bar-delay:' + barDelay + 'ms">' +
       '<div class="' + valClass + '">' + valHtml + '</div>' +
       '<div class="bar' + isCur + '" style="' + barStyle + '"></div>' +
       '<div class="bar-lbl">' + esc(m.label) + '</div>' +
@@ -361,4 +379,38 @@ function renderMarketing() {
     '</table></div></div>';
 
   document.getElementById('marketingContent').innerHTML = qboBanner + projHTML + chartHTML + tableHTML;
+}
+
+/* ── Mount-in count-ups ────────────────────────────────────────
+   After the dashboard is in the DOM and `mkt-mount-in` is on the
+   container, animate the numeric values from 0 → their real
+   target. Only runs on the FIRST reveal; subsequent re-renders
+   (QBO banner swaps, etc.) skip this so re-paints feel instant.
+
+   Uses the shared `countUpEl` helper from app.js. Each value's
+   final target lives on a `data-countup` attribute baked into the
+   HTML by renderMarketing(). `data-countup-fmt` picks the output
+   format: decimal (one decimal), pct (integer + %), default
+   (comma-separated integer). */
+function runMarketingCountUps() {
+  var container = document.getElementById('marketingContent');
+  if (!container || typeof countUpEl !== 'function') return;
+
+  var targets = container.querySelectorAll('[data-countup]');
+  targets.forEach(function(el) {
+    var target = parseFloat(el.getAttribute('data-countup'));
+    if (isNaN(target)) return;
+    var fmt = el.getAttribute('data-countup-fmt');
+    var formatter;
+    if (fmt === 'decimal') {
+      formatter = function(v) { return v.toFixed(1); };
+    } else if (fmt === 'pct') {
+      formatter = function(v) { return Math.round(v) + '%'; };
+    } else {
+      formatter = function(v) { return Math.round(v).toLocaleString(); };
+    }
+    // 900ms duration lines up with the CSS progress-fill + bar-grow
+    // windows — digits settle as the graphs finish growing.
+    countUpEl(el, 0, target, 900, formatter);
+  });
 }
