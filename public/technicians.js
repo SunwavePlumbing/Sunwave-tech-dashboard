@@ -261,7 +261,7 @@ function animateStatCards(summary) {
   var statsEl = document.getElementById('stats');
   statsEl.innerHTML =
     '<div class="stat-card">' +
-      '<div class="stat-label">Total Revenue</div>' +
+      '<div class="stat-label">Total Value Created</div>' +
       '<div class="stat-value" id="statRev">$' + prev.totalRevenue.toLocaleString() + '</div>' +
     '</div>' +
     '<div class="stat-card">' +

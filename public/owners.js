@@ -194,9 +194,11 @@ function buildEducationHtml(rev, cogs, ovhd, noi) {
   var noiPct = rev > 0 ? (noi / rev) * 100 : 0;
   var MAX_REV_LIFT = 30000;   // matches slider max on Tab 4
 
-  // Initial slider defaults for each tab (dollar-denominated, stepped
-  // to land on "clean" preset values).
-  var cogsDefault = 7000, ovhdDefault = 4000, priceDefault = 5000;
+  // Initial slider defaults for each tab. Cost tabs are dollar-
+  // denominated, price tab is percentage-denominated (a 2% hike is
+  // a realistic starting point and the psychologically "invisible"
+  // threshold customers almost never notice).
+  var cogsDefault = 7000, ovhdDefault = 4000, priceDefault = 2;   // 2 = 2%
 
   // Compute the INITIAL displayed values for each tab so the card
   // reads as coherent on first paint — these match what the
@@ -212,12 +214,21 @@ function buildEducationHtml(rev, cogs, ovhd, noi) {
   var initOvhd_deltaPct   = profit > 0 ? (ovhdDefault / profit) * 100 : 0;
   var initOvhd_newMargin  = rev > 0 ? (initOvhd_newProfit / rev) * 100 : 0;
 
-  var initPrice_newRev    = rev + priceDefault;
-  var initPrice_newProfit = profit + priceDefault;
+  // Tab 4 math: priceDefault is a percentage; `lift` is the dollar
+  // value that percent produces on the current revenue. All
+  // downstream values are computed from `lift` so the calculations
+  // match how a real price hike would flow through.
+  var initPrice_lift      = rev * (priceDefault / 100);
+  var initPrice_newRev    = rev + initPrice_lift;
+  var initPrice_newProfit = profit + initPrice_lift;
   var initPrice_newMargin = initPrice_newRev > 0 ? (initPrice_newProfit / initPrice_newRev) * 100 : 0;
-  var initPrice_incPct    = rev > 0 ? (priceDefault / rev) * 100 : 0;
-  var initPrice_deltaPct  = profit > 0 ? (priceDefault / profit) * 100 : 0;
-  var initPrice_MAX_REV   = rev + MAX_REV_LIFT;
+  var initPrice_incPct    = priceDefault;                          // identity: slider IS the %
+  var initPrice_deltaPct  = profit > 0 ? (initPrice_lift / profit) * 100 : 0;
+  // Bar-width ceiling uses a 10% max hike on current revenue so the
+  // "After" bar can visibly grow alongside the slider without the
+  // scale feeling arbitrary.
+  var PRICE_MAX_PCT       = 10;
+  var initPrice_MAX_REV   = rev * (1 + PRICE_MAX_PCT / 100);
   var initPrice_curWidth  = initPrice_MAX_REV > 0 ? (rev / initPrice_MAX_REV) * 100 : 100;
   var initPrice_newWidth  = initPrice_MAX_REV > 0 ? (initPrice_newRev / initPrice_MAX_REV) * 100 : 100;
 
@@ -269,20 +280,31 @@ function buildEducationHtml(rev, cogs, ovhd, noi) {
           '<div class="edu-fop">=</div>' +
           '<div class="edu-fp edu-fp--gp"><div class="edu-fp-l">Gross profit</div><div class="edu-fp-v">' + eduFmt(grossProfit) + '</div></div>' +
         '</div>' +
-        '<p class="edu-lead">Your <b>gross margin</b> is gross profit as a percentage of revenue \u2014 currently <b>' + gm.toFixed(1) + '%</b>. Move the slider to see how a different gross margin flows through in real dollars. Overhead stays fixed at ' + eduFmt(ovhd) + '.</p>' +
+        '<p class="edu-lead">Your <b>gross profit</b> is what\'s left of every revenue dollar after COGS \u2014 currently <b>' + eduFmt(grossProfit) + '</b> out of ' + eduFmt(rev) + '. Move the slider to see how a different gross profit flows through in real dollars. Overhead stays fixed at ' + eduFmt(ovhd) + '.</p>' +
         '<div class="edu-ctrl">' +
           '<div class="edu-ctrl-row">' +
-            '<label class="edu-ctrl-lbl" for="eduGmS">Gross margin</label>' +
+            '<label class="edu-ctrl-lbl" for="eduGmS">Gross profit</label>' +
             '<input type="range" class="edu-slider" id="eduGmS" min="30" max="60" step="0.5" value="' + gm.toFixed(1) + '" />' +
             '<span class="edu-ctrl-val" id="eduGmOut">' + gm.toFixed(1) + '%</span>' +
           '</div>' +
         '</div>' +
         '<div class="edu-bar-row">' +
           '<div class="edu-bar-lbl">Where every revenue dollar goes</div>' +
-          '<div class="edu-bar">' +
-            '<div class="edu-seg edu-seg--cogs"   id="eduGmC" style="flex:' + cogsK.toFixed(2) + '"><span>COGS</span><span class="edu-seg-sub" id="eduGmCV">' + eduFmt(cogs) + '</span></div>' +
-            '<div class="edu-seg edu-seg--ovhd"                  style="flex:' + ovhdK.toFixed(2) + '"><span>Overhead</span><span class="edu-seg-sub">' + eduFmt(ovhd) + '</span></div>' +
-            '<div class="edu-seg edu-seg--profit" id="eduGmP" style="flex:' + noiK.toFixed(2)  + '"><span>Profit</span><span class="edu-seg-sub" id="eduGmPV">' + eduFmt(profit) + '</span></div>' +
+          // Wrapper reserves space ABOVE the segmented bar for the
+          // blue gross-profit bracket. The bracket is absolutely
+          // positioned; its `left` tracks (cogs / rev) so it always
+          // spans the same horizontal range as the Overhead + Profit
+          // segments combined — visually proving Gross Profit =
+          // everything right of COGS.
+          '<div class="edu-bar-bracket-wrap">' +
+            '<div class="edu-bracket" id="eduGmBracket" style="left:' + (cogs / rev * 100).toFixed(2) + '%">' +
+              '<div class="edu-bracket-lbl">Gross profit: <span id="eduGmBracketV">' + eduFmt(grossProfit) + '</span></div>' +
+            '</div>' +
+            '<div class="edu-bar">' +
+              '<div class="edu-seg edu-seg--cogs"   id="eduGmC" style="flex:' + cogsK.toFixed(2) + '"><span>COGS</span><span class="edu-seg-sub" id="eduGmCV">' + eduFmt(cogs) + '</span></div>' +
+              '<div class="edu-seg edu-seg--ovhd"                  style="flex:' + ovhdK.toFixed(2) + '"><span>Overhead</span><span class="edu-seg-sub">' + eduFmt(ovhd) + '</span></div>' +
+              '<div class="edu-seg edu-seg--profit" id="eduGmP" style="flex:' + noiK.toFixed(2)  + '"><span>Profit</span><span class="edu-seg-sub" id="eduGmPV">' + eduFmt(profit) + '</span></div>' +
+            '</div>' +
           '</div>' +
         '</div>' +
         '<div class="edu-metrics">' +
@@ -378,15 +400,19 @@ function buildEducationHtml(rev, cogs, ovhd, noi) {
         '<p class="edu-lead">When you raise prices, your costs don\'t change. Materials cost the same, techs get paid the same, overhead stays the same. Every extra dollar of revenue from a price increase drops <b>100% straight to profit</b>. It\'s the single most powerful lever on this card.</p>' +
         '<div class="edu-ctrl">' +
           '<div class="edu-ctrl-row">' +
-            '<label class="edu-ctrl-lbl" for="eduPriceS">Revenue from pricing</label>' +
-            '<input type="range" class="edu-slider" id="eduPriceS" min="0" max="30000" step="500" value="' + priceDefault + '" />' +
-            '<span class="edu-ctrl-val" id="eduPriceOut">' + eduFmt(priceDefault) + '</span>' +
+            '<label class="edu-ctrl-lbl" for="eduPriceS">Raise prices by</label>' +
+            // Percentage slider: 0–10% in 0.25% steps. 2% default is
+            // the "customers don\'t notice" sweet-spot used in the
+            // insight callout below. All downstream math computes
+            // dollar lift as REV × (pct / 100) on the fly.
+            '<input type="range" class="edu-slider" id="eduPriceS" min="0" max="10" step="0.25" value="' + priceDefault + '" />' +
+            '<span class="edu-ctrl-val" id="eduPriceOut">' + priceDefault.toFixed(1) + '%</span>' +
           '</div>' +
           '<div class="edu-presets">' +
-            '<button type="button" class="edu-preset" data-preset="eduPriceS" data-val="2500"  onclick="eduPreset(this)">$2.5K</button>' +
-            '<button type="button" class="edu-preset" data-preset="eduPriceS" data-val="5000"  onclick="eduPreset(this)">$5K</button>' +
-            '<button type="button" class="edu-preset" data-preset="eduPriceS" data-val="10000" onclick="eduPreset(this)">$10K</button>' +
-            '<button type="button" class="edu-preset" data-preset="eduPriceS" data-val="20000" onclick="eduPreset(this)">$20K</button>' +
+            '<button type="button" class="edu-preset" data-preset="eduPriceS" data-val="0.5" onclick="eduPreset(this)">0.5%</button>' +
+            '<button type="button" class="edu-preset" data-preset="eduPriceS" data-val="1"   onclick="eduPreset(this)">1%</button>' +
+            '<button type="button" class="edu-preset" data-preset="eduPriceS" data-val="2"   onclick="eduPreset(this)">2%</button>' +
+            '<button type="button" class="edu-preset" data-preset="eduPriceS" data-val="5"   onclick="eduPreset(this)">5%</button>' +
           '</div>' +
         '</div>' +
         '<div class="edu-bar-row">' +
@@ -494,9 +520,13 @@ function eduInit() {
   var OVHD = parseFloat(card.getAttribute('data-edu-ovhd')) || 0;
   var PROFIT = parseFloat(card.getAttribute('data-edu-noi')) || 0;
   var GM = REV > 0 ? ((REV - COGS) / REV) * 100 : 0;
-  var MAX_REV = REV + 30000;
+  // Tab 4 ceiling: "After" bar grows against a 10% max-hike scale
+  // on the current month's revenue. Using a RELATIVE ceiling (vs
+  // the fixed $30K that the dollar-slider used) keeps the visual
+  // proportional for any month's baseline revenue.
+  var MAX_REV = REV * 1.10;
 
-  // ── Tab 1: Gross margin slider ─────────────────────────────
+  // ── Tab 1: Gross profit slider ─────────────────────────────
   var gmS = document.getElementById('eduGmS');
   if (gmS) {
     gmS.oninput = function() {
@@ -517,6 +547,14 @@ function eduInit() {
       var sub = document.getElementById('eduGmProfitSub');
       sub.textContent = newMargin.toFixed(1) + '% margin';
       sub.classList.toggle('is-negative', newProfit < 0);
+      // Gross-profit bracket above the bar. Its `left` edge tracks
+      // the right edge of the COGS segment, so the bracket width =
+      // (1 - cogs/rev) = gross margin. The bracket's label shows
+      // the current gross profit in dollars.
+      var bracket = document.getElementById('eduGmBracket');
+      if (bracket) bracket.style.left = (newCogs / REV * 100).toFixed(2) + '%';
+      var bracketV = document.getElementById('eduGmBracketV');
+      if (bracketV) bracketV.textContent = eduFmt(newGP);
     };
   }
 
@@ -572,14 +610,16 @@ function eduInit() {
   var priceS = document.getElementById('eduPriceS');
   if (priceS) {
     priceS.oninput = function() {
-      var lift      = parseFloat(priceS.value);
+      // Slider value is the percent price hike; `lift` is the dollar
+      // lift it produces on the current month's revenue baseline.
+      var incPct    = parseFloat(priceS.value);
+      var lift      = REV * (incPct / 100);
       var newRev    = REV + lift;
       var newProfit = PROFIT + lift;
       var newMargin = newRev > 0 ? (newProfit / newRev) * 100 : 0;
-      var incPct    = REV > 0 ? (lift / REV) * 100 : 0;
       var deltaPct  = PROFIT > 0 ? (lift / PROFIT) * 100 : 0;
       var newWidth  = MAX_REV > 0 ? (newRev / MAX_REV) * 100 : 100;
-      document.getElementById('eduPriceOut').textContent = eduFmt(lift);
+      document.getElementById('eduPriceOut').textContent = incPct.toFixed(1) + '%';
       document.getElementById('eduPriceBarOuter').style.width = newWidth.toFixed(1) + '%';
       document.getElementById('eduPriceAfterLbl').textContent = 'After \u2014 ' + eduFmt(newRev) + ' revenue';
       document.getElementById('eduPriceP').style.flex = Math.max(0.1, newProfit / 1000).toFixed(2);
