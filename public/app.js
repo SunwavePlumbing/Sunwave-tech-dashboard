@@ -243,10 +243,15 @@ function updateMoreBtnLabel() {
 if (window.innerWidth <= 768) {
   // Common pills flow horizontally; "More" is the LAST pill in the same
   // scroll container (not absolutely positioned anymore).
-  dateRanges.forEach(function(range) {
-    if (commonKeys.indexOf(range.key) !== -1) {
-      sidebar.appendChild(createDateBtn(range));
-    }
+  //
+  // Mobile-only ordering: hoist Month-to-Date to the very first position
+  // so the default-selected pill is fully visible on first load — instead
+  // of landing in the 4th slot where it was being clipped by the right-
+  // edge fade mask. Other common pills follow in their natural order.
+  var mobileOrder = ['mtd', 'day', 'yesterday', 'l30d', 'lm', 'ytd'];
+  mobileOrder.forEach(function(key) {
+    var range = dateRanges.find(function(r) { return r.key === key; });
+    if (range) sidebar.appendChild(createDateBtn(range));
   });
   var moreBtn = document.createElement('button');
   moreBtn.id = 'dateMoreBtn';
