@@ -2643,3 +2643,442 @@ body.paper-mode .ufs-zoom .mf-zoom-seg-pct {
   body.paper-mode .ufs-seg,
   body.paper-mode .ufs-amount { animation: none !important; }
 }
+
+/* ════════════════════════════════════════════════════════════════
+   Education card — 4-tab interactive profit-lever simulator
+   Sits beneath the UFS card, hidden by default behind a "Learn
+   More" toggle button. Visual language mirrors the UFS card so the
+   two read as a matched pair: same coral/orange/green palette for
+   COGS/Overhead/Profit, same paper-card shell, same Inter body
+   type, same Oxford/Hunter ink accents, same ink-wash callouts.
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── Toggle button ───────────────────────────────────────────── */
+body.paper-mode .edu-toggle-row {
+  margin: -32px 0 20px;          /* pull up against the UFS card's bottom margin */
+  display: flex;
+  justify-content: center;
+}
+body.paper-mode .edu-toggle-btn {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 12px 22px;
+  background: var(--paper-card, #F7F6F2);
+  border: 1px dashed rgba(92, 84, 72, 0.32);
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 14px;
+  color: #373B4D;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease, transform 120ms ease;
+  box-shadow: 0 1px 2px rgba(44, 42, 40, 0.04);
+}
+body.paper-mode .edu-toggle-btn:hover {
+  background: #FAF8F3;
+  border-color: rgba(92, 84, 72, 0.50);
+}
+body.paper-mode .edu-toggle-btn:active {
+  transform: translateY(1px);
+}
+body.paper-mode .edu-toggle-btn.is-open {
+  border-style: solid;
+  border-color: rgba(243, 138, 63, 0.50);
+  background: rgba(243, 138, 63, 0.06);
+}
+body.paper-mode .edu-toggle-icon {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--brand-orange-soft, #E88140);
+  line-height: 1;
+  position: relative;
+  top: 1px;
+}
+body.paper-mode .edu-toggle-lbl {
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+body.paper-mode .edu-toggle-sub {
+  color: var(--brand-ink-muted, #6B7280);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+/* ── Card shell ──────────────────────────────────────────────── */
+body.paper-mode .edu-card {
+  background: var(--paper-card, #F7F6F2);
+  border: 1px solid rgba(92, 84, 72, 0.14);
+  border-radius: 16px;
+  padding: 28px 32px;
+  margin-bottom: 48px;
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: #373B4D;
+  box-shadow:
+    0 1px 1px rgba(44, 42, 40, 0.04),
+    0 2px 10px rgba(44, 42, 40, 0.04);
+  /* Expand/collapse: start height:0 + opacity:0, animate to full
+     when .edu-open is applied (JS handles the class flip). Using
+     max-height rather than height:auto so the transition works;
+     ceiling is generous enough for all 4 tabs' content. */
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  padding-top: 0;
+  padding-bottom: 0;
+  transition: max-height 360ms cubic-bezier(0.2, 0.8, 0.2, 1),
+              opacity    280ms ease-out,
+              padding    320ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+body.paper-mode .edu-card.edu-open {
+  max-height: 4000px;
+  opacity: 1;
+  padding-top: 28px;
+  padding-bottom: 28px;
+}
+
+/* ── Header + title ──────────────────────────────────────────── */
+body.paper-mode .edu-hdr {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding-bottom: 14px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid rgba(92, 84, 72, 0.14);
+  flex-wrap: wrap;
+}
+body.paper-mode .edu-title {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: #373B4D;
+}
+body.paper-mode .edu-subtitle {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--brand-ink-muted, #6B7280);
+}
+
+/* ── Tab bar ─────────────────────────────────────────────────── */
+body.paper-mode .edu-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(92, 84, 72, 0.14);
+  flex-wrap: wrap;
+}
+body.paper-mode .edu-tab {
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--brand-ink-muted, #6B7280);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 12px 16px;
+  margin-bottom: -1px;
+  cursor: pointer;
+  transition: color 160ms ease, border-color 160ms ease;
+  letter-spacing: 0.01em;
+}
+body.paper-mode .edu-tab:hover {
+  color: #373B4D;
+}
+body.paper-mode .edu-tab.is-active {
+  color: #373B4D;
+  font-weight: 700;
+  border-bottom-color: var(--brand-orange-soft, #E88140);
+}
+
+/* ── Panels ──────────────────────────────────────────────────── */
+body.paper-mode .edu-panel[hidden] { display: none; }
+body.paper-mode .edu-panel.is-open { display: block; }
+
+/* ── Lead paragraphs ─────────────────────────────────────────── */
+body.paper-mode .edu-lead {
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: #4A4E5F;
+  margin: 0 0 18px;
+}
+body.paper-mode .edu-lead b {
+  color: #373B4D;
+  font-weight: 700;
+}
+
+/* ── Formula row (Tab 1) ─────────────────────────────────────── */
+body.paper-mode .edu-formula {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  margin: 0 0 22px;
+  flex-wrap: wrap;
+}
+body.paper-mode .edu-fp {
+  flex: 1;
+  min-width: 120px;
+  background: var(--paper-bg, #F4F3EF);
+  border: 1px solid rgba(92, 84, 72, 0.12);
+  border-radius: 10px;
+  padding: 14px 18px;
+  text-align: center;
+}
+body.paper-mode .edu-fp-l {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--brand-ink-muted, #6B7280);
+  margin-bottom: 5px;
+}
+body.paper-mode .edu-fp-v {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: #373B4D;
+  font-variant-numeric: tabular-nums;
+}
+body.paper-mode .edu-fp--cogs .edu-fp-l { color: #B83E3E; }
+body.paper-mode .edu-fp--gp {
+  background: rgba(46, 204, 113, 0.08);
+  border-color: rgba(46, 204, 113, 0.28);
+}
+body.paper-mode .edu-fp--gp .edu-fp-l { color: #1E8749; }
+body.paper-mode .edu-fp--gp .edu-fp-v { color: #13532E; }
+body.paper-mode .edu-fop {
+  display: flex;
+  align-items: center;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--brand-ink-muted, #6B7280);
+  padding: 0 4px;
+}
+
+/* ── Slider + readout ────────────────────────────────────────── */
+body.paper-mode .edu-ctrl {
+  margin: 0 0 18px;
+}
+body.paper-mode .edu-ctrl-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+body.paper-mode .edu-ctrl-lbl {
+  flex: 0 0 160px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #4A4E5F;
+}
+body.paper-mode .edu-slider {
+  flex: 1;
+  min-width: 140px;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: rgba(55, 59, 77, 0.14);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+body.paper-mode .edu-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--brand-orange-soft, #E88140);
+  border: 2px solid #FFFFFF;
+  box-shadow: 0 1px 3px rgba(44, 42, 40, 0.22);
+  cursor: grab;
+  transition: transform 120ms ease;
+}
+body.paper-mode .edu-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--brand-orange-soft, #E88140);
+  border: 2px solid #FFFFFF;
+  box-shadow: 0 1px 3px rgba(44, 42, 40, 0.22);
+  cursor: grab;
+}
+body.paper-mode .edu-slider:active::-webkit-slider-thumb { transform: scale(1.12); cursor: grabbing; }
+body.paper-mode .edu-ctrl-val {
+  min-width: 68px;
+  text-align: right;
+  font-size: 15px;
+  font-weight: 800;
+  color: #373B4D;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Preset chips */
+body.paper-mode .edu-presets {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-left: 174px;   /* aligns with slider start on wide layout */
+}
+body.paper-mode .edu-preset {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(92, 84, 72, 0.20);
+  background: transparent;
+  color: var(--brand-ink-muted, #6B7280);
+  cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease;
+  font-variant-numeric: tabular-nums;
+}
+body.paper-mode .edu-preset:hover {
+  background: rgba(243, 138, 63, 0.08);
+  border-color: rgba(243, 138, 63, 0.40);
+  color: #373B4D;
+}
+body.paper-mode .edu-preset:active { transform: translateY(1px); }
+
+/* ── Bar row (before/after stacked-segment bars) ─────────────── */
+body.paper-mode .edu-bar-row {
+  margin-bottom: 14px;
+}
+body.paper-mode .edu-bar-lbl {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--brand-ink-muted, #6B7280);
+  margin-bottom: 7px;
+  font-variant-numeric: tabular-nums;
+}
+body.paper-mode .edu-bar-outer {
+  width: 100%;
+}
+body.paper-mode .edu-bar-outer--dynamic {
+  /* Tab 4 only — the After bar's outer width grows with revenue. */
+  transition: width 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+body.paper-mode .edu-bar {
+  display: flex;
+  height: 52px;
+  border-radius: 10px;
+  overflow: hidden;
+  gap: 3px;
+  background: transparent;
+}
+body.paper-mode .edu-seg {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #373B4D;
+  transition: flex 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+  min-width: 52px;
+  white-space: nowrap;
+}
+body.paper-mode .edu-seg-sub {
+  font-size: 11.5px;
+  font-weight: 600;
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}
+body.paper-mode .edu-seg--cogs   { background: #FF5B5B; }
+body.paper-mode .edu-seg--ovhd   { background: #FF8A1F; }
+body.paper-mode .edu-seg--profit { background: #2ECC71; }
+
+/* Segment shape — first + last get outer rounding so 3-segment bars
+   read as one unit with paper gaps between pieces. */
+body.paper-mode .edu-bar > .edu-seg:first-child { border-radius: 10px 2px 2px 10px; }
+body.paper-mode .edu-bar > .edu-seg:last-child  { border-radius: 2px 10px 10px 2px; }
+body.paper-mode .edu-bar > .edu-seg:only-child  { border-radius: 10px; }
+
+/* ── Metric tiles ────────────────────────────────────────────── */
+body.paper-mode .edu-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  margin: 18px 0;
+}
+body.paper-mode .edu-m {
+  background: var(--paper-bg, #F4F3EF);
+  border: 1px solid rgba(92, 84, 72, 0.10);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+body.paper-mode .edu-m-lbl {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--brand-ink-muted, #6B7280);
+  margin-bottom: 6px;
+}
+body.paper-mode .edu-m-val {
+  font-size: 22px;
+  font-weight: 800;
+  color: #373B4D;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+body.paper-mode .edu-m-sub {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1E8749;              /* positive green by default */
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+body.paper-mode .edu-m-sub--muted { color: var(--brand-ink-muted, #6B7280); }
+body.paper-mode .edu-m-sub.is-negative { color: #B83E3E; }
+
+/* ── Insight callout (bottom of each panel) ──────────────────── */
+body.paper-mode .edu-insight {
+  background: rgba(0, 33, 71, 0.05);
+  border-left: 3px solid rgba(0, 33, 71, 0.45);
+  border-radius: 8px;
+  padding: 14px 18px;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: #1D2B52;
+  margin-top: 18px;
+}
+body.paper-mode .edu-insight b {
+  font-weight: 700;
+  color: #002147;
+}
+
+/* ── Mobile ──────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  body.paper-mode .edu-card {
+    padding: 0 18px;
+    margin-bottom: 28px;
+  }
+  body.paper-mode .edu-card.edu-open {
+    padding-top: 20px;
+    padding-bottom: 20px;
+  }
+  body.paper-mode .edu-title { font-size: 16px; }
+  body.paper-mode .edu-subtitle { font-size: 12px; }
+  body.paper-mode .edu-tab { font-size: 12.5px; padding: 10px 12px; }
+  body.paper-mode .edu-lead { font-size: 14px; }
+  body.paper-mode .edu-fp-v { font-size: 18px; }
+  body.paper-mode .edu-ctrl-lbl { flex: 1 1 100%; }
+  body.paper-mode .edu-presets { margin-left: 0; }
+  body.paper-mode .edu-bar { height: 46px; }
+  body.paper-mode .edu-seg { font-size: 11.5px; padding: 0 4px; min-width: 44px; }
+  body.paper-mode .edu-seg-sub { font-size: 10.5px; }
+  body.paper-mode .edu-m-val { font-size: 19px; }
+  body.paper-mode .edu-toggle-sub { display: none; }     /* hide the "— how..." tagline on phones */
+}
+
+/* Reduced-motion: skip the expand/collapse transition. */
+@media (prefers-reduced-motion: reduce) {
+  body.paper-mode .edu-card,
+  body.paper-mode .edu-bar-outer--dynamic,
+  body.paper-mode .edu-seg { transition: none !important; }
+}

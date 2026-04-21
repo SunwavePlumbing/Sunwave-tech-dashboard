@@ -156,6 +156,442 @@ function ufsToggle(key) {
   }
 }
 
+// ── Education card — interactive 4-tab "profit levers" teach ──────
+// Sits beneath the UFS card, hidden by default behind a "Learn More"
+// button. Teaches owners/managers how gross profit, COGS reduction,
+// overhead reduction, and pricing each flow through to the bottom
+// line. All calculations derive from the currently-displayed month's
+// curRev / curCOGS / curOvhd / curNOI so the card's baseline values
+// update in lockstep with the month picker.
+//
+// The rendered HTML carries baseline values as data-edu-rev etc. on
+// the card root, so eduInit() can be idempotent — on every render
+// it re-reads the baseline, reattaches sliders + preset chips, and
+// rebinds tab switching. No closures over outer scope.
+function eduFmt(n) {
+  // Matches fmtDollar's "$X" / "$XK" / "$X.XM" pattern but keeps one
+  // decimal of precision on $K values when slider math produces non-
+  // round results (e.g. $7.5K instead of $7K or $8K). Rounds before
+  // formatting to kill float artifacts from slider .value math.
+  n = Math.round(n);
+  var abs = Math.abs(n);
+  if (abs >= 1000000) return (n < 0 ? '-$' : '$') + (abs/1000000).toFixed(1) + 'M';
+  if (abs >= 1000) {
+    var k = abs / 1000;
+    var r = Math.round(k);
+    var txt = Math.abs(k - r) < 0.05 ? String(r) : k.toFixed(1);
+    return (n < 0 ? '-$' : '$') + txt + 'K';
+  }
+  return (n < 0 ? '-$' : '$') + abs;
+}
+
+function buildEducationHtml(rev, cogs, ovhd, noi) {
+  // All dynamic text rendered in this pass uses the baseline figures;
+  // interactive updates run later in eduInit() via the slider inputs.
+  var profit = noi;
+  var grossProfit = rev - cogs;
+  var gm = rev > 0 ? (grossProfit / rev) * 100 : 0;
+  var noiPct = rev > 0 ? (noi / rev) * 100 : 0;
+  var MAX_REV_LIFT = 30000;   // matches slider max on Tab 4
+
+  // Initial slider defaults for each tab (dollar-denominated, stepped
+  // to land on "clean" preset values).
+  var cogsDefault = 7000, ovhdDefault = 4000, priceDefault = 5000;
+
+  // Compute the INITIAL displayed values for each tab so the card
+  // reads as coherent on first paint — these match what the
+  // sliders will produce at their default positions.
+  var initCogs_newCogs    = cogs - cogsDefault;
+  var initCogs_newProfit  = profit + cogsDefault;
+  var initCogs_deltaPct   = profit > 0 ? (cogsDefault / profit) * 100 : 0;
+  var initCogs_revEq      = gm > 0 ? cogsDefault / (gm / 100) : 0;
+  var initCogs_ratio      = gm > 0 ? (100 / gm) : 0;
+
+  var initOvhd_newOvhd    = ovhd - ovhdDefault;
+  var initOvhd_newProfit  = profit + ovhdDefault;
+  var initOvhd_deltaPct   = profit > 0 ? (ovhdDefault / profit) * 100 : 0;
+  var initOvhd_newMargin  = rev > 0 ? (initOvhd_newProfit / rev) * 100 : 0;
+
+  var initPrice_newRev    = rev + priceDefault;
+  var initPrice_newProfit = profit + priceDefault;
+  var initPrice_newMargin = initPrice_newRev > 0 ? (initPrice_newProfit / initPrice_newRev) * 100 : 0;
+  var initPrice_incPct    = rev > 0 ? (priceDefault / rev) * 100 : 0;
+  var initPrice_deltaPct  = profit > 0 ? (priceDefault / profit) * 100 : 0;
+  var initPrice_MAX_REV   = rev + MAX_REV_LIFT;
+  var initPrice_curWidth  = initPrice_MAX_REV > 0 ? (rev / initPrice_MAX_REV) * 100 : 100;
+  var initPrice_newWidth  = initPrice_MAX_REV > 0 ? (initPrice_newRev / initPrice_MAX_REV) * 100 : 100;
+
+  // Baseline segment flexes on the static "Current" bars. Using
+  // dollar values directly as flex ratios gives a truthful visual.
+  var cogsK = Math.max(0.1, cogs / 1000);
+  var ovhdK = Math.max(0.1, ovhd / 1000);
+  var noiK  = Math.max(0.1, profit / 1000);
+
+  return (
+    // Toggle button — sits above the card, flips `edu-open` on the
+    // card root. Button label + chev animate via CSS. Defaults to
+    // closed so the extensive content doesn't dominate first paint.
+    '<div class="edu-toggle-row">' +
+      '<button type="button" class="edu-toggle-btn" id="eduToggleBtn" ' +
+              'onclick="eduToggle()" aria-expanded="false" aria-controls="eduCard">' +
+        '<span class="edu-toggle-icon" aria-hidden="true">\u2795</span>' +
+        '<span class="edu-toggle-lbl">Learn More</span>' +
+        '<span class="edu-toggle-sub">— how each lever affects your profit</span>' +
+      '</button>' +
+    '</div>' +
+
+    '<section class="edu-card" id="eduCard" ' +
+             'data-edu-rev="'  + rev  + '" ' +
+             'data-edu-cogs="' + cogs + '" ' +
+             'data-edu-ovhd="' + ovhd + '" ' +
+             'data-edu-noi="'  + profit + '" ' +
+             'hidden>' +
+
+      '<div class="edu-hdr">' +
+        '<div class="edu-title">Education</div>' +
+        '<div class="edu-subtitle">Interactive profit-lever simulator</div>' +
+      '</div>' +
+
+      '<div class="edu-tabs" role="tablist">' +
+        '<button type="button" class="edu-tab is-active" role="tab" aria-selected="true"  data-panel="gross" onclick="eduTab(this)">What is gross profit?</button>' +
+        '<button type="button" class="edu-tab"           role="tab" aria-selected="false" data-panel="cogs"  onclick="eduTab(this)">Reducing COGS</button>' +
+        '<button type="button" class="edu-tab"           role="tab" aria-selected="false" data-panel="ovhd"  onclick="eduTab(this)">Reducing overhead</button>' +
+        '<button type="button" class="edu-tab"           role="tab" aria-selected="false" data-panel="price" onclick="eduTab(this)">Raising prices</button>' +
+      '</div>' +
+
+      // ── TAB 1: What is gross profit? ──────────────────────────
+      '<div class="edu-panel is-open" id="eduPanel-gross" role="tabpanel">' +
+        '<p class="edu-lead"><b>Gross profit</b> is what\'s left from revenue after you pay for the materials, subcontractors, and direct labor that went into the jobs. It\'s the money available to cover overhead and leave you a profit.</p>' +
+        '<div class="edu-formula">' +
+          '<div class="edu-fp"><div class="edu-fp-l">Revenue</div><div class="edu-fp-v">' + eduFmt(rev) + '</div></div>' +
+          '<div class="edu-fop">\u2212</div>' +
+          '<div class="edu-fp edu-fp--cogs"><div class="edu-fp-l">COGS</div><div class="edu-fp-v">' + eduFmt(cogs) + '</div></div>' +
+          '<div class="edu-fop">=</div>' +
+          '<div class="edu-fp edu-fp--gp"><div class="edu-fp-l">Gross profit</div><div class="edu-fp-v">' + eduFmt(grossProfit) + '</div></div>' +
+        '</div>' +
+        '<p class="edu-lead">Your <b>gross margin</b> is gross profit as a percentage of revenue \u2014 currently <b>' + gm.toFixed(1) + '%</b>. Move the slider to see how a different gross margin flows through in real dollars. Overhead stays fixed at ' + eduFmt(ovhd) + '.</p>' +
+        '<div class="edu-ctrl">' +
+          '<div class="edu-ctrl-row">' +
+            '<label class="edu-ctrl-lbl" for="eduGmS">Gross margin</label>' +
+            '<input type="range" class="edu-slider" id="eduGmS" min="30" max="60" step="0.5" value="' + gm.toFixed(1) + '" />' +
+            '<span class="edu-ctrl-val" id="eduGmOut">' + gm.toFixed(1) + '%</span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="edu-bar-row">' +
+          '<div class="edu-bar-lbl">Where every revenue dollar goes</div>' +
+          '<div class="edu-bar">' +
+            '<div class="edu-seg edu-seg--cogs"   id="eduGmC" style="flex:' + cogsK.toFixed(2) + '"><span>COGS</span><span class="edu-seg-sub" id="eduGmCV">' + eduFmt(cogs) + '</span></div>' +
+            '<div class="edu-seg edu-seg--ovhd"                  style="flex:' + ovhdK.toFixed(2) + '"><span>Overhead</span><span class="edu-seg-sub">' + eduFmt(ovhd) + '</span></div>' +
+            '<div class="edu-seg edu-seg--profit" id="eduGmP" style="flex:' + noiK.toFixed(2)  + '"><span>Profit</span><span class="edu-seg-sub" id="eduGmPV">' + eduFmt(profit) + '</span></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="edu-metrics">' +
+          '<div class="edu-m"><div class="edu-m-lbl">Gross profit</div><div class="edu-m-val" id="eduGmGp">' + eduFmt(grossProfit) + '</div></div>' +
+          '<div class="edu-m"><div class="edu-m-lbl">Overhead (fixed)</div><div class="edu-m-val">' + eduFmt(ovhd) + '</div></div>' +
+          '<div class="edu-m"><div class="edu-m-lbl">Profit remaining</div><div class="edu-m-val" id="eduGmProfit">' + eduFmt(profit) + '</div><div class="edu-m-sub" id="eduGmProfitSub">' + noiPct.toFixed(1) + '% margin</div></div>' +
+        '</div>' +
+        '<div class="edu-insight"><b>Why this matters:</b> gross margin is your pricing power. Premium positioning \u2014 Sunwave\'s 15-minute arrival window, clean work, 2-year warranty \u2014 is what lets you charge more without losing jobs. If gross profit ever falls below overhead, you lose money no matter how much revenue you do.</div>' +
+      '</div>' +
+
+      // ── TAB 2: Reducing COGS ─────────────────────────────────
+      '<div class="edu-panel" id="eduPanel-cogs" role="tabpanel" hidden>' +
+        '<p class="edu-lead">COGS is the cost of materials, subcontractors, and direct labor on each job. Cutting COGS is a <b>direct-to-profit lever</b> \u2014 every dollar saved becomes a dollar of profit, since overhead doesn\'t change.</p>' +
+        '<div class="edu-ctrl">' +
+          '<div class="edu-ctrl-row">' +
+            '<label class="edu-ctrl-lbl" for="eduCogsS">Reduce COGS by</label>' +
+            '<input type="range" class="edu-slider" id="eduCogsS" min="0" max="30000" step="500" value="' + cogsDefault + '" />' +
+            '<span class="edu-ctrl-val" id="eduCogsOut">' + eduFmt(cogsDefault) + '</span>' +
+          '</div>' +
+          '<div class="edu-presets">' +
+            '<button type="button" class="edu-preset" data-preset="eduCogsS" data-val="2000"  onclick="eduPreset(this)">$2K</button>' +
+            '<button type="button" class="edu-preset" data-preset="eduCogsS" data-val="5000"  onclick="eduPreset(this)">$5K</button>' +
+            '<button type="button" class="edu-preset" data-preset="eduCogsS" data-val="10000" onclick="eduPreset(this)">$10K</button>' +
+            '<button type="button" class="edu-preset" data-preset="eduCogsS" data-val="15000" onclick="eduPreset(this)">$15K</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="edu-bar-row">' +
+          '<div class="edu-bar-lbl">Current</div>' +
+          '<div class="edu-bar">' +
+            '<div class="edu-seg edu-seg--cogs"   style="flex:' + cogsK.toFixed(2) + '"><span>COGS</span><span class="edu-seg-sub">' + eduFmt(cogs) + '</span></div>' +
+            '<div class="edu-seg edu-seg--ovhd"   style="flex:' + ovhdK.toFixed(2) + '"><span>Overhead</span><span class="edu-seg-sub">' + eduFmt(ovhd) + '</span></div>' +
+            '<div class="edu-seg edu-seg--profit" style="flex:' + noiK.toFixed(2)  + '"><span>Profit</span><span class="edu-seg-sub">' + eduFmt(profit) + '</span></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="edu-bar-row">' +
+          '<div class="edu-bar-lbl">After reduction</div>' +
+          '<div class="edu-bar">' +
+            '<div class="edu-seg edu-seg--cogs"   id="eduCogsC" style="flex:' + (initCogs_newCogs/1000).toFixed(2) + '"><span>COGS</span><span class="edu-seg-sub" id="eduCogsCV">' + eduFmt(initCogs_newCogs) + '</span></div>' +
+            '<div class="edu-seg edu-seg--ovhd"                  style="flex:' + ovhdK.toFixed(2) + '"><span>Overhead</span><span class="edu-seg-sub">' + eduFmt(ovhd) + '</span></div>' +
+            '<div class="edu-seg edu-seg--profit" id="eduCogsP" style="flex:' + (initCogs_newProfit/1000).toFixed(2) + '"><span>Profit</span><span class="edu-seg-sub" id="eduCogsPV">' + eduFmt(initCogs_newProfit) + '</span></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="edu-metrics">' +
+          '<div class="edu-m"><div class="edu-m-lbl">Money saved</div><div class="edu-m-val" id="eduCogsSave">' + eduFmt(cogsDefault) + '</div></div>' +
+          '<div class="edu-m"><div class="edu-m-lbl">New profit</div><div class="edu-m-val" id="eduCogsNP">' + eduFmt(initCogs_newProfit) + '</div><div class="edu-m-sub" id="eduCogsDelta">+' + initCogs_deltaPct.toFixed(1) + '% vs. today</div></div>' +
+          '<div class="edu-m"><div class="edu-m-lbl">Same via new revenue</div><div class="edu-m-val" id="eduCogsRE">' + eduFmt(initCogs_revEq) + '</div><div class="edu-m-sub">in additional sales</div></div>' +
+        '</div>' +
+        '<div class="edu-insight"><b>The leverage:</b> each $1 saved on materials or labor becomes $1 of profit. Generating that same $1 through new revenue would take about <span id="eduCogsRatio">$' + initCogs_ratio.toFixed(2) + '</span> in sales (at your ' + gm.toFixed(0) + '% gross margin). For a plumbing company, the real COGS levers are supplier negotiation (especially powerful at multi-location scale), truck stocking to eliminate return trips, and cutting callbacks and rework.</div>' +
+      '</div>' +
+
+      // ── TAB 3: Reducing overhead ─────────────────────────────
+      '<div class="edu-panel" id="eduPanel-ovhd" role="tabpanel" hidden>' +
+        '<p class="edu-lead">Overhead is the cost of running the business regardless of job volume \u2014 rent, CSRs, dispatching software, insurance, admin payroll, marketing. Most of it is <b>fixed in the short term</b>, which is what makes it powerful.</p>' +
+        '<div class="edu-ctrl">' +
+          '<div class="edu-ctrl-row">' +
+            '<label class="edu-ctrl-lbl" for="eduOvhdS">Reduce overhead by</label>' +
+            '<input type="range" class="edu-slider" id="eduOvhdS" min="0" max="18000" step="500" value="' + ovhdDefault + '" />' +
+            '<span class="edu-ctrl-val" id="eduOvhdOut">' + eduFmt(ovhdDefault) + '</span>' +
+          '</div>' +
+          '<div class="edu-presets">' +
+            '<button type="button" class="edu-preset" data-preset="eduOvhdS" data-val="1000"  onclick="eduPreset(this)">$1K</button>' +
+            '<button type="button" class="edu-preset" data-preset="eduOvhdS" data-val="3000"  onclick="eduPreset(this)">$3K</button>' +
+            '<button type="button" class="edu-preset" data-preset="eduOvhdS" data-val="5000"  onclick="eduPreset(this)">$5K</button>' +
+            '<button type="button" class="edu-preset" data-preset="eduOvhdS" data-val="10000" onclick="eduPreset(this)">$10K</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="edu-bar-row">' +
+          '<div class="edu-bar-lbl">Current</div>' +
+          '<div class="edu-bar">' +
+            '<div class="edu-seg edu-seg--cogs"   style="flex:' + cogsK.toFixed(2) + '"><span>COGS</span><span class="edu-seg-sub">' + eduFmt(cogs) + '</span></div>' +
+            '<div class="edu-seg edu-seg--ovhd"   style="flex:' + ovhdK.toFixed(2) + '"><span>Overhead</span><span class="edu-seg-sub">' + eduFmt(ovhd) + '</span></div>' +
+            '<div class="edu-seg edu-seg--profit" style="flex:' + noiK.toFixed(2)  + '"><span>Profit</span><span class="edu-seg-sub">' + eduFmt(profit) + '</span></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="edu-bar-row">' +
+          '<div class="edu-bar-lbl">After reduction</div>' +
+          '<div class="edu-bar">' +
+            '<div class="edu-seg edu-seg--cogs"                  style="flex:' + cogsK.toFixed(2) + '"><span>COGS</span><span class="edu-seg-sub">' + eduFmt(cogs) + '</span></div>' +
+            '<div class="edu-seg edu-seg--ovhd"   id="eduOvhdO" style="flex:' + (initOvhd_newOvhd/1000).toFixed(2) + '"><span>Overhead</span><span class="edu-seg-sub" id="eduOvhdOV">' + eduFmt(initOvhd_newOvhd) + '</span></div>' +
+            '<div class="edu-seg edu-seg--profit" id="eduOvhdP" style="flex:' + (initOvhd_newProfit/1000).toFixed(2) + '"><span>Profit</span><span class="edu-seg-sub" id="eduOvhdPV">' + eduFmt(initOvhd_newProfit) + '</span></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="edu-metrics">' +
+          '<div class="edu-m"><div class="edu-m-lbl">Money saved</div><div class="edu-m-val" id="eduOvhdSave">' + eduFmt(ovhdDefault) + '</div></div>' +
+          '<div class="edu-m"><div class="edu-m-lbl">New profit</div><div class="edu-m-val" id="eduOvhdNP">' + eduFmt(initOvhd_newProfit) + '</div><div class="edu-m-sub" id="eduOvhdDelta">+' + initOvhd_deltaPct.toFixed(1) + '% vs. today</div></div>' +
+          '<div class="edu-m"><div class="edu-m-lbl">New profit margin</div><div class="edu-m-val" id="eduOvhdMargin">' + initOvhd_newMargin.toFixed(1) + '%</div></div>' +
+        '</div>' +
+        '<div class="edu-insight"><b>Scale leverage:</b> because overhead is largely fixed, every dollar cut drops straight to the bottom line. But the bigger story \u2014 as revenue grows with overhead held flat, overhead as a share of revenue shrinks and profit expands. That\'s why a multi-location model works: one back office supports many trucks.</div>' +
+      '</div>' +
+
+      // ── TAB 4: Raising prices (bar actually grows wider) ──────
+      '<div class="edu-panel" id="eduPanel-price" role="tabpanel" hidden>' +
+        '<p class="edu-lead">When you raise prices, your costs don\'t change. Materials cost the same, techs get paid the same, overhead stays the same. Every extra dollar of revenue from a price increase drops <b>100% straight to profit</b>. It\'s the single most powerful lever on this card.</p>' +
+        '<div class="edu-ctrl">' +
+          '<div class="edu-ctrl-row">' +
+            '<label class="edu-ctrl-lbl" for="eduPriceS">Revenue from pricing</label>' +
+            '<input type="range" class="edu-slider" id="eduPriceS" min="0" max="30000" step="500" value="' + priceDefault + '" />' +
+            '<span class="edu-ctrl-val" id="eduPriceOut">' + eduFmt(priceDefault) + '</span>' +
+          '</div>' +
+          '<div class="edu-presets">' +
+            '<button type="button" class="edu-preset" data-preset="eduPriceS" data-val="2500"  onclick="eduPreset(this)">$2.5K</button>' +
+            '<button type="button" class="edu-preset" data-preset="eduPriceS" data-val="5000"  onclick="eduPreset(this)">$5K</button>' +
+            '<button type="button" class="edu-preset" data-preset="eduPriceS" data-val="10000" onclick="eduPreset(this)">$10K</button>' +
+            '<button type="button" class="edu-preset" data-preset="eduPriceS" data-val="20000" onclick="eduPreset(this)">$20K</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="edu-bar-row">' +
+          '<div class="edu-bar-lbl">Current \u2014 ' + eduFmt(rev) + ' revenue</div>' +
+          '<div class="edu-bar-outer" style="width:' + initPrice_curWidth.toFixed(1) + '%">' +
+            '<div class="edu-bar">' +
+              '<div class="edu-seg edu-seg--cogs"   style="flex:' + cogsK.toFixed(2) + '"><span>COGS</span><span class="edu-seg-sub">' + eduFmt(cogs) + '</span></div>' +
+              '<div class="edu-seg edu-seg--ovhd"   style="flex:' + ovhdK.toFixed(2) + '"><span>Overhead</span><span class="edu-seg-sub">' + eduFmt(ovhd) + '</span></div>' +
+              '<div class="edu-seg edu-seg--profit" style="flex:' + noiK.toFixed(2)  + '"><span>Profit</span><span class="edu-seg-sub">' + eduFmt(profit) + '</span></div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="edu-bar-row">' +
+          '<div class="edu-bar-lbl" id="eduPriceAfterLbl">After \u2014 ' + eduFmt(initPrice_newRev) + ' revenue</div>' +
+          '<div class="edu-bar-outer edu-bar-outer--dynamic" id="eduPriceBarOuter" style="width:' + initPrice_newWidth.toFixed(1) + '%">' +
+            '<div class="edu-bar">' +
+              '<div class="edu-seg edu-seg--cogs"                  style="flex:' + cogsK.toFixed(2) + '"><span>COGS</span><span class="edu-seg-sub">' + eduFmt(cogs) + '</span></div>' +
+              '<div class="edu-seg edu-seg--ovhd"                  style="flex:' + ovhdK.toFixed(2) + '"><span>Overhead</span><span class="edu-seg-sub">' + eduFmt(ovhd) + '</span></div>' +
+              '<div class="edu-seg edu-seg--profit" id="eduPriceP" style="flex:' + (initPrice_newProfit/1000).toFixed(2) + '"><span>Profit</span><span class="edu-seg-sub" id="eduPricePV">' + eduFmt(initPrice_newProfit) + '</span></div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="edu-metrics">' +
+          '<div class="edu-m"><div class="edu-m-lbl">Price increase</div><div class="edu-m-val" id="eduPricePct">' + initPrice_incPct.toFixed(1) + '%</div><div class="edu-m-sub edu-m-sub--muted">across the board</div></div>' +
+          '<div class="edu-m"><div class="edu-m-lbl">New profit</div><div class="edu-m-val" id="eduPriceNP">' + eduFmt(initPrice_newProfit) + '</div><div class="edu-m-sub" id="eduPriceDelta">+' + initPrice_deltaPct.toFixed(1) + '% vs. today</div></div>' +
+          '<div class="edu-m"><div class="edu-m-lbl">New profit margin</div><div class="edu-m-val" id="eduPriceMargin">' + initPrice_newMargin.toFixed(1) + '%</div></div>' +
+        '</div>' +
+        '<div class="edu-insight"><b>The magic of pricing:</b> customers almost never notice a 2\u20133% price change. But the math is asymmetric \u2014 a 3% price hike on this month\'s revenue would be pure-profit dollars that cost you nothing to generate. Chasing that same money through more jobs would net far less, because those jobs carry COGS. This is why the "on time, clean work, no surprises" positioning matters \u2014 it\'s permission to price like a premium service, not a commodity.</div>' +
+      '</div>' +
+
+    '</section>'
+  );
+}
+
+// Toggle the education card's expand/collapse state. Keyed off the
+// `edu-open` class on #eduCard + `aria-expanded` on the toggle button.
+function eduToggle() {
+  var card = document.getElementById('eduCard');
+  var btn  = document.getElementById('eduToggleBtn');
+  if (!card || !btn) return;
+  var willOpen = card.hasAttribute('hidden');
+  if (willOpen) {
+    card.removeAttribute('hidden');
+    // Next frame so the CSS transition has something to transition FROM.
+    requestAnimationFrame(function() { card.classList.add('edu-open'); });
+    btn.setAttribute('aria-expanded', 'true');
+    btn.classList.add('is-open');
+    btn.querySelector('.edu-toggle-lbl').textContent = 'Hide';
+    btn.querySelector('.edu-toggle-icon').textContent = '\u2212';   // minus
+    btn.querySelector('.edu-toggle-sub').textContent = '\u2014 collapse the lever simulator';
+  } else {
+    card.classList.remove('edu-open');
+    // Wait for the transition to finish before hiding, so height animates.
+    setTimeout(function() { card.setAttribute('hidden', ''); }, 360);
+    btn.setAttribute('aria-expanded', 'false');
+    btn.classList.remove('is-open');
+    btn.querySelector('.edu-toggle-lbl').textContent = 'Learn More';
+    btn.querySelector('.edu-toggle-icon').textContent = '\u2795';   // plus
+    btn.querySelector('.edu-toggle-sub').textContent = '\u2014 how each lever affects your profit';
+  }
+}
+
+// Tab switch — flip is-active on buttons + is-open on panels.
+function eduTab(btn) {
+  var card = document.getElementById('eduCard');
+  if (!card) return;
+  var key = btn.getAttribute('data-panel');
+  var tabs = card.querySelectorAll('.edu-tab');
+  for (var i = 0; i < tabs.length; i++) {
+    var on = tabs[i] === btn;
+    tabs[i].classList.toggle('is-active', on);
+    tabs[i].setAttribute('aria-selected', on ? 'true' : 'false');
+  }
+  var panels = card.querySelectorAll('.edu-panel');
+  for (var j = 0; j < panels.length; j++) {
+    var match = panels[j].id === 'eduPanel-' + key;
+    panels[j].classList.toggle('is-open', match);
+    if (match) panels[j].removeAttribute('hidden');
+    else        panels[j].setAttribute('hidden', '');
+  }
+}
+
+// Preset chip — jump the associated slider to the preset's dollar
+// value, then fire an input event so the slider's handler updates
+// every downstream readout.
+function eduPreset(btn) {
+  var sliderId = btn.getAttribute('data-preset');
+  var val = btn.getAttribute('data-val');
+  var s = document.getElementById(sliderId);
+  if (!s) return;
+  s.value = val;
+  s.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+// Wire up slider handlers on the education card. Called AFTER the
+// card HTML is mounted. Reads baseline values from data-edu-* on
+// the card root so it's safe to call every render — sliders reset
+// to their default positions but the baseline math tracks the
+// currently-displayed month.
+function eduInit() {
+  var card = document.getElementById('eduCard');
+  if (!card) return;
+  var REV  = parseFloat(card.getAttribute('data-edu-rev'))  || 0;
+  var COGS = parseFloat(card.getAttribute('data-edu-cogs')) || 0;
+  var OVHD = parseFloat(card.getAttribute('data-edu-ovhd')) || 0;
+  var PROFIT = parseFloat(card.getAttribute('data-edu-noi')) || 0;
+  var GM = REV > 0 ? ((REV - COGS) / REV) * 100 : 0;
+  var MAX_REV = REV + 30000;
+
+  // ── Tab 1: Gross margin slider ─────────────────────────────
+  var gmS = document.getElementById('eduGmS');
+  if (gmS) {
+    gmS.oninput = function() {
+      var gm = parseFloat(gmS.value);
+      var newCogs   = REV * (100 - gm) / 100;
+      var newGP     = REV * gm / 100;
+      var newProfit = newGP - OVHD;
+      var newMargin = REV > 0 ? (newProfit / REV) * 100 : 0;
+      document.getElementById('eduGmOut').textContent = gm.toFixed(1) + '%';
+      document.getElementById('eduGmC').style.flex    = (newCogs / 1000).toFixed(2);
+      document.getElementById('eduGmCV').textContent  = eduFmt(newCogs);
+      // Clamp profit seg to min 0.1 flex so it never disappears when
+      // gross margin dips below overhead (still shows a red sliver).
+      document.getElementById('eduGmP').style.flex    = Math.max(0.1, newProfit / 1000).toFixed(2);
+      document.getElementById('eduGmPV').textContent  = eduFmt(newProfit);
+      document.getElementById('eduGmGp').textContent  = eduFmt(newGP);
+      document.getElementById('eduGmProfit').textContent = eduFmt(newProfit);
+      var sub = document.getElementById('eduGmProfitSub');
+      sub.textContent = newMargin.toFixed(1) + '% margin';
+      sub.classList.toggle('is-negative', newProfit < 0);
+    };
+  }
+
+  // ── Tab 2: Reduce COGS slider ──────────────────────────────
+  var cogsS = document.getElementById('eduCogsS');
+  if (cogsS) {
+    cogsS.oninput = function() {
+      var saved = parseFloat(cogsS.value);
+      var newCogs   = COGS - saved;
+      var newProfit = PROFIT + saved;
+      var profitInc = PROFIT > 0 ? (saved / PROFIT) * 100 : 0;
+      var revEq     = GM > 0 ? saved / (GM / 100) : 0;
+      var ratio     = GM > 0 ? 100 / GM : 0;
+      document.getElementById('eduCogsOut').textContent = eduFmt(saved);
+      document.getElementById('eduCogsC').style.flex    = Math.max(0.1, newCogs / 1000).toFixed(2);
+      document.getElementById('eduCogsCV').textContent  = eduFmt(newCogs);
+      document.getElementById('eduCogsP').style.flex    = Math.max(0.1, newProfit / 1000).toFixed(2);
+      document.getElementById('eduCogsPV').textContent  = eduFmt(newProfit);
+      document.getElementById('eduCogsSave').textContent = eduFmt(saved);
+      document.getElementById('eduCogsNP').textContent   = eduFmt(newProfit);
+      document.getElementById('eduCogsDelta').textContent = '+' + profitInc.toFixed(1) + '% vs. today';
+      document.getElementById('eduCogsRE').textContent   = eduFmt(revEq);
+      document.getElementById('eduCogsRatio').textContent = '$' + ratio.toFixed(2);
+    };
+  }
+
+  // ── Tab 3: Reduce overhead slider ──────────────────────────
+  var ovhdS = document.getElementById('eduOvhdS');
+  if (ovhdS) {
+    ovhdS.oninput = function() {
+      var saved = parseFloat(ovhdS.value);
+      var newOvhd   = OVHD - saved;
+      var newProfit = PROFIT + saved;
+      var newMargin = REV > 0 ? (newProfit / REV) * 100 : 0;
+      var profitInc = PROFIT > 0 ? (saved / PROFIT) * 100 : 0;
+      document.getElementById('eduOvhdOut').textContent = eduFmt(saved);
+      document.getElementById('eduOvhdO').style.flex    = Math.max(0.1, newOvhd / 1000).toFixed(2);
+      document.getElementById('eduOvhdOV').textContent  = eduFmt(newOvhd);
+      document.getElementById('eduOvhdP').style.flex    = Math.max(0.1, newProfit / 1000).toFixed(2);
+      document.getElementById('eduOvhdPV').textContent  = eduFmt(newProfit);
+      document.getElementById('eduOvhdSave').textContent = eduFmt(saved);
+      document.getElementById('eduOvhdNP').textContent   = eduFmt(newProfit);
+      document.getElementById('eduOvhdDelta').textContent = '+' + profitInc.toFixed(1) + '% vs. today';
+      document.getElementById('eduOvhdMargin').textContent = newMargin.toFixed(1) + '%';
+    };
+  }
+
+  // ── Tab 4: Raising prices slider ───────────────────────────
+  // The "After" bar's OUTER width grows as revenue grows — this
+  // is the key pedagogical difference from the cost tabs. Segments
+  // inside keep their dollar-truthful flex values (COGS + OVHD
+  // unchanged, profit grows by the lift).
+  var priceS = document.getElementById('eduPriceS');
+  if (priceS) {
+    priceS.oninput = function() {
+      var lift      = parseFloat(priceS.value);
+      var newRev    = REV + lift;
+      var newProfit = PROFIT + lift;
+      var newMargin = newRev > 0 ? (newProfit / newRev) * 100 : 0;
+      var incPct    = REV > 0 ? (lift / REV) * 100 : 0;
+      var deltaPct  = PROFIT > 0 ? (lift / PROFIT) * 100 : 0;
+      var newWidth  = MAX_REV > 0 ? (newRev / MAX_REV) * 100 : 100;
+      document.getElementById('eduPriceOut').textContent = eduFmt(lift);
+      document.getElementById('eduPriceBarOuter').style.width = newWidth.toFixed(1) + '%';
+      document.getElementById('eduPriceAfterLbl').textContent = 'After \u2014 ' + eduFmt(newRev) + ' revenue';
+      document.getElementById('eduPriceP').style.flex = Math.max(0.1, newProfit / 1000).toFixed(2);
+      document.getElementById('eduPricePV').textContent = eduFmt(newProfit);
+      document.getElementById('eduPricePct').textContent = incPct.toFixed(1) + '%';
+      document.getElementById('eduPriceNP').textContent  = eduFmt(newProfit);
+      document.getElementById('eduPriceDelta').textContent = '+' + deltaPct.toFixed(1) + '% vs. today';
+      document.getElementById('eduPriceMargin').textContent = newMargin.toFixed(1) + '%';
+    };
+  }
+}
+
 // ── Initial $-tally animation ────────────────────────────────────
 // Rolls the main Total Revenue value from $0 → actual over 700ms
 // with ease-out cubic. TIMING is synchronized with the CSS
@@ -1865,18 +2301,29 @@ function renderOwners() {
   // populate the UFS dropdowns, so the sink is required, not optional.
   // (A prior revision briefly re-showed this card for side-by-side V5
   // evaluation; that's no longer wanted.)
+  // Education card — hidden-by-default interactive simulator that
+  // teaches how each profit lever flows through. Baseline values
+  // track the current month via data-edu-* attributes on the card;
+  // eduInit() reads them + wires slider handlers on every render.
+  var eduHtml = buildEducationHtml(curRev, curCOGS, curOvhd, curNOI);
+
   document.getElementById('finCards').innerHTML =
     '<div class="mf-card-legacy-sink" hidden aria-hidden="true" ' +
          'style="display:none !important;position:absolute;left:-99999px;' +
                 'width:0;height:0;overflow:hidden;pointer-events:none;">' +
       formulaHtml +
     '</div>' +
-    unifiedHtml;
+    unifiedHtml +
+    eduHtml;
   // Deep-copy the mf-card zoom-panel content into the UFS panels
   // (same content, same handlers, remapped IDs). Must run AFTER the
   // outer innerHTML assignment so both source and destination panels
   // exist in the DOM.
   ufsCloneZoomPanels();
+  // Wire up the education card's tab switching + slider handlers.
+  // Must run AFTER the innerHTML assignment, same reason as
+  // ufsCloneZoomPanels() — the DOM needs to exist first.
+  eduInit();
   // Kick off the "calculation slam" entrance: roll the Total Revenue
   // figure from $0 → actual. CSS handles the segment drop-slam, the
   // dashed outline fade, and the target ticks slicing down.
