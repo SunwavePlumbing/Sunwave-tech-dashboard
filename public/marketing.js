@@ -2,6 +2,13 @@
 var marketingData = null;
 var qboData = null; // null=not fetched, {connected:false}=unavailable, {connected:true,...}=ready
 var _ttLoader = null; // teletype loader handle (first-visit loading UI)
+// Set true once the loader has finalized and the dashboard has mounted
+// with its cascade animation. Until that's true, fetchQBOMarketing must
+// NOT call renderMarketing — otherwise it races the loader and wipes
+// out both the ripple animation AND the mount-in cascade. During the
+// loader phase any arriving QBO data just sits in `qboData`, and the
+// finalize callback's renderMarketing() picks it up at that moment.
+var marketingRendered = false;
 
 async function fetchQBOMarketing() {
   try {
@@ -10,7 +17,11 @@ async function fetchQBOMarketing() {
   } catch(e) {
     qboData = { connected: false, reason: 'error' };
   }
-  if (marketingData) renderMarketing();
+  // Only re-render if the main dashboard is already mounted. If the
+  // loader is still running, the fresh `qboData` will be picked up by
+  // the finalize callback's own renderMarketing() — no race, no loader
+  // wipe-out, cascade animation stays intact.
+  if (marketingData && marketingRendered) renderMarketing();
 }
 
 /* ── Marketing loader — PRODUCTION ──────────────────────────────
@@ -176,6 +187,11 @@ async function fetchMarketing() {
     // the transition from processing → reviewing feels intentional.
     _ttLoader.finalize(function() {
       renderMarketing();
+      // Flip the gate AFTER the first post-loader render. From this
+      // point on, any late-arriving QBO fetch is allowed to re-render
+      // to update the banner — but it'll land on an already-mounted
+      // dashboard, not on top of the loader.
+      marketingRendered = true;
       container.classList.add('mkt-mount-in');
       // The "Unfolding Ledger" cascade ends around 1500ms (last table
       // row lands at 1152ms delay + 300ms duration, footer at 1200ms
