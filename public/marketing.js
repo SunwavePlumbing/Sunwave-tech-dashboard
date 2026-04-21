@@ -381,6 +381,43 @@ function renderMarketing() {
   document.getElementById('marketingContent').innerHTML = qboBanner + projHTML + chartHTML + tableHTML;
 }
 
+/* ── Replay mount-in animations on tab revisits ─────────────────
+   On every click back to the Marketing tab (after the initial fetch),
+   re-render from the cached `marketingData` and replay the full
+   mount-in cascade + count-ups. No network call — the data is in
+   memory — just the "dashboard waking up" beat plays again so the
+   user sees the graphs animate every time they land on the tab.
+
+   Skipped entirely if marketingData isn't loaded yet (first visit:
+   fetchMarketing handles it) or if the container is missing. */
+function replayMarketingAnimations() {
+  if (!marketingData) return;
+  var container = document.getElementById('marketingContent');
+  if (!container) return;
+
+  // Clear the class so re-adding it next frame fires a fresh animation
+  // cycle (CSS animations don't restart on an element where the rule
+  // is already applied — we need the add→remove→add cycle).
+  container.classList.remove('mkt-mount-in');
+
+  // Re-render from cached data. Yields fresh DOM nodes for each bar,
+  // stat card, and table row — clean slate for the animations to fire
+  // on. Also re-picks-up any QBO data that arrived since last render.
+  renderMarketing();
+
+  // Commit the pre-animation DOM state, then add the class on the
+  // next frame. rAF ensures the browser paints the "children in
+  // place with animation rule NOT yet applied" state first so
+  // `both` fill mode kicks in cleanly when the class lands.
+  requestAnimationFrame(function() {
+    container.classList.add('mkt-mount-in');
+    requestAnimationFrame(runMarketingCountUps);
+    setTimeout(function() {
+      container.classList.remove('mkt-mount-in');
+    }, 1700);
+  });
+}
+
 /* ── Mount-in count-ups ────────────────────────────────────────
    After the dashboard is in the DOM and `mkt-mount-in` is on the
    container, animate the numeric values from 0 → their real

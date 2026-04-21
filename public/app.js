@@ -452,10 +452,20 @@ function activateTab(tab) {
   // the indicator slides smoothly on every switch.
   updateTabIndicator(tab, false);
   // Lazy-load tab data
-  if (tab === 'marketing' && !marketingLoaded) {
-    marketingLoaded = true;
-    fetchMarketing();
-    fetchQBOMarketing();
+  if (tab === 'marketing') {
+    if (!marketingLoaded) {
+      // First visit: kick off the real fetch + full loader → cascade.
+      marketingLoaded = true;
+      fetchMarketing();
+      fetchQBOMarketing();
+    } else {
+      // Subsequent visits: data is cached, so skip the network round-
+      // trip and just replay the mount-in cascade + graph count-ups.
+      // The user gets the full "dashboard waking up" animation every
+      // time they land on the tab — bars growing, progress filling,
+      // stat numbers counting up.
+      replayMarketingAnimations();
+    }
   }
   if (tab === 'owners' && !ownersLoaded) {
     ownersLoaded = true;
