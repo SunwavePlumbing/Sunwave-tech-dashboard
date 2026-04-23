@@ -261,6 +261,138 @@ body.tech-mount-in #techView > .sidebar       { animation-delay: 0ms;   }
 body.tech-mount-in #techView > .stats         { animation-delay: 80ms;  }
 body.tech-mount-in #techView > .sort-section  { animation-delay: 160ms; }
 body.tech-mount-in #techView > .table-wrapper { animation-delay: 240ms; }
+/* Include the data-warning banner in the cascade so it doesn't pop in
+   separately from the rest of the view. Same stagger slot as .stats so
+   it rides in right after the date-range pills. */
+body.anim-entrance #techView > .data-warning,
+body.tech-mount-in #techView > .data-warning {
+  opacity: 0;
+  animation: fadeSlideUp 0.5s cubic-bezier(0.2, 0.65, 0.3, 1) both;
+  animation-delay: 200ms;
+}
+
+/* ── Data-quality banner ────────────────────────────────────────
+   Subtle amber chip at the top of the Technicians view warning that
+   any data pulled from the Service Titan era (pre-2026-04-01 HCP
+   migration) may be incomplete. Toggled by render() in technicians.js. */
+.data-warning {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  background: #FFF8E8;
+  border: 1px solid #F1D48E;
+  border-radius: 10px;
+  color: #6B4E11;
+  font-size: 13px;
+  line-height: 1.35;
+}
+.data-warning[hidden] { display: none; }
+.data-warning-ico {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #C9820A;
+  color: #FFF8E8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+  font-family: Georgia, 'Times New Roman', serif;
+}
+.data-warning-text { flex: 1; }
+
+/* ── Split-credit info icon (in per-job modal) ──────────────────
+   A small circular ⓘ that sits inline after the "w/ <partner>"
+   note and toggles an explanatory bubble when tapped or focused.
+   The bubble is absolutely positioned so it doesn't shift the
+   row's layout; a caret ties it visually to the icon. */
+.split-info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 14px;
+  height: 14px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: #E6E1D3;
+  color: #6B5A35;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-style: italic;
+  line-height: 1;
+  vertical-align: middle;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.split-info:hover,
+.split-info:focus,
+.split-info.is-open {
+  background: #C9820A;
+  color: #FFF8E8;
+  outline: none;
+}
+.split-info-ico {
+  display: block;
+  transform: translateY(-0.5px); /* optical nudge for Georgia italic */
+}
+.split-info-bubble {
+  /* Hidden by default; revealed when the icon has .is-open (tap) or
+     :hover / :focus (desktop). Positioned above the icon so it can't
+     get clipped by the modal-body's overflow. */
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 240px;
+  max-width: 70vw;
+  padding: 10px 12px;
+  background: #2A3540;
+  color: #F5F5F0;
+  font-size: 12px;
+  font-weight: 500;
+  font-style: normal;
+  font-family: inherit;
+  line-height: 1.4;
+  text-align: left;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  z-index: 10;
+  pointer-events: none;
+  /* Small caret pointing down at the icon */
+}
+.split-info-bubble::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: #2A3540;
+}
+.split-info:hover .split-info-bubble,
+.split-info:focus .split-info-bubble,
+.split-info.is-open .split-info-bubble {
+  display: block;
+}
+
+/* Mobile: the modal-body can be narrow; keep the bubble from spilling
+   off the viewport edge. Left/right-anchoring it near the icon is
+   tricky without JS, so we just widen the bubble's max-width window
+   and rely on max-width:70vw to keep it sane. */
+@media (max-width: 480px) {
+  .split-info-bubble {
+    width: 220px;
+  }
+}
 
 /* Micro-interaction: press-compress on tappable pills. A quick scale
    dip + spring-back confirms the tap before the API even starts. */

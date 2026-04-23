@@ -860,7 +860,15 @@ app.get('/api/metrics', async (req, res) => {
 
     const payload = {
       leaderboard,
-      summary: { totalRevenue, totalJobs, averageTicket: avgTicket, period: periodLabel }
+      // periodStart/periodEnd are ISO date strings (YYYY-MM-DD) so the
+      // client can compare against data-quality cutoffs without having
+      // to re-derive the range from the key — e.g. showing a warning
+      // banner when any part of the range predates the HCP migration.
+      summary: {
+        totalRevenue, totalJobs, averageTicket: avgTicket, period: periodLabel,
+        periodStart: periodStart.toISOString().slice(0, 10),
+        periodEnd:   periodEnd.toISOString().slice(0, 10)
+      }
     };
     cacheSet(cacheKey, payload);
     res.json(payload);

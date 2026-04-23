@@ -307,12 +307,23 @@ function openModal(tech) {
     return role === 'Sold & Did' ? 'role-sold-did' : role === 'Sold' ? 'role-sold' : 'role-did';
   };
 
+  // Shared qualifier attached to any job that's split across techs.
+  // Sits inline after the partner list as a clickable ⓘ that expands
+  // a small explanatory note. Housecall Pro's split-credit records
+  // can land on the wrong technician in edge cases — we surface that
+  // here so individual techs aren't blindsided by a bad attribution.
+  var SPLIT_QUALIFIER = 'Splits are sourced from Housecall Pro and may occasionally be attributed to the wrong technician. Double-check with the tech on the job if something looks off.';
+  var splitInfoSpan = '<span class="split-info" tabindex="0" role="button" aria-label="About split-credit data" onclick="toggleSplitInfo(event)" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){toggleSplitInfo(event);event.preventDefault();}">' +
+      '<span class="split-info-ico" aria-hidden="true">i</span>' +
+      '<span class="split-info-bubble">' + SPLIT_QUALIFIER + '</span>' +
+    '</span>';
+
   // Desktop: table rows
   var rows = jobs.map(function(job) {
     var desc = job.description ? esc(job.description) : (job.invoice ? 'Invoice #' + esc(job.invoice) : '\u2014');
     var roleBadge = job.role ? '<span class="role-badge ' + roleClass(job.role) + '">' + esc(job.role) + '</span>' : '';
     var splitNote = (job.splitWith && job.splitWith.length > 0)
-      ? '<div style="font-size:11px;color:#aaa;margin-top:2px">w/ ' + job.splitWith.map(function(s){ return esc(s.name || s) + (s.creditPct != null ? ' <span style="color:#ccc">(' + s.creditPct + '%)</span>' : ''); }).join(', ') + '</div>' : '';
+      ? '<div style="font-size:11px;color:#aaa;margin-top:2px">w/ ' + job.splitWith.map(function(s){ return esc(s.name || s) + (s.creditPct != null ? ' <span style="color:#ccc">(' + s.creditPct + '%)</span>' : ''); }).join(', ') + splitInfoSpan + '</div>' : '';
     var jobTotal = job.jobTotal != null ? fmt(job.jobTotal) : fmt(job.credit);
     var shareHtml = job.creditPct != null && job.creditPct < 100
       ? fmt(job.credit) + '<span class="share-pct">(' + job.creditPct + '%)</span>'
@@ -333,7 +344,7 @@ function openModal(tech) {
     var desc = job.description ? esc(job.description) : (job.invoice ? 'Invoice #' + esc(job.invoice) : '\u2014');
     var roleBadge = job.role ? '<span class="role-badge ' + roleClass(job.role) + '">' + esc(job.role) + '</span>' : '';
     var splitNote = (job.splitWith && job.splitWith.length > 0)
-      ? ' <span style="font-size:11px;color:#bbb">w/ ' + job.splitWith.map(function(s){ return esc(s.name || s) + (s.creditPct != null ? ' (' + s.creditPct + '%)' : ''); }).join(', ') + '</span>' : '';
+      ? ' <span style="font-size:11px;color:#bbb">w/ ' + job.splitWith.map(function(s){ return esc(s.name || s) + (s.creditPct != null ? ' (' + s.creditPct + '%)' : ''); }).join(', ') + splitInfoSpan + '</span>' : '';
     var creditAmt = fmt(job.credit != null ? job.credit : job.amount);
     var pctHtml = job.creditPct != null && job.creditPct < 100
       ? '<span class="job-card-credit-pct">(' + job.creditPct + '%)</span>' : '';
@@ -361,6 +372,30 @@ function closeModal() {
   document.getElementById('modalBackdrop').classList.remove('open');
   unlockBodyScroll();
 }
+
+/* Split-credit qualifier tooltip — toggles a small explanatory bubble
+   when the user taps the ⓘ icon next to a job's partner list. Closes
+   any other open bubble first so only one is visible at a time, and
+   stops propagation so the global outside-click handler (below) doesn't
+   immediately re-close the one we just opened. */
+function toggleSplitInfo(evt) {
+  evt.stopPropagation();
+  var target = evt.currentTarget;
+  var alreadyOpen = target.classList.contains('is-open');
+  document.querySelectorAll('.split-info.is-open').forEach(function(el) {
+    el.classList.remove('is-open');
+  });
+  if (!alreadyOpen) target.classList.add('is-open');
+}
+/* Outside-click closes any open split-info bubble. Attached once at
+   document level rather than per-icon so it survives the modal's
+   innerHTML rewrites and doesn't leak listeners. */
+document.addEventListener('click', function(e) {
+  if (e.target.closest && e.target.closest('.split-info')) return;
+  document.querySelectorAll('.split-info.is-open').forEach(function(el) {
+    el.classList.remove('is-open');
+  });
+});
 
 // ── Mobile-safe body scroll lock ─────────────────────────────────
 // Simply setting `document.body.style.overflow = 'hidden'` does NOT

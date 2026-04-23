@@ -42,6 +42,15 @@
       <!-- Date range menu — lives INSIDE the Technicians view so it
            automatically hides when other tabs are active. -->
       <div class="sidebar" id="dateSidebar"></div>
+      <!-- Data-quality qualifier: shown only when the selected range
+           reaches back into the Service Titan era (before HCP migrated
+           on 2026-04-01). Toggled by render() in technicians.js. -->
+      <div class="data-warning" id="techDataWarning" hidden role="note">
+        <span class="data-warning-ico" aria-hidden="true">!</span>
+        <span class="data-warning-text">
+          Any data imported from Service Titan may not be fully correct.
+        </span>
+      </div>
       <div class="stats" id="stats">
         <div class="stat-card"><div class="stat-label">Total Value Created</div><div class="stat-value">&mdash;</div></div>
         <div class="stat-card"><div class="stat-label">Avg Ticket</div><div class="stat-value">&mdash;</div></div>

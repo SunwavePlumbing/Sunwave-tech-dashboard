@@ -325,6 +325,18 @@ function render() {
   var periodEl = document.getElementById('period');
   if (periodEl) periodEl.textContent = summary.period;
 
+  /* Show a data-quality banner when the selected range reaches back
+     into the Service Titan era. We migrated to Housecall Pro on
+     2026-04-01; anything earlier was imported and may have gaps or
+     misattributed jobs. Comparing ISO date strings lexicographically
+     is safe for YYYY-MM-DD. */
+  var HCP_CUTOVER = '2026-04-01';
+  var warnEl = document.getElementById('techDataWarning');
+  if (warnEl) {
+    var showWarn = summary.periodStart && summary.periodStart < HCP_CUTOVER;
+    warnEl.hidden = !showWarn;
+  }
+
   // Stat cards: count-up animation
   animateStatCards(summary);
 
