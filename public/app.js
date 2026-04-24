@@ -309,10 +309,12 @@ function openModal(tech) {
 
   // Shared qualifier attached to any job that's split across techs.
   // Sits inline after the partner list as a clickable ⓘ that expands
-  // a small explanatory note. Housecall Pro's split-credit records
-  // can land on the wrong technician in edge cases — we surface that
-  // here so individual techs aren't blindsided by a bad attribution.
-  var SPLIT_QUALIFIER = 'Splits are sourced from Housecall Pro and may occasionally be attributed to the wrong technician. Double-check with the tech on the job if something looks off.';
+  // a small explanatory note. Phrased to reassure the technician
+  // reading it — if a split looks wrong, the dashboard isn't what
+  // their payout is based on; the admin reconciles at month-end and
+  // the official KPI numbers use those corrected splits, not this
+  // live HCP feed.
+  var SPLIT_QUALIFIER = 'These splits come straight from Housecall Pro and are sometimes attributed to the wrong tech. If one looks off, don\u2019t sweat it \u2014 the admin reconciles splits at month-end, and official KPIs use those corrected numbers, not what\u2019s shown here.';
   var splitInfoSpan = '<span class="split-info" tabindex="0" role="button" aria-label="About split-credit data" onclick="toggleSplitInfo(event)" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){toggleSplitInfo(event);event.preventDefault();}">' +
       '<span class="split-info-ico" aria-hidden="true">i</span>' +
       '<span class="split-info-bubble">' + SPLIT_QUALIFIER + '</span>' +
