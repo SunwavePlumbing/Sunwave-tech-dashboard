@@ -297,11 +297,43 @@ document.getElementById('modalBackdrop').addEventListener('click', function(e) {
 });
 document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeModal(); });
 
-function openModal(tech) {
-  document.getElementById('modalTitle').textContent = esc(tech.name) + ' \u2014 Jobs';
-  var jobs = (tech.jobList || []).slice().sort(function(a, b) {
+/* Disclaimer copy shown when the modal opens in "unpaid" mode. Phrased
+   in the same reassuring voice as the split-credit qualifier — names
+   the safety net (admin reconciles at month-end) so a tech reading
+   their list of unpaid jobs doesn't panic over an entry that's been
+   collected but just hasn't synced through QBO/HCP yet. */
+var UNPAID_QUALIFIER = 'Heads up \u2014 due to billing timing, some of these may already be paid and just not recorded yet. The admin reconciles invoices at month-end, so anything that\u2019s actually paid will get cleared by then.';
+
+function openModal(tech, mode) {
+  mode = mode || 'all';
+  var isUnpaid = mode === 'unpaid';
+
+  // Pull the full list, then optionally narrow to unpaid-only. Always
+  // sort newest-first so the most-recently-completed jobs (likeliest
+  // to still be in collection limbo) surface at the top.
+  var jobs = (tech.jobList || []).slice();
+  if (isUnpaid) jobs = jobs.filter(function(j) { return j.outstanding && j.outstanding > 0; });
+  jobs.sort(function(a, b) {
     return new Date(b.date || 0) - new Date(a.date || 0);
   });
+
+  // Title + footer-summary text both swap based on mode.
+  document.getElementById('modalTitle').textContent = esc(tech.name) +
+    (isUnpaid ? ' \u2014 Unpaid Jobs' : ' \u2014 Jobs');
+
+  // Disclaimer banner: only shown in unpaid mode. We populate text via
+  // textContent (not innerHTML) so the qualifier copy is XSS-safe even
+  // if it ever gets wired to a CMS-controlled string.
+  var banner = document.getElementById('modalBanner');
+  var bannerText = document.getElementById('modalBannerText');
+  if (banner && bannerText) {
+    if (isUnpaid) {
+      bannerText.textContent = UNPAID_QUALIFIER;
+      banner.hidden = false;
+    } else {
+      banner.hidden = true;
+    }
+  }
 
   var roleClass = function(role) {
     return role === 'Sold & Did' ? 'role-sold-did' : role === 'Sold' ? 'role-sold' : 'role-did';
@@ -326,6 +358,12 @@ function openModal(tech) {
     var roleBadge = job.role ? '<span class="role-badge ' + roleClass(job.role) + '">' + esc(job.role) + '</span>' : '';
     var splitNote = (job.splitWith && job.splitWith.length > 0)
       ? '<div style="font-size:11px;color:#aaa;margin-top:2px">w/ ' + job.splitWith.map(function(s){ return esc(s.name || s) + (s.creditPct != null ? ' <span style="color:#ccc">(' + s.creditPct + '%)</span>' : ''); }).join(', ') + splitInfoSpan + '</div>' : '';
+    // Show an "Unpaid: $X" pill under the job total when the invoice
+    // hasn't been collected. We display the GROSS outstanding amount
+    // (not the tech's credited share) on a per-job row so the number
+    // matches what the customer actually owes.
+    var unpaidNote = (job.outstanding && job.outstanding > 0)
+      ? '<div class="job-unpaid-note">Unpaid: ' + fmt(job.outstanding) + '</div>' : '';
     var jobTotal = job.jobTotal != null ? fmt(job.jobTotal) : fmt(job.credit);
     var shareHtml = job.creditPct != null && job.creditPct < 100
       ? fmt(job.credit) + '<span class="share-pct">(' + job.creditPct + '%)</span>'
@@ -334,12 +372,18 @@ function openModal(tech) {
       '<td>' + fmtDate(job.date) + '</td>' +
       '<td>' + desc + roleBadge + splitNote + '</td>' +
       '<td>' + esc(job.customer || '\u2014') + '</td>' +
-      '<td>' + jobTotal + '</td>' +
+      '<td>' + jobTotal + unpaidNote + '</td>' +
       '<td>' + shareHtml + '</td>' +
       '</tr>';
   }).join('');
+  // Empty-state copy depends on mode. In unpaid mode "No jobs found"
+  // would read as a bug; the cheerier "All clear" framing tells the
+  // tech they're caught up on collections.
+  var emptyMsg = isUnpaid
+    ? 'All clear \u2014 no unpaid jobs in this period.'
+    : 'No jobs found';
   document.getElementById('modalBody').innerHTML = rows ||
-    '<tr><td colspan="5" style="text-align:center;color:#aaa;padding:2rem">No jobs found</td></tr>';
+    '<tr><td colspan="5" style="text-align:center;color:#aaa;padding:2rem">' + emptyMsg + '</td></tr>';
 
   // Mobile: cards
   var cards = jobs.map(function(job) {
@@ -352,20 +396,35 @@ function openModal(tech) {
       ? '<span class="job-card-credit-pct">(' + job.creditPct + '%)</span>' : '';
     var totalLine = job.jobTotal != null && job.creditPct < 100
       ? '<div class="job-card-total">of ' + fmt(job.jobTotal) + '</div>' : '';
+    // Mobile card: red "Unpaid" chip when there's an outstanding balance.
+    // Sits on the meta row alongside role + split partners.
+    var unpaidChip = (job.outstanding && job.outstanding > 0)
+      ? '<span class="job-card-unpaid">Unpaid ' + fmt(job.outstanding) + '</span>' : '';
     return '<div class="job-card">' +
       '<div class="job-card-top">' +
         '<span class="job-card-date">' + fmtDate(job.date) + '</span>' +
         '<div class="job-card-right"><span class="job-card-credit">' + creditAmt + '</span>' + pctHtml + totalLine + '</div>' +
       '</div>' +
       '<div class="job-card-desc">' + desc + '</div>' +
-      '<div class="job-card-meta">' + esc(job.customer || '\u2014') + roleBadge + splitNote + '</div>' +
+      '<div class="job-card-meta">' + esc(job.customer || '\u2014') + roleBadge + splitNote + unpaidChip + '</div>' +
       '</div>';
   }).join('');
   document.getElementById('modalCards').innerHTML = cards ||
-    '<p style="text-align:center;color:#aaa;padding:2rem">No jobs found</p>';
+    '<p style="text-align:center;color:#aaa;padding:2rem">' + emptyMsg + '</p>';
 
-  document.getElementById('modalJobCount').textContent = jobs.length + ' job' + (jobs.length !== 1 ? 's' : '');
-  document.getElementById('modalTotal').textContent = fmt(tech.monthlyRevenue) + ' credited';
+  // Footer counts/totals swap based on mode. In unpaid mode the totals
+  // line is the SUM OF GROSS OUTSTANDING (what the customers actually
+  // owe), not the tech's credited share — the gross figure is what
+  // matches an A/R-style "you have $X to chase down" read.
+  var jobNoun = isUnpaid ? 'unpaid job' : 'job';
+  document.getElementById('modalJobCount').textContent =
+    jobs.length + ' ' + jobNoun + (jobs.length !== 1 ? 's' : '');
+  if (isUnpaid) {
+    var grossOutstanding = jobs.reduce(function(s, j) { return s + (j.outstanding || 0); }, 0);
+    document.getElementById('modalTotal').textContent = fmt(grossOutstanding) + ' outstanding';
+  } else {
+    document.getElementById('modalTotal').textContent = fmt(tech.monthlyRevenue) + ' credited';
+  }
   document.getElementById('modalBackdrop').classList.add('open');
   lockBodyScroll();
 }

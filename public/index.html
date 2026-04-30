@@ -61,6 +61,7 @@
         <button class="sort-btn active" data-sort="revenue">Value Created</button>
         <button class="sort-btn" data-sort="ticket">Avg Ticket</button>
         <button class="sort-btn" data-sort="jobs"># Jobs</button>
+        <button class="sort-btn" data-sort="unpaid">Unpaid</button>
       </div>
       <div class="table-wrapper" id="tableWrapper">
         <div class="spinner"></div>
@@ -71,10 +72,11 @@
               <th>Value Created</th>
               <th>Avg Ticket</th>
               <th># Jobs</th>
+              <th>Unpaid</th>
             </tr>
           </thead>
           <tbody id="leaderboardBody">
-            <tr><td colspan="4" style="padding:2rem;text-align:center;color:#aaa">Loading...</td></tr>
+            <tr><td colspan="5" style="padding:2rem;text-align:center;color:#aaa">Loading...</td></tr>
           </tbody>
           <tfoot id="leaderboardFoot"></tfoot>
         </table>
@@ -232,6 +234,13 @@
       <button class="modal-close" id="modalClose">&times;</button>
     </div>
     <div class="modal-body">
+      <!-- Optional disclaimer banner — populated by openModal() in
+           "unpaid" mode and hidden otherwise. Sits above the job list
+           so the qualifier reads before the data does. -->
+      <div class="modal-banner" id="modalBanner" hidden role="note">
+        <span class="modal-banner-ico" aria-hidden="true">!</span>
+        <span class="modal-banner-text" id="modalBannerText"></span>
+      </div>
       <table class="modal-table">
         <thead>
           <tr>

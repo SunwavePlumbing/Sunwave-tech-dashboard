@@ -757,7 +757,15 @@ app.get('/api/metrics', async (req, res) => {
     function ensureTech(emp) {
       if (!techMetrics[emp.id]) {
         const name = ((emp.first_name || '') + ' ' + (emp.last_name || '')).trim() || 'Unknown';
-        techMetrics[emp.id] = { id: emp.id, name, revenue: 0, jobs: 0, jobList: [] };
+        techMetrics[emp.id] = {
+          id: emp.id, name,
+          revenue: 0, jobs: 0,
+          // Credited share of outstanding balances on the tech's jobs in
+          // this period — same split rules as revenue (seller 1/3, doers
+          // split 2/3) so the column reads consistently with Value Created.
+          unpaid: 0, unpaidJobs: 0,
+          jobList: []
+        };
       }
     }
 
@@ -766,6 +774,10 @@ app.get('/api/metrics', async (req, res) => {
       if (doers.length === 0) return;
 
       const jobRevenue = parseFloat(job.total_amount || 0) / 100;
+      // Outstanding balance (HCP returns this directly on the Job object).
+      // Negative balances (overpayments / credits) clamp to 0 — they're not
+      // "unpaid" in any meaningful sense for this column.
+      const jobOutstandingGross = Math.max(0, parseFloat(job.outstanding_balance || 0) / 100);
       const customer = job.customer
         ? ((job.customer.first_name || '') + ' ' + (job.customer.last_name || '')).trim()
         : '';
@@ -824,8 +836,18 @@ app.get('/api/metrics', async (req, res) => {
           })
           .filter(x => x.name);
 
+        // Per-tech share of this job's outstanding balance, using the
+        // same split proportion as their revenue credit. If the job is
+        // fully paid (outstanding == 0) this is just 0 — no special-case
+        // needed.
+        const outstandingShare = jobRevenue > 0
+          ? jobOutstandingGross * (credit / jobRevenue)
+          : 0;
+
         techMetrics[emp.id].revenue += credit;
         techMetrics[emp.id].jobs += 1;
+        techMetrics[emp.id].unpaid += outstandingShare;
+        if (jobOutstandingGross > 0) techMetrics[emp.id].unpaidJobs += 1;
         techMetrics[emp.id].jobList.push({
           invoice: job.invoice_number || null,
           description: job.description || null,
@@ -835,7 +857,13 @@ app.get('/api/metrics', async (req, res) => {
           credit,
           creditPct,
           role,
-          splitWith
+          splitWith,
+          // Outstanding balance — gross (jobs total still owed) + the
+          // tech's credited share. Modal can show whichever is more
+          // useful (the gross dollar number tends to read more clearly
+          // on a single-job row).
+          outstanding: jobOutstandingGross,
+          outstandingShare: outstandingShare
         });
       });
     });
@@ -847,6 +875,8 @@ app.get('/api/metrics', async (req, res) => {
         monthlyRevenue: Math.round(tech.revenue),
         jobsCompleted: tech.jobs,
         averageTicket: tech.jobs > 0 ? Math.round(tech.revenue / tech.jobs) : 0,
+        unpaid: Math.round(tech.unpaid),
+        unpaidJobs: tech.unpaidJobs,
         jobList: tech.jobList
       }))
       .sort((a, b) => b.monthlyRevenue - a.monthlyRevenue);
@@ -857,6 +887,14 @@ app.get('/api/metrics', async (req, res) => {
     // multi-tech jobs are counted once per tech, and jobs with no employees are skipped.
     const totalJobs = completedJobs.length;
     const avgTicket = totalJobs > 0 ? Math.round(totalRevenue / totalJobs) : 0;
+    // Sum the GROSS outstanding across all completed jobs in the period
+    // (not the per-tech credited share, which double-counts on splits).
+    // This is what shows in the table footer's "Unpaid" totals cell.
+    const totalUnpaid = Math.round(
+      completedJobs.reduce((sum, job) =>
+        sum + Math.max(0, parseFloat(job.outstanding_balance || 0) / 100),
+      0)
+    );
 
     const payload = {
       leaderboard,
@@ -866,6 +904,7 @@ app.get('/api/metrics', async (req, res) => {
       // banner when any part of the range predates the HCP migration.
       summary: {
         totalRevenue, totalJobs, averageTicket: avgTicket, period: periodLabel,
+        totalUnpaid,
         periodStart: periodStart.toISOString().slice(0, 10),
         periodEnd:   periodEnd.toISOString().slice(0, 10)
       }

@@ -347,6 +347,7 @@ function render() {
   if (currentSort === 'revenue') sorted.sort(function(a, b) { return b.monthlyRevenue - a.monthlyRevenue; });
   else if (currentSort === 'ticket') sorted.sort(function(a, b) { return b.averageTicket - a.averageTicket; });
   else if (currentSort === 'jobs') sorted.sort(function(a, b) { return b.jobsCompleted - a.jobsCompleted; });
+  else if (currentSort === 'unpaid') sorted.sort(function(a, b) { return (b.unpaid || 0) - (a.unpaid || 0); });
 
   var medals = ['\uD83E\uDD47', '\uD83E\uDD48', '\uD83E\uDD49'];
   var rows = sorted.map(function(tech, idx) {
@@ -391,11 +392,18 @@ function render() {
       '<td><span class="row-count' + (idx === 0 ? ' is-winner' : '') + '" data-kind="dollar" data-val="' + tech.monthlyRevenue + '">$0</span></td>' +
       '<td class="' + ticketClass + '"><span class="row-count" data-kind="dollar" data-val="' + tech.averageTicket + '">$0</span></td>' +
       '<td><span class="row-count" data-kind="int" data-val="' + tech.jobsCompleted + '">0</span></td>' +
+      // Unpaid column — credited share of outstanding balances on this
+      // tech's jobs in the period. `unpaid-zero` greys out true zeros so
+      // they don't visually compete with techs who actually have collections
+      // to chase down.
+      '<td class="unpaid-cell' + ((tech.unpaid || 0) === 0 ? ' unpaid-zero' : '') + '">' +
+        '<span class="row-count" data-kind="dollar" data-val="' + (tech.unpaid || 0) + '">$0</span>' +
+      '</td>' +
       '</tr>';
   }).join('');
 
   document.getElementById('leaderboardBody').innerHTML = rows ||
-    '<tr><td colspan="4" style="text-align:center;color:#aaa;padding:2rem">No completed jobs in this period</td></tr>';
+    '<tr><td colspan="5" style="text-align:center;color:#aaa;padding:2rem">No completed jobs in this period</td></tr>';
 
   // Run FLIP animation on the NEW DOM using the OLD positions
   playFlipReorder(oldRects);
@@ -505,16 +513,38 @@ function render() {
     });
   });
 
-  // Totals row
+  /* Per-row "Unpaid" cell click → opens the modal scoped to JUST that
+     tech's unpaid jobs (with the billing-timing disclaimer banner up
+     top). stopPropagation prevents the underlying row click from also
+     firing and immediately re-opening the modal in "all jobs" mode.
+
+     Cells with a $0 unpaid value are skipped — they have the
+     `unpaid-zero` class and shouldn't read as interactive. */
+  document.querySelectorAll('#leaderboardBody tr[data-idx] .unpaid-cell:not(.unpaid-zero)').forEach(function(cell) {
+    cell.classList.add('is-clickable');
+    cell.addEventListener('click', function(evt) {
+      evt.stopPropagation();
+      var row = cell.closest('tr[data-idx]');
+      if (!row) return;
+      openModal(sortedSnapshot[parseInt(row.dataset.idx)], 'unpaid');
+    });
+  });
+
+  // Totals row. The footer's "Unpaid" cell uses the gross total from
+  // summary.totalUnpaid (sum across completed jobs in the period) rather
+  // than summing per-tech credited shares — those shares double-count on
+  // split jobs. Each tech's row still shows their own credited share.
   var totalRev = sorted.reduce(function(s, t) { return s + t.monthlyRevenue; }, 0);
   var totalJbs = sorted.reduce(function(s, t) { return s + t.jobsCompleted; }, 0);
   var avgTkt = totalJbs > 0 ? Math.round(totalRev / totalJbs) : 0;
+  var totalUnpaid = (summary && summary.totalUnpaid) || 0;
   document.getElementById('leaderboardFoot').innerHTML =
     '<tr>' +
       '<td>Totals &amp; Averages</td>' +
       '<td>' + fmt(totalRev) + '</td>' +
       '<td>' + fmt(avgTkt) + '</td>' +
       '<td>' + totalJbs + '</td>' +
+      '<td class="unpaid-cell' + (totalUnpaid === 0 ? ' unpaid-zero' : '') + '">' + fmt(totalUnpaid) + '</td>' +
     '</tr>';
 
   document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();

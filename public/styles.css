@@ -394,6 +394,104 @@ body.tech-mount-in #techView > .data-warning {
   }
 }
 
+/* ── Unpaid column ──────────────────────────────────────────────
+   Red ink when there's anything outstanding so it reads at a glance
+   as "needs follow-up"; greyed out when zero so a fully-paid tech
+   doesn't look like they're being flagged. */
+tbody td.unpaid-cell .row-count,
+tfoot td.unpaid-cell {
+  color: #C0392B;
+  font-weight: 600;
+}
+tbody td.unpaid-cell.unpaid-zero .row-count,
+tfoot td.unpaid-cell.unpaid-zero {
+  color: #B5B0A4;
+  font-weight: 500;
+}
+
+/* Per-job "Unpaid: $X" note in the desktop modal table — sits below
+   the job total in the same cell. Small red text so it reads as a
+   follow-up flag without dominating the row. */
+.job-unpaid-note {
+  font-size: 11px;
+  color: #C0392B;
+  font-weight: 600;
+  margin-top: 3px;
+  letter-spacing: 0.2px;
+}
+
+/* Mobile job card: tiny red pill on the meta row when the job has
+   outstanding balance. */
+.job-card-unpaid {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  background: rgba(192, 57, 43, 0.10);
+  color: #C0392B;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+/* Clickable Unpaid cell — only applied when the cell has a non-zero
+   value (technicians.js scopes the click handler accordingly). The
+   underline-on-hover hints at drill-down without competing visually
+   with the rest of the table. */
+tbody td.unpaid-cell.is-clickable { cursor: pointer; }
+tbody td.unpaid-cell.is-clickable .row-count {
+  text-decoration: underline;
+  text-decoration-color: rgba(192, 57, 43, 0.25);
+  text-underline-offset: 3px;
+  transition: text-decoration-color 0.15s ease;
+}
+tbody td.unpaid-cell.is-clickable:hover .row-count {
+  text-decoration-color: rgba(192, 57, 43, 0.85);
+}
+
+/* ── Modal disclaimer banner ────────────────────────────────────
+   Amber chip rendered above the job list when openModal() is called
+   in "unpaid" mode. Mirrors the styling of #techDataWarning so the
+   visual language for "qualifier / heads-up" stays consistent across
+   the dashboard. */
+.modal-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 14px 14px 10px;
+  padding: 10px 14px;
+  background: #FFF8E8;
+  border: 1px solid #F1D48E;
+  border-radius: 10px;
+  color: #6B4E11;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.modal-banner[hidden] { display: none; }
+.modal-banner-ico {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  border-radius: 50%;
+  background: #C9820A;
+  color: #FFF8E8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+  font-family: Georgia, 'Times New Roman', serif;
+}
+.modal-banner-text { flex: 1; }
+@media (max-width: 768px) {
+  .modal-banner {
+    margin: 10px 12px 8px;
+    padding: 9px 12px;
+    font-size: 12.5px;
+  }
+}
+
 /* Micro-interaction: press-compress on tappable pills. A quick scale
    dip + spring-back confirms the tap before the API even starts. */
 .tab-btn:active,
