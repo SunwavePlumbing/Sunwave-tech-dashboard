@@ -337,6 +337,21 @@ function render() {
     warnEl.hidden = !showWarn;
   }
 
+  /* Coverage-gap banner. /api/tech reports any jobs that received
+     payment in this period but couldn't be credited to a tech (no
+     assigned_employees in HCP). Stash the list on the global so the
+     orphans modal can read it without re-fetching. */
+  var orphans = currentData.orphans || [];
+  var orphansBanner = document.getElementById('techOrphansBanner');
+  var orphansCountEl = document.getElementById('techOrphansCount');
+  if (orphansBanner) {
+    orphansBanner.hidden = orphans.length === 0;
+    if (orphansCountEl) {
+      orphansCountEl.textContent = orphans.length + ' paid job' + (orphans.length !== 1 ? 's' : '');
+    }
+  }
+  window._orphanJobs = orphans;
+
   // Stat cards: count-up animation
   animateStatCards(summary);
 

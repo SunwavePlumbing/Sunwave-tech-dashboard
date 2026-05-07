@@ -51,6 +51,18 @@
           Any data imported from Service Titan may not be fully correct.
         </span>
       </div>
+      <!-- Coverage gap banner — populated when /api/tech finds paid
+           invoices in this period that couldn't be credited to a tech
+           (no assigned_employees in HCP). Click → modal listing them so
+           an admin can fix the assignments. Toggled by render() in
+           technicians.js. -->
+      <div class="data-warning data-warning--orphans" id="techOrphansBanner" hidden role="note">
+        <span class="data-warning-ico" aria-hidden="true">!</span>
+        <span class="data-warning-text">
+          <strong id="techOrphansCount">0 paid jobs</strong> in this period weren&rsquo;t credited to a tech.
+          <button type="button" class="data-warning-link" id="techOrphansShow">See details &rarr;</button>
+        </span>
+      </div>
       <div class="stats" id="stats">
         <div class="stat-card"><div class="stat-label">Total Value Created</div><div class="stat-value">&mdash;</div></div>
         <div class="stat-card"><div class="stat-label">Avg Ticket</div><div class="stat-value">&mdash;</div></div>
@@ -258,6 +270,47 @@
     <div class="modal-footer">
       <span class="modal-footer-left" id="modalJobCount"></span>
       <span class="modal-footer-right" id="modalTotal"></span>
+    </div>
+  </div>
+</div>
+
+<!-- Orphan-jobs modal — opened from the techDataWarning banner. Lists
+     jobs paid in the current period whose HCP record has no assigned
+     employee, so we can't credit a tech. Each row shows what to look
+     up in HCP to fix the assignment. -->
+<div class="modal-backdrop" id="orphansBackdrop">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Paid Jobs Without an Assigned Tech</span>
+      <button class="modal-close" id="orphansClose">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-banner" role="note" style="display:flex">
+        <span class="modal-banner-ico" aria-hidden="true">!</span>
+        <span class="modal-banner-text">
+          These jobs got paid in the current period but don&rsquo;t have an assigned
+          technician in Housecall Pro, so no one was credited for the work.
+          Open the job in HCP and add the tech who actually did it
+          &mdash; the dashboard will pick up the change on the next refresh.
+        </span>
+      </div>
+      <table class="modal-table">
+        <thead>
+          <tr>
+            <th>Paid</th>
+            <th>Invoice</th>
+            <th>Customer</th>
+            <th>Status</th>
+            <th>Amount</th>
+          </tr>
+        </thead>
+        <tbody id="orphansBody"></tbody>
+      </table>
+      <div id="orphansCards" class="modal-cards"></div>
+    </div>
+    <div class="modal-footer">
+      <span class="modal-footer-left" id="orphansFooterCount"></span>
+      <span class="modal-footer-right" id="orphansFooterTotal"></span>
     </div>
   </div>
 </div>

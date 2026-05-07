@@ -46,25 +46,33 @@ function startLedgerLoader(container) {
   var rootEl    = container.querySelector('#ttLoader');
   var destroyed = false;
 
+  // Track when the loader started so finalize() can detect a "fast"
+  // resolve (warm cache, ~50ms) and skip the deliberate hold beat —
+  // there's no point holding a "done" pose if the user barely saw the
+  // loader at all. On a slow resolve (cold cache, several seconds), we
+  // still play the full hold so the transition feels intentional.
+  var startedAt = Date.now();
+
   return {
     destroy: function() { destroyed = true; },
     finalize: function(onComplete) {
       if (destroyed) { if (onComplete) onComplete(); return; }
       destroyed = true;
       // 1. Snap all rings + label + accent to their completed end-state
-      //    (CSS .ll-finishing class). The user always sees the finished
-      //    tableau before the loader fades, no matter where in the 20s
-      //    cycle the API happened to resolve.
+      //    (CSS .ll-finishing class).
       rootEl.classList.add('ll-finishing');
-      // 2. Hold the completed pose briefly so it registers as "done".
-      // 3. Fade out via .ll-done (opacity transition ~160ms in CSS).
-      // 4. Fire the onComplete callback to mount the real dashboard.
+      // 2. Hold the completed pose only as long as it took to load —
+      //    capped at 220ms (snappy on warm cache) and floored at 80ms
+      //    (so even a sub-50ms resolve gets a single perceptible beat).
+      // 3. Fade via .ll-done (~140ms opacity transition in CSS).
+      var elapsed = Date.now() - startedAt;
+      var hold = Math.max(80, Math.min(220, elapsed * 0.5));
       setTimeout(function() {
         rootEl.classList.add('ll-done');
         setTimeout(function() {
           if (onComplete) onComplete();
-        }, 180);
-      }, 520);
+        }, 140);
+      }, hold);
     }
   };
 }

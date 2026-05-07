@@ -304,6 +304,37 @@ body.tech-mount-in #techView > .data-warning {
   font-family: Georgia, 'Times New Roman', serif;
 }
 .data-warning-text { flex: 1; }
+/* Orphans variant: same chip palette but a slightly louder red-tinted
+   border, since the data inside is "you've got money on the table"
+   rather than just a passive caveat. */
+.data-warning--orphans {
+  background: #FFF1E8;
+  border-color: #E8A783;
+  color: #6A2E0A;
+}
+.data-warning--orphans .data-warning-ico { background: #C9591F; color: #FFF1E8; }
+
+/* Inline button to launch the orphans modal. Underlined for affordance,
+   sized to match surrounding 13px copy, and bumps to 800-weight on
+   hover/focus to feel tappable without changing layout. */
+.data-warning-link {
+  display: inline;
+  padding: 0;
+  margin: 0 0 0 4px;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.data-warning-link:hover,
+.data-warning-link:focus {
+  font-weight: 800;
+  outline: none;
+}
 
 /* ── Split-credit info icon (in per-job modal) ──────────────────
    A small circular ⓘ that sits inline after the "w/ <partner>"

@@ -295,7 +295,18 @@ document.getElementById('modalClose').addEventListener('click', closeModal);
 document.getElementById('modalBackdrop').addEventListener('click', function(e) {
   if (e.target === this) closeModal();
 });
-document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeModal(); });
+// Orphans modal — separate backdrop, same close patterns.
+var orphansBackdropEl = document.getElementById('orphansBackdrop');
+var orphansCloseEl    = document.getElementById('orphansClose');
+var orphansShowEl     = document.getElementById('techOrphansShow');
+if (orphansCloseEl)    orphansCloseEl.addEventListener('click', closeOrphansModal);
+if (orphansBackdropEl) orphansBackdropEl.addEventListener('click', function(e) {
+  if (e.target === this) closeOrphansModal();
+});
+if (orphansShowEl)     orphansShowEl.addEventListener('click', openOrphansModal);
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') { closeModal(); closeOrphansModal(); }
+});
 
 /* Disclaimer copy shown when the modal opens in "unpaid" mode. Phrased
    in the same reassuring voice as the split-credit qualifier — names
@@ -431,6 +442,65 @@ function openModal(tech, mode) {
 
 function closeModal() {
   document.getElementById('modalBackdrop').classList.remove('open');
+  unlockBodyScroll();
+}
+
+/* ── Orphans modal — paid jobs with no assigned tech in HCP ─────
+   Renders the list passed by /api/tech in `currentData.orphans`,
+   stashed on `window._orphanJobs` by render(). Two layouts mirror
+   the per-tech modal: desktop table + mobile cards. */
+function openOrphansModal() {
+  var orphans = (window._orphanJobs || []).slice();
+  // Newest-paid first so the most recent admin oversights surface
+  // at the top of the list.
+  orphans.sort(function(a, b) {
+    return new Date(b.paidAt || 0) - new Date(a.paidAt || 0);
+  });
+
+  var rows = orphans.map(function(o) {
+    var dateLabel = o.paidAt ? fmtDate(o.paidAt) : '—';
+    var invLabel  = o.invoice ? '#' + esc(o.invoice) : '—';
+    var status    = o.workStatus ? esc(o.workStatus) : '—';
+    return '<tr>' +
+      '<td>' + dateLabel + '</td>' +
+      '<td>' + invLabel + '</td>' +
+      '<td>' + esc(o.customer || '—') + '</td>' +
+      '<td>' + status + '</td>' +
+      '<td>' + fmt(o.amount) + '</td>' +
+      '</tr>';
+  }).join('');
+  document.getElementById('orphansBody').innerHTML = rows ||
+    '<tr><td colspan="5" style="text-align:center;color:#aaa;padding:2rem">All clear &mdash; every paid job is credited.</td></tr>';
+
+  var cards = orphans.map(function(o) {
+    var dateLabel = o.paidAt ? fmtDate(o.paidAt) : '—';
+    var invLabel  = o.invoice ? '#' + esc(o.invoice) : '—';
+    var status    = o.workStatus
+      ? '<span class="role-badge role-did">' + esc(o.workStatus) + '</span>' : '';
+    var desc      = o.description ? esc(o.description) : '—';
+    return '<div class="job-card">' +
+      '<div class="job-card-top">' +
+        '<span class="job-card-date">' + dateLabel + ' · ' + invLabel + '</span>' +
+        '<div class="job-card-right"><span class="job-card-credit">' + fmt(o.amount) + '</span></div>' +
+      '</div>' +
+      '<div class="job-card-desc">' + desc + '</div>' +
+      '<div class="job-card-meta">' + esc(o.customer || '—') + status + '</div>' +
+      '</div>';
+  }).join('');
+  document.getElementById('orphansCards').innerHTML = cards ||
+    '<p style="text-align:center;color:#aaa;padding:2rem">All clear &mdash; every paid job is credited.</p>';
+
+  var totalAmount = orphans.reduce(function(s, o) { return s + (o.amount || 0); }, 0);
+  document.getElementById('orphansFooterCount').textContent =
+    orphans.length + ' uncredited job' + (orphans.length !== 1 ? 's' : '');
+  document.getElementById('orphansFooterTotal').textContent =
+    fmt(totalAmount) + ' uncredited';
+
+  document.getElementById('orphansBackdrop').classList.add('open');
+  lockBodyScroll();
+}
+function closeOrphansModal() {
+  document.getElementById('orphansBackdrop').classList.remove('open');
   unlockBodyScroll();
 }
 
@@ -628,5 +698,12 @@ function init() {
   document.body.classList.add('anim-entrance');
   setTimeout(function() { document.body.classList.remove('anim-entrance'); }, 1200);
   fetchData();
-  setInterval(fetchData, 5 * 60 * 1000);
+  // Auto-refresh every 10 minutes. Halved from the original 5-min cadence
+  // because the server now persists its cache to disk and serves stale
+  // data instantly while revalidating in the background — so the only
+  // reason to poll at all is to surface QBO/HCP changes that landed in
+  // the last few minutes. 10 min is plenty for a finance dashboard
+  // whose underlying data updates daily-ish, and it halves steady-state
+  // load on the upstream APIs.
+  setInterval(fetchData, 10 * 60 * 1000);
 }

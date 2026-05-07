@@ -17,11 +17,65 @@ function hcpHeaders() {
   return { 'Authorization': 'Token ' + API_KEY, 'Accept': 'application/json' };
 }
 
-// ── Tiny in-memory response cache ────────────────────────────────────────────
+// ── Tiny response cache (with disk persistence + stale-while-revalidate) ────
 // Keyed by request URL + key; value = { at, data }. Separate TTLs per endpoint.
-// Lets repeat page loads return instantly while real data refreshes in the
-// background. Cache is cleared in-process on server restart.
+// On every cacheSet, a debounced disk write persists the whole map to a JSON
+// file on the QBO_TOKEN_DIR volume (same persistent disk we use for QBO
+// tokens). On boot, the file is read back so the cache survives Railway
+// deploys instead of having to be re-warmed from scratch on every push.
 const _cache = new Map();
+
+// Cache lives on whatever volume QBO_TOKEN_DIR points at — same volume that
+// holds the rotated refresh token. If unset (local dev), falls back to the
+// repo dir; that's fine because local dev doesn't suffer the ephemeral-FS
+// problem Railway does.
+const CACHE_DIR  = process.env.QBO_TOKEN_DIR || __dirname;
+const CACHE_FILE = path.join(CACHE_DIR, '.dashboard-cache.json');
+let _cacheWriteTimer = null;
+
+// Debounced async disk flush. cacheSet schedules; the timer fires once 5 s
+// after the most-recent set, snapshotting the whole map at that moment. We
+// don't await this from cacheSet — disk I/O shouldn't block hot-path
+// requests. Worst case on crash: we lose up to 5 s of cache writes. Their
+// next call will simply re-fetch fresh.
+async function writeDiskCacheNow() {
+  try {
+    const obj = {};
+    _cache.forEach((v, k) => { obj[k] = v; });
+    await fs.promises.writeFile(CACHE_FILE, JSON.stringify(obj), 'utf8');
+  } catch (e) {
+    console.warn('[cache] disk write failed:', e.message);
+  }
+}
+function scheduleDiskCacheWrite() {
+  if (_cacheWriteTimer) return;
+  _cacheWriteTimer = setTimeout(() => {
+    _cacheWriteTimer = null;
+    writeDiskCacheNow();
+  }, 5000);
+}
+
+// Load cache from disk on boot. Validates each entry's shape so a corrupted
+// file doesn't poison the in-memory map. Errors silently — first user just
+// pays the cold-start cost (existing behavior).
+function loadDiskCache() {
+  try {
+    const raw = fs.readFileSync(CACHE_FILE, 'utf8');
+    const obj = JSON.parse(raw);
+    let count = 0;
+    Object.entries(obj).forEach(([k, v]) => {
+      if (v && typeof v === 'object' && typeof v.at === 'number' && 'data' in v) {
+        _cache.set(k, v);
+        count++;
+      }
+    });
+    console.log('[cache] Loaded', count, 'entries from', CACHE_FILE);
+  } catch (_) {
+    // No cache file or unreadable — fresh start
+  }
+}
+loadDiskCache();
+
 function cacheGet(key, ttlMs) {
   const e = _cache.get(key);
   if (!e) return null;
@@ -30,18 +84,69 @@ function cacheGet(key, ttlMs) {
 }
 function cacheSet(key, data) {
   _cache.set(key, { at: Date.now(), data });
+  scheduleDiskCacheWrite();
 }
 
 // ── In-flight promise de-dup ─────────────────────────────────────────────────
-// If two requests arrive for the same raw-jobs fetch at once, they should
-// share one network round-trip instead of each firing their own. Keyed by
-// cache key; value is the pending promise that resolves to the cached data.
+// If two requests arrive for the same fetch at once, they should share one
+// network round-trip instead of each firing their own. Keyed by cache key;
+// value is the pending promise that resolves to the fetched data.
 const _inflight = new Map();
 function inflightGet(key, factory) {
   if (_inflight.has(key)) return _inflight.get(key);
   const p = factory().finally(() => { _inflight.delete(key); });
   _inflight.set(key, p);
   return p;
+}
+
+// ── withCache — stale-while-revalidate wrapper ───────────────────────────────
+// Endpoint pattern:
+//   const payload = await withCache(key, ttlMs, async () => {
+//     // ... fetch from upstream API ... return payload;
+//   });
+//   res.json(payload);
+//
+// Behavior:
+//   • Fresh cache (entry.age <= ttl)  — return cached data immediately.
+//   • Stale cache (entry.age >  ttl)  — return STALE data immediately AND
+//     fire the factory in the background so the next request gets fresh.
+//     The user never waits on a slow upstream once the cache has been
+//     warmed at least once.
+//   • Cold cache (no entry)            — await the factory (deduped via
+//     inflightGet), cache the result, return it. This is the only path
+//     where the user waits for an upstream round-trip.
+//
+// Background revalidation failures are logged but don't propagate — the
+// caller already got the stale data, and a transient upstream blip
+// shouldn't blow up the response. Foreground (cold) failures DO propagate
+// so the endpoint's try/catch can decide how to surface them.
+async function withCache(key, ttlMs, factory) {
+  const entry = _cache.get(key);
+  if (entry) {
+    const age = Date.now() - entry.at;
+    if (age <= ttlMs) return entry.data;
+    // Stale — kick off background revalidation (deduped) and return stale now
+    if (!_inflight.has(key)) {
+      inflightGet(key, async () => {
+        try {
+          const fresh = await factory();
+          cacheSet(key, fresh);
+          return fresh;
+        } catch (e) {
+          console.warn('[cache:bg-revalidate]', key, e.message);
+          // Keep the stale entry on failure — better stale than nothing.
+        }
+      });
+    }
+    return entry.data;
+  }
+  // Cold — foreground fetch, deduped against any concurrent caller
+  const fresh = await inflightGet(key, async () => {
+    const result = await factory();
+    cacheSet(key, result);
+    return result;
+  });
+  return fresh;
 }
 
 // ── ServiceTitan migration filter ────────────────────────────────────────────
@@ -145,9 +250,19 @@ const QBO_BASE          = 'https://quickbooks.api.intuit.com';
 
 // ── QBO token persistence ─────────────────────────────────────────────────────
 // QBO rotates refresh tokens on every use. We persist the latest token to a
-// local JSON file so server restarts (Railway deploys etc.) don't lose it.
-// Priority: persisted file > QBO_REFRESH_TOKEN env var.
-const TOKEN_FILE = path.join(__dirname, '.qbo-tokens.json');
+// JSON file so restarts don't lose it.
+//
+// IMPORTANT — Railway has an EPHEMERAL filesystem. If TOKEN_FILE lives next
+// to server.js (i.e. inside the deploy bundle), every git push wipes the
+// rotated token and we fall back to the stale QBO_REFRESH_TOKEN env var,
+// which Intuit invalidated the first time it was used. That's the "QBO
+// disconnected" loop.
+//
+// To fix, mount a Railway Volume (e.g. at /data) and set QBO_TOKEN_DIR=/data
+// so the rotated token lives on the persistent disk and survives every
+// deploy. Falls back to __dirname for local dev where the file is fine.
+const TOKEN_DIR  = process.env.QBO_TOKEN_DIR || __dirname;
+const TOKEN_FILE = path.join(TOKEN_DIR, '.qbo-tokens.json');
 
 function loadPersistedTokens() {
   try {
@@ -176,8 +291,21 @@ const qboTokens = {
   realmId:      _persisted.realmId      || process.env.QBO_REALM_ID      || null
 };
 
+// Startup diagnostics — visible in Railway logs. Tells you at a glance
+// whether the volume is mounted (good: "from /data/.qbo-tokens.json")
+// or whether we're still reading from the deploy bundle (bad: a path
+// inside the app dir, which gets wiped on every deploy).
 if (_persisted.refreshToken) {
   console.log('[QBO] Loaded persisted refresh token from', TOKEN_FILE);
+} else if (process.env.QBO_REFRESH_TOKEN) {
+  console.log('[QBO] No persisted token at', TOKEN_FILE, '\u2014 falling back to QBO_REFRESH_TOKEN env var (one-shot only; will rotate on first use)');
+} else {
+  console.log('[QBO] No refresh token configured \u2014 visit /connect-quickbooks to authorize');
+}
+if (process.env.QBO_TOKEN_DIR) {
+  console.log('[QBO] Token persistence dir:', TOKEN_DIR, '(persistent volume \u2014 survives deploys)');
+} else {
+  console.warn('[QBO] Token persistence dir: ' + TOKEN_DIR + ' (EPHEMERAL on Railway \u2014 set QBO_TOKEN_DIR to a mounted volume path to fix the disconnect loop)');
 }
 
 function qboConfigured() {
@@ -464,14 +592,16 @@ app.get('/api/metrics', async (req, res) => {
   try {
     const range = req.query.range || 'mtd';
 
-    // ── Per-range response cache ─────────────────────────────────────
+    // ── Per-range response cache (stale-while-revalidate) ───────────
     // Metrics for a given range rarely change minute-to-minute. A 2-min
-    // TTL makes repeat clicks (Today → Yesterday → Today) feel instant
-    // while still letting the 5-min auto-refresh pick up fresh data.
+    // freshness window makes repeat clicks (Today → Yesterday → Today)
+    // feel instant. Once that window expires, withCache returns stale
+    // data IMMEDIATELY and refreshes in the background — so users never
+    // block on HCP, even if their next click happens to fall right at
+    // the TTL boundary.
     const METRICS_TTL = 2 * 60 * 1000;
     const cacheKey = 'metrics:' + range;
-    const cached = cacheGet(cacheKey, METRICS_TTL);
-    if (cached) return res.json(cached);
+    const payload = await withCache(cacheKey, METRICS_TTL, async () => {
 
     const now = new Date();
     let periodStart, periodEnd, periodLabel;
@@ -769,11 +899,26 @@ app.get('/api/metrics', async (req, res) => {
       }
     }
 
-    completedJobs.forEach(job => {
-      const doers = job.assigned_employees || [];
-      if (doers.length === 0) return;
+    /* Per-job credit attribution. Returns true if the job was credited
+       to at least one tech, false if it had no assigned_employees and
+       therefore got skipped (caller can collect those as orphans).
 
-      const jobRevenue = parseFloat(job.total_amount || 0) / 100;
+       opts.revenue (dollars) — override for `job.total_amount/100`. Used
+         by the supplemental flow to pass "sum of paid invoices in this
+         period" for jobs whose `total_amount` is unreliable (e.g. split
+         across multiple invoices, or where the job is still in_progress
+         in HCP because of a residual customer credit).
+       opts.date (ISO string) — override for the job-row's date. Used
+         when `completed_at` isn't set but we know a paid_at on an
+         invoice tied to this job in the period. */
+    function creditJob(job, opts) {
+      opts = opts || {};
+      const doers = job.assigned_employees || [];
+      if (doers.length === 0) return false;
+
+      const jobRevenue = opts.revenue != null
+        ? opts.revenue
+        : parseFloat(job.total_amount || 0) / 100;
       // Outstanding balance (HCP returns this directly on the Job object).
       // Negative balances (overpayments / credits) clamp to 0 — they're not
       // "unpaid" in any meaningful sense for this column.
@@ -781,9 +926,10 @@ app.get('/api/metrics', async (req, res) => {
       const customer = job.customer
         ? ((job.customer.first_name || '') + ' ' + (job.customer.last_name || '')).trim()
         : '';
-      const jobDate = (job.work_timestamps && job.work_timestamps.completed_at)
-        ? job.work_timestamps.completed_at
-        : (job.schedule && job.schedule.scheduled_start ? job.schedule.scheduled_start : null);
+      const jobDate = opts.date
+        || (job.work_timestamps && job.work_timestamps.completed_at)
+        || (job.schedule && job.schedule.scheduled_start)
+        || null;
 
       const estimateId = job.original_estimate_id || (job.original_estimate_uuids && job.original_estimate_uuids[0]);
       const sellers = estimateId ? (estimateSellerMap[estimateId] || []) : [];
@@ -866,7 +1012,136 @@ app.get('/api/metrics', async (req, res) => {
           outstandingShare: outstandingShare
         });
       });
-    });
+
+      return true;
+    }
+
+    completedJobs.forEach(job => creditJob(job));
+
+    /* ── Coverage gap pass ───────────────────────────────────────
+       The pass above credits jobs that HCP returned via
+       work_status=completed AND that have a `completed_at` inside
+       the period. Two real-world patterns slip through:
+
+       1. SPLIT INVOICES — a job whose customer paid a lump sum that
+          got allocated across multiple invoices, leaving a residual
+          credit on one invoice. HCP keeps the JOB at work_status=
+          'in progress' until the credit is consumed by future work,
+          so it's never returned by our completed-only query. The
+          tech who did the paid portion still deserves credit.
+
+       2. ORPHAN JOBS — work was done, an invoice got paid, but the
+          job has no `assigned_employees` set in HCP (financing flows
+          and admin-created jobs sometimes do this). We can't guess
+          who did it, but we surface them in the response so an
+          admin can fix the assignment in HCP.
+
+       Strategy: query /invoices?paid_at_min/max for everything paid
+       in the period. Any job_id we DIDN'T already credit gets a
+       targeted /jobs/{id} fetch to figure out whether to credit it
+       supplementally, surface as orphan, or ignore. */
+    const orphans = [];
+    try {
+      // Fetch every paid invoice in the period (paginated). Filtered
+      // server-side via paid_at — HCP supports this on /invoices but
+      // not on /jobs.
+      const invParams = {
+        paid_at_min: periodStart.toISOString(),
+        paid_at_max: periodEnd.toISOString(),
+        status: 'paid',
+        page_size: 200
+      };
+      const allPaidInvoices = [];
+      let invPage = 1;
+      while (true) {
+        const r = await axios.get(BASE_URL + '/invoices', {
+          headers, params: { ...invParams, page: invPage }
+        });
+        const invs = r.data.invoices || [];
+        allPaidInvoices.push(...invs);
+        if (invPage >= (r.data.total_pages || 1)) break;
+        invPage++;
+      }
+
+      // Group invoices by their parent job id. Some invoices may not
+      // carry a job_id (rare — typically standalone invoices); we skip
+      // those since they can't be attributed to a tech.
+      const invoicesByJob = {};
+      allPaidInvoices.forEach(inv => {
+        const jid = inv.job_id;
+        if (!jid) return;
+        if (!invoicesByJob[jid]) invoicesByJob[jid] = [];
+        invoicesByJob[jid].push(inv);
+      });
+
+      // Job ids already credited above. Skip those — their existing
+      // numbers are correct and we don't want to double-count.
+      const alreadyCredited = new Set(completedJobs.map(j => j.id));
+      const gapJobIds = Object.keys(invoicesByJob).filter(id => !alreadyCredited.has(id));
+
+      if (gapJobIds.length > 0) {
+        // Fetch each gap job individually. Batched in groups of 10 so
+        // we don't hammer HCP, and tolerant of failures (a 404 on one
+        // job shouldn't blow up the whole response).
+        const BATCH = 10;
+        const gapJobs = [];
+        for (let i = 0; i < gapJobIds.length; i += BATCH) {
+          const batch = gapJobIds.slice(i, i + BATCH);
+          const results = await Promise.all(batch.map(id =>
+            axios.get(BASE_URL + '/jobs/' + id, { headers })
+              .then(r => r.data)
+              .catch(() => null)
+          ));
+          results.forEach(j => { if (j) gapJobs.push(j); });
+        }
+
+        gapJobs.forEach(job => {
+          const invs = invoicesByJob[job.id] || [];
+          // Sum amounts paid IN THIS PERIOD only. inv.amount is in
+          // cents (HCP convention). Some invoices return the field as
+          // a number, others as a string — coerce defensively.
+          const paidInPeriod = invs.reduce((s, inv) => {
+            const cents = parseFloat(inv.amount || 0);
+            return s + cents / 100;
+          }, 0);
+
+          if (paidInPeriod <= 0) return; // refund-only / zero-amount, skip
+
+          // Use the most recent paid_at as the row's display date.
+          const latestPaidAt = invs
+            .map(inv => inv.paid_at)
+            .filter(Boolean)
+            .sort()
+            .pop() || null;
+
+          const credited = creditJob(job, {
+            revenue: paidInPeriod,
+            date: latestPaidAt
+          });
+
+          if (!credited) {
+            // No assigned_employees — surface for admin investigation.
+            orphans.push({
+              jobId: job.id,
+              invoice: job.invoice_number || null,
+              customer: job.customer
+                ? ((job.customer.first_name || '') + ' ' + (job.customer.last_name || '')).trim()
+                : '',
+              amount: Math.round(paidInPeriod),
+              paidAt: latestPaidAt,
+              workStatus: job.work_status || null,
+              completedAt: (job.work_timestamps && job.work_timestamps.completed_at) || null,
+              reason: 'no_assigned_employees',
+              description: job.description || null
+            });
+          }
+        });
+      }
+    } catch (e) {
+      // Coverage pass failure shouldn't tank the whole response — log
+      // and continue with the original (filter-only) leaderboard.
+      console.warn('[/api/tech coverage-pass]', e.response?.status || '', e.message);
+    }
 
     const leaderboard = Object.values(techMetrics)
       .map(tech => ({
@@ -896,7 +1171,7 @@ app.get('/api/metrics', async (req, res) => {
       0)
     );
 
-    const payload = {
+    return {
       leaderboard,
       // periodStart/periodEnd are ISO date strings (YYYY-MM-DD) so the
       // client can compare against data-quality cutoffs without having
@@ -906,10 +1181,15 @@ app.get('/api/metrics', async (req, res) => {
         totalRevenue, totalJobs, averageTicket: avgTicket, period: periodLabel,
         totalUnpaid,
         periodStart: periodStart.toISOString().slice(0, 10),
-        periodEnd:   periodEnd.toISOString().slice(0, 10)
-      }
+        periodEnd:   periodEnd.toISOString().slice(0, 10),
+        orphanCount: orphans.length
+      },
+      // Jobs paid in the period but not credited to a tech (no
+      // assigned_employees in HCP). Client surfaces these in a
+      // banner so an admin can fix the assignment in HCP.
+      orphans
     };
-    cacheSet(cacheKey, payload);
+    });  // ── end withCache factory ──
     res.json(payload);
 
   } catch (error) {
@@ -922,11 +1202,24 @@ app.get('/api/marketing', async (req, res) => {
   if (!API_KEY) {
     return res.status(500).json({ error: 'API key not configured' });
   }
-  // 10-minute cache: job counts don't shift materially minute-to-minute
-  const MKT_TTL = 10 * 60 * 1000;
-  if (req.query.refresh !== '1') {
-    const cached = cacheGet('marketing', MKT_TTL);
-    if (cached) return res.json(cached);
+  // ── Per-MONTH caching with tiered TTLs ────────────────────────────
+  // Each of the 12 month buckets is cached separately. Closed months
+  // (everything except the current month) get a 7-day TTL because their
+  // numbers are essentially fixed once the month ends — there's no
+  // reason to re-fetch April 2025 on every Marketing-tab view. The
+  // current month gets the original 10-min TTL since MTD changes day
+  // to day. Combined with the disk-persistence layer, this means after
+  // a single first-ever warm load only ONE bucket (the current month)
+  // ever re-fetches; the other 11 are served from disk cache forever.
+  const PAST_MONTH_TTL    = 7 * 24 * 60 * 60 * 1000;
+  const CURRENT_MONTH_TTL = 10 * 60 * 1000;
+
+  // ?refresh=1 — admin bypass. Clears every per-month entry so a fresh
+  // run re-fetches all 12 from HCP. Used after manual job edits.
+  if (req.query.refresh === '1') {
+    for (const k of Array.from(_cache.keys())) {
+      if (k.startsWith('marketing-month:')) _cache.delete(k);
+    }
   }
   try {
     const headers = hcpHeaders();
@@ -953,8 +1246,12 @@ app.get('/api/marketing', async (req, res) => {
       });
     }
 
-    // Fetch all months in parallel (each is a single page_size=200 request — increase if needed)
-    const fetchMonth = async (bucket) => {
+    // Fetches one month's worth of jobs, returns just the computed
+    // numbers ({ jobs, revenue, avgTicket }) — NOT bucket metadata.
+    // Bucket metadata is rebuilt each call from `now` so a cached
+    // entry for "2026-05" doesn't carry stale `isCurrent` flags into
+    // future months.
+    const fetchMonthComputed = async (bucket) => {
       // ── CLIENT-SIDE COMPLETION DATE FILTERING ────────────────────────────────────
       // HCP's /jobs endpoint doesn't support filtering by completed_at, only
       // scheduled_start. For the oldest bucket, expand the window 90 days back to
@@ -1000,14 +1297,23 @@ app.get('/api/marketing', async (req, res) => {
 
       const revenue = completedInBucket.reduce((s, j) => s + parseFloat(j.total_amount || 0) / 100, 0);
       return {
-        ...bucket,
         jobs: completedInBucket.length,
         revenue: Math.round(revenue),
         avgTicket: completedInBucket.length > 0 ? Math.round(revenue / completedInBucket.length) : 0
       };
     };
 
-    const history = await Promise.all(buckets.map(fetchMonth));
+    // Each month flows through withCache independently. SWR means a
+    // stale historical month returns instantly while the (rare) bg
+    // refresh checks for late-completion edits.
+    const computedPerMonth = await Promise.all(buckets.map(bucket => {
+      const ttl = bucket.isCurrent ? CURRENT_MONTH_TTL : PAST_MONTH_TTL;
+      const cacheKey = 'marketing-month:' + bucket.monthKey;
+      return withCache(cacheKey, ttl, () => fetchMonthComputed(bucket));
+    }));
+
+    // Stitch bucket metadata (rebuilt every call) onto cached numbers.
+    const history = buckets.map((b, i) => ({ ...b, ...computedPerMonth[i] }));
 
     // Projection for current month — workday-based (Mon–Fri only)
     const cur = history[history.length - 1];
@@ -1032,7 +1338,7 @@ app.get('/api/marketing', async (req, res) => {
     const dailyRate    = wdElapsed > 0 ? cur.jobs / wdElapsed : 0;
     const projectedJobs = wdElapsed > 0 ? Math.round(dailyRate * wdTotal) : 0;
 
-    const payload = {
+    res.json({
       history,
       projection: {
         jobsMtd: cur.jobs,
@@ -1045,9 +1351,7 @@ app.get('/api/marketing', async (req, res) => {
         wdLeft,
         wdTotal
       }
-    };
-    cacheSet('marketing', payload);
-    res.json(payload);
+    });
   } catch (error) {
     console.error('[/api/marketing]', error.response?.status || '', error.message);
     res.status(500).json({ error: error.message });
@@ -1162,35 +1466,46 @@ app.get('/api/qbo-marketing', async (req, res) => {
   if (!qboReady()) {
     return res.json({ connected: false, reason: 'not_configured' });
   }
+  // 4-hour TTL — QBO P&L data only changes meaningfully once a month.
+  // Cached separately from /api/owners-financial because the response
+  // shape differs (this returns a derived monthlyMarketing array, not
+  // the raw P&L), and the windows don't fully overlap (12 vs 24 mo).
+  const QBO_MKT_TTL = 4 * 60 * 60 * 1000;
   try {
-    const token = await getQBOAccessToken();
-    if (!token) {
-      return res.json({ connected: false, reason: 'no_token' });
-    }
-    // Same 12-month window as /api/marketing
-    const now = new Date();
-    const endDate   = now.toISOString().slice(0, 10);
-    const startDate = new Date(now.getFullYear(), now.getMonth() - 11, 1).toISOString().slice(0, 10);
-
-    const pnlRes = await axios.get(
-      QBO_BASE + '/v3/company/' + qboTokens.realmId + '/reports/ProfitAndLoss',
-      {
-        headers: {
-          Authorization: 'Bearer ' + token,
-          Accept: 'application/json'
-        },
-        params: {
-          start_date: startDate,
-          end_date: endDate,
-          summarize_column_by: 'Month',
-          minorversion: 65
-        }
+    const payload = await withCache('qbo-marketing', QBO_MKT_TTL, async () => {
+      const token = await getQBOAccessToken();
+      if (!token) {
+        const err = new Error('no_token');
+        err._qboNoToken = true;
+        throw err;
       }
-    );
+      // Same 12-month window as /api/marketing
+      const now = new Date();
+      const endDate   = now.toISOString().slice(0, 10);
+      const startDate = new Date(now.getFullYear(), now.getMonth() - 11, 1).toISOString().slice(0, 10);
 
-    const monthlyMarketing = marketingSpendByMonth(parseFinancialReport(pnlRes.data));
-    res.json({ connected: true, monthlyMarketing });
+      const pnlRes = await axios.get(
+        QBO_BASE + '/v3/company/' + qboTokens.realmId + '/reports/ProfitAndLoss',
+        {
+          headers: {
+            Authorization: 'Bearer ' + token,
+            Accept: 'application/json'
+          },
+          params: {
+            start_date: startDate,
+            end_date: endDate,
+            summarize_column_by: 'Month',
+            minorversion: 65
+          }
+        }
+      );
+
+      const monthlyMarketing = marketingSpendByMonth(parseFinancialReport(pnlRes.data));
+      return { connected: true, monthlyMarketing };
+    });
+    res.json(payload);
   } catch (err) {
+    if (err._qboNoToken) return res.json({ connected: false, reason: 'no_token' });
     console.error('[/api/qbo-marketing]', err.response?.status || '', err.message);
     const status = err.response?.status;
     if (status === 401) {
@@ -1219,49 +1534,55 @@ app.get('/api/owners-financial', async (req, res) => {
   if (!qboReady()) {
     return res.json({ connected: false, reason: qboConfigured() ? 'not_connected' : 'not_configured' });
   }
-  // 4-hour cache — QBO P&L data only changes meaningfully once a month
+  // 4-hour cache — QBO P&L data only changes meaningfully once a month.
+  // SWR means once warmed, the user never blocks on QBO again.
   const FIN_TTL = 4 * 60 * 60 * 1000;
-  const cached = cacheGet('owners-financial', FIN_TTL);
-  if (cached) return res.json(cached);
   try {
-    const token = await getQBOAccessToken();
-    if (!token) return res.json({ connected: false, reason: 'no_token' });
-
-    // Always return 24 months ending at latest reliable month — client
-    // picks which single month to display and computes comparisons from
-    // this range (prior month, same month last year, etc.)
-    const now = new Date();
-    const reliableEnd = getReliableEndDate(now);
-    const start = new Date(reliableEnd.getFullYear(), reliableEnd.getMonth() - 23, 1);
-    const startDate = start.toISOString().slice(0, 10);
-    const endDate = reliableEnd.toISOString().slice(0, 10);
-
-    const pnlRes = await axios.get(
-      QBO_BASE + '/v3/company/' + qboTokens.realmId + '/reports/ProfitAndLoss',
-      {
-        headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
-        params: {
-          start_date: startDate,
-          end_date: endDate,
-          accounting_method: 'Cash',
-          summarize_column_by: 'Month',
-          minorversion: 75
-        }
+    const payload = await withCache('owners-financial', FIN_TTL, async () => {
+      const token = await getQBOAccessToken();
+      if (!token) {
+        // Throw so the endpoint catch can map to the right response shape.
+        const err = new Error('no_token');
+        err._qboNoToken = true;
+        throw err;
       }
-    );
 
-    const parsed = parseFinancialReport(pnlRes.data);
-    const payload = {
-      connected: true,
-      ...parsed,
-      fetchedAt: new Date().toISOString(),
-      startDate,
-      endDate,
-      latestReliableMonth: parsed.months[parsed.months.length - 1]
-    };
-    cacheSet('owners-financial', payload);
+      // Always return 24 months ending at latest reliable month — client
+      // picks which single month to display and computes comparisons from
+      // this range (prior month, same month last year, etc.)
+      const now = new Date();
+      const reliableEnd = getReliableEndDate(now);
+      const start = new Date(reliableEnd.getFullYear(), reliableEnd.getMonth() - 23, 1);
+      const startDate = start.toISOString().slice(0, 10);
+      const endDate = reliableEnd.toISOString().slice(0, 10);
+
+      const pnlRes = await axios.get(
+        QBO_BASE + '/v3/company/' + qboTokens.realmId + '/reports/ProfitAndLoss',
+        {
+          headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
+          params: {
+            start_date: startDate,
+            end_date: endDate,
+            accounting_method: 'Cash',
+            summarize_column_by: 'Month',
+            minorversion: 75
+          }
+        }
+      );
+
+      const parsed = parseFinancialReport(pnlRes.data);
+      return {
+        connected: true,
+        ...parsed,
+        fetchedAt: new Date().toISOString(),
+        startDate,
+        endDate,
+        latestReliableMonth: parsed.months[parsed.months.length - 1]
+      };
+    });
     res.json(payload);
   } catch (err) {
+    if (err._qboNoToken) return res.json({ connected: false, reason: 'no_token' });
     console.error('[/api/owners-financial]', err.response?.status || '', err.message);
     if (err.response?.status === 401) {
       qboTokens.accessToken = null;
@@ -1279,13 +1600,15 @@ app.get('/api/account-detail', async (req, res) => {
   if (!qboReady()) return res.json({ connected: false, transactions: [] });
 
   try {
-    const token = await getQBOAccessToken();
-    if (!token) return res.json({ connected: false, transactions: [] });
-
     const ck = 'pnl-detail:' + month;
-    let txnMap = cacheGet(ck, 4 * 60 * 60 * 1000);
-
-    if (!txnMap) {
+    const PNL_DETAIL_TTL = 4 * 60 * 60 * 1000;
+    const txnMap = await withCache(ck, PNL_DETAIL_TTL, async () => {
+      const token = await getQBOAccessToken();
+      if (!token) {
+        const err = new Error('no_token');
+        err._qboNoToken = true;
+        throw err;
+      }
       const [y, m] = month.split('-').map(Number);
       const startDate = `${y}-${String(m).padStart(2, '0')}-01`;
       const endDate = new Date(y, m, 0).toISOString().slice(0, 10);
@@ -1304,10 +1627,10 @@ app.get('/api/account-detail', async (req, res) => {
         }
       );
 
-      txnMap = parsePnLDetail(resp.data);
-      cacheSet(ck, txnMap);
-      console.log('[account-detail] Cached', Object.keys(txnMap).length, 'sections for', month);
-    }
+      const parsed = parsePnLDetail(resp.data);
+      console.log('[account-detail] Parsed', Object.keys(parsed).length, 'sections for', month);
+      return parsed;
+    });
 
     let transactions = (txnMap[acct] || []).slice();
 
@@ -1357,6 +1680,7 @@ app.get('/api/account-detail', async (req, res) => {
       // Include available keys on a miss so the client can detect the right name
       availableKeys: transactions.length ? undefined : Object.keys(txnMap) });
   } catch (err) {
+    if (err._qboNoToken) return res.json({ connected: false, transactions: [] });
     console.error('[/api/account-detail]', err.response?.status || '', err.message);
     if (err.response?.status === 401) {
       qboTokens.accessToken = null;
@@ -1402,11 +1726,14 @@ app.get('/api/qbo-accounts', async (req, res) => {
 app.get('/api/qbo-balance', async (req, res) => {
   if (!qboReady()) return res.json({ connected: false });
   const BAL_TTL = 4 * 60 * 60 * 1000;
-  const cached = cacheGet('qbo-balance', BAL_TTL);
-  if (cached) return res.json(cached);
   try {
+    const payload = await withCache('qbo-balance', BAL_TTL, async () => {
     const token = await getQBOAccessToken();
-    if (!token) return res.json({ connected: false });
+    if (!token) {
+      const err = new Error('no_token');
+      err._qboNoToken = true;
+      throw err;
+    }
 
     // Balance sheet: end = today (we want the live current snapshot),
     // start = 12 months back (for the bank-balance history chart).
@@ -1557,9 +1884,11 @@ app.get('/api/qbo-balance', async (req, res) => {
       bankHistory: bankHistoryArr,
       bankHistoryByAccount
     };
-    cacheSet('qbo-balance', payload);
+    return payload;
+    });  // ── end withCache factory ──
     res.json(payload);
   } catch (err) {
+    if (err._qboNoToken) return res.json({ connected: false });
     console.error('[/api/qbo-balance]', err.response?.status || '', err.message);
     if (err.response?.status === 401) {
       qboTokens.accessToken = null;
