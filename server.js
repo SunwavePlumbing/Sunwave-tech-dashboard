@@ -2327,6 +2327,85 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
     };
   }
 
+  function summarizeEstimate(est) {
+    if (!est) return null;
+    const assigned = est.assigned_employees || [];
+    return {
+      id: est.id || est.uuid || null,
+      estimateNumber: est.estimate_number || est.number || null,
+      workStatus: est.work_status || null,
+      approvalStatus: est.approval_status || null,
+      customer: customerName(est),
+      createdAt: est.created_at || null,
+      updatedAt: est.updated_at || null,
+      scheduledStart: est.schedule && (est.schedule.scheduled_start || est.schedule.start_time) || null,
+      scheduledEnd: est.schedule && (est.schedule.scheduled_end || est.schedule.end_time) || null,
+      assignedEmployees: assigned.map(emp => ({ id: emp.id, name: personName(emp) })),
+      options: (est.options || []).map(option => ({
+        id: option.id || null,
+        name: option.name || null,
+        optionNumber: option.option_number || null,
+        totalAmount: roundedDollars(option.total_amount),
+        approvalStatus: option.approval_status || null,
+        status: option.status || null
+      }))
+    };
+  }
+
+  function uniqueEmployees(employees) {
+    const byKey = {};
+    (employees || []).forEach(emp => {
+      if (!emp) return;
+      const name = emp.name || personName(emp);
+      const key = emp.id || name;
+      if (!key) return;
+      byKey[key] = { id: emp.id || null, name: name || emp.id || 'Unknown' };
+    });
+    return Object.values(byKey);
+  }
+
+  function attributionPreview(job, estimate) {
+    const total = roundedDollars(job.total_amount);
+    const doers = uniqueEmployees((job.assigned_employees || []).map(emp => ({ id: emp.id, name: personName(emp) })));
+    const sellers = estimate ? uniqueEmployees((estimate.assigned_employees || []).map(emp => ({ id: emp.id, name: personName(emp) }))) : [];
+    const rows = {};
+    const add = (emp, amount, role) => {
+      const key = emp.id || emp.name;
+      if (!key) return;
+      if (!rows[key]) rows[key] = { id: emp.id || null, name: emp.name || emp.id || 'Unknown', credit: 0, roles: [] };
+      rows[key].credit += amount;
+      if (!rows[key].roles.includes(role)) rows[key].roles.push(role);
+    };
+
+    if (!doers.length) {
+      return {
+        status: 'cannot_preview',
+        reason: 'No assigned technicians on the job.',
+        rows: []
+      };
+    }
+
+    if (!sellers.length) {
+      doers.forEach(emp => add(emp, total / doers.length, 'did'));
+      return {
+        status: 'no_estimate_seller',
+        reason: 'No linked estimate seller found, so the dashboard splits 100% across assigned technicians.',
+        rows: Object.values(rows).map(row => ({ ...row, credit: Math.round(row.credit), percent: total ? Math.round((row.credit / total) * 100) : 0 }))
+      };
+    }
+
+    const sellerPool = total / 3;
+    const doerPool = total - sellerPool;
+    sellers.forEach(emp => add(emp, sellerPool / sellers.length, 'sold'));
+    doers.forEach(emp => add(emp, doerPool / doers.length, 'did'));
+
+    return {
+      status: 'using_estimate_seller',
+      reason: 'Seller credit is one-third from the linked estimate; doer credit is two-thirds across assigned technicians.',
+      rows: Object.values(rows).map(row => ({ ...row, credit: Math.round(row.credit), percent: total ? Math.round((row.credit / total) * 100) : 0 }))
+    };
+  }
+
   function inferDashboardRange(start, end) {
     const now = new Date();
     const todayStart = dayStart(now);
@@ -2413,8 +2492,9 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
     };
   }
 
-  function summarizeJob(job, matchedInvoices, start, end, dashboard) {
+  function summarizeJob(job, matchedInvoices, start, end, dashboard, estimate, relatedEstimates) {
     matchedInvoices = matchedInvoices || [];
+    relatedEstimates = relatedEstimates || [];
     const completedAt = job.work_timestamps && job.work_timestamps.completed_at;
     const kpiDate = kpiDateForJob(job);
     const assigned = job.assigned_employees || [];
@@ -2450,6 +2530,9 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
       outstandingBalance: roundedDollars(job.outstanding_balance),
       assignedEmployees: assigned.map(emp => ({ id: emp.id, name: personName(emp) })),
       originalEstimateId: job.original_estimate_id || (job.original_estimate_uuids && job.original_estimate_uuids[0]) || null,
+      estimate: summarizeEstimate(estimate),
+      relatedEstimates: relatedEstimates.map(summarizeEstimate).filter(Boolean),
+      attributionPreview: attributionPreview(job, estimate),
       leadSource: typeof job.lead_source === 'string' ? job.lead_source : (job.lead_source && job.lead_source.name) || null,
       tags: toArrayish(job.tags).map(t => typeof t === 'string' ? t : (t && (t.name || t.value))).filter(Boolean),
       diagnostic: {
@@ -2691,7 +2774,68 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
       invoicesByJob[inv.job_id].push(inv);
     });
 
-    out.candidates = Object.values(allJobs).map(job => summarizeJob(job, invoicesByJob[job.id] || [], start, end, out.dashboardComparison));
+    const candidateJobs = Object.values(allJobs);
+    const estimatesById = {};
+    const relatedEstimatesByCustomer = {};
+    const estimateErrors = [];
+    const linkedEstimateIds = [...new Set(candidateJobs.map(estimateIdForJob).filter(Boolean))];
+
+    for (let i = 0; i < linkedEstimateIds.length; i += 6) {
+      const batch = linkedEstimateIds.slice(i, i + 6);
+      await Promise.all(batch.map(async id => {
+        try {
+          const r = await axios.get(BASE_URL + '/estimates/' + id, { headers: hcpHeaders() });
+          if (r.data) estimatesById[id] = r.data;
+        } catch (e) {
+          estimateErrors.push({ id, error: e.response?.status || e.message });
+        }
+      }));
+    }
+
+    const customerIds = [...new Set(candidateJobs
+      .map(job => job && job.customer && job.customer.id)
+      .filter(Boolean))].slice(0, 8);
+
+    for (const customerId of customerIds) {
+      try {
+        const related = await fetchPages(
+          BASE_URL + '/estimates',
+          {
+            customer_id: customerId,
+            scheduled_start_min: lookbackStart.toISOString(),
+            scheduled_start_max: end.toISOString(),
+            page_size: 100
+          },
+          'estimates',
+          3
+        );
+        relatedEstimatesByCustomer[customerId] = related.items;
+        related.items.forEach(est => {
+          const id = est && (est.id || est.uuid);
+          if (id && !estimatesById[id]) estimatesById[id] = est;
+        });
+      } catch (e) {
+        estimateErrors.push({ customerId, error: e.response?.status || e.message });
+      }
+    }
+
+    out.searches.estimates = {
+      linkedRequested: linkedEstimateIds.length,
+      linkedFetched: linkedEstimateIds.filter(id => estimatesById[id]).length,
+      customerSearches: customerIds.length,
+      relatedFetched: Object.values(relatedEstimatesByCustomer).reduce((sum, items) => sum + (items || []).length, 0),
+      errors: estimateErrors
+    };
+
+    out.candidates = candidateJobs.map(job => {
+      const linkedEstimateId = estimateIdForJob(job);
+      const linkedEstimate = linkedEstimateId ? estimatesById[linkedEstimateId] : null;
+      const customerId = job && job.customer && job.customer.id;
+      const relatedEstimates = (relatedEstimatesByCustomer[customerId] || [])
+        .filter(est => !linkedEstimate || (est.id || est.uuid) !== (linkedEstimate.id || linkedEstimate.uuid))
+        .slice(0, 5);
+      return summarizeJob(job, invoicesByJob[job.id] || [], start, end, out.dashboardComparison, linkedEstimate, relatedEstimates);
+    });
     out.unattachedInvoices = invoiceMatches.filter(inv => !inv.job_id).map(summarizeInvoice);
 
     res.json(out);

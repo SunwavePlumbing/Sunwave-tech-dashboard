@@ -67,6 +67,20 @@
     var employees = (job.assignedEmployees || []).map(function(e) {
       return '<span class="pill">' + esc(e.name || e.id) + '</span>';
     }).join('') || '<span class="pill bad">No assigned employees</span>';
+    var estimate = job.estimate || null;
+    var estimateSellers = estimate && (estimate.assignedEmployees || []).length
+      ? estimate.assignedEmployees.map(function(e) { return '<span class="pill good">' + esc(e.name || e.id) + '</span>'; }).join('')
+      : '<span class="pill warn">No linked estimate seller found</span>';
+    var relatedEstimates = (job.relatedEstimates || []).map(function(est) {
+      var sellers = (est.assignedEmployees || []).map(function(e) { return e.name || e.id; }).join(', ') || 'no sellers';
+      return '<span class="pill">' + esc((est.estimateNumber || est.id || 'estimate') + ' · ' + sellers) + '</span>';
+    }).join('');
+    var preview = job.attributionPreview || {};
+    var previewRows = (preview.rows || []).map(function(row) {
+      return '<span class="pill ' + (preview.status === 'using_estimate_seller' ? 'good' : 'warn') + '">' +
+        esc((row.name || row.id || 'Unknown') + ': ' + money(row.credit) + ' (' + (row.percent || 0) + '%) · ' + (row.roles || []).join(' + ')) +
+      '</span>';
+    }).join('') || '<span class="pill warn">' + esc(preview.reason || 'No attribution preview') + '</span>';
     var invoices = (job.invoices || []).map(function(inv) {
       return '<tr>' +
         '<td>' + esc(inv.invoiceNumber || inv.id || '-') + '</td>' +
@@ -90,6 +104,9 @@
           '<div class="label">Job</div><div class="value">' + esc(job.id) + '</div>' +
           '<div class="label" style="margin-top:10px">Description</div><div>' + esc(job.description || '-') + '</div>' +
           '<div class="label" style="margin-top:10px">Employees</div><div>' + employees + '</div>' +
+          '<div class="label" style="margin-top:10px">Estimate Sellers</div><div>' + estimateSellers + '</div>' +
+          '<div class="label" style="margin-top:10px">Attribution Preview</div><div>' + previewRows + '</div>' +
+          '<div class="label" style="margin-top:10px">Related Customer Estimates</div><div>' + (relatedEstimates || '<span class="pill">None found</span>') + '</div>' +
           '<div class="label" style="margin-top:10px">Rule Check</div><div>' + statusPill(job.diagnostic.dashboardStatus) + '</div>' +
           '<div class="label" style="margin-top:10px">Auto Dating</div><div>' + (job.diagnostic.autoDatedComplete ? '<span class="pill warn">Auto dated complete</span>' : '<span class="pill">Normal</span>') + '</div>' +
           '<div class="label" style="margin-top:10px">Skip Reasons</div><div>' + (reasons || '<span class="pill good">No obvious skip reason</span>') + '</div>' +
@@ -105,6 +122,8 @@
               '<tr><th>Outstanding</th><td>' + money(job.outstandingBalance) + '</td></tr>' +
               '<tr><th>Paid In Period</th><td>' + money(job.diagnostic.paidInPeriod) + '</td></tr>' +
               '<tr><th>Estimate ID</th><td>' + esc(job.originalEstimateId || '-') + '</td></tr>' +
+              '<tr><th>Estimate #</th><td>' + esc(estimate && (estimate.estimateNumber || estimate.id) || '-') + '</td></tr>' +
+              '<tr><th>Estimate Status</th><td>' + esc(estimate && estimate.workStatus || '-') + '</td></tr>' +
             '</tbody>' +
           '</table>' +
           '<div class="label" style="margin-top:12px">Matched Invoices</div>' +
@@ -183,6 +202,8 @@
     lines.push('Candidate Jobs (' + candidates.length + ')');
     candidates.forEach(function(job, idx) {
       var comp = job.diagnostic.dashboardComparison || {};
+      var estimate = job.estimate || {};
+      var preview = job.attributionPreview || {};
       lines.push('');
       lines.push((idx + 1) + '. Invoice ' + (job.invoiceNumber || '-') + ' | ' + (job.customer || '-'));
       lines.push(reportLine('Job ID', job.id));
@@ -200,6 +221,24 @@
       lines.push(reportLine('Completed At', job.completedAt));
       lines.push(reportLine('Scheduled Start', job.scheduledStart));
       lines.push(reportLine('Employees', (job.assignedEmployees || []).map(function(e) { return e.name || e.id; }).join(', ') || 'None'));
+      lines.push(reportLine('Linked Estimate ID', job.originalEstimateId));
+      lines.push(reportLine('Linked Estimate Number', estimate.estimateNumber || estimate.id));
+      lines.push(reportLine('Linked Estimate Status', estimate.workStatus));
+      lines.push(reportLine('Estimate Sellers', (estimate.assignedEmployees || []).map(function(e) { return e.name || e.id; }).join(', ') || 'None found'));
+      lines.push(reportLine('Attribution Preview Status', preview.status));
+      if (preview.reason) lines.push(reportLine('Attribution Preview Reason', preview.reason));
+      if ((preview.rows || []).length) {
+        lines.push('Attribution Preview Rows:');
+        preview.rows.forEach(function(row) {
+          lines.push('  - ' + (row.name || row.id || '-') + ' | credit ' + money(row.credit) + ' | percent ' + (row.percent || 0) + '% | roles ' + (row.roles || []).join(' + '));
+        });
+      }
+      if ((job.relatedEstimates || []).length) {
+        lines.push('Related Customer Estimates:');
+        job.relatedEstimates.forEach(function(est) {
+          lines.push('  - ' + (est.estimateNumber || est.id || '-') + ' | status ' + (est.workStatus || '-') + ' | sellers ' + ((est.assignedEmployees || []).map(function(e) { return e.name || e.id; }).join(', ') || 'None'));
+        });
+      }
       lines.push(reportLine('Description', job.description));
       if ((comp.matchedRows || []).length) {
         lines.push('Matched Dashboard Rows:');
