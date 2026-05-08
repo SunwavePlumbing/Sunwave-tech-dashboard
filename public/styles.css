@@ -94,7 +94,31 @@ body {
 .content { padding: 1.5rem; min-width: 0; overflow-x: hidden; }
 
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
-.stat-card { background: white; padding: 1.1rem 1rem; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); text-align: center; }
+.stat-card {
+  position: relative;
+  overflow: hidden;
+  background: white;
+  padding: 1.1rem 1rem;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  text-align: center;
+  border: 1px solid rgba(26,45,58,0.04);
+}
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #FF8A1F, #FFB15C);
+}
+.stat-card:nth-child(2)::before {
+  background: linear-gradient(90deg, #1a2d3a, #2E7DA1);
+}
+.stat-card:nth-child(3)::before {
+  background: linear-gradient(90deg, #FF8A1F, #2E7DA1);
+}
 .stat-label { font-size: 11px; color: #888; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 6px; }
 .stat-value { font-size: 26px; font-weight: 700; color: #FF8A1F; }
 
@@ -444,25 +468,37 @@ tfoot td.unpaid-cell.unpaid-zero {
    the job total in the same cell. Small red text so it reads as a
    follow-up flag without dominating the row. */
 .job-unpaid-note {
-  font-size: 11px;
-  color: #C0392B;
-  font-weight: 600;
-  margin-top: 3px;
-  letter-spacing: 0.2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: #9F2F23;
+  background: #FFF0ED;
+  border: 1px solid #F7C9C1;
+  font-weight: 700;
+  margin-top: 5px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 /* Mobile job card: tiny red pill on the meta row when the job has
    outstanding balance. */
 .job-card-unpaid {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   margin-left: 6px;
-  padding: 1px 6px;
-  background: rgba(192, 57, 43, 0.10);
-  color: #C0392B;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.2px;
+  padding: 2px 7px;
+  background: #FFF0ED;
+  color: #9F2F23;
+  border: 1px solid #F7C9C1;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
 }
 
 /* Clickable Unpaid cell — only applied when the cell has a non-zero
@@ -582,11 +618,50 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .modal-footer { padding: 1rem 1.4rem; border-top: 2px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
 .modal-footer-left { font-size: 13px; color: #888; }
 .modal-footer-right { font-size: 16px; font-weight: 700; color: #FF8A1F; }
-.role-badge { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; margin-left: 6px; vertical-align: middle; letter-spacing: 0.3px; }
-.role-sold-did { background: #FFF3E0; color: #E65100; }
-.role-sold { background: #E8F5E9; color: #2E7D32; }
-.role-did { background: #F3F4F6; color: #6B7280; }
-.role-auto-dated { background: #EEF2FF; color: #3730A3; }
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 7px;
+  border-radius: 999px;
+  margin-left: 6px;
+  vertical-align: middle;
+  letter-spacing: 0.35px;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+  line-height: 1;
+  white-space: nowrap;
+}
+.role-badge::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.85;
+}
+.role-sold-did {
+  background: #FFF3E4;
+  color: #C65F00;
+  border-color: #FFD1A3;
+}
+.role-sold {
+  background: #EAF7EE;
+  color: #287342;
+  border-color: #BFE7C9;
+}
+.role-did {
+  background: #F4F7FA;
+  color: #526170;
+  border-color: #DDE5EC;
+}
+.role-auto-dated {
+  background: #EEF6FF;
+  color: #245D7C;
+  border-color: #C7E1F3;
+}
 .share-pct { font-size: 11px; color: #aaa; font-weight: 400; margin-left: 4px; }
 
 /* ── Expense drill-down sheet ─────────────────────────────────
