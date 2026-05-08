@@ -5,6 +5,7 @@ const path = require('path');
 const app = express();
 
 const API_KEY = process.env.HOUSECALL_PRO_API_KEY;
+const DIAGNOSTICS_TOKEN = process.env.DIAGNOSTICS_TOKEN || '';
 const PORT = process.env.PORT || 3000;
 const BASE_URL = 'https://api.housecallpro.com';
 
@@ -15,6 +16,12 @@ axios.defaults.timeout = HTTP_TIMEOUT;
 // Headers for Housecall Pro requests
 function hcpHeaders() {
   return { 'Authorization': 'Token ' + API_KEY, 'Accept': 'application/json' };
+}
+
+function diagnosticsAllowed(req) {
+  if (!DIAGNOSTICS_TOKEN) return false;
+  const provided = req.get('X-Diagnostics-Token') || req.query.token || '';
+  return provided && provided === DIAGNOSTICS_TOKEN;
 }
 
 // ── Tiny response cache (with disk persistence + stale-while-revalidate) ────
@@ -583,6 +590,10 @@ app.use(express.static('public', {
     }
   }
 }));
+
+app.get(['/diagnostics', '/diagnosics'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'diagnostics.html'));
+});
 
 app.get('/api/metrics', async (req, res) => {
   if (!API_KEY) {
@@ -1157,10 +1168,11 @@ app.get('/api/metrics', async (req, res) => {
       .sort((a, b) => b.monthlyRevenue - a.monthlyRevenue);
 
     const totalRevenue = leaderboard.reduce((sum, t) => sum + t.monthlyRevenue, 0);
-    // Use the raw job count (all completed jobs in range) for the summary card so it
-    // matches what the marketing tab shows. Per-tech credited entries can differ because
-    // multi-tech jobs are counted once per tech, and jobs with no employees are skipped.
-    const totalJobs = completedJobs.length;
+    // Keep the technician KPI cards on the same basis as the visible
+    // leaderboard/footer. Raw completed jobs can include non-credited
+    // entries, which made the top "Total Jobs" and "Avg Ticket" cards
+    // disagree with the table users were reading.
+    const totalJobs = leaderboard.reduce((sum, t) => sum + t.jobsCompleted, 0);
     const avgTicket = totalJobs > 0 ? Math.round(totalRevenue / totalJobs) : 0;
     // Sum the GROSS outstanding across all completed jobs in the period
     // (not the per-tech credited share, which double-counts on splits).
@@ -2103,6 +2115,255 @@ app.get('/api/debug/techs', async (req, res) => {
   } catch (err) {
     console.error('[/api/debug/techs]', err.response?.status || '', err.message);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// /api/diagnostics/kpi — guarded KPI investigation data
+// ────────────────────────────────────────────────────────────────────────────
+// Requires DIAGNOSTICS_TOKEN and either ?token=... or X-Diagnostics-Token.
+// Returns only the fields needed to diagnose missing technician KPI credit.
+app.get('/api/diagnostics/kpi', async (req, res) => {
+  if (!API_KEY) return res.status(503).json({ error: 'HCP API key not configured' });
+  if (!DIAGNOSTICS_TOKEN) {
+    return res.status(403).json({ error: 'Diagnostics are disabled. Set DIAGNOSTICS_TOKEN to enable this page.' });
+  }
+  if (!diagnosticsAllowed(req)) {
+    return res.status(401).json({ error: 'Diagnostics token required.' });
+  }
+
+  const asDate = (value, fallback) => {
+    if (!value) return fallback;
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? fallback : d;
+  };
+  const dayStart = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const dayEnd = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+  const dollars = (value) => parseFloat(value || 0) / 100;
+  const roundedDollars = (value) => Math.round(dollars(value));
+  const personName = (p) => ((p && p.first_name || '') + ' ' + (p && p.last_name || '')).trim();
+  const customerName = (obj) => obj && obj.customer ? personName(obj.customer) : '';
+  const textMatches = (parts, needle) => !needle || parts.filter(Boolean).join(' ').toLowerCase().includes(needle);
+
+  async function fetchPages(url, params, listKey, maxPages) {
+    const out = [];
+    const first = await axios.get(url, { headers: hcpHeaders(), params: { ...params, page: 1 } });
+    out.push(...(first.data[listKey] || []));
+    const totalPages = first.data.total_pages || 1;
+    const fetchedPages = Math.min(totalPages, maxPages);
+    for (let page = 2; page <= fetchedPages; page++) {
+      const r = await axios.get(url, { headers: hcpHeaders(), params: { ...params, page } });
+      out.push(...(r.data[listKey] || []));
+    }
+    return { items: out, totalPages, fetchedPages };
+  }
+
+  function summarizeInvoice(inv) {
+    const invoiceNumber = inv.invoice_number || inv.number || null;
+    return {
+      id: inv.id || inv.uuid || inv.invoice_uuid || null,
+      jobId: inv.job_id || null,
+      invoiceNumber,
+      status: inv.status || null,
+      amount: roundedDollars(inv.amount),
+      dueAmount: roundedDollars(inv.due_amount),
+      paidAt: inv.paid_at || null,
+      dueAt: inv.due_at || null,
+      createdAt: inv.created_at || null,
+      serviceDate: inv.service_date || null,
+      paymentMethod: inv.payment_method || null,
+      paymentCount: Array.isArray(inv.payments) ? inv.payments.length : 0,
+      paymentMethods: Array.isArray(inv.payments)
+        ? [...new Set(inv.payments.map(p => p.payment_method || p.method || p.category).filter(Boolean))]
+        : []
+    };
+  }
+
+  function summarizeJob(job, matchedInvoices, start, end) {
+    matchedInvoices = matchedInvoices || [];
+    const completedAt = job.work_timestamps && job.work_timestamps.completed_at;
+    const completedDate = completedAt ? new Date(completedAt) : null;
+    const assigned = job.assigned_employees || [];
+    const paidInPeriod = matchedInvoices
+      .filter(inv => inv.paid_at && new Date(inv.paid_at) >= start && new Date(inv.paid_at) < end)
+      .reduce((sum, inv) => sum + dollars(inv.amount), 0);
+    const completedInPeriod = !!(completedDate && completedDate >= start && completedDate < end);
+    const stExcluded = isPostCutoverSTArtifact(job);
+
+    const skipReasons = [];
+    if (!completedAt) skipReasons.push('missing completed_at');
+    else if (!completedInPeriod) skipReasons.push('completed_at outside selected period');
+    if (stExcluded) skipReasons.push('excluded as ServiceTitan import artifact');
+    if (assigned.length === 0) skipReasons.push('no assigned_employees');
+    if (paidInPeriod <= 0 && !completedInPeriod) skipReasons.push('no matched paid invoice in selected period');
+
+    const dashboardStatus = completedInPeriod && !stExcluded && assigned.length > 0
+      ? 'counted_by_completed_job'
+      : paidInPeriod > 0 && assigned.length > 0
+        ? 'could_be_covered_by_paid_invoice_pass'
+        : 'likely_skipped';
+
+    return {
+      id: job.id,
+      invoiceNumber: job.invoice_number || null,
+      workStatus: job.work_status || null,
+      completedAt,
+      scheduledStart: job.schedule && job.schedule.scheduled_start,
+      customer: customerName(job),
+      description: job.description || null,
+      jobTotal: roundedDollars(job.total_amount),
+      outstandingBalance: roundedDollars(job.outstanding_balance),
+      assignedEmployees: assigned.map(emp => ({ id: emp.id, name: personName(emp) })),
+      originalEstimateId: job.original_estimate_id || (job.original_estimate_uuids && job.original_estimate_uuids[0]) || null,
+      leadSource: typeof job.lead_source === 'string' ? job.lead_source : (job.lead_source && job.lead_source.name) || null,
+      tags: toArrayish(job.tags).map(t => typeof t === 'string' ? t : (t && (t.name || t.value))).filter(Boolean),
+      diagnostic: {
+        dashboardStatus,
+        skipReasons,
+        completedInPeriod,
+        serviceTitanExcluded: stExcluded,
+        paidInPeriod: Math.round(paidInPeriod),
+        matchedInvoiceCount: matchedInvoices.length
+      },
+      invoices: matchedInvoices.map(summarizeInvoice)
+    };
+  }
+
+  try {
+    const now = new Date();
+    const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const start = dayStart(asDate(req.query.start, defaultStart));
+    const end = dayEnd(asDate(req.query.end, now));
+    const lookbackStart = new Date(start);
+    lookbackStart.setDate(lookbackStart.getDate() - 90);
+    const q = (req.query.q || '').toString().trim();
+    const needle = q.toLowerCase();
+    const invoiceNeedle = (req.query.invoice || '').toString().replace(/^#/, '').trim().toLowerCase();
+    const jobId = (req.query.job_id || req.query.jobId || '').toString().trim();
+    const invoiceId = (req.query.invoice_id || req.query.invoiceId || '').toString().trim();
+    const limit = Math.min(Math.max(parseInt(req.query.limit || '80', 10), 10), 200);
+
+    const out = {
+      requestedAt: new Date().toISOString(),
+      period: {
+        start: start.toISOString(),
+        end: end.toISOString(),
+        scheduledLookbackStart: lookbackStart.toISOString()
+      },
+      filters: { q, invoice: invoiceNeedle, jobId, invoiceId, limit },
+      interpretation: [
+        'counted_by_completed_job: dashboard should count this from /jobs completed_at.',
+        'could_be_covered_by_paid_invoice_pass: dashboard may count this from paid invoices if the job was not already completed/credited.',
+        'likely_skipped: inspect skipReasons; these are the usual missing-KPI causes.'
+      ],
+      direct: {},
+      searches: {},
+      candidates: [],
+      unattachedInvoices: []
+    };
+
+    const directJobs = [];
+    const directInvoices = [];
+
+    if (jobId) {
+      const jobRes = await axios.get(BASE_URL + '/jobs/' + jobId, { headers: hcpHeaders() });
+      directJobs.push(jobRes.data);
+      try {
+        const invRes = await axios.get(BASE_URL + '/jobs/' + jobId + '/invoices', { headers: hcpHeaders() });
+        directInvoices.push(...(invRes.data.invoices || []));
+      } catch (e) {
+        out.direct.jobInvoicesError = e.response?.status || e.message;
+      }
+    }
+
+    if (invoiceId) {
+      const invRes = await axios.get(BASE_URL + '/invoices/' + invoiceId, { headers: hcpHeaders() });
+      directInvoices.push(invRes.data);
+      if (invRes.data && invRes.data.job_id) {
+        try {
+          const jobRes = await axios.get(BASE_URL + '/jobs/' + invRes.data.job_id, { headers: hcpHeaders() });
+          directJobs.push(jobRes.data);
+        } catch (e) {
+          out.direct.invoiceJobError = e.response?.status || e.message;
+        }
+      }
+    }
+
+    const jobParams = {
+      work_status: ['completed', 'in_progress', 'scheduled', 'unscheduled'],
+      scheduled_start_min: lookbackStart.toISOString(),
+      scheduled_start_max: end.toISOString(),
+      page_size: 200
+    };
+    const jobs = await fetchPages(BASE_URL + '/jobs', jobParams, 'jobs', 8);
+    out.searches.jobs = { fetched: jobs.items.length, totalPages: jobs.totalPages, fetchedPages: jobs.fetchedPages, params: jobParams };
+
+    const jobMatches = jobs.items.filter(job => {
+      const employees = (job.assigned_employees || []).map(personName).join(' ');
+      const inv = (job.invoice_number || '').toString().toLowerCase();
+      const matchesInvoice = !invoiceNeedle || inv.includes(invoiceNeedle);
+      return matchesInvoice && textMatches([
+        job.id,
+        job.invoice_number,
+        job.description,
+        customerName(job),
+        employees,
+        job.work_status
+      ], needle);
+    }).slice(0, limit);
+
+    const paidInvoiceParams = { paid_at_min: start.toISOString(), paid_at_max: end.toISOString(), page_size: 200 };
+    const paidInvoices = await fetchPages(BASE_URL + '/invoices', paidInvoiceParams, 'invoices', 8);
+    out.searches.paidInvoices = { fetched: paidInvoices.items.length, totalPages: paidInvoices.totalPages, fetchedPages: paidInvoices.fetchedPages, params: paidInvoiceParams };
+
+    const createdInvoiceParams = { created_at_min: lookbackStart.toISOString(), created_at_max: end.toISOString(), page_size: 200 };
+    const createdInvoices = await fetchPages(BASE_URL + '/invoices', createdInvoiceParams, 'invoices', 8);
+    out.searches.createdInvoices = { fetched: createdInvoices.items.length, totalPages: createdInvoices.totalPages, fetchedPages: createdInvoices.fetchedPages, params: createdInvoiceParams };
+
+    const invoiceById = {};
+    [...paidInvoices.items, ...createdInvoices.items, ...directInvoices].forEach(inv => {
+      const id = inv && (inv.id || inv.uuid || inv.invoice_uuid || inv.invoice_id);
+      if (id) invoiceById[id] = inv;
+    });
+    const invoiceMatches = Object.values(invoiceById).filter(inv => {
+      const invNum = (inv.invoice_number || inv.number || '').toString().toLowerCase();
+      const matchesInvoice = !invoiceNeedle || invNum.includes(invoiceNeedle);
+      return matchesInvoice && textMatches([
+        inv.id,
+        inv.uuid,
+        inv.invoice_number,
+        inv.number,
+        inv.status,
+        inv.payment_method,
+        inv.job_id
+      ], needle);
+    }).slice(0, limit);
+
+    const extraJobs = [];
+    for (const id of [...new Set(invoiceMatches.map(inv => inv.job_id).filter(Boolean))]) {
+      if (jobMatches.some(j => j.id === id) || directJobs.some(j => j.id === id)) continue;
+      try {
+        const r = await axios.get(BASE_URL + '/jobs/' + id, { headers: hcpHeaders() });
+        extraJobs.push(r.data);
+      } catch (_) {}
+    }
+
+    const allJobs = {};
+    [...directJobs, ...jobMatches, ...extraJobs].forEach(job => { if (job && job.id) allJobs[job.id] = job; });
+    const invoicesByJob = {};
+    invoiceMatches.forEach(inv => {
+      if (!inv.job_id) return;
+      if (!invoicesByJob[inv.job_id]) invoicesByJob[inv.job_id] = [];
+      invoicesByJob[inv.job_id].push(inv);
+    });
+
+    out.candidates = Object.values(allJobs).map(job => summarizeJob(job, invoicesByJob[job.id] || [], start, end));
+    out.unattachedInvoices = invoiceMatches.filter(inv => !inv.job_id).map(summarizeInvoice);
+
+    res.json(out);
+  } catch (err) {
+    console.error('[/api/diagnostics/kpi]', err.response?.status || '', err.message);
+    res.status(500).json({ error: err.message, status: err.response?.status || null });
   }
 });
 
