@@ -18,6 +18,16 @@ function hcpHeaders() {
   return { 'Authorization': 'Token ' + API_KEY, 'Accept': 'application/json' };
 }
 
+function isoDateOnly(value) {
+  return new Date(value).toISOString().slice(0, 10);
+}
+
+function inclusiveEndDateOnly(value) {
+  const d = new Date(value);
+  d.setMilliseconds(d.getMilliseconds() - 1);
+  return isoDateOnly(d);
+}
+
 function diagnosticsAllowed(req) {
   if (!DIAGNOSTICS_PASSWORD) return false;
   const provided = req.get('X-Diagnostics-Password') || req.get('X-Diagnostics-Token') || req.query.password || req.query.token || '';
@@ -894,6 +904,11 @@ app.get('/api/metrics', async (req, res) => {
     const completedJobs = allJobs.filter(isJobCompleted);
 
     const techMetrics = {};
+    const invoiceRoot = (invoice) => String(invoice || '').split('-')[0].trim();
+    const jobCustomerName = (job) => job.customer
+      ? ((job.customer.first_name || '') + ' ' + (job.customer.last_name || '')).trim()
+      : '';
+    const normalizedCustomer = (job) => jobCustomerName(job).toLowerCase();
 
     function ensureTech(emp) {
       if (!techMetrics[emp.id]) {
@@ -924,7 +939,7 @@ app.get('/api/metrics', async (req, res) => {
          invoice tied to this job in the period. */
     function creditJob(job, opts) {
       opts = opts || {};
-      const doers = job.assigned_employees || [];
+      const doers = opts.assignedEmployees || job.assigned_employees || [];
       if (doers.length === 0) return false;
 
       const jobRevenue = opts.revenue != null
@@ -934,9 +949,7 @@ app.get('/api/metrics', async (req, res) => {
       // Negative balances (overpayments / credits) clamp to 0 — they're not
       // "unpaid" in any meaningful sense for this column.
       const jobOutstandingGross = Math.max(0, parseFloat(job.outstanding_balance || 0) / 100);
-      const customer = job.customer
-        ? ((job.customer.first_name || '') + ' ' + (job.customer.last_name || '')).trim()
-        : '';
+      const customer = jobCustomerName(job);
       const jobDate = opts.date
         || (job.work_timestamps && job.work_timestamps.completed_at)
         || (job.schedule && job.schedule.scheduled_start)
@@ -974,14 +987,14 @@ app.get('/api/metrics', async (req, res) => {
 
       allInvolved.forEach(emp => {
         const credit = creditMap[emp.id];
-        if (!credit) return;
+        if (credit == null) return;
 
         ensureTech(emp);
 
         const isSeller = effectiveSellers.some(s => s.id === emp.id);
         const isDoer = doers.some(d => d.id === emp.id);
         const role = (isSeller && isDoer) ? 'Sold & Did' : isSeller ? 'Sold' : 'Did';
-        const creditPct = Math.round(credit / jobRevenue * 100);
+        const creditPct = jobRevenue > 0 ? Math.round(credit / jobRevenue * 100) : 0;
         const myName = ((emp.first_name || '') + ' ' + (emp.last_name || '')).trim();
         const splitWith = allInvolved
           .filter(e => e.id !== emp.id)
@@ -1057,9 +1070,8 @@ app.get('/api/metrics', async (req, res) => {
       // server-side via paid_at — HCP supports this on /invoices but
       // not on /jobs.
       const invParams = {
-        paid_at_min: periodStart.toISOString(),
-        paid_at_max: periodEnd.toISOString(),
-        status: 'paid',
+        paid_at_min: isoDateOnly(periodStart),
+        paid_at_max: inclusiveEndDateOnly(periodEnd),
         page_size: 200
       };
       const allPaidInvoices = [];
@@ -1069,7 +1081,11 @@ app.get('/api/metrics', async (req, res) => {
           headers, params: { ...invParams, page: invPage }
         });
         const invs = r.data.invoices || [];
-        allPaidInvoices.push(...invs);
+        allPaidInvoices.push(...invs.filter(inv => {
+          if (!inv.paid_at) return false;
+          const paidAt = new Date(inv.paid_at);
+          return paidAt >= periodStart && paidAt < periodEnd;
+        }));
         if (invPage >= (r.data.total_pages || 1)) break;
         invPage++;
       }
@@ -1106,6 +1122,18 @@ app.get('/api/metrics', async (req, res) => {
           results.forEach(j => { if (j) gapJobs.push(j); });
         }
 
+        function findSplitSiblingWithEmployees(job) {
+          const root = invoiceRoot(job.invoice_number);
+          if (!root) return null;
+          const customer = normalizedCustomer(job);
+          return [...completedJobs, ...gapJobs].find(candidate => {
+            if (!candidate || candidate.id === job.id) return false;
+            if (invoiceRoot(candidate.invoice_number) !== root) return false;
+            if (customer && normalizedCustomer(candidate) !== customer) return false;
+            return (candidate.assigned_employees || []).length > 0;
+          }) || null;
+        }
+
         gapJobs.forEach(job => {
           const invs = invoicesByJob[job.id] || [];
           // Sum amounts paid IN THIS PERIOD only. inv.amount is in
@@ -1125,9 +1153,14 @@ app.get('/api/metrics', async (req, res) => {
             .sort()
             .pop() || null;
 
+          const splitSibling = (job.assigned_employees || []).length === 0
+            ? findSplitSiblingWithEmployees(job)
+            : null;
+
           const credited = creditJob(job, {
             revenue: paidInPeriod,
-            date: latestPaidAt
+            date: latestPaidAt,
+            assignedEmployees: splitSibling ? splitSibling.assigned_employees : undefined
           });
 
           if (!credited) {
@@ -2415,13 +2448,23 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
       ], needle);
     }).slice(0, limit);
 
-    const paidInvoiceParams = { paid_at_min: start.toISOString(), paid_at_max: end.toISOString(), page_size: 200 };
-    const paidInvoices = await fetchPages(BASE_URL + '/invoices', paidInvoiceParams, 'invoices', 8);
-    out.searches.paidInvoices = { fetched: paidInvoices.items.length, totalPages: paidInvoices.totalPages, fetchedPages: paidInvoices.fetchedPages, params: paidInvoiceParams };
+    const paidInvoiceParams = { paid_at_min: isoDateOnly(start), paid_at_max: inclusiveEndDateOnly(end), page_size: 200 };
+    let paidInvoices = { items: [], totalPages: 0, fetchedPages: 0 };
+    try {
+      paidInvoices = await fetchPages(BASE_URL + '/invoices', paidInvoiceParams, 'invoices', 8);
+      out.searches.paidInvoices = { fetched: paidInvoices.items.length, totalPages: paidInvoices.totalPages, fetchedPages: paidInvoices.fetchedPages, params: paidInvoiceParams };
+    } catch (e) {
+      out.searches.paidInvoices = { fetched: 0, error: e.response?.status || e.message, params: paidInvoiceParams };
+    }
 
-    const createdInvoiceParams = { created_at_min: lookbackStart.toISOString(), created_at_max: end.toISOString(), page_size: 200 };
-    const createdInvoices = await fetchPages(BASE_URL + '/invoices', createdInvoiceParams, 'invoices', 8);
-    out.searches.createdInvoices = { fetched: createdInvoices.items.length, totalPages: createdInvoices.totalPages, fetchedPages: createdInvoices.fetchedPages, params: createdInvoiceParams };
+    const createdInvoiceParams = { created_at_min: isoDateOnly(lookbackStart), created_at_max: inclusiveEndDateOnly(end), page_size: 200 };
+    let createdInvoices = { items: [], totalPages: 0, fetchedPages: 0 };
+    try {
+      createdInvoices = await fetchPages(BASE_URL + '/invoices', createdInvoiceParams, 'invoices', 8);
+      out.searches.createdInvoices = { fetched: createdInvoices.items.length, totalPages: createdInvoices.totalPages, fetchedPages: createdInvoices.fetchedPages, params: createdInvoiceParams };
+    } catch (e) {
+      out.searches.createdInvoices = { fetched: 0, error: e.response?.status || e.message, params: createdInvoiceParams };
+    }
 
     const invoiceById = {};
     [...paidInvoices.items, ...createdInvoices.items, ...directInvoices].forEach(inv => {
