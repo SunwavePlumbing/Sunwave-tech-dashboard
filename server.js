@@ -1540,6 +1540,11 @@ app.get('/api/metrics', async (req, res) => {
         }
 
         gapJobs.forEach(job => {
+          // ServiceTitan imports can also appear through the paid-invoice
+          // backup path. Keep them out of HCP-era KPI periods just like the
+          // normal completed-job path does.
+          if (periodStart >= ST_CUTOVER && isServiceTitanJob(job)) return;
+
           const invs = invoicesByJob[job.id] || [];
           // Sum amounts paid IN THIS PERIOD only. inv.amount is in
           // cents (HCP convention). Some invoices return the field as
