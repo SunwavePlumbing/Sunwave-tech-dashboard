@@ -94,31 +94,7 @@ body {
 .content { padding: 1.5rem; min-width: 0; overflow-x: hidden; }
 
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
-.stat-card {
-  position: relative;
-  overflow: hidden;
-  background: white;
-  padding: 1.1rem 1rem;
-  border-radius: 10px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-  text-align: center;
-  border: 1px solid rgba(26,45,58,0.04);
-}
-.stat-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, #FF8A1F, #FFB15C);
-}
-.stat-card:nth-child(2)::before {
-  background: linear-gradient(90deg, #1a2d3a, #2E7DA1);
-}
-.stat-card:nth-child(3)::before {
-  background: linear-gradient(90deg, #FF8A1F, #2E7DA1);
-}
+.stat-card { background: white; padding: 1.1rem 1rem; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); text-align: center; }
 .stat-label { font-size: 11px; color: #888; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 6px; }
 .stat-value { font-size: 26px; font-weight: 700; color: #FF8A1F; }
 
