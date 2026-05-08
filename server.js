@@ -2532,6 +2532,42 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
       } catch (_) {}
     }
 
+    if (invoiceNeedle) {
+      const knownCustomerIds = [...new Set([...directJobs, ...jobMatches, ...extraJobs]
+        .map(job => job && job.customer && job.customer.id)
+        .filter(Boolean))];
+      const customerSiblingJobs = [];
+
+      for (const customerId of knownCustomerIds.slice(0, 5)) {
+        try {
+          const customerJobs = await fetchPages(
+            BASE_URL + '/jobs',
+            { customer_id: customerId, page_size: 200 },
+            'jobs',
+            3
+          );
+          customerSiblingJobs.push(...customerJobs.items);
+        } catch (e) {
+          out.searches.customerSiblingJobs = out.searches.customerSiblingJobs || [];
+          out.searches.customerSiblingJobs.push({ customerId, error: e.response?.status || e.message });
+        }
+      }
+
+      customerSiblingJobs.forEach(job => {
+        if (!job || !job.id || knownJobIds.has(job.id)) return;
+        if (!invoiceMatchesNeedle(job.invoice_number, invoiceNeedle)) return;
+        extraJobs.push(job);
+        knownJobIds.add(job.id);
+      });
+
+      if (customerSiblingJobs.length) {
+        out.searches.customerSiblingJobs = {
+          fetched: customerSiblingJobs.length,
+          customerIds: knownCustomerIds.slice(0, 5)
+        };
+      }
+    }
+
     const allJobs = {};
     [...directJobs, ...jobMatches, ...extraJobs].forEach(job => { if (job && job.id) allJobs[job.id] = job; });
     const invoicesByJob = {};
