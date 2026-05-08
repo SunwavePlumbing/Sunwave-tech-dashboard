@@ -122,6 +122,14 @@ body.paper-mode .date-bs-sheet {
 body.paper-mode .proj-card,
 body.paper-mode .progress-wrap { border-radius: 12px; overflow: hidden; }
 body.paper-mode .stat-card { border-radius: 12px; }
+
+/* Technicians leaderboard surface — explicit parchment tone, warmer
+   than the default paper-card so the table reads as a deliberate
+   "ledger sheet" laid on top of the page rather than disappearing
+   into the surrounding warm-white. Targets #tableWrapper specifically
+   so the modal/marketing/owners surfaces stay on the standard
+   --paper-card tone. */
+body.paper-mode #tableWrapper { background-color: #F8F2E4; }
 body.paper-mode .fin-chart-card,
 body.paper-mode .modal,
 body.paper-mode .exp-sheet,

@@ -28,6 +28,16 @@
   </div>
 </div>
 
+<!-- Time-of-day + day-of-week greeting. Headline shifts every hour past
+     7pm into a tiered "you're up late" escalation; resets to "Good
+     morning, and happy {Day}" at 5am. Populated by updateGreeting() in
+     app.js, called on init and once a minute thereafter so a tab open
+     across a clock-crossing updates without a refresh. -->
+<div class="greeting-bar" id="greetingBar">
+  <div class="greeting-headline" id="greetingHeadline">&nbsp;</div>
+  <div class="greeting-subline"  id="greetingSubline">&nbsp;</div>
+</div>
+
 <div class="main-wrapper" id="mainWrapper">
   <div class="content">
     <!-- Tab navigation -->

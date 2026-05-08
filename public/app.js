@@ -700,10 +700,68 @@ window.addEventListener('hashchange', function() {
   activateTab(tab);
 });
 
+/* Time-of-day + day-of-week greeting at the top of the page.
+
+   5am – 11:59am   →  "Good morning, and happy {Day}"
+   12pm – 5:59pm   →  "Good afternoon, and happy {Day}"
+   6pm – 6:59pm    →  "Good evening, and happy {Day}"
+   7pm – 4:59am    →  Tiered late-night escalation (one phrase per hour
+                       band, getting cheekier as the night deepens).
+
+   The "{Day}" slot is the current weekday name. The subline below the
+   headline always reads "{Day} · {Mon} {D}" so the date stays present
+   even when the late-night phrases drop the day-name template. */
+function updateGreeting() {
+  var headlineEl = document.getElementById('greetingHeadline');
+  var sublineEl  = document.getElementById('greetingSubline');
+  if (!headlineEl || !sublineEl) return;
+
+  var now = new Date();
+  var h   = now.getHours();
+  var d   = now.getDay(); // 0 = Sun
+  var DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  var MONS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var dayName = DAYS[d];
+
+  var headline;
+  if (h >= 5 && h < 12) {
+    headline = 'Good morning, and happy ' + dayName;
+  } else if (h >= 12 && h < 18) {
+    headline = 'Good afternoon, and happy ' + dayName;
+  } else if (h === 18) {
+    headline = 'Good evening, and happy ' + dayName;
+  } else {
+    /* Late-night escalation. One curated phrase per hour band so the
+       message tracks how late it actually is. Em-dashes deliberately
+       avoided per the user's preference. */
+    if      (h === 19) headline = "Woah, you're checking this late?";
+    else if (h === 20) headline = "Hope you're winding down";
+    else if (h === 21) headline = 'Burning the evening oil';
+    else if (h === 22) headline = 'Pretty late to be checking the books';
+    else if (h === 23) headline = "Drains don't sleep, but you should";
+    else if (h === 0)  headline = 'Past midnight, go get some rest';
+    else if (h === 1)  headline = 'Truly burning the midnight oil';
+    else if (h === 2)  headline = 'Even Sunwave needs sleep';
+    else if (h === 3)  headline = 'Are you okay?';
+    else if (h === 4)  headline = "Early start? Or didn't sleep?";
+    else               headline = 'Hello'; // unreachable but defensive
+  }
+
+  var subline = dayName + ' · ' + MONS[now.getMonth()] + ' ' + now.getDate();
+
+  headlineEl.textContent = headline;
+  sublineEl.textContent  = subline;
+}
+
 // init() is called from index.html after all script files have loaded
 function init() {
   var tab = window.location.hash.replace('#', '') || DEFAULT_TAB;
   activateTab(tab); // indicator snaps on first paint (no stale position to animate from)
+  // Greeting populates immediately on first paint; re-renders every
+  // minute so a tab left open across an hour boundary updates without
+  // requiring a manual refresh.
+  updateGreeting();
+  setInterval(updateGreeting, 60 * 1000);
   // One-shot staggered entrance on first paint. Remove the class once
   // all animations complete so subsequent renders (filter changes, tab
   // switches) don't retrigger the fade-in.
