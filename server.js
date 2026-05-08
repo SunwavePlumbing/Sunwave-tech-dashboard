@@ -5,7 +5,7 @@ const path = require('path');
 const app = express();
 
 const API_KEY = process.env.HOUSECALL_PRO_API_KEY;
-const DIAGNOSTICS_TOKEN = process.env.DIAGNOSTICS_TOKEN || '';
+const DIAGNOSTICS_PASSWORD = process.env.DIAGNOSTICS_PASSWORD || process.env.DIAGNOSTICS_TOKEN || '';
 const PORT = process.env.PORT || 3000;
 const BASE_URL = 'https://api.housecallpro.com';
 
@@ -19,9 +19,9 @@ function hcpHeaders() {
 }
 
 function diagnosticsAllowed(req) {
-  if (!DIAGNOSTICS_TOKEN) return false;
-  const provided = req.get('X-Diagnostics-Token') || req.query.token || '';
-  return provided && provided === DIAGNOSTICS_TOKEN;
+  if (!DIAGNOSTICS_PASSWORD) return false;
+  const provided = req.get('X-Diagnostics-Password') || req.get('X-Diagnostics-Token') || req.query.password || req.query.token || '';
+  return provided && provided === DIAGNOSTICS_PASSWORD;
 }
 
 // ── Tiny response cache (with disk persistence + stale-while-revalidate) ────
@@ -591,7 +591,7 @@ app.use(express.static('public', {
   }
 }));
 
-app.get(['/diagnostics', '/diagnosics'], (req, res) => {
+app.get(['/di', '/diagnostics'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'diagnostics.html'));
 });
 
@@ -2121,15 +2121,16 @@ app.get('/api/debug/techs', async (req, res) => {
 // ────────────────────────────────────────────────────────────────────────────
 // /api/diagnostics/kpi — guarded KPI investigation data
 // ────────────────────────────────────────────────────────────────────────────
-// Requires DIAGNOSTICS_TOKEN and either ?token=... or X-Diagnostics-Token.
+// Requires DIAGNOSTICS_PASSWORD and either ?password=... or X-Diagnostics-Password.
+// DIAGNOSTICS_TOKEN is still accepted as a backwards-compatible env var.
 // Returns only the fields needed to diagnose missing technician KPI credit.
 app.get('/api/diagnostics/kpi', async (req, res) => {
   if (!API_KEY) return res.status(503).json({ error: 'HCP API key not configured' });
-  if (!DIAGNOSTICS_TOKEN) {
-    return res.status(403).json({ error: 'Diagnostics are disabled. Set DIAGNOSTICS_TOKEN to enable this page.' });
+  if (!DIAGNOSTICS_PASSWORD) {
+    return res.status(403).json({ error: 'Diagnostics are disabled. Set DIAGNOSTICS_PASSWORD to enable this page.' });
   }
   if (!diagnosticsAllowed(req)) {
-    return res.status(401).json({ error: 'Diagnostics token required.' });
+    return res.status(401).json({ error: 'Diagnostics password required.' });
   }
 
   const asDate = (value, fallback) => {
@@ -2144,6 +2145,8 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
   const personName = (p) => ((p && p.first_name || '') + ' ' + (p && p.last_name || '')).trim();
   const customerName = (obj) => obj && obj.customer ? personName(obj.customer) : '';
   const textMatches = (parts, needle) => !needle || parts.filter(Boolean).join(' ').toLowerCase().includes(needle);
+  const dateKey = (d) => d.toISOString().slice(0, 10);
+  const moneyKey = (value) => Math.round(Number(value || 0));
 
   async function fetchPages(url, params, listKey, maxPages) {
     const out = [];
@@ -2179,7 +2182,93 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
     };
   }
 
-  function summarizeJob(job, matchedInvoices, start, end) {
+  function inferDashboardRange(start, end) {
+    const now = new Date();
+    const todayStart = dayStart(now);
+    const todayEnd = dayEnd(now);
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 1);
+    const sameDay = (a, b) => dateKey(a) === dateKey(b);
+
+    if (sameDay(start, thisMonthStart) && sameDay(end, todayEnd)) return 'mtd';
+    if (sameDay(start, lastMonthStart) && sameDay(end, lastMonthEnd)) return 'lm';
+    if (sameDay(start, todayStart) && sameDay(end, todayEnd)) return 'day';
+    return null;
+  }
+
+  async function buildDashboardComparison(range) {
+    if (!range) {
+      return {
+        range: null,
+        status: 'not_compared',
+        reason: 'Selected dates do not match a dashboard quick range.'
+      };
+    }
+
+    const r = await axios.get(`http://127.0.0.1:${PORT}/api/metrics`, {
+      params: { range },
+      timeout: HTTP_TIMEOUT
+    });
+    const data = r.data || {};
+    const rows = [];
+    (data.leaderboard || []).forEach(tech => {
+      (tech.jobList || []).forEach(job => {
+        rows.push({
+          techId: tech.id,
+          techName: tech.name,
+          invoice: job.invoice || null,
+          customer: job.customer || null,
+          description: job.description || null,
+          date: job.date || null,
+          jobTotal: moneyKey(job.jobTotal),
+          credit: moneyKey(job.credit),
+          role: job.role || null
+        });
+      });
+    });
+
+    return {
+      range,
+      status: 'loaded',
+      summary: data.summary || null,
+      rowCount: rows.length,
+      rows
+    };
+  }
+
+  function compareToDashboard(job, matchedInvoices, dashboard) {
+    if (!dashboard || dashboard.status !== 'loaded') {
+      return {
+        status: 'not_compared',
+        range: dashboard && dashboard.range,
+        reason: dashboard && dashboard.reason || 'Dashboard comparison was unavailable.'
+      };
+    }
+
+    const invoiceNumbers = [
+      job.invoice_number,
+      ...matchedInvoices.map(inv => inv.invoice_number || inv.number)
+    ].filter(Boolean).map(v => String(v).toLowerCase());
+    const customer = customerName(job).toLowerCase();
+    const jobTotal = moneyKey(dollars(job.total_amount));
+
+    const matches = dashboard.rows.filter(row => {
+      const rowInvoice = String(row.invoice || '').toLowerCase();
+      const invoiceMatch = rowInvoice && invoiceNumbers.some(inv => rowInvoice === inv || rowInvoice.includes(inv) || inv.includes(rowInvoice));
+      const customerMatch = customer && String(row.customer || '').toLowerCase() === customer;
+      const amountMatch = jobTotal > 0 && Math.abs(moneyKey(row.jobTotal) - jobTotal) <= 1;
+      return invoiceMatch || (customerMatch && amountMatch);
+    });
+
+    return {
+      status: matches.length ? 'found_in_dashboard' : 'not_found_in_dashboard',
+      range: dashboard.range,
+      matchedRows: matches
+    };
+  }
+
+  function summarizeJob(job, matchedInvoices, start, end, dashboard) {
     matchedInvoices = matchedInvoices || [];
     const completedAt = job.work_timestamps && job.work_timestamps.completed_at;
     const completedDate = completedAt ? new Date(completedAt) : null;
@@ -2223,7 +2312,8 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
         completedInPeriod,
         serviceTitanExcluded: stExcluded,
         paidInPeriod: Math.round(paidInPeriod),
-        matchedInvoiceCount: matchedInvoices.length
+        matchedInvoiceCount: matchedInvoices.length,
+        dashboardComparison: compareToDashboard(job, matchedInvoices, dashboard)
       },
       invoices: matchedInvoices.map(summarizeInvoice)
     };
@@ -2242,6 +2332,7 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
     const jobId = (req.query.job_id || req.query.jobId || '').toString().trim();
     const invoiceId = (req.query.invoice_id || req.query.invoiceId || '').toString().trim();
     const limit = Math.min(Math.max(parseInt(req.query.limit || '80', 10), 10), 200);
+    const dashboardRange = (req.query.dashboard_range || req.query.dashboardRange || '').toString().trim() || inferDashboardRange(start, end);
 
     const out = {
       requestedAt: new Date().toISOString(),
@@ -2250,17 +2341,29 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
         end: end.toISOString(),
         scheduledLookbackStart: lookbackStart.toISOString()
       },
-      filters: { q, invoice: invoiceNeedle, jobId, invoiceId, limit },
+      filters: { q, invoice: invoiceNeedle, jobId, invoiceId, limit, dashboardRange },
       interpretation: [
         'counted_by_completed_job: dashboard should count this from /jobs completed_at.',
         'could_be_covered_by_paid_invoice_pass: dashboard may count this from paid invoices if the job was not already completed/credited.',
-        'likely_skipped: inspect skipReasons; these are the usual missing-KPI causes.'
+        'likely_skipped: HCP fields suggest the dashboard rules may skip it.',
+        'dashboardComparison.not_found_in_dashboard: checked the actual dashboard job rows and did not find a match.'
       ],
+      dashboardComparison: {},
       direct: {},
       searches: {},
       candidates: [],
       unattachedInvoices: []
     };
+
+    try {
+      out.dashboardComparison = await buildDashboardComparison(dashboardRange);
+    } catch (e) {
+      out.dashboardComparison = {
+        range: dashboardRange || null,
+        status: 'not_compared',
+        reason: 'Could not load /api/metrics for comparison: ' + (e.response?.status || e.message)
+      };
+    }
 
     const directJobs = [];
     const directInvoices = [];
@@ -2357,7 +2460,7 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
       invoicesByJob[inv.job_id].push(inv);
     });
 
-    out.candidates = Object.values(allJobs).map(job => summarizeJob(job, invoicesByJob[job.id] || [], start, end));
+    out.candidates = Object.values(allJobs).map(job => summarizeJob(job, invoicesByJob[job.id] || [], start, end, out.dashboardComparison));
     out.unattachedInvoices = invoiceMatches.filter(inv => !inv.job_id).map(summarizeInvoice);
 
     res.json(out);

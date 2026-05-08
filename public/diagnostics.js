@@ -2,9 +2,11 @@
   var form = document.getElementById('diagForm');
   var statusEl = document.getElementById('status');
   var resultsEl = document.getElementById('results');
-  var tokenEl = document.getElementById('token');
+  var copyReportEl = document.getElementById('copyReport');
+  var passwordEl = document.getElementById('password');
   var startEl = document.getElementById('start');
   var endEl = document.getElementById('end');
+  var lastData = null;
 
   function ymd(d) {
     return d.toISOString().slice(0, 10);
@@ -50,13 +52,15 @@
   }
 
   function statusPill(kind) {
-    var cls = kind === 'counted_by_completed_job' ? 'good'
-      : kind === 'could_be_covered_by_paid_invoice_pass' ? 'warn'
+    kind = kind || 'unknown';
+    var cls = kind === 'counted_by_completed_job' || kind === 'found_in_dashboard' ? 'good'
+      : kind === 'could_be_covered_by_paid_invoice_pass' || kind === 'not_compared' ? 'warn'
       : 'bad';
     return '<span class="pill ' + cls + '">' + esc(kind.replace(/_/g, ' ')) + '</span>';
   }
 
   function renderCandidate(job) {
+    var comparison = job.diagnostic.dashboardComparison || { status: 'not_compared' };
     var reasons = (job.diagnostic.skipReasons || []).map(function(r) {
       return '<span class="pill bad">' + esc(r) + '</span>';
     }).join('');
@@ -79,14 +83,16 @@
         '<div><div class="label">Invoice</div><div class="value">' + esc(job.invoiceNumber || '-') + '</div></div>' +
         '<div><div class="label">Customer</div><div class="value">' + esc(job.customer || '-') + '</div></div>' +
         '<div><div class="label">Job Total</div><div class="value">' + money(job.jobTotal) + '</div></div>' +
-        '<div><div class="label">KPI Status</div><div class="value">' + statusPill(job.diagnostic.dashboardStatus) + '</div></div>' +
+        '<div><div class="label">Dashboard Check</div><div class="value">' + statusPill(comparison.status) + '</div></div>' +
       '</div>' +
       '<div class="candidate-body">' +
         '<div>' +
           '<div class="label">Job</div><div class="value">' + esc(job.id) + '</div>' +
           '<div class="label" style="margin-top:10px">Description</div><div>' + esc(job.description || '-') + '</div>' +
           '<div class="label" style="margin-top:10px">Employees</div><div>' + employees + '</div>' +
+          '<div class="label" style="margin-top:10px">Rule Check</div><div>' + statusPill(job.diagnostic.dashboardStatus) + '</div>' +
           '<div class="label" style="margin-top:10px">Skip Reasons</div><div>' + (reasons || '<span class="pill good">No obvious skip reason</span>') + '</div>' +
+          '<div class="label" style="margin-top:10px">Dashboard Matches</div><div>' + renderDashboardMatches(comparison) + '</div>' +
         '</div>' +
         '<div>' +
           '<table>' +
@@ -109,22 +115,128 @@
     '</article>';
   }
 
+  function renderDashboardMatches(comparison) {
+    if (!comparison || comparison.status === 'not_compared') {
+      return '<span class="pill warn">' + esc((comparison && comparison.reason) || 'Not compared') + '</span>';
+    }
+    var rows = comparison.matchedRows || [];
+    if (!rows.length) return '<span class="pill bad">No matching dashboard job row</span>';
+    return rows.map(function(row) {
+      return '<span class="pill good">' + esc(row.techName || 'Dashboard') + ': ' + money(row.credit) + '</span>';
+    }).join('');
+  }
+
   function render(data) {
     var candidates = data.candidates || [];
     var unattached = data.unattachedInvoices || [];
     var likelySkipped = candidates.filter(function(j) {
       return j.diagnostic && j.diagnostic.dashboardStatus === 'likely_skipped';
     }).length;
+    var notFound = candidates.filter(function(j) {
+      return j.diagnostic && j.diagnostic.dashboardComparison && j.diagnostic.dashboardComparison.status === 'not_found_in_dashboard';
+    }).length;
+    var found = candidates.filter(function(j) {
+      return j.diagnostic && j.diagnostic.dashboardComparison && j.diagnostic.dashboardComparison.status === 'found_in_dashboard';
+    }).length;
+    var dash = data.dashboardComparison || {};
     resultsEl.innerHTML =
       '<section class="summary">' +
         '<div class="metric"><span class="label">Candidate Jobs</span><b>' + candidates.length + '</b></div>' +
-        '<div class="metric"><span class="label">Likely Skipped</span><b>' + likelySkipped + '</b></div>' +
+        '<div class="metric"><span class="label">Found In Dashboard</span><b>' + found + '</b></div>' +
+        '<div class="metric"><span class="label">Not Found</span><b>' + notFound + '</b></div>' +
+        '<div class="metric"><span class="label">Rule-Likely Skipped</span><b>' + likelySkipped + '</b></div>' +
         '<div class="metric"><span class="label">Unattached Invoices</span><b>' + unattached.length + '</b></div>' +
+        '<div class="metric"><span class="label">Dashboard Range</span><b style="font-size:15px">' + esc(dash.range || dash.status || '-') + '</b></div>' +
         '<div class="metric"><span class="label">Period</span><b style="font-size:15px">' + esc(data.period.start.slice(0, 10)) + ' to ' + esc(data.period.end.slice(0, 10)) + '</b></div>' +
       '</section>' +
       candidates.map(renderCandidate).join('') +
       (unattached.length ? renderUnattached(unattached) : '') +
       '<details><summary>API search details</summary><pre>' + esc(JSON.stringify(data.searches, null, 2)) + '</pre></details>';
+  }
+
+  function reportLine(label, value) {
+    return label + ': ' + (value == null || value === '' ? '-' : value);
+  }
+
+  function plainTextReport(data) {
+    var lines = [];
+    var candidates = data.candidates || [];
+    var unattached = data.unattachedInvoices || [];
+    var dash = data.dashboardComparison || {};
+
+    lines.push('Sunwave KPI Diagnostics Report');
+    lines.push(reportLine('Requested At', data.requestedAt));
+    lines.push(reportLine('Period', (data.period.start || '').slice(0, 10) + ' to ' + (data.period.end || '').slice(0, 10)));
+    lines.push(reportLine('Dashboard Comparison', (dash.status || '-') + (dash.range ? ' (' + dash.range + ')' : '')));
+    if (dash.reason) lines.push(reportLine('Dashboard Comparison Reason', dash.reason));
+    if (dash.summary) {
+      lines.push(reportLine('Dashboard Total Revenue', money(dash.summary.totalRevenue)));
+      lines.push(reportLine('Dashboard Total Jobs', dash.summary.totalJobs));
+      lines.push(reportLine('Dashboard Avg Ticket', money(dash.summary.averageTicket)));
+      lines.push(reportLine('Dashboard Orphan Count', dash.summary.orphanCount));
+    }
+    lines.push(reportLine('Filters', JSON.stringify(data.filters || {})));
+    lines.push('');
+
+    lines.push('Candidate Jobs (' + candidates.length + ')');
+    candidates.forEach(function(job, idx) {
+      var comp = job.diagnostic.dashboardComparison || {};
+      lines.push('');
+      lines.push((idx + 1) + '. Invoice ' + (job.invoiceNumber || '-') + ' | ' + (job.customer || '-'));
+      lines.push(reportLine('Job ID', job.id));
+      lines.push(reportLine('Dashboard Check', comp.status));
+      lines.push(reportLine('Dashboard Range', comp.range));
+      if (comp.reason) lines.push(reportLine('Dashboard Reason', comp.reason));
+      lines.push(reportLine('Rule Check', job.diagnostic.dashboardStatus));
+      lines.push(reportLine('Skip Reasons', (job.diagnostic.skipReasons || []).join(', ') || 'None'));
+      lines.push(reportLine('Job Total', money(job.jobTotal)));
+      lines.push(reportLine('Outstanding', money(job.outstandingBalance)));
+      lines.push(reportLine('Paid In Period', money(job.diagnostic.paidInPeriod)));
+      lines.push(reportLine('Work Status', job.workStatus));
+      lines.push(reportLine('Completed At', job.completedAt));
+      lines.push(reportLine('Scheduled Start', job.scheduledStart));
+      lines.push(reportLine('Employees', (job.assignedEmployees || []).map(function(e) { return e.name || e.id; }).join(', ') || 'None'));
+      lines.push(reportLine('Description', job.description));
+      if ((comp.matchedRows || []).length) {
+        lines.push('Matched Dashboard Rows:');
+        comp.matchedRows.forEach(function(row) {
+          lines.push('  - ' + (row.techName || '-') + ' | invoice ' + (row.invoice || '-') + ' | credit ' + money(row.credit) + ' | total ' + money(row.jobTotal));
+        });
+      }
+      if ((job.invoices || []).length) {
+        lines.push('Matched HCP Invoices:');
+        job.invoices.forEach(function(inv) {
+          lines.push('  - ' + (inv.invoiceNumber || inv.id || '-') + ' | status ' + (inv.status || '-') + ' | amount ' + money(inv.amount) + ' | due ' + money(inv.dueAmount) + ' | paid ' + (inv.paidAt || '-'));
+        });
+      }
+    });
+
+    if (unattached.length) {
+      lines.push('');
+      lines.push('Invoices Without Job IDs (' + unattached.length + ')');
+      unattached.forEach(function(inv) {
+        lines.push('- ' + (inv.invoiceNumber || inv.id || '-') + ' | status ' + (inv.status || '-') + ' | amount ' + money(inv.amount) + ' | due ' + money(inv.dueAmount) + ' | paid ' + (inv.paidAt || '-'));
+      });
+    }
+
+    return lines.join('\n');
+  }
+
+  async function copyReport() {
+    if (!lastData) return;
+    var text = plainTextReport(lastData);
+    try {
+      await navigator.clipboard.writeText(text);
+      showStatus('Plain text report copied.');
+    } catch (_) {
+      var area = document.createElement('textarea');
+      area.value = text;
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand('copy');
+      document.body.removeChild(area);
+      showStatus('Plain text report copied.');
+    }
   }
 
   function renderUnattached(invoices) {
@@ -147,23 +259,27 @@
   }
 
   async function run() {
-    var token = tokenEl.value.trim();
-    if (token) sessionStorage.setItem('diagnosticsToken', token);
+    var password = passwordEl.value.trim();
+    if (password) sessionStorage.setItem('diagnosticsPassword', password);
     var fd = new FormData(form);
     var params = new URLSearchParams();
     fd.forEach(function(value, key) {
-      if (key === 'token') return;
+      if (key === 'password') return;
       if (String(value).trim()) params.set(key, String(value).trim());
     });
     showStatus('Pulling HCP diagnostics...');
     resultsEl.innerHTML = '';
+    lastData = null;
+    copyReportEl.disabled = true;
     try {
       var res = await fetch('/api/diagnostics/kpi?' + params.toString(), {
-        headers: { 'X-Diagnostics-Token': token }
+        headers: { 'X-Diagnostics-Password': password }
       });
       var data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Diagnostics failed.');
       showStatus('Diagnostics loaded.');
+      lastData = data;
+      copyReportEl.disabled = false;
       render(data);
     } catch (err) {
       showStatus(err.message, true);
@@ -171,11 +287,12 @@
   }
 
   document.getElementById('lastMonth').addEventListener('click', setLastMonth);
+  copyReportEl.addEventListener('click', copyReport);
   form.addEventListener('submit', function(e) {
     e.preventDefault();
     run();
   });
 
-  tokenEl.value = sessionStorage.getItem('diagnosticsToken') || '';
+  passwordEl.value = sessionStorage.getItem('diagnosticsPassword') || sessionStorage.getItem('diagnosticsToken') || '';
   setThisMonth();
 })();
