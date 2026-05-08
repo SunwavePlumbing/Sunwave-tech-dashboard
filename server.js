@@ -43,6 +43,10 @@ function inclusiveEndDateOnly(value) {
   return isoDateOnly(d);
 }
 
+function estimateIdForJob(job) {
+  return job && (job.original_estimate_id || (job.original_estimate_uuids && job.original_estimate_uuids[0]));
+}
+
 function diagnosticsAllowed(req) {
   if (!DIAGNOSTICS_PASSWORD) return false;
   const provided = req.get('X-Diagnostics-Password') || req.get('X-Diagnostics-Token') || req.query.password || req.query.token || '';
@@ -806,7 +810,7 @@ app.get('/api/metrics', async (req, res) => {
       // downstream per-range filters never need another round-trip.
       const estimateIds = [...new Set(
         jobs
-          .map(j => j.original_estimate_id || (j.original_estimate_uuids && j.original_estimate_uuids[0]))
+          .map(j => estimateIdForJob(j))
           .filter(Boolean)
       )];
       const sellerMap = {};
@@ -871,19 +875,12 @@ app.get('/api/metrics', async (req, res) => {
         pageResults.forEach(r => allJobs.push(...(r.data.jobs || [])));
       }
 
-      // Filter-then-fetch-estimates for the longer ranges (same as before).
-      // Excludes post-cutover ST import artifacts so estimate IDs for
-      // mis-dated legacy jobs don't pollute the fetch batch either.
-      const isCompleted = (job) => {
-        if (!job.work_timestamps?.completed_at) return false;
-        if (isPostCutoverSTArtifact(job)) return false;
-        const d = new Date(job.work_timestamps.completed_at);
-        return d >= periodStart && d < periodEnd;
-      };
-      const completed = allJobs.filter(isCompleted);
+      // Fetch estimate seller data for all jobs in the fetched window.
+      // KPI month is based on service date later, and HCP completed_at can
+      // move after the month closes, so filtering here can miss sellers.
       const estimateIds = [...new Set(
-        completed
-          .map(j => j.original_estimate_id || (j.original_estimate_uuids && j.original_estimate_uuids[0]))
+        allJobs
+          .map(j => estimateIdForJob(j))
           .filter(Boolean)
       )];
       estimateSellerMap = {};
@@ -907,16 +904,54 @@ app.get('/api/metrics', async (req, res) => {
       }
     }
 
-    // Filter jobs by actual completion date (not scheduled date). Also
+    // Filter completed jobs by the service/scheduled date when available.
+    // HCP's completed_at can be updated days later by office/admin work,
+    // but KPI month should follow when the work was performed.
+    const jobKpiDate = (job) => {
+      const raw = (job.schedule && job.schedule.scheduled_start)
+        || (job.work_timestamps && job.work_timestamps.completed_at);
+      return raw ? new Date(raw) : null;
+    };
+
+    // Filter jobs by KPI service date. Also
     // drops post-cutover ServiceTitan import artifacts so MTD / this-week /
     // etc. don't show legacy ST work as though it were done this month.
     const isJobCompleted = (job) => {
       if (!job.work_timestamps?.completed_at) return false;
       if (isPostCutoverSTArtifact(job)) return false;
-      const completedDate = new Date(job.work_timestamps.completed_at);
-      return completedDate >= periodStart && completedDate < periodEnd;
+      const kpiDate = jobKpiDate(job);
+      return kpiDate && kpiDate >= periodStart && kpiDate < periodEnd;
     };
     const completedJobs = allJobs.filter(isJobCompleted);
+
+    async function ensureEstimateSellersForJobs(jobs) {
+      const ids = [...new Set(
+        (jobs || [])
+          .map(j => estimateIdForJob(j))
+          .filter(id => id && !estimateSellerMap[id])
+      )];
+      if (ids.length === 0) return;
+
+      const BATCH = 10;
+      for (let i = 0; i < ids.length; i += BATCH) {
+        const batch = ids.slice(i, i + BATCH);
+        const results = await Promise.all(
+          batch.map(id =>
+            axios.get(BASE_URL + '/estimates/' + id, { headers })
+              .then(r => {
+                const d = r.data;
+                const employees = d.assigned_employees
+                  || (d.assigned_employee ? [d.assigned_employee] : []);
+                return { id, employees };
+              })
+              .catch(() => ({ id, employees: [] }))
+          )
+        );
+        results.forEach(r => { estimateSellerMap[r.id] = r.employees; });
+      }
+    }
+
+    await ensureEstimateSellersForJobs(completedJobs);
 
     const techMetrics = {};
     const invoiceRoot = (invoice) => String(invoice || '').split('-')[0].trim();
@@ -940,6 +975,15 @@ app.get('/api/metrics', async (req, res) => {
       }
     }
 
+    function uniqueEmployees(employees) {
+      const seen = new Set();
+      return (employees || []).filter(emp => {
+        if (!emp || !emp.id || seen.has(emp.id)) return false;
+        seen.add(emp.id);
+        return true;
+      });
+    }
+
     /* Per-job credit attribution. Returns true if the job was credited
        to at least one tech, false if it had no assigned_employees and
        therefore got skipped (caller can collect those as orphans).
@@ -954,7 +998,7 @@ app.get('/api/metrics', async (req, res) => {
          invoice tied to this job in the period. */
     function creditJob(job, opts) {
       opts = opts || {};
-      const doers = opts.assignedEmployees || job.assigned_employees || [];
+      const doers = uniqueEmployees(opts.assignedEmployees || job.assigned_employees || []);
       if (doers.length === 0) return false;
 
       const jobRevenue = opts.revenue != null
@@ -970,20 +1014,22 @@ app.get('/api/metrics', async (req, res) => {
         || (job.schedule && job.schedule.scheduled_start)
         || null;
 
-      const estimateId = job.original_estimate_id || (job.original_estimate_uuids && job.original_estimate_uuids[0]);
-      const sellers = estimateId ? (estimateSellerMap[estimateId] || []) : [];
+      const estimateId = estimateIdForJob(job);
+      const sellers = uniqueEmployees(estimateId ? (estimateSellerMap[estimateId] || []) : []);
 
       // Build a credit map: techId -> credit amount
-      // Rule: seller gets 1/3, doers split 2/3. Always applies — for direct jobs
-      // (no estimate), the first assigned tech is treated as the implicit seller.
+      // Rule: estimate seller(s) split 1/3, assigned doer(s) split 2/3.
+      // If there is no estimate/seller data, do not guess a seller from
+      // assigned tech order; split 100% across the assigned doers.
       const creditMap = {};
-      const effectiveSellers = sellers.length > 0 ? sellers : (doers.length > 1 ? [doers[0]] : []);
+      const effectiveSellers = sellers;
       const sellPool = jobRevenue / 3;
       const doPool = jobRevenue * 2 / 3;
 
-      if (doers.length === 1 && sellers.length === 0) {
-        // Single tech, no estimate — gets 100%
-        creditMap[doers[0].id] = jobRevenue;
+      if (effectiveSellers.length === 0) {
+        doers.forEach(emp => {
+          creditMap[emp.id] = (creditMap[emp.id] || 0) + jobRevenue / doers.length;
+        });
       } else {
         effectiveSellers.forEach(emp => {
           creditMap[emp.id] = (creditMap[emp.id] || 0) + sellPool / effectiveSellers.length;
@@ -1136,6 +1182,8 @@ app.get('/api/metrics', async (req, res) => {
           ));
           results.forEach(j => { if (j) gapJobs.push(j); });
         }
+
+        await ensureEstimateSellersForJobs(gapJobs);
 
         function findSplitSiblingWithEmployees(job) {
           const root = invoiceRoot(job.invoice_number);
@@ -2309,7 +2357,7 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
 
     const matches = dashboard.rows.filter(row => {
       const rowInvoice = String(row.invoice || '').toLowerCase();
-      const invoiceMatch = rowInvoice && invoiceNumbers.some(inv => rowInvoice === inv || rowInvoice.includes(inv) || inv.includes(rowInvoice));
+      const invoiceMatch = rowInvoice && invoiceNumbers.some(inv => rowInvoice === inv || invoiceRoot(rowInvoice) === invoiceRoot(inv));
       const customerMatch = customer && String(row.customer || '').toLowerCase() === customer;
       const amountMatch = jobTotal > 0 && Math.abs(moneyKey(row.jobTotal) - jobTotal) <= 1;
       return invoiceMatch || (customerMatch && amountMatch);
@@ -2325,17 +2373,18 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
   function summarizeJob(job, matchedInvoices, start, end, dashboard) {
     matchedInvoices = matchedInvoices || [];
     const completedAt = job.work_timestamps && job.work_timestamps.completed_at;
-    const completedDate = completedAt ? new Date(completedAt) : null;
+    const kpiDateRaw = (job.schedule && job.schedule.scheduled_start) || completedAt;
+    const kpiDate = kpiDateRaw ? new Date(kpiDateRaw) : null;
     const assigned = job.assigned_employees || [];
     const paidInPeriod = matchedInvoices
       .filter(inv => inv.paid_at && new Date(inv.paid_at) >= start && new Date(inv.paid_at) < end)
       .reduce((sum, inv) => sum + dollars(inv.amount), 0);
-    const completedInPeriod = !!(completedDate && completedDate >= start && completedDate < end);
+    const completedInPeriod = !!(completedAt && kpiDate && kpiDate >= start && kpiDate < end);
     const stExcluded = isPostCutoverSTArtifact(job);
 
     const skipReasons = [];
     if (!completedAt) skipReasons.push('missing completed_at');
-    else if (!completedInPeriod) skipReasons.push('completed_at outside selected period');
+    else if (!completedInPeriod) skipReasons.push('service date outside selected period');
     if (stExcluded) skipReasons.push('excluded as ServiceTitan import artifact');
     if (assigned.length === 0) skipReasons.push('no assigned_employees');
     if (paidInPeriod <= 0 && !completedInPeriod) skipReasons.push('no matched paid invoice in selected period');
@@ -2559,6 +2608,27 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
         extraJobs.push(job);
         knownJobIds.add(job.id);
       });
+
+      for (const job of extraJobs) {
+        if (!job || !job.id) continue;
+        const alreadyHasInvoice = Object.values(invoiceById).some(inv => inv && inv.job_id === job.id);
+        if (alreadyHasInvoice) continue;
+        if (!invoiceMatchesNeedle(job.invoice_number, invoiceNeedle)) continue;
+
+        try {
+          const invRes = await axios.get(BASE_URL + '/jobs/' + job.id + '/invoices', { headers: hcpHeaders() });
+          (invRes.data.invoices || []).forEach(inv => {
+            const id = inv && (inv.id || inv.uuid || inv.invoice_uuid || inv.invoice_id);
+            if (id) invoiceById[id] = inv;
+            if (invoiceMatchesNeedle(inv && (inv.invoice_number || inv.number), invoiceNeedle)) {
+              invoiceMatches.push(inv);
+            }
+          });
+        } catch (e) {
+          out.searches.customerSiblingInvoices = out.searches.customerSiblingInvoices || [];
+          out.searches.customerSiblingInvoices.push({ jobId: job.id, error: e.response?.status || e.message });
+        }
+      }
 
       if (customerSiblingJobs.length) {
         out.searches.customerSiblingJobs = {
