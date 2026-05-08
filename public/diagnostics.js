@@ -111,7 +111,7 @@
           '<div class="label" style="margin-top:10px">Attribution Preview</div><div>' + previewRows + '</div>' +
           '<div class="label" style="margin-top:10px">Related Customer Estimates</div><div>' + (relatedEstimates || '<span class="pill">None found</span>') + '</div>' +
           '<div class="label" style="margin-top:10px">Rule Check</div><div>' + statusPill(job.diagnostic.dashboardStatus) + '</div>' +
-          '<div class="label" style="margin-top:10px">Auto Dating</div><div>' + (job.diagnostic.autoDatedComplete ? '<span class="pill warn">Auto dated complete</span>' : '<span class="pill">Normal</span>') + '</div>' +
+          '<div class="label" style="margin-top:10px">Auto Dating</div><div>' + (job.diagnostic.autoDatedComplete ? '<span class="pill warn">' + esc(job.diagnostic.autoCompletionKind === 'open_over_three_days' ? 'Auto marked complete' : 'Auto dated complete') + '</span>' : '<span class="pill">Normal</span>') + '</div>' +
           '<div class="label" style="margin-top:10px">Skip Reasons</div><div>' + (reasons || '<span class="pill good">No obvious skip reason</span>') + '</div>' +
           '<div class="label" style="margin-top:10px">Dashboard Matches</div><div>' + renderDashboardMatches(comparison) + '</div>' +
         '</div>' +
@@ -216,6 +216,7 @@
       if (comp.reason) lines.push(reportLine('Dashboard Reason', comp.reason));
       lines.push(reportLine('Rule Check', job.diagnostic.dashboardStatus));
       lines.push(reportLine('Auto Dated Complete', job.diagnostic.autoDatedComplete ? 'Yes' : 'No'));
+      lines.push(reportLine('Auto Completion Kind', job.diagnostic.autoCompletionKind));
       lines.push(reportLine('Skip Reasons', (job.diagnostic.skipReasons || []).join(', ') || 'None'));
       lines.push(reportLine('Job Total', money(job.jobTotal)));
       lines.push(reportLine('Outstanding', money(job.outstandingBalance)));

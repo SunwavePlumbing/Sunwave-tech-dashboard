@@ -48,6 +48,7 @@ function estimateIdForJob(job) {
 }
 
 const KPI_BACKDATE_THRESHOLD_MS = 3 * 24 * 60 * 60 * 1000;
+const HCP_KPI_WORK_STATUSES = ['completed', 'in_progress', 'scheduled'];
 
 function jobScheduledStart(job) {
   return job && job.schedule && job.schedule.scheduled_start ? new Date(job.schedule.scheduled_start) : null;
@@ -59,9 +60,14 @@ function jobCompletedAt(job) {
 
 function kpiDateForJob(job) {
   const completed = jobCompletedAt(job);
-  if (!completed || isNaN(completed.getTime())) return null;
-
   const scheduled = jobScheduledStart(job);
+
+  if (!completed || isNaN(completed.getTime())) {
+    if (!scheduled || isNaN(scheduled.getTime())) return null;
+    const autoCloseDate = new Date(scheduled.getTime() + KPI_BACKDATE_THRESHOLD_MS);
+    return autoCloseDate <= new Date() ? autoCloseDate : null;
+  }
+
   if (
     scheduled &&
     !isNaN(scheduled.getTime()) &&
@@ -74,17 +80,21 @@ function kpiDateForJob(job) {
   return completed;
 }
 
-function isAutoDatedByCompletionLag(job) {
+function autoCompletionKind(job) {
   const completed = jobCompletedAt(job);
   const scheduled = jobScheduledStart(job);
-  return !!(
-    completed &&
-    scheduled &&
-    !isNaN(completed.getTime()) &&
-    !isNaN(scheduled.getTime()) &&
-    completed >= scheduled &&
-    completed.getTime() - scheduled.getTime() > KPI_BACKDATE_THRESHOLD_MS
-  );
+  if (!scheduled || isNaN(scheduled.getTime())) return null;
+  if (!completed || isNaN(completed.getTime())) {
+    const autoCloseDate = new Date(scheduled.getTime() + KPI_BACKDATE_THRESHOLD_MS);
+    return autoCloseDate <= new Date() ? 'open_over_three_days' : null;
+  }
+  return completed >= scheduled && completed.getTime() - scheduled.getTime() > KPI_BACKDATE_THRESHOLD_MS
+    ? 'completed_late'
+    : null;
+}
+
+function isAutoDatedByCompletionLag(job) {
+  return !!autoCompletionKind(job);
 }
 
 function diagnosticsAllowed(req) {
@@ -956,7 +966,7 @@ app.get('/api/metrics', async (req, res) => {
 
       const pageSize = 200;
       const jobsParams = {
-        work_status: ['completed'],
+        work_status: HCP_KPI_WORK_STATUSES,
         scheduled_start_min: rawStart.toISOString(),
         scheduled_start_max: rawEnd.toISOString(),
         page_size: pageSize
@@ -1024,7 +1034,7 @@ app.get('/api/metrics', async (req, res) => {
 
       const pageSize = 200;
       const jobsParams = {
-        work_status: ['completed'],
+        work_status: HCP_KPI_WORK_STATUSES,
         scheduled_start_min: fetchStart.toISOString(),
         scheduled_start_max: periodEnd.toISOString(),
         page_size: pageSize
@@ -1078,11 +1088,12 @@ app.get('/api/metrics', async (req, res) => {
     // Filter jobs by KPI date. Normally this is completed_at, but if
     // HCP completion happened more than 3 days after the scheduled
     // start, use the scheduled date so late admin updates don't move
-    // finished work into the wrong month. Also
+    // finished work into the wrong month. If HCP never marks a job
+    // complete, auto-close it after 3 days and post it on that auto-close
+    // date. Also
     // drops post-cutover ServiceTitan import artifacts so MTD / this-week /
     // etc. don't show legacy ST work as though it were done this month.
     const isJobCompleted = (job) => {
-      if (!job.work_timestamps?.completed_at) return false;
       if (isPostCutoverSTArtifact(job)) return false;
       const kpiDate = kpiDateForJob(job);
       return kpiDate && kpiDate >= periodStart && kpiDate < periodEnd;
@@ -1184,6 +1195,7 @@ app.get('/api/metrics', async (req, res) => {
       const missingSellerCustomerIds = [...new Set((jobs || [])
         .filter(job => {
           if (!job || parseFloat(job.total_amount || 0) <= 0) return false;
+          if ((job.assigned_employees || []).length <= 1) return false;
           const estimateId = estimateIdForJob(job);
           const linked = estimateEntry(estimateId);
           if (findKpiAttributionOverride(job, estimateId)) return false;
@@ -1231,6 +1243,7 @@ app.get('/api/metrics', async (req, res) => {
     }
 
     function relatedEstimateSellerEmployees(job) {
+      if ((job.assigned_employees || []).length <= 1) return [];
       const jobStart = jobScheduledStart(job) || kpiDateForJob(job);
       const related = relatedEstimatesByCustomer[job.customer && job.customer.id] || [];
       const linkedId = estimateIdForJob(job);
@@ -1419,7 +1432,8 @@ app.get('/api/metrics', async (req, res) => {
           // on a single-job row).
           outstanding: jobOutstandingGross,
           outstandingShare: outstandingShare,
-          autoDatedComplete: isAutoDatedByCompletionLag(job)
+          autoDatedComplete: isAutoDatedByCompletionLag(job),
+          autoCompletionKind: autoCompletionKind(job)
         });
       });
 
@@ -2682,21 +2696,23 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
       sellerSource = 'linked_estimate_assigned_employee';
       sellerConfidence = 'high';
     } else {
-      const relatedWithEmployees = (relatedEstimates || []).map(est => {
-        const assigned = uniqueEmployees((est.assigned_employees || []).map(emp => ({ id: emp.id, name: personName(emp) })));
-        const tagged = namesToEmployees(sellerNamesFromResource(est));
-        return assigned.length ? assigned : tagged;
-      }).find(list => list.length);
+      const relatedWithEmployees = doers.length > 1
+        ? (relatedEstimates || []).map(est => {
+          const assigned = uniqueEmployees((est.assigned_employees || []).map(emp => ({ id: emp.id, name: personName(emp) })));
+          const tagged = namesToEmployees(sellerNamesFromResource(est));
+          return assigned.length ? assigned : tagged;
+        }).find(list => list.length)
+        : null;
       if (relatedWithEmployees) {
-        sellers = relatedWithEmployees;
-        sellerSource = 'related_customer_estimate';
-        sellerConfidence = 'medium';
+          sellers = relatedWithEmployees;
+          sellerSource = 'related_customer_estimate';
+          sellerConfidence = 'medium';
       } else {
         const jobStart = jobScheduledStart(job) || kpiDateForJob(job);
         const addressKey = jobAddressKey(job);
         const customerKey = jobCustomerKey(job);
         const previous = (scheduleCandidates || [])
-          .filter(function() { return (job.assigned_employees || []).length > 1; })
+          .filter(function() { return doers.length > 1; })
           .filter(candidate => candidate && candidate.id !== job.id)
           .map(candidate => ({ job: candidate, start: jobScheduledStart(candidate) || jobCompletedAt(candidate) }))
           .filter(item => item.start && jobStart && item.start < jobStart)
@@ -2852,11 +2868,12 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
     const paidInPeriod = matchedInvoices
       .filter(inv => inv.paid_at && new Date(inv.paid_at) >= start && new Date(inv.paid_at) < end)
       .reduce((sum, inv) => sum + dollars(inv.amount), 0);
-    const completedInPeriod = !!(completedAt && kpiDate && kpiDate >= start && kpiDate < end);
+    const completedInPeriod = !!(kpiDate && kpiDate >= start && kpiDate < end);
     const stExcluded = isPostCutoverSTArtifact(job);
 
     const skipReasons = [];
-    if (!completedAt) skipReasons.push('missing completed_at');
+    if (!completedAt && !kpiDate) skipReasons.push('missing completed_at');
+    else if (!completedAt && kpiDate) skipReasons.push('auto-closed after 3 days');
     else if (!completedInPeriod) skipReasons.push('KPI date outside selected period');
     if (stExcluded) skipReasons.push('excluded as ServiceTitan import artifact');
     if (assigned.length === 0) skipReasons.push('no assigned_employees');
@@ -2893,6 +2910,7 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
         completedInPeriod,
         serviceTitanExcluded: stExcluded,
         autoDatedComplete: isAutoDatedByCompletionLag(job),
+        autoCompletionKind: autoCompletionKind(job),
         paidInPeriod: Math.round(paidInPeriod),
         matchedInvoiceCount: matchedInvoices.length,
         dashboardComparison: compareToDashboard(job, matchedInvoices, dashboard)

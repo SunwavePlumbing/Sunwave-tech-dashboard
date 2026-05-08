@@ -367,8 +367,11 @@ function openModal(tech, mode) {
   var rows = jobs.map(function(job) {
     var desc = job.description ? esc(job.description) : (job.invoice ? 'Invoice #' + esc(job.invoice) : '\u2014');
     var roleBadge = job.role ? '<span class="role-badge ' + roleClass(job.role) + '">' + esc(job.role) + '</span>' : '';
+    var autoDatedLabel = job.autoCompletionKind === 'open_over_three_days'
+      ? 'Auto marked complete'
+      : 'Auto dated complete';
     var autoDatedBadge = job.autoDatedComplete
-      ? '<span class="role-badge role-auto-dated">Auto dated complete</span>' : '';
+      ? '<span class="role-badge role-auto-dated">' + esc(autoDatedLabel) + '</span>' : '';
     var splitNote = (job.splitWith && job.splitWith.length > 0)
       ? '<div style="font-size:11px;color:#aaa;margin-top:2px">w/ ' + job.splitWith.map(function(s){ return esc(s.name || s) + (s.creditPct != null ? ' <span style="color:#ccc">(' + s.creditPct + '%)</span>' : ''); }).join(', ') + splitInfoSpan + '</div>' : '';
     // Show an "Unpaid: $X" pill under the job total when the invoice
@@ -402,8 +405,11 @@ function openModal(tech, mode) {
   var cards = jobs.map(function(job) {
     var desc = job.description ? esc(job.description) : (job.invoice ? 'Invoice #' + esc(job.invoice) : '\u2014');
     var roleBadge = job.role ? '<span class="role-badge ' + roleClass(job.role) + '">' + esc(job.role) + '</span>' : '';
+    var autoDatedLabel = job.autoCompletionKind === 'open_over_three_days'
+      ? 'Auto marked complete'
+      : 'Auto dated complete';
     var autoDatedBadge = job.autoDatedComplete
-      ? '<span class="role-badge role-auto-dated">Auto dated complete</span>' : '';
+      ? '<span class="role-badge role-auto-dated">' + esc(autoDatedLabel) + '</span>' : '';
     var splitNote = (job.splitWith && job.splitWith.length > 0)
       ? ' <span style="font-size:11px;color:#bbb">w/ ' + job.splitWith.map(function(s){ return esc(s.name || s) + (s.creditPct != null ? ' (' + s.creditPct + '%)' : ''); }).join(', ') + splitInfoSpan + '</span>' : '';
     var creditAmt = fmt(job.credit != null ? job.credit : job.amount);
