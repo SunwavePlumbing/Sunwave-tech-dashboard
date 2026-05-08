@@ -13,16 +13,19 @@ const BASE_URL = 'https://api.housecallpro.com';
 const HTTP_TIMEOUT = 25000;
 axios.defaults.timeout = HTTP_TIMEOUT;
 
+app.set('trust proxy', true);
+
 app.use((req, res, next) => {
-  const host = req.get('host') || '';
-  const proto = req.get('x-forwarded-proto') || req.protocol;
+  const host = (req.get('host') || '').split(':')[0].toLowerCase();
+  const proto = (req.get('x-forwarded-proto') || req.protocol || '').split(',')[0].trim().toLowerCase();
 
   if (host === 'kpi.sunwaveplumbing.com' && proto !== 'https') {
-    return res.redirect(301, 'https://' + host + req.originalUrl);
+    return res.redirect(301, 'https://' + req.get('host') + req.originalUrl);
   }
 
   if (host === 'kpi.sunwaveplumbing.com') {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    res.setHeader('Content-Security-Policy', 'upgrade-insecure-requests');
   }
 
   next();
