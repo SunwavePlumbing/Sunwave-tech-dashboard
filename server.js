@@ -13,6 +13,21 @@ const BASE_URL = 'https://api.housecallpro.com';
 const HTTP_TIMEOUT = 25000;
 axios.defaults.timeout = HTTP_TIMEOUT;
 
+app.use((req, res, next) => {
+  const host = req.get('host') || '';
+  const proto = req.get('x-forwarded-proto') || req.protocol;
+
+  if (host === 'kpi.sunwaveplumbing.com' && proto !== 'https') {
+    return res.redirect(301, 'https://' + host + req.originalUrl);
+  }
+
+  if (host === 'kpi.sunwaveplumbing.com') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+
+  next();
+});
+
 // Headers for Housecall Pro requests
 function hcpHeaders() {
   return { 'Authorization': 'Token ' + API_KEY, 'Accept': 'application/json' };
@@ -2180,6 +2195,12 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
   const textMatches = (parts, needle) => !needle || parts.filter(Boolean).join(' ').toLowerCase().includes(needle);
   const dateKey = (d) => d.toISOString().slice(0, 10);
   const moneyKey = (value) => Math.round(Number(value || 0));
+  const invoiceRoot = (invoice) => String(invoice || '').split('-')[0].trim().toLowerCase();
+  const invoiceMatchesNeedle = (invoice, needle) => {
+    if (!needle) return true;
+    const inv = String(invoice || '').toLowerCase();
+    return inv === needle || invoiceRoot(inv) === needle;
+  };
 
   async function fetchPages(url, params, listKey, maxPages) {
     const out = [];
@@ -2437,7 +2458,7 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
     const jobMatches = jobs.items.filter(job => {
       const employees = (job.assigned_employees || []).map(personName).join(' ');
       const inv = (job.invoice_number || '').toString().toLowerCase();
-      const matchesInvoice = !invoiceNeedle || inv.includes(invoiceNeedle);
+      const matchesInvoice = invoiceMatchesNeedle(inv, invoiceNeedle);
       return matchesInvoice && textMatches([
         job.id,
         job.invoice_number,
@@ -2473,7 +2494,7 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
     });
     const invoiceMatches = Object.values(invoiceById).filter(inv => {
       const invNum = (inv.invoice_number || inv.number || '').toString().toLowerCase();
-      const matchesInvoice = !invoiceNeedle || invNum.includes(invoiceNeedle);
+      const matchesInvoice = invoiceMatchesNeedle(invNum, invoiceNeedle);
       return matchesInvoice && textMatches([
         inv.id,
         inv.uuid,
@@ -2491,6 +2512,23 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
       try {
         const r = await axios.get(BASE_URL + '/jobs/' + id, { headers: hcpHeaders() });
         extraJobs.push(r.data);
+      } catch (_) {}
+    }
+
+    const knownJobIds = new Set([...directJobs, ...jobMatches, ...extraJobs].map(j => j && j.id).filter(Boolean));
+    const knownInvoiceRoots = new Set([...directJobs, ...jobMatches, ...extraJobs]
+      .map(j => invoiceRoot(j && j.invoice_number))
+      .filter(Boolean));
+    const splitSiblingInvoices = Object.values(invoiceById).filter(inv => {
+      if (!inv.job_id || knownJobIds.has(inv.job_id)) return false;
+      return knownInvoiceRoots.has(invoiceRoot(inv.invoice_number || inv.number));
+    });
+    for (const inv of splitSiblingInvoices) {
+      try {
+        const r = await axios.get(BASE_URL + '/jobs/' + inv.job_id, { headers: hcpHeaders() });
+        extraJobs.push(r.data);
+        knownJobIds.add(inv.job_id);
+        invoiceMatches.push(inv);
       } catch (_) {}
     }
 
