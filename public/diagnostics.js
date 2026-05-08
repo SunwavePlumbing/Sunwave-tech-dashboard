@@ -81,6 +81,7 @@
         esc((row.name || row.id || 'Unknown') + ': ' + money(row.credit) + ' (' + (row.percent || 0) + '%) · ' + (row.roles || []).join(' + ')) +
       '</span>';
     }).join('') || '<span class="pill warn">' + esc(preview.reason || 'No attribution preview') + '</span>';
+    var override = job.attributionOverride || null;
     var invoices = (job.invoices || []).map(function(inv) {
       return '<tr>' +
         '<td>' + esc(inv.invoiceNumber || inv.id || '-') + '</td>' +
@@ -105,6 +106,8 @@
           '<div class="label" style="margin-top:10px">Description</div><div>' + esc(job.description || '-') + '</div>' +
           '<div class="label" style="margin-top:10px">Employees</div><div>' + employees + '</div>' +
           '<div class="label" style="margin-top:10px">Estimate Sellers</div><div>' + estimateSellers + '</div>' +
+          '<div class="label" style="margin-top:10px">Manual Override</div><div>' + (override ? '<span class="pill good">' + esc((override.sellerNames || []).join(', ') || 'override active') + '</span>' : '<span class="pill">None</span>') + '</div>' +
+          '<div class="label" style="margin-top:10px">Seller Source</div><div><span class="pill ' + (preview.sellerConfidence === 'low' ? 'warn' : preview.sellerConfidence === 'missing' ? 'bad' : 'good') + '">' + esc((preview.sellerSource || 'none') + ' · ' + (preview.sellerConfidence || 'missing')) + '</span></div>' +
           '<div class="label" style="margin-top:10px">Attribution Preview</div><div>' + previewRows + '</div>' +
           '<div class="label" style="margin-top:10px">Related Customer Estimates</div><div>' + (relatedEstimates || '<span class="pill">None found</span>') + '</div>' +
           '<div class="label" style="margin-top:10px">Rule Check</div><div>' + statusPill(job.diagnostic.dashboardStatus) + '</div>' +
@@ -204,6 +207,7 @@
       var comp = job.diagnostic.dashboardComparison || {};
       var estimate = job.estimate || {};
       var preview = job.attributionPreview || {};
+      var override = job.attributionOverride || {};
       lines.push('');
       lines.push((idx + 1) + '. Invoice ' + (job.invoiceNumber || '-') + ' | ' + (job.customer || '-'));
       lines.push(reportLine('Job ID', job.id));
@@ -225,6 +229,9 @@
       lines.push(reportLine('Linked Estimate Number', estimate.estimateNumber || estimate.id));
       lines.push(reportLine('Linked Estimate Status', estimate.workStatus));
       lines.push(reportLine('Estimate Sellers', (estimate.assignedEmployees || []).map(function(e) { return e.name || e.id; }).join(', ') || 'None found'));
+      lines.push(reportLine('Manual Seller Override', (override.sellerNames || []).join(', ') || 'None'));
+      lines.push(reportLine('Seller Source', preview.sellerSource));
+      lines.push(reportLine('Seller Confidence', preview.sellerConfidence));
       lines.push(reportLine('Attribution Preview Status', preview.status));
       if (preview.reason) lines.push(reportLine('Attribution Preview Reason', preview.reason));
       if ((preview.rows || []).length) {

@@ -93,6 +93,130 @@ function diagnosticsAllowed(req) {
   return provided && provided === DIAGNOSTICS_PASSWORD;
 }
 
+const KPI_ATTRIBUTION_OVERRIDES_PATH = path.join(__dirname, 'kpi-attribution-overrides.json');
+
+function normalizePersonName(value) {
+  return String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+function employeeName(emp) {
+  return ((emp && emp.first_name || '') + ' ' + (emp && emp.last_name || '')).trim();
+}
+
+function employeeFromName(name) {
+  const clean = String(name || '').trim().replace(/\s+/g, ' ');
+  const parts = clean.split(' ');
+  return {
+    id: 'manual:' + normalizePersonName(clean),
+    first_name: parts.shift() || clean,
+    last_name: parts.join(' '),
+    manual_override: true
+  };
+}
+
+function loadKpiAttributionOverrides() {
+  try {
+    if (!fs.existsSync(KPI_ATTRIBUTION_OVERRIDES_PATH)) return { overrides: [] };
+    const parsed = JSON.parse(fs.readFileSync(KPI_ATTRIBUTION_OVERRIDES_PATH, 'utf8'));
+    return {
+      overrides: Array.isArray(parsed.overrides) ? parsed.overrides : []
+    };
+  } catch (err) {
+    console.warn('[kpi-attribution-overrides]', err.message);
+    return { overrides: [] };
+  }
+}
+
+function findKpiAttributionOverride(job, estimateId) {
+  const invoice = String(job && job.invoice_number || '').trim().toLowerCase();
+  const jobId = String(job && job.id || '').trim();
+  const estId = String(estimateId || estimateIdForJob(job) || '').trim();
+  const customer = normalizePersonName(job && job.customer ? employeeName(job.customer) : '');
+
+  return loadKpiAttributionOverrides().overrides.find(rule => {
+    if (!rule) return false;
+    if (rule.jobId && String(rule.jobId).trim() === jobId) return true;
+    if (rule.estimateId && String(rule.estimateId).trim() === estId) return true;
+    if (rule.invoice && String(rule.invoice).trim().toLowerCase() === invoice) return true;
+    if (
+      rule.invoiceRoot &&
+      invoice.split('-')[0] === String(rule.invoiceRoot).trim().toLowerCase() &&
+      (!rule.customer || normalizePersonName(rule.customer) === customer)
+    ) {
+      return true;
+    }
+    return false;
+  }) || null;
+}
+
+function fieldText(value) {
+  if (value == null) return '';
+  if (typeof value === 'string' || typeof value === 'number') return String(value);
+  if (Array.isArray(value)) return value.map(fieldText).filter(Boolean).join(' ');
+  if (typeof value === 'object') {
+    return [
+      value.name,
+      value.value,
+      value.text,
+      value.content,
+      value.title,
+      value.label
+    ].filter(Boolean).map(String).join(' ');
+  }
+  return '';
+}
+
+function sellerNamesFromResource(resource) {
+  const texts = [];
+  toArrayish(resource && resource.tags).forEach(t => texts.push(fieldText(t)));
+  toArrayish(resource && (resource.custom_fields || resource.job_fields || resource.estimate_fields)).forEach(f => texts.push(fieldText(f)));
+  toArrayish(resource && resource.notes).forEach(n => texts.push(fieldText(n)));
+  ['description', 'note', 'customer_notes', 'public_note'].forEach(key => {
+    if (resource && resource[key]) texts.push(fieldText(resource[key]));
+  });
+
+  const sellers = [];
+  const patterns = [
+    /\b(?:seller|sold\s+by|quoted\s+by|estimate(?:d|r)?\s+by|sales\s+rep|sold)\s*[:=\-]\s*([a-z][a-z .'\-]+?)(?=$|[,;|/])/ig,
+    /\b(?:seller|sold\s+by|quoted\s+by|estimate(?:d|r)?\s+by|sales\s+rep|sold)\s+([a-z][a-z .'\-]+?)(?=$|[,;|/])/ig
+  ];
+
+  texts.filter(Boolean).forEach(text => {
+    patterns.forEach(pattern => {
+      pattern.lastIndex = 0;
+      let match;
+      while ((match = pattern.exec(text)) !== null) {
+        const name = String(match[1] || '')
+          .replace(/\b(job|estimate|invoice|sold|did|approved|complete|completed)\b.*$/i, '')
+          .trim()
+          .replace(/\s+/g, ' ');
+        if (name && !sellers.some(existing => normalizePersonName(existing) === normalizePersonName(name))) {
+          sellers.push(name);
+        }
+      }
+    });
+  });
+
+  return sellers;
+}
+
+function jobAddressKey(job) {
+  const a = job && job.address || {};
+  return [
+    a.street,
+    a.street_line_2,
+    a.city,
+    a.state,
+    a.zip
+  ].filter(Boolean).join('|').toLowerCase();
+}
+
+function jobCustomerKey(job) {
+  return job && job.customer && job.customer.id
+    ? 'id:' + job.customer.id
+    : 'name:' + normalizePersonName(job && job.customer ? employeeName(job.customer) : '');
+}
+
 // ── Tiny response cache (with disk persistence + stale-while-revalidate) ────
 // Keyed by request URL + key; value = { at, data }. Separate TTLs per endpoint.
 // On every cacheSet, a debounced disk write persists the whole map to a JSON
@@ -872,11 +996,11 @@ app.get('/api/metrics', async (req, res) => {
                   const d = r.data;
                   const employees = d.assigned_employees
                     || (d.assigned_employee ? [d.assigned_employee] : []);
-                  return { id, employees };
+                  return { id, employees, estimate: d };
                 })
-                .catch(() => ({ id, employees: [] }))
+                .catch(() => ({ id, employees: [], estimate: null }))
           ));
-          results.forEach(r => { sellerMap[r.id] = r.employees; });
+          results.forEach(r => { sellerMap[r.id] = { employees: r.employees, estimate: r.estimate }; });
         }
       }
 
@@ -942,11 +1066,11 @@ app.get('/api/metrics', async (req, res) => {
                   const d = r.data;
                   const employees = d.assigned_employees
                     || (d.assigned_employee ? [d.assigned_employee] : []);
-                  return { id, employees };
+                  return { id, employees, estimate: d };
                 })
-                .catch(() => ({ id, employees: [] }))
+                .catch(() => ({ id, employees: [], estimate: null }))
           ));
-          results.forEach(r => { estimateSellerMap[r.id] = r.employees; });
+          results.forEach(r => { estimateSellerMap[r.id] = { employees: r.employees, estimate: r.estimate }; });
         }
       }
     }
@@ -983,12 +1107,12 @@ app.get('/api/metrics', async (req, res) => {
                 const d = r.data;
                 const employees = d.assigned_employees
                   || (d.assigned_employee ? [d.assigned_employee] : []);
-                return { id, employees };
+                return { id, employees, estimate: d };
               })
-              .catch(() => ({ id, employees: [] }))
+              .catch(() => ({ id, employees: [], estimate: null }))
           )
         );
-        results.forEach(r => { estimateSellerMap[r.id] = r.employees; });
+        results.forEach(r => { estimateSellerMap[r.id] = { employees: r.employees, estimate: r.estimate }; });
       }
     }
 
@@ -1025,6 +1149,161 @@ app.get('/api/metrics', async (req, res) => {
       });
     }
 
+    const employeeByName = {};
+    allJobs.forEach(job => {
+      (job.assigned_employees || []).forEach(emp => {
+        const key = normalizePersonName(employeeName(emp));
+        if (key && !employeeByName[key]) employeeByName[key] = emp;
+      });
+    });
+
+    function resolveEmployeesFromNames(names, doers) {
+      return (names || [])
+        .map(name => {
+          const key = normalizePersonName(name);
+          return (doers || []).find(emp => normalizePersonName(employeeName(emp)) === key)
+            || employeeByName[key]
+            || employeeFromName(name);
+        })
+        .filter(Boolean);
+    }
+
+    function estimateEntry(estimateId) {
+      const entry = estimateId ? estimateSellerMap[estimateId] : null;
+      if (!entry) return { employees: [], estimate: null };
+      if (Array.isArray(entry)) return { employees: entry, estimate: null };
+      return {
+        employees: entry.employees || [],
+        estimate: entry.estimate || null
+      };
+    }
+
+    const relatedEstimatesByCustomer = {};
+
+    async function fetchRelatedEstimatesForJobs(jobs) {
+      const missingSellerCustomerIds = [...new Set((jobs || [])
+        .filter(job => {
+          if (!job || parseFloat(job.total_amount || 0) <= 0) return false;
+          const estimateId = estimateIdForJob(job);
+          const linked = estimateEntry(estimateId);
+          if (findKpiAttributionOverride(job, estimateId)) return false;
+          if (sellerNamesFromResource(job).length) return false;
+          if ((linked.employees || []).length) return false;
+          if (linked.estimate && sellerNamesFromResource(linked.estimate).length) return false;
+          return job.customer && job.customer.id;
+        })
+        .map(job => job.customer.id))]
+        .slice(0, 40);
+
+      if (!missingSellerCustomerIds.length) return;
+
+      const relatedStart = new Date(periodStart);
+      relatedStart.setDate(relatedStart.getDate() - 120);
+      const relatedEnd = new Date(periodEnd);
+      relatedEnd.setDate(relatedEnd.getDate() + 7);
+
+      for (const customerId of missingSellerCustomerIds) {
+        if (relatedEstimatesByCustomer[customerId]) continue;
+        try {
+          const first = await axios.get(BASE_URL + '/estimates', {
+            headers,
+            params: {
+              customer_id: customerId,
+              scheduled_start_min: relatedStart.toISOString(),
+              scheduled_start_max: relatedEnd.toISOString(),
+              page_size: 100,
+              page: 1
+            }
+          });
+          relatedEstimatesByCustomer[customerId] = first.data.estimates || [];
+        } catch (_) {
+          relatedEstimatesByCustomer[customerId] = [];
+        }
+      }
+    }
+
+    await fetchRelatedEstimatesForJobs(completedJobs);
+
+    function overrideSellerEmployees(job, estimateId) {
+      const override = findKpiAttributionOverride(job, estimateId);
+      if (!override || !Array.isArray(override.sellerNames) || override.sellerNames.length === 0) return [];
+      return resolveEmployeesFromNames(override.sellerNames, job.assigned_employees || []);
+    }
+
+    function relatedEstimateSellerEmployees(job) {
+      const jobStart = jobScheduledStart(job) || kpiDateForJob(job);
+      const related = relatedEstimatesByCustomer[job.customer && job.customer.id] || [];
+      const linkedId = estimateIdForJob(job);
+      const sameCustomerEstimates = related
+        .filter(est => est && (est.id || est.uuid) !== linkedId)
+        .map(est => {
+          const estStart = est.schedule && (est.schedule.scheduled_start || est.schedule.start_time)
+            ? new Date(est.schedule.scheduled_start || est.schedule.start_time)
+            : est.created_at ? new Date(est.created_at) : null;
+          const employees = est.assigned_employees || (est.assigned_employee ? [est.assigned_employee] : []);
+          const names = sellerNamesFromResource(est);
+          const tagEmployees = resolveEmployeesFromNames(names, job.assigned_employees || []);
+          return {
+            est,
+            estStart,
+            employees: employees.length ? employees : tagEmployees,
+            approved: (est.options || []).some(o => /approved/i.test(String(o.approval_status || o.status || '')))
+              || /approved|completed/i.test(String(est.work_status || est.approval_status || ''))
+          };
+        })
+        .filter(item => item.employees.length > 0)
+        .filter(item => !jobStart || !item.estStart || item.estStart <= jobStart)
+        .sort((a, b) => {
+          if (a.approved !== b.approved) return a.approved ? -1 : 1;
+          return (b.estStart ? b.estStart.getTime() : 0) - (a.estStart ? a.estStart.getTime() : 0);
+        });
+
+      return sameCustomerEstimates.length ? sameCustomerEstimates[0].employees : [];
+    }
+
+    function previousScheduledSellerEmployees(job) {
+      if ((job.assigned_employees || []).length <= 1) return [];
+      const jobStart = jobScheduledStart(job) || kpiDateForJob(job);
+      if (!jobStart) return [];
+      const customerKey = jobCustomerKey(job);
+      const addressKey = jobAddressKey(job);
+
+      const previous = allJobs
+        .filter(candidate => candidate && candidate.id !== job.id)
+        .filter(candidate => (candidate.assigned_employees || []).length > 0)
+        .map(candidate => ({ job: candidate, start: jobScheduledStart(candidate) || jobCompletedAt(candidate) }))
+        .filter(item => item.start && !isNaN(item.start.getTime()) && item.start < jobStart)
+        .filter(item => jobCustomerKey(item.job) === customerKey || (addressKey && jobAddressKey(item.job) === addressKey))
+        .sort((a, b) => b.start.getTime() - a.start.getTime())[0];
+
+      return previous ? previous.job.assigned_employees || [] : [];
+    }
+
+    function sellerAttribution(job) {
+      const estimateId = estimateIdForJob(job);
+      const doers = job.assigned_employees || [];
+      const manual = overrideSellerEmployees(job, estimateId);
+      if (manual.length) return { employees: manual, source: 'manual_override', confidence: 'confirmed' };
+
+      const jobTagNames = sellerNamesFromResource(job);
+      const jobTagEmployees = resolveEmployeesFromNames(jobTagNames, doers);
+      if (jobTagEmployees.length) return { employees: jobTagEmployees, source: 'job_tag_or_field', confidence: 'high' };
+
+      const linked = estimateEntry(estimateId);
+      const estimateTagNames = sellerNamesFromResource(linked.estimate);
+      const estimateTagEmployees = resolveEmployeesFromNames(estimateTagNames, doers);
+      if (estimateTagEmployees.length) return { employees: estimateTagEmployees, source: 'estimate_tag_or_field', confidence: 'high' };
+      if ((linked.employees || []).length) return { employees: linked.employees, source: 'linked_estimate_assigned_employee', confidence: 'high' };
+
+      const related = relatedEstimateSellerEmployees(job);
+      if (related.length) return { employees: related, source: 'related_customer_estimate', confidence: 'medium' };
+
+      const previous = previousScheduledSellerEmployees(job);
+      if (previous.length) return { employees: previous, source: 'previous_scheduled_visit', confidence: 'low' };
+
+      return { employees: [], source: 'none', confidence: 'missing' };
+    }
+
     /* Per-job credit attribution. Returns true if the job was credited
        to at least one tech, false if it had no assigned_employees and
        therefore got skipped (caller can collect those as orphans).
@@ -1057,7 +1336,8 @@ app.get('/api/metrics', async (req, res) => {
         || null;
 
       const estimateId = estimateIdForJob(job);
-      const sellers = uniqueEmployees(estimateId ? (estimateSellerMap[estimateId] || []) : []);
+      const sellerInfo = sellerAttribution(job);
+      const sellers = uniqueEmployees(sellerInfo.employees);
 
       // Build a credit map: techId -> credit amount
       // Rule: estimate seller(s) split 1/3, assigned doer(s) split 2/3.
@@ -1131,6 +1411,8 @@ app.get('/api/metrics', async (req, res) => {
           creditPct,
           role,
           splitWith,
+          sellerSource: sellerInfo.source,
+          sellerConfidence: sellerInfo.confidence,
           // Outstanding balance — gross (jobs total still owed) + the
           // tech's credited share. Modal can show whichever is more
           // useful (the gross dollar number tends to read more clearly
@@ -2364,10 +2646,69 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
     return Object.values(byKey);
   }
 
-  function attributionPreview(job, estimate) {
+  function attributionPreview(job, estimate, relatedEstimates, scheduleCandidates) {
+    relatedEstimates = relatedEstimates || [];
+    scheduleCandidates = scheduleCandidates || [];
     const total = roundedDollars(job.total_amount);
     const doers = uniqueEmployees((job.assigned_employees || []).map(emp => ({ id: emp.id, name: personName(emp) })));
-    const sellers = estimate ? uniqueEmployees((estimate.assigned_employees || []).map(emp => ({ id: emp.id, name: personName(emp) }))) : [];
+    const override = findKpiAttributionOverride(job, estimate && (estimate.id || estimate.uuid));
+    const overrideSellerNames = override && Array.isArray(override.sellerNames) ? override.sellerNames : [];
+    const namesToEmployees = (names) => uniqueEmployees((names || []).map(name => {
+        const key = normalizePersonName(name);
+        return doers.find(emp => normalizePersonName(emp.name) === key)
+          || { id: 'manual:' + key, name: String(name || '').trim() || 'Unknown' };
+      }));
+    const estimateEmployees = estimate ? uniqueEmployees((estimate.assigned_employees || []).map(emp => ({ id: emp.id, name: personName(emp) }))) : [];
+    const estimateTagEmployees = namesToEmployees(sellerNamesFromResource(estimate));
+    const jobTagEmployees = namesToEmployees(sellerNamesFromResource(job));
+
+    let sellers = [];
+    let sellerSource = 'none';
+    let sellerConfidence = 'missing';
+    if (overrideSellerNames.length) {
+      sellers = namesToEmployees(overrideSellerNames);
+      sellerSource = 'manual_override';
+      sellerConfidence = 'confirmed';
+    } else if (jobTagEmployees.length) {
+      sellers = jobTagEmployees;
+      sellerSource = 'job_tag_or_field';
+      sellerConfidence = 'high';
+    } else if (estimateTagEmployees.length) {
+      sellers = estimateTagEmployees;
+      sellerSource = 'estimate_tag_or_field';
+      sellerConfidence = 'high';
+    } else if (estimateEmployees.length) {
+      sellers = estimateEmployees;
+      sellerSource = 'linked_estimate_assigned_employee';
+      sellerConfidence = 'high';
+    } else {
+      const relatedWithEmployees = (relatedEstimates || []).map(est => {
+        const assigned = uniqueEmployees((est.assigned_employees || []).map(emp => ({ id: emp.id, name: personName(emp) })));
+        const tagged = namesToEmployees(sellerNamesFromResource(est));
+        return assigned.length ? assigned : tagged;
+      }).find(list => list.length);
+      if (relatedWithEmployees) {
+        sellers = relatedWithEmployees;
+        sellerSource = 'related_customer_estimate';
+        sellerConfidence = 'medium';
+      } else {
+        const jobStart = jobScheduledStart(job) || kpiDateForJob(job);
+        const addressKey = jobAddressKey(job);
+        const customerKey = jobCustomerKey(job);
+        const previous = (scheduleCandidates || [])
+          .filter(function() { return (job.assigned_employees || []).length > 1; })
+          .filter(candidate => candidate && candidate.id !== job.id)
+          .map(candidate => ({ job: candidate, start: jobScheduledStart(candidate) || jobCompletedAt(candidate) }))
+          .filter(item => item.start && jobStart && item.start < jobStart)
+          .filter(item => jobCustomerKey(item.job) === customerKey || (addressKey && jobAddressKey(item.job) === addressKey))
+          .sort((a, b) => b.start.getTime() - a.start.getTime())[0];
+        if (previous) {
+          sellers = uniqueEmployees((previous.job.assigned_employees || []).map(emp => ({ id: emp.id, name: personName(emp) })));
+          sellerSource = 'previous_scheduled_visit';
+          sellerConfidence = 'low';
+        }
+      }
+    }
     const rows = {};
     const add = (emp, amount, role) => {
       const key = emp.id || emp.name;
@@ -2390,6 +2731,8 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
       return {
         status: 'no_estimate_seller',
         reason: 'No linked estimate seller found, so the dashboard splits 100% across assigned technicians.',
+        sellerSource,
+        sellerConfidence,
         rows: Object.values(rows).map(row => ({ ...row, credit: Math.round(row.credit), percent: total ? Math.round((row.credit / total) * 100) : 0 }))
       };
     }
@@ -2401,7 +2744,15 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
 
     return {
       status: 'using_estimate_seller',
-      reason: 'Seller credit is one-third from the linked estimate; doer credit is two-thirds across assigned technicians.',
+      reason: sellerSource === 'previous_scheduled_visit'
+        ? 'Seller credit is inferred from the previous scheduled visit for the same customer/address; doer credit is two-thirds across assigned technicians.'
+        : sellerSource === 'related_customer_estimate'
+          ? 'Seller credit is inferred from a related customer estimate; doer credit is two-thirds across assigned technicians.'
+          : sellerSource === 'manual_override'
+            ? 'Seller credit is one-third from a manual attribution override; doer credit is two-thirds across assigned technicians.'
+            : 'Seller credit is one-third from HCP seller data; doer credit is two-thirds across assigned technicians.',
+      sellerSource,
+      sellerConfidence,
       rows: Object.values(rows).map(row => ({ ...row, credit: Math.round(row.credit), percent: total ? Math.round((row.credit / total) * 100) : 0 }))
     };
   }
@@ -2492,7 +2843,7 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
     };
   }
 
-  function summarizeJob(job, matchedInvoices, start, end, dashboard, estimate, relatedEstimates) {
+  function summarizeJob(job, matchedInvoices, start, end, dashboard, estimate, relatedEstimates, scheduleCandidates) {
     matchedInvoices = matchedInvoices || [];
     relatedEstimates = relatedEstimates || [];
     const completedAt = job.work_timestamps && job.work_timestamps.completed_at;
@@ -2532,7 +2883,8 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
       originalEstimateId: job.original_estimate_id || (job.original_estimate_uuids && job.original_estimate_uuids[0]) || null,
       estimate: summarizeEstimate(estimate),
       relatedEstimates: relatedEstimates.map(summarizeEstimate).filter(Boolean),
-      attributionPreview: attributionPreview(job, estimate),
+      attributionOverride: findKpiAttributionOverride(job, estimate && (estimate.id || estimate.uuid) || estimateIdForJob(job)),
+      attributionPreview: attributionPreview(job, estimate, relatedEstimates, scheduleCandidates),
       leadSource: typeof job.lead_source === 'string' ? job.lead_source : (job.lead_source && job.lead_source.name) || null,
       tags: toArrayish(job.tags).map(t => typeof t === 'string' ? t : (t && (t.name || t.value))).filter(Boolean),
       diagnostic: {
@@ -2834,7 +3186,7 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
       const relatedEstimates = (relatedEstimatesByCustomer[customerId] || [])
         .filter(est => !linkedEstimate || (est.id || est.uuid) !== (linkedEstimate.id || linkedEstimate.uuid))
         .slice(0, 5);
-      return summarizeJob(job, invoicesByJob[job.id] || [], start, end, out.dashboardComparison, linkedEstimate, relatedEstimates);
+      return summarizeJob(job, invoicesByJob[job.id] || [], start, end, out.dashboardComparison, linkedEstimate, relatedEstimates, jobs.items);
     });
     out.unattachedInvoices = invoiceMatches.filter(inv => !inv.job_id).map(summarizeInvoice);
 

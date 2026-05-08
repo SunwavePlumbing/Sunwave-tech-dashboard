@@ -1,0 +1,12 @@
+{
+  "overrides": [
+    {
+      "jobId": "job_395a5338c1e341318546627160b8da33",
+      "invoice": "253",
+      "estimateId": "est_3ac069c2943e4667b06432340642d040",
+      "customer": "Katherine Gray",
+      "sellerNames": ["Gill Gill"],
+      "reason": "HCP linked estimate is present but does not expose the seller/assigned employee through the API; admin confirmed Gill sold this job."
+    }
+  ]
+}
