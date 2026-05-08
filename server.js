@@ -47,6 +47,46 @@ function estimateIdForJob(job) {
   return job && (job.original_estimate_id || (job.original_estimate_uuids && job.original_estimate_uuids[0]));
 }
 
+const KPI_BACKDATE_THRESHOLD_MS = 3 * 24 * 60 * 60 * 1000;
+
+function jobScheduledStart(job) {
+  return job && job.schedule && job.schedule.scheduled_start ? new Date(job.schedule.scheduled_start) : null;
+}
+
+function jobCompletedAt(job) {
+  return job && job.work_timestamps && job.work_timestamps.completed_at ? new Date(job.work_timestamps.completed_at) : null;
+}
+
+function kpiDateForJob(job) {
+  const completed = jobCompletedAt(job);
+  if (!completed || isNaN(completed.getTime())) return null;
+
+  const scheduled = jobScheduledStart(job);
+  if (
+    scheduled &&
+    !isNaN(scheduled.getTime()) &&
+    completed >= scheduled &&
+    completed.getTime() - scheduled.getTime() > KPI_BACKDATE_THRESHOLD_MS
+  ) {
+    return scheduled;
+  }
+
+  return completed;
+}
+
+function isAutoDatedByCompletionLag(job) {
+  const completed = jobCompletedAt(job);
+  const scheduled = jobScheduledStart(job);
+  return !!(
+    completed &&
+    scheduled &&
+    !isNaN(completed.getTime()) &&
+    !isNaN(scheduled.getTime()) &&
+    completed >= scheduled &&
+    completed.getTime() - scheduled.getTime() > KPI_BACKDATE_THRESHOLD_MS
+  );
+}
+
 function diagnosticsAllowed(req) {
   if (!DIAGNOSTICS_PASSWORD) return false;
   const provided = req.get('X-Diagnostics-Password') || req.get('X-Diagnostics-Token') || req.query.password || req.query.token || '';
@@ -204,6 +244,7 @@ const ST_CUTOVER = new Date(process.env.ST_CUTOVER_DATE || '2026-04-01T00:00:00Z
 // stamp onto imported records. Word boundaries stop false positives like
 // "last" or "institution".
 const ST_PATTERN = /\b(service[\s\-_]?titan|st[\s\-_]?import)\b/i;
+const ST_INVOICE_PATTERN = /^ST\d+/i;
 
 // Returns true if the job's tags / lead_source / notes / custom fields
 // indicate a ServiceTitan origin. Tolerant of multiple shapes the HCP API
@@ -228,6 +269,7 @@ function toArrayish(v) {
 
 function isServiceTitanJob(job) {
   if (!job) return false;
+  if (ST_INVOICE_PATTERN.test(String(job.invoice_number || ''))) return true;
   const tags = toArrayish(job.tags);
   for (const t of tags) {
     const v = typeof t === 'string' ? t : (t && (t.name || t.value || ''));
@@ -254,14 +296,19 @@ function isServiceTitanJob(job) {
 // ST jobs with legitimate pre-cutover completion dates pass through.
 function isPostCutoverSTArtifact(job) {
   if (!isServiceTitanJob(job)) return false;
-  const c = job.work_timestamps && job.work_timestamps.completed_at;
-  if (!c) return false;
-  return new Date(c) >= ST_CUTOVER;
+  const dates = [
+    job.work_timestamps && job.work_timestamps.completed_at,
+    job.schedule && job.schedule.scheduled_start
+  ].filter(Boolean).map(v => new Date(v)).filter(d => !isNaN(d.getTime()));
+  return dates.some(d => d >= ST_CUTOVER);
 }
 
 // Diagnostic: which field(s) triggered the ST match, for the debug endpoint.
 function describeSTMatch(job) {
   const hits = [];
+  if (ST_INVOICE_PATTERN.test(String(job.invoice_number || ''))) {
+    hits.push('invoice_number=' + job.invoice_number);
+  }
   toArrayish(job.tags).forEach((t, i) => {
     const v = typeof t === 'string' ? t : (t && (t.name || t.value || ''));
     if (v && ST_PATTERN.test(v)) hits.push('tags[' + i + ']=' + v);
@@ -904,22 +951,16 @@ app.get('/api/metrics', async (req, res) => {
       }
     }
 
-    // Filter completed jobs by the service/scheduled date when available.
-    // HCP's completed_at can be updated days later by office/admin work,
-    // but KPI month should follow when the work was performed.
-    const jobKpiDate = (job) => {
-      const raw = (job.schedule && job.schedule.scheduled_start)
-        || (job.work_timestamps && job.work_timestamps.completed_at);
-      return raw ? new Date(raw) : null;
-    };
-
-    // Filter jobs by KPI service date. Also
+    // Filter jobs by KPI date. Normally this is completed_at, but if
+    // HCP completion happened more than 3 days after the scheduled
+    // start, use the scheduled date so late admin updates don't move
+    // finished work into the wrong month. Also
     // drops post-cutover ServiceTitan import artifacts so MTD / this-week /
     // etc. don't show legacy ST work as though it were done this month.
     const isJobCompleted = (job) => {
       if (!job.work_timestamps?.completed_at) return false;
       if (isPostCutoverSTArtifact(job)) return false;
-      const kpiDate = jobKpiDate(job);
+      const kpiDate = kpiDateForJob(job);
       return kpiDate && kpiDate >= periodStart && kpiDate < periodEnd;
     };
     const completedJobs = allJobs.filter(isJobCompleted);
@@ -1009,8 +1050,9 @@ app.get('/api/metrics', async (req, res) => {
       // "unpaid" in any meaningful sense for this column.
       const jobOutstandingGross = Math.max(0, parseFloat(job.outstanding_balance || 0) / 100);
       const customer = jobCustomerName(job);
+      const kpiDate = kpiDateForJob(job);
       const jobDate = opts.date
-        || (job.work_timestamps && job.work_timestamps.completed_at)
+        || (kpiDate && kpiDate.toISOString())
         || (job.schedule && job.schedule.scheduled_start)
         || null;
 
@@ -1094,7 +1136,8 @@ app.get('/api/metrics', async (req, res) => {
           // useful (the gross dollar number tends to read more clearly
           // on a single-job row).
           outstanding: jobOutstandingGross,
-          outstandingShare: outstandingShare
+          outstandingShare: outstandingShare,
+          autoDatedComplete: isAutoDatedByCompletionLag(job)
         });
       });
 
@@ -2373,8 +2416,7 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
   function summarizeJob(job, matchedInvoices, start, end, dashboard) {
     matchedInvoices = matchedInvoices || [];
     const completedAt = job.work_timestamps && job.work_timestamps.completed_at;
-    const kpiDateRaw = (job.schedule && job.schedule.scheduled_start) || completedAt;
-    const kpiDate = kpiDateRaw ? new Date(kpiDateRaw) : null;
+    const kpiDate = kpiDateForJob(job);
     const assigned = job.assigned_employees || [];
     const paidInPeriod = matchedInvoices
       .filter(inv => inv.paid_at && new Date(inv.paid_at) >= start && new Date(inv.paid_at) < end)
@@ -2384,7 +2426,7 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
 
     const skipReasons = [];
     if (!completedAt) skipReasons.push('missing completed_at');
-    else if (!completedInPeriod) skipReasons.push('service date outside selected period');
+    else if (!completedInPeriod) skipReasons.push('KPI date outside selected period');
     if (stExcluded) skipReasons.push('excluded as ServiceTitan import artifact');
     if (assigned.length === 0) skipReasons.push('no assigned_employees');
     if (paidInPeriod <= 0 && !completedInPeriod) skipReasons.push('no matched paid invoice in selected period');
@@ -2400,6 +2442,7 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
       invoiceNumber: job.invoice_number || null,
       workStatus: job.work_status || null,
       completedAt,
+      kpiDate: kpiDate ? kpiDate.toISOString() : null,
       scheduledStart: job.schedule && job.schedule.scheduled_start,
       customer: customerName(job),
       description: job.description || null,
@@ -2414,6 +2457,7 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
         skipReasons,
         completedInPeriod,
         serviceTitanExcluded: stExcluded,
+        autoDatedComplete: isAutoDatedByCompletionLag(job),
         paidInPeriod: Math.round(paidInPeriod),
         matchedInvoiceCount: matchedInvoices.length,
         dashboardComparison: compareToDashboard(job, matchedInvoices, dashboard)

@@ -91,6 +91,7 @@
           '<div class="label" style="margin-top:10px">Description</div><div>' + esc(job.description || '-') + '</div>' +
           '<div class="label" style="margin-top:10px">Employees</div><div>' + employees + '</div>' +
           '<div class="label" style="margin-top:10px">Rule Check</div><div>' + statusPill(job.diagnostic.dashboardStatus) + '</div>' +
+          '<div class="label" style="margin-top:10px">Auto Dating</div><div>' + (job.diagnostic.autoDatedComplete ? '<span class="pill warn">Auto dated complete</span>' : '<span class="pill">Normal</span>') + '</div>' +
           '<div class="label" style="margin-top:10px">Skip Reasons</div><div>' + (reasons || '<span class="pill good">No obvious skip reason</span>') + '</div>' +
           '<div class="label" style="margin-top:10px">Dashboard Matches</div><div>' + renderDashboardMatches(comparison) + '</div>' +
         '</div>' +
@@ -98,6 +99,7 @@
           '<table>' +
             '<tbody>' +
               '<tr><th>Work Status</th><td>' + esc(job.workStatus || '-') + '</td></tr>' +
+              '<tr><th>KPI Date</th><td>' + date(job.kpiDate) + '</td></tr>' +
               '<tr><th>Completed At</th><td>' + date(job.completedAt) + '</td></tr>' +
               '<tr><th>Scheduled Start</th><td>' + date(job.scheduledStart) + '</td></tr>' +
               '<tr><th>Outstanding</th><td>' + money(job.outstandingBalance) + '</td></tr>' +
@@ -188,11 +190,13 @@
       lines.push(reportLine('Dashboard Range', comp.range));
       if (comp.reason) lines.push(reportLine('Dashboard Reason', comp.reason));
       lines.push(reportLine('Rule Check', job.diagnostic.dashboardStatus));
+      lines.push(reportLine('Auto Dated Complete', job.diagnostic.autoDatedComplete ? 'Yes' : 'No'));
       lines.push(reportLine('Skip Reasons', (job.diagnostic.skipReasons || []).join(', ') || 'None'));
       lines.push(reportLine('Job Total', money(job.jobTotal)));
       lines.push(reportLine('Outstanding', money(job.outstandingBalance)));
       lines.push(reportLine('Paid In Period', money(job.diagnostic.paidInPeriod)));
       lines.push(reportLine('Work Status', job.workStatus));
+      lines.push(reportLine('KPI Date', job.kpiDate));
       lines.push(reportLine('Completed At', job.completedAt));
       lines.push(reportLine('Scheduled Start', job.scheduledStart));
       lines.push(reportLine('Employees', (job.assignedEmployees || []).map(function(e) { return e.name || e.id; }).join(', ') || 'None'));

@@ -586,6 +586,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .role-sold-did { background: #FFF3E0; color: #E65100; }
 .role-sold { background: #E8F5E9; color: #2E7D32; }
 .role-did { background: #F3F4F6; color: #6B7280; }
+.role-auto-dated { background: #EEF2FF; color: #3730A3; }
 .share-pct { font-size: 11px; color: #aaa; font-weight: 400; margin-left: 4px; }
 
 /* ── Expense drill-down sheet ─────────────────────────────────
@@ -3460,4 +3461,3 @@ body.exp-modal-lock {
   .pnl2-cell--cmp .pnl2-dollar { font-size: 11px; }
 
 }
-

@@ -367,6 +367,8 @@ function openModal(tech, mode) {
   var rows = jobs.map(function(job) {
     var desc = job.description ? esc(job.description) : (job.invoice ? 'Invoice #' + esc(job.invoice) : '\u2014');
     var roleBadge = job.role ? '<span class="role-badge ' + roleClass(job.role) + '">' + esc(job.role) + '</span>' : '';
+    var autoDatedBadge = job.autoDatedComplete
+      ? '<span class="role-badge role-auto-dated">Auto dated complete</span>' : '';
     var splitNote = (job.splitWith && job.splitWith.length > 0)
       ? '<div style="font-size:11px;color:#aaa;margin-top:2px">w/ ' + job.splitWith.map(function(s){ return esc(s.name || s) + (s.creditPct != null ? ' <span style="color:#ccc">(' + s.creditPct + '%)</span>' : ''); }).join(', ') + splitInfoSpan + '</div>' : '';
     // Show an "Unpaid: $X" pill under the job total when the invoice
@@ -381,7 +383,7 @@ function openModal(tech, mode) {
       : fmt(job.credit != null ? job.credit : job.amount);
     return '<tr>' +
       '<td>' + fmtDate(job.date) + '</td>' +
-      '<td>' + desc + roleBadge + splitNote + '</td>' +
+      '<td>' + desc + roleBadge + autoDatedBadge + splitNote + '</td>' +
       '<td>' + esc(job.customer || '\u2014') + '</td>' +
       '<td>' + jobTotal + unpaidNote + '</td>' +
       '<td>' + shareHtml + '</td>' +
@@ -400,6 +402,8 @@ function openModal(tech, mode) {
   var cards = jobs.map(function(job) {
     var desc = job.description ? esc(job.description) : (job.invoice ? 'Invoice #' + esc(job.invoice) : '\u2014');
     var roleBadge = job.role ? '<span class="role-badge ' + roleClass(job.role) + '">' + esc(job.role) + '</span>' : '';
+    var autoDatedBadge = job.autoDatedComplete
+      ? '<span class="role-badge role-auto-dated">Auto dated complete</span>' : '';
     var splitNote = (job.splitWith && job.splitWith.length > 0)
       ? ' <span style="font-size:11px;color:#bbb">w/ ' + job.splitWith.map(function(s){ return esc(s.name || s) + (s.creditPct != null ? ' (' + s.creditPct + '%)' : ''); }).join(', ') + splitInfoSpan + '</span>' : '';
     var creditAmt = fmt(job.credit != null ? job.credit : job.amount);
@@ -417,7 +421,7 @@ function openModal(tech, mode) {
         '<div class="job-card-right"><span class="job-card-credit">' + creditAmt + '</span>' + pctHtml + totalLine + '</div>' +
       '</div>' +
       '<div class="job-card-desc">' + desc + '</div>' +
-      '<div class="job-card-meta">' + esc(job.customer || '\u2014') + roleBadge + splitNote + unpaidChip + '</div>' +
+      '<div class="job-card-meta">' + esc(job.customer || '\u2014') + roleBadge + autoDatedBadge + splitNote + unpaidChip + '</div>' +
       '</div>';
   }).join('');
   document.getElementById('modalCards').innerHTML = cards ||
