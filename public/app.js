@@ -702,15 +702,19 @@ window.addEventListener('hashchange', function() {
 
 /* Time-of-day + day-of-week greeting at the top of the page.
 
-   5am – 11:59am   →  "Good morning, and happy {Day}"
-   12pm – 5:59pm   →  "Good afternoon, and happy {Day}"
-   6pm – 6:59pm    →  "Good evening, and happy {Day}"
-   7pm – 4:59am    →  Tiered late-night escalation (one phrase per hour
-                       band, getting cheekier as the night deepens).
+   Each hour band has multiple phrasings; the active one rotates by
+   day-of-week (`phrases[dayOfWeek % phrases.length]`) so the message
+   stays stable for everyone on the same calendar day but varies
+   through the week. Roughly each phrase repeats every 2-3 weeks.
 
-   The "{Day}" slot is the current weekday name. The subline below the
-   headline always reads "{Day} · {Mon} {D}" so the date stays present
-   even when the late-night phrases drop the day-name template. */
+   Bands:
+     5am – 11:59am   →  morning (warm, day-positive)
+     12pm – 5:59pm   →  afternoon
+     6pm – 6:59pm    →  evening
+     7pm – 4:59am    →  hour-by-hour late-night escalation
+
+   Em-dashes deliberately avoided per the user's voice preference.
+   "{Day}" tokens get replaced with the current weekday name. */
 function updateGreeting() {
   var headlineEl = document.getElementById('greetingHeadline');
   var sublineEl  = document.getElementById('greetingSubline');
@@ -723,31 +727,100 @@ function updateGreeting() {
   var MONS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   var dayName = DAYS[d];
 
-  var headline;
-  if (h >= 5 && h < 12) {
-    headline = 'Good morning, and happy ' + dayName;
-  } else if (h >= 12 && h < 18) {
-    headline = 'Good afternoon, and happy ' + dayName;
-  } else if (h === 18) {
-    headline = 'Good evening, and happy ' + dayName;
-  } else {
-    /* Late-night escalation. One curated phrase per hour band so the
-       message tracks how late it actually is. Em-dashes deliberately
-       avoided per the user's preference. */
-    if      (h === 19) headline = "Woah, you're checking this late?";
-    else if (h === 20) headline = "Hope you're winding down";
-    else if (h === 21) headline = 'Burning the evening oil';
-    else if (h === 22) headline = 'Pretty late to be checking the books';
-    else if (h === 23) headline = "Drains don't sleep, but you should";
-    else if (h === 0)  headline = 'Past midnight, go get some rest';
-    else if (h === 1)  headline = 'Truly burning the midnight oil';
-    else if (h === 2)  headline = 'Even Sunwave needs sleep';
-    else if (h === 3)  headline = 'Are you okay?';
-    else if (h === 4)  headline = "Early start? Or didn't sleep?";
-    else               headline = 'Hello'; // unreachable but defensive
-  }
+  // Phrase pools per band. Order doesn't matter functionally, but for
+  // editing convenience the more "default" line of each band sits first.
+  var POOLS = {
+    morning: [
+      'Good morning, and happy {Day}',
+      "Mornin', crew",
+      "Coffee's on, happy {Day}",
+      'Trucks rolling, happy {Day}'
+    ],
+    afternoon: [
+      'Good afternoon, and happy {Day}',
+      'Afternoon, crew',
+      'Hope {Day} is treating you right'
+    ],
+    evening: [
+      'Good evening, and happy {Day}',
+      'Wrapping up {Day}',
+      'Evening, crew',
+      'Closing out {Day}'
+    ],
+    h19: [
+      "Woah, you're checking this late?",
+      'Past business hours, huh?'
+    ],
+    h20: [
+      "Hope you're winding down",
+      "Hope dinner's done",
+      'Books still here, no rush',
+      'Easy night ahead?'
+    ],
+    h21: [
+      "Hope tomorrow's ticket is a good one",
+      'Save some work for tomorrow'
+    ],
+    h22: [
+      'Pretty late to be checking the books',
+      "Nothing here can't wait till morning",
+      'Books look better with fresh eyes'
+    ],
+    h23: [
+      'Almost tomorrow',
+      "Drains don't sleep, but you should",
+      'Last call, get some rest'
+    ],
+    h00: [
+      'Past midnight, go get some rest',
+      'Tomorrow is a workday too',
+      'The KPIs will still be here in the morning'
+    ],
+    h01: [
+      "The leaderboard isn't going anywhere",
+      'Still up?',
+      'The dashboard can wait',
+      'Sleep is also a KPI'
+    ],
+    h02: [
+      'Up real late on a {Day}',
+      'Even Sunwave needs sleep'
+    ],
+    h03: [
+      'Are you okay?',
+      'Either up late or up very early. Either way, hi',
+      "Whatever you're chasing, it can wait"
+    ],
+    h04: [
+      "Early start? Or didn't sleep?",
+      "Coffee's on you this morning",
+      'First one in'
+    ]
+  };
 
-  var subline = dayName + ' · ' + MONS[now.getMonth()] + ' ' + now.getDate();
+  // Pick rotates by day-of-week. Stable across a single day, varied
+  // across the week — same vibe as the count-up cascade below: a
+  // little freshness without random-feeling noise.
+  function pick(pool) { return pool[d % pool.length]; }
+
+  var raw;
+  if (h >= 5 && h < 12)       raw = pick(POOLS.morning);
+  else if (h >= 12 && h < 18) raw = pick(POOLS.afternoon);
+  else if (h === 18)          raw = pick(POOLS.evening);
+  else if (h === 19)          raw = pick(POOLS.h19);
+  else if (h === 20)          raw = pick(POOLS.h20);
+  else if (h === 21)          raw = pick(POOLS.h21);
+  else if (h === 22)          raw = pick(POOLS.h22);
+  else if (h === 23)          raw = pick(POOLS.h23);
+  else if (h === 0)           raw = pick(POOLS.h00);
+  else if (h === 1)           raw = pick(POOLS.h01);
+  else if (h === 2)           raw = pick(POOLS.h02);
+  else if (h === 3)           raw = pick(POOLS.h03);
+  else if (h === 4)           raw = pick(POOLS.h04);
+  else                        raw = 'Hello'; // unreachable but defensive
+
+  var headline = raw.replace(/\{Day\}/g, dayName);
+  var subline  = dayName + ' · ' + MONS[now.getMonth()] + ' ' + now.getDate();
 
   headlineEl.textContent = headline;
   sublineEl.textContent  = subline;

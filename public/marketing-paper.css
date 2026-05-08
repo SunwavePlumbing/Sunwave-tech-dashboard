@@ -22,10 +22,12 @@
 
 /* ── Custom properties (tweak here, cascade everywhere) ────────── */
 body.paper-mode {
-  /* Paper surfaces */
-  --paper-bg:           #F4F3EF;   /* page canvas — subtle warmth, not yellow */
-  --paper-card:         #F7F6F2;   /* cards sit just one step lighter than canvas, same hue family */
-  --paper-card-alt:     #F9F8F4;   /* alt rows, hover states */
+  /* Paper surfaces — palette shifted lighter and warmer per user pick.
+     Page canvas leads; cards sit a half-step lighter so they still
+     read as raised against the bg, just within the new lighter family. */
+  --paper-bg:           #FBF9F4;   /* page canvas — bright warm off-white */
+  --paper-card:         #FDFCF8;   /* cards a half-step lighter than canvas */
+  --paper-card-alt:     #F8F6EF;   /* alt rows / subtle differentiation against the lighter card */
 
   /* Brand */
   --brand-orange:       #F38A3F;   /* full-vibrant hero */
@@ -123,13 +125,25 @@ body.paper-mode .proj-card,
 body.paper-mode .progress-wrap { border-radius: 12px; overflow: hidden; }
 body.paper-mode .stat-card { border-radius: 12px; }
 
-/* Technicians leaderboard surface — explicit parchment tone, warmer
-   than the default paper-card so the table reads as a deliberate
-   "ledger sheet" laid on top of the page rather than disappearing
-   into the surrounding warm-white. Targets #tableWrapper specifically
-   so the modal/marketing/owners surfaces stay on the standard
-   --paper-card tone. */
-body.paper-mode #tableWrapper { background-color: #F8F2E4; }
+/* Technicians leaderboard surface — keep on the same near-white
+   --paper-card tone as the rest of paper-mode (modal, stat cards,
+   marketing/owners chrome) so the techs table reads as one cohesive
+   sheet of paper, not a parchment subdocument. Row separators below
+   are softened to match this lighter ground. */
+body.paper-mode #tableWrapper {
+  background-color: var(--paper-card, #FBFAF6);
+}
+/* Soften horizontal row rules — the default #f7f7f7 reads as a
+   slightly cool grey against the warm paper-card. Pull them into the
+   same tonal family as the avatar tints so they whisper instead of
+   slice. */
+body.paper-mode #tableWrapper tbody tr,
+body.paper-mode #tableWrapper thead th {
+  border-bottom-color: rgba(92, 84, 72, 0.08);
+}
+body.paper-mode #tableWrapper tfoot tr {
+  border-top-color: rgba(92, 84, 72, 0.14);
+}
 body.paper-mode .fin-chart-card,
 body.paper-mode .modal,
 body.paper-mode .exp-sheet,

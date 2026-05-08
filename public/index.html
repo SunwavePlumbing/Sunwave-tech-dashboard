@@ -28,15 +28,6 @@
   </div>
 </div>
 
-<!-- Time-of-day + day-of-week greeting. Headline shifts every hour past
-     7pm into a tiered "you're up late" escalation; resets to "Good
-     morning, and happy {Day}" at 5am. Populated by updateGreeting() in
-     app.js, called on init and once a minute thereafter so a tab open
-     across a clock-crossing updates without a refresh. -->
-<div class="greeting-bar" id="greetingBar">
-  <div class="greeting-headline" id="greetingHeadline">&nbsp;</div>
-  <div class="greeting-subline"  id="greetingSubline">&nbsp;</div>
-</div>
 
 <div class="main-wrapper" id="mainWrapper">
   <div class="content">
@@ -77,6 +68,16 @@
         <div class="stat-card"><div class="stat-label">Total Value Created</div><div class="stat-value">&mdash;</div></div>
         <div class="stat-card"><div class="stat-label">Avg Ticket</div><div class="stat-value">&mdash;</div></div>
         <div class="stat-card"><div class="stat-label">Total Jobs</div><div class="stat-value">&mdash;</div></div>
+      </div>
+      <!-- Time-of-day + day-of-week greeting. Sits between the summary
+           cards and the sort row so it acts as a soft visual divider
+           between "the numbers" and "the leaderboard." Populated by
+           updateGreeting() in app.js (init + every minute). Lives only
+           inside #techView since that's the working tab; marketing /
+           owners get their own framing. -->
+      <div class="greeting-bar" id="greetingBar">
+        <div class="greeting-headline" id="greetingHeadline">&nbsp;</div>
+        <div class="greeting-subline"  id="greetingSubline">&nbsp;</div>
       </div>
       <div class="sort-section">
         <span class="sort-label">Sort:</span>

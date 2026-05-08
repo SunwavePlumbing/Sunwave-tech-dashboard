@@ -65,32 +65,40 @@ body {
 .header-period { font-size: 12px; color: #aaa; }
 
 /* ── Greeting bar ──────────────────────────────────────────────
-   Two-tier headline + date subline that sits between the header and
-   the tab nav. Headline rotates by hour-of-day + day-of-week; subline
-   stays factual ("Friday · May 1"). Updated by updateGreeting() in
-   app.js on init and once a minute thereafter. */
+   Sits between the summary stat cards and the sort row inside the
+   Technicians view. Headline rotates by hour-of-day + day-of-week
+   (see updateGreeting() in app.js); subline stays factual ("Friday ·
+   May 1"). Sized larger here than a typical eyebrow because the
+   user explicitly wanted it to read as a real beat in the page —
+   the greeting isn't decoration, it's a soft divider between the
+   summary numbers and the leaderboard below. */
 .greeting-bar {
   text-align: center;
-  padding: 14px 1rem 4px;
+  padding: 22px 1rem 18px;
+  margin: 4px 0 0;
 }
 .greeting-headline {
-  font-size: 19px;
+  font-size: 28px;
   font-weight: 600;
   color: #2C2A28;
-  letter-spacing: -0.01em;
-  line-height: 1.3;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
 }
 .greeting-subline {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   color: #8A8680;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
-  margin-top: 4px;
+  margin-top: 6px;
 }
 @media (max-width: 768px) {
-  .greeting-bar { padding: 10px 1rem 2px; }
-  .greeting-headline { font-size: 16px; }
+  .greeting-bar      { padding: 16px 0.75rem 14px; }
+  .greeting-headline { font-size: 21px; line-height: 1.3; }
+  .greeting-subline  { font-size: 11px; letter-spacing: 0.18em; margin-top: 5px; }
+}
+@media (max-width: 380px) {
+  .greeting-headline { font-size: 18px; }
   .greeting-subline  { font-size: 10px; letter-spacing: 0.16em; }
 }
 
@@ -125,6 +133,24 @@ body {
 
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
 .stat-card { background: white; padding: 1.1rem 1rem; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); text-align: center; }
+
+/* Highlight the Total Value Created card's headline number with a
+   warm orange underline. Uses text-decoration so the line tracks the
+   actual value width as it changes ($95,583 → $1,234,567). The 4px
+   offset keeps the line visually clear of the digits' descenders;
+   thickness scales down on mobile so it stays proportional. */
+.stats .stat-card:first-child .stat-value {
+  text-decoration: underline;
+  text-decoration-color: #E88140;
+  text-decoration-thickness: 3px;
+  text-underline-offset: 6px;
+}
+@media (max-width: 768px) {
+  .stats .stat-card:first-child .stat-value {
+    text-decoration-thickness: 2px;
+    text-underline-offset: 4px;
+  }
+}
 .stat-label { font-size: 11px; color: #888; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 6px; }
 .stat-value { font-size: 26px; font-weight: 700; color: #FF8A1F; }
 
@@ -289,8 +315,17 @@ body.tech-mount-in #techView > .table-wrapper {
 }
 body.tech-mount-in #techView > .sidebar       { animation-delay: 0ms;   }
 body.tech-mount-in #techView > .stats         { animation-delay: 80ms;  }
-body.tech-mount-in #techView > .sort-section  { animation-delay: 160ms; }
-body.tech-mount-in #techView > .table-wrapper { animation-delay: 240ms; }
+body.tech-mount-in #techView > .greeting-bar  { animation-delay: 140ms; }
+body.tech-mount-in #techView > .sort-section  { animation-delay: 200ms; }
+body.tech-mount-in #techView > .table-wrapper { animation-delay: 280ms; }
+/* Greeting bar joins both the first-paint cascade and the tab re-entry
+   cascade so it doesn't "pop in" out of sync with its neighbors. */
+body.anim-entrance #techView > .greeting-bar,
+body.tech-mount-in #techView > .greeting-bar {
+  opacity: 0;
+  animation: fadeSlideUp 0.5s cubic-bezier(0.2, 0.65, 0.3, 1) both;
+}
+body.anim-entrance #techView > .greeting-bar { animation-delay: 280ms; }
 /* Include the data-warning banner in the cascade so it doesn't pop in
    separately from the rest of the view. Same stagger slot as .stats so
    it rides in right after the date-range pills. */
