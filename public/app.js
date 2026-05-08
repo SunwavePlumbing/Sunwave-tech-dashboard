@@ -372,7 +372,8 @@ function openModal(tech, mode) {
       : 'Auto dated complete';
     var autoDatedBadge = job.autoDatedComplete
       ? '<span class="role-badge role-auto-dated">' + esc(autoDatedLabel) + '</span>' : '';
-    var splitNote = (job.splitWith && job.splitWith.length > 0)
+    var showPercent = Number(job.jobTotal || 0) > 0 && job.creditPct != null && job.creditPct < 100;
+    var splitNote = (job.splitWith && job.splitWith.length > 0 && Number(job.jobTotal || 0) > 0)
       ? '<div style="font-size:11px;color:#aaa;margin-top:2px">w/ ' + job.splitWith.map(function(s){ return esc(s.name || s) + (s.creditPct != null ? ' <span style="color:#ccc">(' + s.creditPct + '%)</span>' : ''); }).join(', ') + splitInfoSpan + '</div>' : '';
     // Show an "Unpaid: $X" pill under the job total when the invoice
     // hasn't been collected. We display the GROSS outstanding amount
@@ -381,7 +382,7 @@ function openModal(tech, mode) {
     var unpaidNote = (job.outstanding && job.outstanding > 0)
       ? '<div class="job-unpaid-note">Unpaid: ' + fmt(job.outstanding) + '</div>' : '';
     var jobTotal = job.jobTotal != null ? fmt(job.jobTotal) : fmt(job.credit);
-    var shareHtml = job.creditPct != null && job.creditPct < 100
+    var shareHtml = showPercent
       ? fmt(job.credit) + '<span class="share-pct">(' + job.creditPct + '%)</span>'
       : fmt(job.credit != null ? job.credit : job.amount);
     return '<tr>' +
@@ -410,12 +411,13 @@ function openModal(tech, mode) {
       : 'Auto dated complete';
     var autoDatedBadge = job.autoDatedComplete
       ? '<span class="role-badge role-auto-dated">' + esc(autoDatedLabel) + '</span>' : '';
-    var splitNote = (job.splitWith && job.splitWith.length > 0)
+    var showPercent = Number(job.jobTotal || 0) > 0 && job.creditPct != null && job.creditPct < 100;
+    var splitNote = (job.splitWith && job.splitWith.length > 0 && Number(job.jobTotal || 0) > 0)
       ? ' <span style="font-size:11px;color:#bbb">w/ ' + job.splitWith.map(function(s){ return esc(s.name || s) + (s.creditPct != null ? ' (' + s.creditPct + '%)' : ''); }).join(', ') + splitInfoSpan + '</span>' : '';
     var creditAmt = fmt(job.credit != null ? job.credit : job.amount);
-    var pctHtml = job.creditPct != null && job.creditPct < 100
+    var pctHtml = showPercent
       ? '<span class="job-card-credit-pct">(' + job.creditPct + '%)</span>' : '';
-    var totalLine = job.jobTotal != null && job.creditPct < 100
+    var totalLine = showPercent
       ? '<div class="job-card-total">of ' + fmt(job.jobTotal) + '</div>' : '';
     // Mobile card: red "Unpaid" chip when there's an outstanding balance.
     // Sits on the meta row alongside role + split partners.
