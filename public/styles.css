@@ -1197,7 +1197,15 @@ body.exp-modal-lock {
     overflow: hidden;
     touch-action: none;
   }
-  .content { padding: 1.2rem; }  /* was 0.85rem - much tighter */
+  /* Mobile content padding tightened so the leaderboard chart has
+     enough horizontal room to render all 5 columns without triggering
+     the table-wrapper's internal scroll. Side padding is 0.6rem (~10px
+     each side, ~20px total) instead of the previous 1.2rem (~38px
+     total) — gains ~18px of chart width, which is enough for the
+     UNPAID column to land cleanly inside the wrapper on iPhone SE
+     widths (375px) and up. The header/tab-nav still own their own
+     padding so they stay visually centered on the wider page bg. */
+  .content { padding: 1.2rem 0.6rem; }
   .sort-section { gap: 8px; margin-bottom: 1.5rem; }
   .sort-label { display: none; }
   .sort-btn { padding: 6px 14px; font-size: 13px; }
@@ -1205,6 +1213,10 @@ body.exp-modal-lock {
   .stat-card { padding: 0.7rem 0.4rem; }
   .stat-label { font-size: 10px; }
   .stat-value { font-size: 18px; }
+  /* Keep all 5 columns visible. Internal horizontal scroll on the
+     table-wrapper handles the rare overflow cleanly without leaking
+     into the page-level scroll (see body/main-wrapper rules below
+     that lock that down). */
   .table-wrapper { border-radius: 8px; overflow-x: auto; }
   .avatar { display: none; } /* remove avatar chip on mobile */
   .tech-name-full { display: none; } /* hide full name */

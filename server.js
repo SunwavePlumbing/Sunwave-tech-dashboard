@@ -1575,6 +1575,12 @@ app.get('/api/metrics', async (req, res) => {
           // normal completed-job path does.
           if (periodStart >= ST_CUTOVER && isServiceTitanJob(job)) return;
 
+          // If the job already has a service/KPI date, payment timing must
+          // not move it into another period. The paid-invoice pass is only a
+          // rescue path for jobs we otherwise cannot date/see correctly.
+          const gapKpiDate = kpiDateForJob(job);
+          if (gapKpiDate && (gapKpiDate < periodStart || gapKpiDate >= periodEnd)) return;
+
           const invs = invoicesByJob[job.id] || [];
           // Sum amounts paid IN THIS PERIOD only. inv.amount is in
           // cents (HCP convention). Some invoices return the field as
@@ -1599,7 +1605,7 @@ app.get('/api/metrics', async (req, res) => {
 
           const credited = creditJob(job, {
             revenue: paidInPeriod,
-            date: latestPaidAt,
+            date: gapKpiDate ? gapKpiDate.toISOString() : latestPaidAt,
             assignedEmployees: splitSibling ? splitSibling.assigned_employees : undefined
           });
 
