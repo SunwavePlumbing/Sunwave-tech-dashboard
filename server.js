@@ -51,6 +51,7 @@ function estimateIdForJob(job) {
 }
 
 const KPI_BACKDATE_THRESHOLD_MS = 3 * 24 * 60 * 60 * 1000;
+const SELLER_LOOKBACK_MS = 14 * 24 * 60 * 60 * 1000;
 const HCP_KPI_WORK_STATUSES = ['completed', 'in_progress', 'scheduled'];
 
 function jobScheduledStart(job) {
@@ -59,6 +60,22 @@ function jobScheduledStart(job) {
 
 function jobCompletedAt(job) {
   return job && job.work_timestamps && job.work_timestamps.completed_at ? new Date(job.work_timestamps.completed_at) : null;
+}
+
+function estimateRelevantDate(estimate) {
+  if (!estimate) return null;
+  const raw = estimate.schedule && (estimate.schedule.scheduled_start || estimate.schedule.start_time)
+    ? (estimate.schedule.scheduled_start || estimate.schedule.start_time)
+    : estimate.created_at;
+  if (!raw) return null;
+  const d = new Date(raw);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function withinSellerLookback(candidateDate, jobStart) {
+  if (!candidateDate || !jobStart || isNaN(candidateDate.getTime()) || isNaN(jobStart.getTime())) return false;
+  const diff = jobStart.getTime() - candidateDate.getTime();
+  return diff >= 0 && diff <= SELLER_LOOKBACK_MS;
 }
 
 function kpiDateForJob(job) {
@@ -1163,6 +1180,15 @@ app.get('/api/metrics', async (req, res) => {
       });
     }
 
+    const creditedJobIds = new Set();
+    const creditedInvoiceKeys = new Set();
+
+    function creditedInvoiceKey(job) {
+      const invoice = String(job && job.invoice_number || '').trim().toLowerCase();
+      if (!invoice) return null;
+      return invoice + '|' + normalizedCustomer(job);
+    }
+
     const employeeByName = {};
     allJobs.forEach(job => {
       (job.assigned_employees || []).forEach(emp => {
@@ -1213,7 +1239,7 @@ app.get('/api/metrics', async (req, res) => {
       if (!missingSellerCustomerIds.length) return;
 
       const relatedStart = new Date(periodStart);
-      relatedStart.setDate(relatedStart.getDate() - 120);
+      relatedStart.setDate(relatedStart.getDate() - 30);
       const relatedEnd = new Date(periodEnd);
       relatedEnd.setDate(relatedEnd.getDate() + 7);
 
@@ -1253,9 +1279,7 @@ app.get('/api/metrics', async (req, res) => {
       const sameCustomerEstimates = related
         .filter(est => est && (est.id || est.uuid) !== linkedId)
         .map(est => {
-          const estStart = est.schedule && (est.schedule.scheduled_start || est.schedule.start_time)
-            ? new Date(est.schedule.scheduled_start || est.schedule.start_time)
-            : est.created_at ? new Date(est.created_at) : null;
+          const estStart = estimateRelevantDate(est);
           const employees = est.assigned_employees || (est.assigned_employee ? [est.assigned_employee] : []);
           const names = sellerNamesFromResource(est);
           const tagEmployees = resolveEmployeesFromNames(names, job.assigned_employees || []);
@@ -1268,7 +1292,7 @@ app.get('/api/metrics', async (req, res) => {
           };
         })
         .filter(item => item.employees.length > 0)
-        .filter(item => !jobStart || !item.estStart || item.estStart <= jobStart)
+        .filter(item => withinSellerLookback(item.estStart, jobStart))
         .sort((a, b) => {
           if (a.approved !== b.approved) return a.approved ? -1 : 1;
           return (b.estStart ? b.estStart.getTime() : 0) - (a.estStart ? a.estStart.getTime() : 0);
@@ -1288,7 +1312,7 @@ app.get('/api/metrics', async (req, res) => {
         .filter(candidate => candidate && candidate.id !== job.id)
         .filter(candidate => (candidate.assigned_employees || []).length > 0)
         .map(candidate => ({ job: candidate, start: jobScheduledStart(candidate) || jobCompletedAt(candidate) }))
-        .filter(item => item.start && !isNaN(item.start.getTime()) && item.start < jobStart)
+        .filter(item => item.start && !isNaN(item.start.getTime()) && withinSellerLookback(item.start, jobStart))
         .filter(item => jobCustomerKey(item.job) === customerKey || (addressKey && jobAddressKey(item.job) === addressKey))
         .sort((a, b) => b.start.getTime() - a.start.getTime())[0];
 
@@ -1336,6 +1360,11 @@ app.get('/api/metrics', async (req, res) => {
       opts = opts || {};
       const doers = uniqueEmployees(opts.assignedEmployees || job.assigned_employees || []);
       if (doers.length === 0) return false;
+
+      const invoiceKey = creditedInvoiceKey(job);
+      if ((job.id && creditedJobIds.has(job.id)) || (invoiceKey && creditedInvoiceKeys.has(invoiceKey))) {
+        return true;
+      }
 
       const jobRevenue = opts.revenue != null
         ? opts.revenue
@@ -1440,6 +1469,8 @@ app.get('/api/metrics', async (req, res) => {
         });
       });
 
+      if (job.id) creditedJobIds.add(job.id);
+      if (invoiceKey) creditedInvoiceKeys.add(invoiceKey);
       return true;
     }
 
@@ -1506,8 +1537,7 @@ app.get('/api/metrics', async (req, res) => {
 
       // Job ids already credited above. Skip those — their existing
       // numbers are correct and we don't want to double-count.
-      const alreadyCredited = new Set(completedJobs.map(j => j.id));
-      const gapJobIds = Object.keys(invoicesByJob).filter(id => !alreadyCredited.has(id));
+      const gapJobIds = Object.keys(invoicesByJob).filter(id => !creditedJobIds.has(id));
 
       if (gapJobIds.length > 0) {
         // Fetch each gap job individually. Batched in groups of 10 so
@@ -2708,11 +2738,12 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
         ? (relatedEstimates || []).map(est => {
           const assigned = uniqueEmployees((est.assigned_employees || []).map(emp => ({ id: emp.id, name: personName(emp) })));
           const tagged = namesToEmployees(sellerNamesFromResource(est));
-          return assigned.length ? assigned : tagged;
-        }).find(list => list.length)
+          return { employees: assigned.length ? assigned : tagged, date: estimateRelevantDate(est) };
+        }).filter(item => withinSellerLookback(item.date, jobScheduledStart(job) || kpiDateForJob(job)))
+          .find(item => item.employees.length)
         : null;
       if (relatedWithEmployees) {
-          sellers = relatedWithEmployees;
+          sellers = relatedWithEmployees.employees;
           sellerSource = 'related_customer_estimate';
           sellerConfidence = 'medium';
       } else {
@@ -2723,7 +2754,7 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
           .filter(function() { return doers.length > 1; })
           .filter(candidate => candidate && candidate.id !== job.id)
           .map(candidate => ({ job: candidate, start: jobScheduledStart(candidate) || jobCompletedAt(candidate) }))
-          .filter(item => item.start && jobStart && item.start < jobStart)
+          .filter(item => item.start && jobStart && withinSellerLookback(item.start, jobStart))
           .filter(item => jobCustomerKey(item.job) === customerKey || (addressKey && jobAddressKey(item.job) === addressKey))
           .sort((a, b) => b.start.getTime() - a.start.getTime())[0];
         if (previous) {
@@ -3209,8 +3240,10 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
       const linkedEstimateId = estimateIdForJob(job);
       const linkedEstimate = linkedEstimateId ? estimatesById[linkedEstimateId] : null;
       const customerId = job && job.customer && job.customer.id;
+      const jobStart = jobScheduledStart(job) || kpiDateForJob(job);
       const relatedEstimates = (relatedEstimatesByCustomer[customerId] || [])
         .filter(est => !linkedEstimate || (est.id || est.uuid) !== (linkedEstimate.id || linkedEstimate.uuid))
+        .filter(est => withinSellerLookback(estimateRelevantDate(est), jobStart))
         .slice(0, 5);
       return summarizeJob(job, invoicesByJob[job.id] || [], start, end, out.dashboardComparison, linkedEstimate, relatedEstimates, jobs.items);
     });
