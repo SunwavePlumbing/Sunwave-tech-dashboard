@@ -16,6 +16,8 @@ var finRange      = null;
 var finCompare     = 'prior_year_month'; // prior_month | prior_year_month | prior_year_avg | none
 var pnlCompareMonth = null;              // month key shown in the comparison column of the Full Picture grid
 var ownersBalance = null;
+var ownersReconCache = {};
+var ownersReconPending = {};
 var donutChartInst = null;
 var trendChartInst = null;
 var revBarChartInst = null;
@@ -891,6 +893,47 @@ function fmtMkFull(mk) {
   return full + ' ' + p[0];
 }
 
+function updateOwnersReconWarning(mk, status) {
+  var banner = document.getElementById('ownersReconWarning');
+  var text   = document.getElementById('ownersReconWarningText');
+  if (!banner || !text) return;
+
+  if (!mk || !status || !status.connected || !status.available || status.reconciled !== false) {
+    banner.hidden = true;
+    text.textContent = '';
+    return;
+  }
+
+  var count = status.unreconciledRows || 0;
+  text.textContent = 'QuickBooks still shows ' + fmtMkFull(mk) + ' as not fully reconciled'
+    + (count ? ' (' + count + ' unreconciled ledger ' + (count === 1 ? 'entry' : 'entries') + ')' : '')
+    + '. Treat this month as preliminary until the books are reconciled.';
+  banner.hidden = false;
+}
+
+function refreshOwnersReconWarning(mk) {
+  if (finGranularity !== 'month') {
+    updateOwnersReconWarning(null, null);
+    return;
+  }
+  updateOwnersReconWarning(mk, ownersReconCache[mk]);
+  if (!mk || ownersReconCache[mk] || ownersReconPending[mk]) return;
+
+  ownersReconPending[mk] = true;
+  fetch('/api/qbo-reconciliation?month=' + encodeURIComponent(mk))
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      ownersReconCache[mk] = data || { connected: false, available: false };
+      if (finMonth === mk && finGranularity === 'month') updateOwnersReconWarning(mk, ownersReconCache[mk]);
+    })
+    .catch(function() {
+      ownersReconCache[mk] = { connected: false, available: false };
+    })
+    .finally(function() {
+      delete ownersReconPending[mk];
+    });
+}
+
 // Month picker open/close. Uses a class-driven open state rather than
 // the `hidden` attribute so CSS can drive fade/slide/translate
 // animations. The `hidden` attribute only stays in place while the
@@ -1592,6 +1635,7 @@ function renderOwners() {
     document.getElementById('finRow2').style.display = 'none';
     document.getElementById('finTrendCard').style.display = 'none';
     document.getElementById('finCashFlowCard').style.display = 'none';
+    updateOwnersReconWarning(null, null);
     return;
   }
 
@@ -1703,6 +1747,7 @@ function renderOwners() {
   // ── Selected period index + comparison ──────────────────────
   var curIdx = months.indexOf(finMonth);
   if (curIdx < 0) curIdx = months.length - 1;
+  refreshOwnersReconWarning(finMonth);
 
   // Quarter mode: collect the 3 month indices for the selected quarter
   var qIdxs = [];

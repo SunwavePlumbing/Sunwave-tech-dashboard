@@ -2009,16 +2009,10 @@ app.get('/api/qbo-marketing', async (req, res) => {
 // ────────────────────────────────────────────────────────────────────────────
 
 // ── /api/owners-financial ────────────────────────────────────────────────────
-// Smart date helper: books close ~15th of the month after month-end.
-// Before the 15th → latest complete month is 2 months ago.
-// On/after the 15th → latest complete month is last month.
+// Financial reports should show the most recently completed calendar month.
+// Reconciliation status is surfaced separately when QBO exposes it.
 function getReliableEndDate(now) {
-  const latestCompleteMonth = now.getDate() < 15
-    ? new Date(now.getFullYear(), now.getMonth() - 2, 1)  // 2 months back
-    : new Date(now.getFullYear(), now.getMonth() - 1, 1); // last month
-  // End = last day of that month
-  const end = new Date(latestCompleteMonth.getFullYear(), latestCompleteMonth.getMonth() + 1, 0);
-  return end;
+  return new Date(now.getFullYear(), now.getMonth(), 0);
 }
 
 app.get('/api/owners-financial', async (req, res) => {
@@ -2029,7 +2023,7 @@ app.get('/api/owners-financial', async (req, res) => {
   // SWR means once warmed, the user never blocks on QBO again.
   const FIN_TTL = 4 * 60 * 60 * 1000;
   try {
-    const payload = await withCache('owners-financial', FIN_TTL, async () => {
+    const payload = await withCache('owners-financial:v2', FIN_TTL, async () => {
       const token = await getQBOAccessToken();
       if (!token) {
         // Throw so the endpoint catch can map to the right response shape.
@@ -2207,6 +2201,93 @@ app.get('/api/qbo-accounts', async (req, res) => {
     res.json({ connected: true, months: parsed.months, accounts: Object.keys(parsed.accounts).sort() });
   } catch (err) {
     res.status(500).json({ connected: false, error: err.message });
+  }
+});
+
+function parseQBOReconciliationStatus(report) {
+  const cols = ((report.Columns && report.Columns.Column) || []).map(c => {
+    const title = String(c.ColTitle || c.MetaData?.find(m => m.Name === 'ColKey')?.Value || '').trim();
+    return title.toLowerCase();
+  });
+  const clrIdx = cols.findIndex(t => t === 'clr' || t === 'cleared' || t.includes('cleared'));
+  if (clrIdx < 0) {
+    return { available: false, reconciled: null, totalRows: 0, unreconciledRows: 0 };
+  }
+
+  let totalRows = 0;
+  let unreconciledRows = 0;
+  const statuses = {};
+
+  function walk(rows) {
+    if (!Array.isArray(rows)) return;
+    rows.forEach(row => {
+      if (row.ColData && row.ColData[clrIdx]) {
+        const status = String(row.ColData[clrIdx].value || '').trim().toUpperCase();
+        if (status) {
+          totalRows += 1;
+          statuses[status] = (statuses[status] || 0) + 1;
+          if (status !== 'R') unreconciledRows += 1;
+        }
+      }
+      if (row.Rows && row.Rows.Row) walk(row.Rows.Row);
+    });
+  }
+
+  walk(report.Rows && report.Rows.Row);
+  return {
+    available: totalRows > 0,
+    reconciled: totalRows > 0 ? unreconciledRows === 0 : null,
+    totalRows,
+    unreconciledRows,
+    statuses
+  };
+}
+
+app.get('/api/qbo-reconciliation', async (req, res) => {
+  const month = String(req.query.month || '').trim();
+  if (!/^\d{4}-\d{2}$/.test(month)) {
+    return res.status(400).json({ connected: false, available: false, error: 'month must be YYYY-MM' });
+  }
+  if (!qboReady()) return res.json({ connected: false, available: false });
+
+  try {
+    const payload = await withCache('qbo-reconciliation:' + month, 4 * 60 * 60 * 1000, async () => {
+      const token = await getQBOAccessToken();
+      if (!token) {
+        const err = new Error('no_token');
+        err._qboNoToken = true;
+        throw err;
+      }
+
+      const [year, monthNum] = month.split('-').map(Number);
+      const startDate = `${year}-${String(monthNum).padStart(2, '0')}-01`;
+      const endDate = new Date(year, monthNum, 0).toISOString().slice(0, 10);
+      const glRes = await axios.get(
+        QBO_BASE + '/v3/company/' + qboTokens.realmId + '/reports/GeneralLedger',
+        {
+          headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
+          params: {
+            start_date: startDate,
+            end_date: endDate,
+            accounting_method: 'Cash',
+            columns: 'date,txn_type,doc_num,name,memo,clr,account_name,split_acc,subt_nat_amount',
+            minorversion: 75
+          }
+        }
+      );
+
+      return {
+        connected: true,
+        month,
+        ...parseQBOReconciliationStatus(glRes.data)
+      };
+    });
+    res.json(payload);
+  } catch (err) {
+    if (err._qboNoToken) return res.json({ connected: false, available: false });
+    console.error('[/api/qbo-reconciliation]', err.response?.status || '', err.message);
+    if (err.response?.status === 401) qboTokens.accessToken = null;
+    res.json({ connected: false, available: false, error: err.message });
   }
 });
 // Balance Sheet — multi-month history + detailed account breakdown.

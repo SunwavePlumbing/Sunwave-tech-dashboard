@@ -1390,6 +1390,7 @@ body.exp-modal-lock {
 /* ── Financial / Owners Tab ─────────────────────────────────── */
 .fin-connect-banner { background:#fff8f0;border:1px solid #FFE0B2;border-radius:10px;padding:20px 24px;text-align:center;margin:2rem 0; }
 .fin-connect-banner p { font-size:14px;color:#888;margin-bottom:12px; }
+.owners-recon-warning { margin: 0 0 1.2rem; max-width: 860px; }
 
 /* ── Period header — reads as the page's primary title ──────────
    No chip background on desktop; the eyebrow ("Period") + large bold
