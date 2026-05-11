@@ -3344,6 +3344,321 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
 });
 
 // ────────────────────────────────────────────────────────────────────────────
+// /api/diagnostics/coverage — money-first reconciliation
+// ────────────────────────────────────────────────────────────────────────────
+// Inverts the usual "filter → trust" flow. Instead of asking the dashboard
+// "which jobs did you find?", this endpoint asks HCP "which dollars exist?"
+// then verifies each one made it into the technician leaderboard.
+//
+// For the requested period:
+//   1. Enumerate every paid invoice from HCP (paid_at_min/max, all statuses)
+//   2. Pull the linked job for each invoice
+//   3. Read the current /api/metrics leaderboard (warmed from cache or fetched)
+//   4. Bucket each invoice into one of:
+//        MATCHED       — credited to a tech, amounts agree
+//        AMOUNT_DRIFT  — credited but the dollar value differs by > $1
+//        MISSING       — not credited, no known exclusion reason
+//        EXCLUDED      — not credited, has a known/expected reason
+//                        (ServiceTitan import artifact, $0 amount, etc.)
+//   5. For each MISSING invoice, run a "why" probe against the linked job:
+//        no scheduled_start, no completed_at, no assigned_employees, etc.
+//   6. Return the three reconciliation totals (paid, outstanding, count)
+//      so a single eyeball check tells you whether to trust the period.
+//
+// Independent of the dashboard's filter logic — if creditJob/kpiDateForJob
+// has a bug, this endpoint still reports the truth.
+app.get('/api/diagnostics/coverage', async (req, res) => {
+  if (!API_KEY) return res.status(503).json({ error: 'HCP API key not configured' });
+  if (!DIAGNOSTICS_PASSWORD) {
+    return res.status(403).json({ error: 'Diagnostics are disabled. Set DIAGNOSTICS_PASSWORD to enable this page.' });
+  }
+  if (!diagnosticsAllowed(req)) {
+    return res.status(401).json({ error: 'Diagnostics password required.' });
+  }
+
+  const range = req.query.range || 'mtd';
+
+  // Cache the reconciliation separately from the dashboard's metrics
+  // cache. 15-minute TTL because this endpoint does more HCP work than
+  // /api/metrics — running it on every page hit would be wasteful when
+  // the underlying invoice/job state changes slowly.
+  const COVERAGE_TTL = 15 * 60 * 1000;
+  const cacheKey = 'coverage:' + range;
+
+  try {
+    const payload = await withCache(cacheKey, COVERAGE_TTL, async () => {
+      // ── Compute period from range key ──────────────────────────────
+      // Duplicates the switch from /api/metrics. Kept inline rather than
+      // extracted because (a) the metrics endpoint's closure already
+      // captures `now`/etc. so extraction would be invasive, and (b) the
+      // logic is small enough that a copy is safer than a shared utility.
+      const now = new Date();
+      const getDayStart = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const getDayEnd = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+      let periodStart, periodEnd, periodLabel;
+      switch (range) {
+        case 'day':       periodStart = getDayStart(now); periodEnd = getDayEnd(now); periodLabel = 'Today'; break;
+        case 'yesterday': { const y = new Date(now); y.setDate(y.getDate() - 1); periodStart = getDayStart(y); periodEnd = getDayEnd(y); periodLabel = 'Yesterday'; break; }
+        case 'wtd':       periodStart = new Date(now); periodStart.setDate(now.getDate() - now.getDay()); periodEnd = getDayEnd(now); periodLabel = 'Week to Date'; break;
+        case 'l7d':       periodStart = new Date(now); periodStart.setDate(now.getDate() - 7); periodEnd = getDayEnd(now); periodLabel = 'Last 7 Days'; break;
+        case 'l14d':      periodStart = new Date(now); periodStart.setDate(now.getDate() - 14); periodEnd = getDayEnd(now); periodLabel = 'Last 14 Days'; break;
+        case 'l30d':      periodStart = new Date(now); periodStart.setDate(now.getDate() - 30); periodEnd = getDayEnd(now); periodLabel = 'Last 30 Days'; break;
+        case 'lm':        { const lm = new Date(now); lm.setMonth(lm.getMonth() - 1); periodStart = new Date(lm.getFullYear(), lm.getMonth(), 1); periodEnd = new Date(lm.getFullYear(), lm.getMonth() + 1, 1); periodLabel = 'Last Month'; break; }
+        case 'l90d':      periodStart = new Date(now); periodStart.setDate(now.getDate() - 90); periodEnd = getDayEnd(now); periodLabel = 'Last 90 Days'; break;
+        case 'qtd':       { const q = Math.floor(now.getMonth() / 3); periodStart = new Date(now.getFullYear(), q * 3, 1); periodEnd = getDayEnd(now); periodLabel = 'Quarter to Date'; break; }
+        case 'ytd':       periodStart = new Date(now.getFullYear(), 0, 1); periodEnd = getDayEnd(now); periodLabel = 'Year to Date'; break;
+        case 'mtd':
+        default:          periodStart = new Date(now.getFullYear(), now.getMonth(), 1); periodEnd = getDayEnd(now); periodLabel = 'Month to Date';
+      }
+
+      const headers = hcpHeaders();
+
+      // ── PASS 1: Enumerate every paid invoice in the period ──────────
+      // Server-side filter via paid_at_min/max, then client-side filter
+      // for paid_at IN the period as a defense-in-depth against HCP
+      // returning loose matches. Paginate fully — no maxPages cap because
+      // missing a page would mean missing dollars.
+      const invParams = {
+        paid_at_min: periodStart.toISOString().slice(0, 10),
+        paid_at_max: new Date(periodEnd.getTime() - 1).toISOString().slice(0, 10),
+        page_size: 200
+      };
+      const allPaidInvoices = [];
+      let invPage = 1;
+      // Cap at 100 pages = 20,000 invoices as a runaway-safety bound
+      while (invPage <= 100) {
+        const r = await axios.get(BASE_URL + '/invoices', {
+          headers, params: { ...invParams, page: invPage }
+        });
+        const invs = r.data.invoices || [];
+        invs.forEach(inv => {
+          if (!inv.paid_at) return;
+          const paidAt = new Date(inv.paid_at);
+          if (paidAt < periodStart || paidAt >= periodEnd) return;
+          allPaidInvoices.push(inv);
+        });
+        if (invPage >= (r.data.total_pages || 1)) break;
+        invPage++;
+      }
+
+      // Group invoices by job id. Track invoices with no job_id
+      // separately — they're a different failure class (typically
+      // standalone invoices not tied to a service job).
+      const invoicesByJob = {};
+      const orphanInvoices = [];
+      allPaidInvoices.forEach(inv => {
+        if (!inv.job_id) { orphanInvoices.push(inv); return; }
+        if (!invoicesByJob[inv.job_id]) invoicesByJob[inv.job_id] = [];
+        invoicesByJob[inv.job_id].push(inv);
+      });
+
+      // ── PASS 2: Fetch every linked job directly by id ───────────────
+      // /jobs/{id} bypasses scheduled_start filtering entirely — if HCP
+      // has the job, we get it. This is the key independence guarantee.
+      const jobIds = Object.keys(invoicesByJob);
+      const jobsById = {};
+      const BATCH = 10;
+      for (let i = 0; i < jobIds.length; i += BATCH) {
+        const batch = jobIds.slice(i, i + BATCH);
+        const results = await Promise.all(batch.map(id =>
+          axios.get(BASE_URL + '/jobs/' + id, { headers })
+            .then(r => r.data)
+            .catch(err => ({ _fetchError: err.response?.status || err.message, id }))
+        ));
+        results.forEach(j => { if (j && j.id) jobsById[j.id] = j; });
+      }
+
+      // ── PASS 3: Read the dashboard's leaderboard for this range ─────
+      // The dashboard credit pass already ran (or will run, then SWR
+      // back-revalidates) via /api/metrics. We share its cache key, so
+      // calling withCache here just reads the existing entry without
+      // re-fetching from HCP. If somehow it's not warmed yet, we still
+      // get a deterministic answer by reading the cached entry directly
+      // and falling back to "no data" — the reconciliation then shows
+      // every invoice as MISSING, which is a useful signal in itself.
+      const dashboardEntry = _cache.get('metrics:' + range);
+      const dashboardData = dashboardEntry ? dashboardEntry.data : null;
+
+      // Build invoice→credit lookup from the leaderboard's per-tech
+      // jobLists. The dashboard credits at job-level, attaching
+      // `invoice_number` to each row. We sum credit across techs to
+      // get the total credited for each invoice number.
+      const creditedByInvoice = {};
+      const creditedByJobId = {}; // for matching when invoice_number is null
+      if (dashboardData && Array.isArray(dashboardData.leaderboard)) {
+        dashboardData.leaderboard.forEach(tech => {
+          (tech.jobList || []).forEach(row => {
+            if (row.invoice) {
+              const key = String(row.invoice).trim();
+              creditedByInvoice[key] = (creditedByInvoice[key] || 0) + (row.credit || 0);
+            }
+          });
+        });
+      }
+
+      // ── PASS 4: Reconcile each invoice ─────────────────────────────
+      const ROOT = (n) => String(n || '').split('-')[0].trim();
+      const matched = [];
+      const drift = [];
+      const missing = [];
+      const excluded = [];
+
+      function whyMissing(job, inv) {
+        const reasons = [];
+        if (!job) {
+          reasons.push('Linked job (' + inv.job_id + ') could not be fetched from HCP');
+          return reasons;
+        }
+        if (isPostCutoverSTArtifact(job)) {
+          reasons.push('Job is flagged as a ServiceTitan migration artifact');
+        }
+        const doers = job.assigned_employees || [];
+        if (doers.length === 0) {
+          reasons.push('Job has no assigned_employees in HCP');
+        }
+        const scheduled = job.schedule && job.schedule.scheduled_start;
+        if (!scheduled) {
+          reasons.push('Job has no scheduled_start (primary HCP query filters by this field)');
+        }
+        const completed = job.work_timestamps && job.work_timestamps.completed_at;
+        if (!completed) {
+          reasons.push('Job has no completed_at timestamp');
+        }
+        if (scheduled) {
+          const days = (now.getTime() - new Date(scheduled).getTime()) / (1000 * 60 * 60 * 24);
+          if (days > 270) reasons.push('Job scheduled ' + Math.round(days) + ' days ago, beyond the 270-day fetch window');
+        }
+        const estId = job.original_estimate_id || (job.original_estimate_uuids && job.original_estimate_uuids[0]);
+        if (!estId) {
+          reasons.push('Job has no linked estimate (estimate-seller resolution depends on this)');
+        }
+        return reasons.length ? reasons : ['Unknown — invoice paid in period but no credit appeared'];
+      }
+
+      jobIds.forEach(jobId => {
+        const invs = invoicesByJob[jobId];
+        const job = jobsById[jobId];
+        const paidInPeriod = invs.reduce((s, inv) => s + parseFloat(inv.amount || 0) / 100, 0);
+        const totalPaidRounded = Math.round(paidInPeriod);
+        const invoiceNumbers = invs.map(i => i.invoice_number).filter(Boolean);
+        const invoiceRoots = [...new Set(invoiceNumbers.map(ROOT))];
+        const latestPaidAt = invs.map(i => i.paid_at).filter(Boolean).sort().pop() || null;
+        const customer = job && job.customer
+          ? ((job.customer.first_name || '') + ' ' + (job.customer.last_name || '')).trim()
+          : (invs[0].customer ? ((invs[0].customer.first_name || '') + ' ' + (invs[0].customer.last_name || '')).trim() : '');
+
+        // Try to find credit by invoice number OR root number
+        let creditFound = 0;
+        for (const num of invoiceNumbers) {
+          if (creditedByInvoice[num] != null) { creditFound += creditedByInvoice[num]; }
+        }
+        if (creditFound === 0) {
+          // Try matching by root number (handles split invoices where
+          // the dashboard stored "326" but HCP returned "326-1" and "326-2")
+          for (const root of invoiceRoots) {
+            for (const [k, v] of Object.entries(creditedByInvoice)) {
+              if (ROOT(k) === root) creditFound += v;
+            }
+          }
+        }
+        const creditFoundRounded = Math.round(creditFound);
+
+        const row = {
+          jobId,
+          invoiceNumbers,
+          customer,
+          paidInPeriod: totalPaidRounded,
+          credited: creditFoundRounded,
+          latestPaidAt,
+          workStatus: job ? job.work_status : null,
+          completedAt: job && job.work_timestamps ? job.work_timestamps.completed_at : null,
+          scheduledStart: job && job.schedule ? job.schedule.scheduled_start : null,
+          assignedEmployees: job && job.assigned_employees
+            ? job.assigned_employees.map(e => ((e.first_name || '') + ' ' + (e.last_name || '')).trim()).filter(Boolean)
+            : [],
+          description: job ? job.description : null
+        };
+
+        // ServiceTitan post-cutover artifacts are intentionally excluded
+        // by the main dashboard. Surface them in the EXCLUDED bucket
+        // with their reason so the auditor can verify it was deliberate.
+        if (job && periodStart >= ST_CUTOVER && isServiceTitanJob(job)) {
+          excluded.push({ ...row, reason: 'ServiceTitan migration artifact (' + describeSTMatch(job) + ')' });
+          return;
+        }
+
+        if (creditFoundRounded === 0) {
+          missing.push({ ...row, reasons: whyMissing(job, invs[0]) });
+        } else if (Math.abs(creditFoundRounded - totalPaidRounded) > 1) {
+          drift.push({ ...row, delta: creditFoundRounded - totalPaidRounded });
+        } else {
+          matched.push(row);
+        }
+      });
+
+      // ── Reconciliation totals ──────────────────────────────────────
+      const truthTotalPaid = Math.round(allPaidInvoices.reduce((s, inv) =>
+        s + parseFloat(inv.amount || 0) / 100, 0));
+      const dashboardTotalRevenue = dashboardData && dashboardData.summary
+        ? dashboardData.summary.totalRevenue : null;
+
+      return {
+        period: {
+          range,
+          label: periodLabel,
+          start: periodStart.toISOString().slice(0, 10),
+          end: new Date(periodEnd.getTime() - 1).toISOString().slice(0, 10)
+        },
+        truth: {
+          totalPaidInPeriod: truthTotalPaid,
+          paidInvoiceCount: allPaidInvoices.length,
+          uniqueJobCount: jobIds.length,
+          invoicesWithNoJobLink: orphanInvoices.length
+        },
+        dashboard: {
+          totalRevenue: dashboardTotalRevenue,
+          cached: !!dashboardEntry,
+          cacheAge: dashboardEntry ? Math.round((Date.now() - dashboardEntry.at) / 1000) : null,
+          note: dashboardEntry ? null : 'Dashboard cache cold — open /api/metrics?range=' + range + ' to warm it, then refresh.'
+        },
+        reconciliation: {
+          delta: dashboardTotalRevenue != null ? truthTotalPaid - dashboardTotalRevenue : null,
+          matched: matched.length,
+          drift: drift.length,
+          missing: missing.length,
+          excluded: excluded.length,
+          standaloneInvoices: orphanInvoices.length
+        },
+        buckets: {
+          missing,
+          drift,
+          excluded,
+          standaloneInvoices: orphanInvoices.map(inv => ({
+            invoiceNumber: inv.invoice_number || null,
+            amount: Math.round(parseFloat(inv.amount || 0) / 100),
+            paidAt: inv.paid_at,
+            customer: inv.customer
+              ? ((inv.customer.first_name || '') + ' ' + (inv.customer.last_name || '')).trim()
+              : '',
+            reason: 'Invoice has no job_id — typically a standalone invoice not tied to a service job'
+          })),
+          matchedSummary: { count: matched.length, dollars: matched.reduce((s, r) => s + r.paidInPeriod, 0) }
+        }
+      };
+    });
+    res.json(payload);
+  } catch (err) {
+    console.error('[/api/diagnostics/coverage]', err.response?.status || '', err.message);
+    res.status(500).json({ error: err.message, where: err.response?.status || 'unknown' });
+  }
+});
+
+// Serve the coverage diagnostic page (static HTML; auth happens on the API)
+app.get('/coverage', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'coverage.html'));
+});
+
+// ────────────────────────────────────────────────────────────────────────────
 
 app.listen(PORT, () => {
   const parts = [

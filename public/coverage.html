@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Coverage Check — Sunwave KPIs</title>
+  <link rel="icon" type="image/png" href="/Favicon.png">
+  <style>
+    /* Standalone styling — doesn't pull from styles.css to keep the
+       diagnostic isolated from any main-dashboard changes. Paper-mode
+       palette matches the main app so the tool feels at home. */
+    :root {
+      --paper-bg: #FBF9F4;
+      --paper-card: #FDFCF8;
+      --paper-border: rgba(92, 84, 72, 0.12);
+      --ink: #2C2A28;
+      --ink-soft: #5C5448;
+      --ink-mute: #8A8680;
+      --brand-orange: #E88140;
+      --good: #2F7D49;
+      --warn: #C9820A;
+      --bad: #C0392B;
+      --warn-bg: #FFF1E8;
+      --good-bg: #EBF4ED;
+      --bad-bg:  #FBECE9;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--paper-bg);
+      color: var(--ink);
+      line-height: 1.4;
+      padding: 0 0 4rem;
+    }
+    .page {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 2rem 1.25rem;
+    }
+    h1 {
+      font-size: 24px;
+      font-weight: 700;
+      margin: 0 0 4px;
+      letter-spacing: -0.01em;
+    }
+    .sub {
+      font-size: 12px;
+      color: var(--ink-mute);
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+    }
+
+    /* ── Controls bar ─────────────────────────────────────────── */
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      background: var(--paper-card);
+      border: 1px solid var(--paper-border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 1.5rem;
+    }
+    .controls label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ink-soft);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-right: 6px;
+    }
+    .controls input, .controls select {
+      padding: 7px 10px;
+      font-size: 13px;
+      border: 1px solid var(--paper-border);
+      border-radius: 8px;
+      background: var(--paper-bg);
+      color: var(--ink);
+      font-family: inherit;
+    }
+    .controls button {
+      padding: 7px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      background: var(--brand-orange);
+      color: white;
+      border: 0;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .controls button:disabled { opacity: 0.55; cursor: progress; }
+
+    /* ── Top tiles ─────────────────────────────────────────────── */
+    .tiles {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+      margin-bottom: 1.5rem;
+    }
+    .tile {
+      background: var(--paper-card);
+      border: 1px solid var(--paper-border);
+      border-radius: 12px;
+      padding: 14px 18px;
+    }
+    .tile-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: var(--ink-mute);
+      margin-bottom: 4px;
+    }
+    .tile-value {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      font-variant-numeric: tabular-nums;
+    }
+    .tile-sub {
+      font-size: 12px;
+      color: var(--ink-mute);
+      margin-top: 4px;
+    }
+    .tile--good { background: var(--good-bg); border-color: #C9DFCD; }
+    .tile--good .tile-value { color: var(--good); }
+    .tile--warn { background: var(--warn-bg); border-color: #E8A783; }
+    .tile--warn .tile-value { color: var(--warn); }
+    .tile--bad  { background: var(--bad-bg);  border-color: #E0B0A8; }
+    .tile--bad  .tile-value { color: var(--bad);  }
+
+    /* ── Verdict banner ───────────────────────────────────────── */
+    .verdict {
+      padding: 14px 18px;
+      border-radius: 12px;
+      font-size: 14px;
+      margin-bottom: 1.5rem;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .verdict-ico {
+      flex-shrink: 0;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-family: Georgia, serif;
+    }
+    .verdict--good { background: var(--good-bg); color: var(--good); }
+    .verdict--good .verdict-ico { background: var(--good); color: var(--good-bg); }
+    .verdict--warn { background: var(--warn-bg); color: var(--warn); }
+    .verdict--warn .verdict-ico { background: var(--warn); color: var(--warn-bg); }
+    .verdict--bad  { background: var(--bad-bg);  color: var(--bad);  }
+    .verdict--bad  .verdict-ico { background: var(--bad);  color: var(--bad-bg);  }
+
+    /* ── Bucket sections ──────────────────────────────────────── */
+    .bucket {
+      background: var(--paper-card);
+      border: 1px solid var(--paper-border);
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+      overflow: hidden;
+    }
+    .bucket-head {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--paper-border);
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+    .bucket-title {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+    .bucket-count {
+      font-size: 12px;
+      color: var(--ink-mute);
+      font-weight: 600;
+    }
+    .bucket-body { padding: 4px 0; }
+    .row {
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--paper-border);
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 6px 16px;
+      font-size: 13px;
+    }
+    .row:last-child { border-bottom: 0; }
+    .row-main {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 8px;
+      color: var(--ink);
+    }
+    .row-invoice {
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+    .row-customer { color: var(--ink-soft); }
+    .row-meta {
+      font-size: 11px;
+      color: var(--ink-mute);
+      letter-spacing: 0.04em;
+    }
+    .row-amount {
+      font-size: 14px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--ink);
+      white-space: nowrap;
+    }
+    .row-amount-delta {
+      font-size: 11px;
+      color: var(--bad);
+      font-weight: 600;
+    }
+    .row-reasons {
+      grid-column: 1 / -1;
+      font-size: 12px;
+      color: var(--ink-soft);
+      padding-left: 12px;
+      border-left: 2px solid var(--warn);
+      margin-top: 4px;
+    }
+    .row-reasons ul { margin: 0; padding-left: 18px; }
+    .row-fixit {
+      grid-column: 1 / -1;
+      font-size: 11px;
+      color: var(--ink-mute);
+      letter-spacing: 0.04em;
+      margin-top: 2px;
+    }
+    .empty {
+      padding: 24px 18px;
+      text-align: center;
+      color: var(--ink-mute);
+      font-size: 13px;
+    }
+    .status {
+      padding: 16px 18px;
+      background: var(--paper-card);
+      border: 1px solid var(--paper-border);
+      border-radius: 12px;
+      color: var(--ink-soft);
+      font-size: 13px;
+      margin-bottom: 1.5rem;
+    }
+    .err { color: var(--bad); }
+    a { color: var(--brand-orange); }
+    code {
+      font-family: ui-monospace, 'SF Mono', 'Menlo', monospace;
+      font-size: 12px;
+      background: var(--paper-bg);
+      padding: 1px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--paper-border);
+    }
+
+    @media (max-width: 600px) {
+      h1 { font-size: 20px; }
+      .row { grid-template-columns: 1fr; }
+      .row-amount { text-align: left; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="page">
+  <h1>Coverage Check</h1>
+  <div class="sub" id="periodLabel">Loading&hellip;</div>
+
+  <div class="controls">
+    <label for="rangeSel">Period</label>
+    <select id="rangeSel">
+      <option value="day">Today</option>
+      <option value="yesterday">Yesterday</option>
+      <option value="wtd">Week to Date</option>
+      <option value="l7d">Last 7 Days</option>
+      <option value="l14d">Last 14 Days</option>
+      <option value="l30d">Last 30 Days</option>
+      <option value="mtd" selected>Month to Date</option>
+      <option value="lm">Last Month</option>
+      <option value="l90d">Last 90 Days</option>
+      <option value="qtd">Quarter to Date</option>
+      <option value="ytd">Year to Date</option>
+    </select>
+    <label for="pw">Password</label>
+    <input id="pw" type="password" placeholder="diagnostics password" autocomplete="current-password">
+    <button id="runBtn">Run check</button>
+    <span style="flex:1"></span>
+    <span style="font-size:11px;color:var(--ink-mute);text-transform:uppercase;letter-spacing:0.1em;font-weight:600">
+      Source: HCP <code>/invoices</code> &middot; live
+    </span>
+  </div>
+
+  <div id="output">
+    <div class="status">
+      Enter the diagnostics password and pick a period. The tool will enumerate every paid invoice in
+      that window from Housecall Pro, cross-reference each against the current technician leaderboard,
+      and surface any invoice whose dollars didn&rsquo;t make it onto the dashboard.
+    </div>
+  </div>
+</div>
+
+<script>
+/* Persist the password across page loads so reloading mid-investigation
+   doesn't force re-entry. sessionStorage (not localStorage) so the value
+   dies when the tab closes — safer for a shared admin password. */
+const PW_KEY = 'coverage-pw';
+const RANGE_KEY = 'coverage-range';
+
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => '$' + Math.round(n || 0).toLocaleString();
+const escapeHtml = (s) => String(s == null ? '' : s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;');
+const fmtDateTime = (iso) => {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
+    ' · ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+};
+
+// Restore prior state on load
+const savedPw = sessionStorage.getItem(PW_KEY);
+if (savedPw) $('pw').value = savedPw;
+const savedRange = localStorage.getItem(RANGE_KEY);
+if (savedRange) $('rangeSel').value = savedRange;
+
+$('runBtn').addEventListener('click', run);
+$('pw').addEventListener('keydown', (e) => { if (e.key === 'Enter') run(); });
+$('rangeSel').addEventListener('change', () => {
+  localStorage.setItem(RANGE_KEY, $('rangeSel').value);
+});
+
+async function run() {
+  const pw = $('pw').value.trim();
+  const range = $('rangeSel').value;
+  if (!pw) {
+    $('output').innerHTML = '<div class="status err">Password required.</div>';
+    return;
+  }
+  sessionStorage.setItem(PW_KEY, pw);
+  localStorage.setItem(RANGE_KEY, range);
+
+  $('runBtn').disabled = true;
+  $('runBtn').textContent = 'Running…';
+  $('output').innerHTML = '<div class="status">' +
+    'Enumerating invoices and reconciling against the dashboard… ' +
+    '(first run may take 10–30 seconds; subsequent runs are cached.)' +
+    '</div>';
+
+  try {
+    const url = '/api/diagnostics/coverage?range=' + encodeURIComponent(range) +
+      '&password=' + encodeURIComponent(pw);
+    const r = await fetch(url);
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
+    render(data);
+  } catch (err) {
+    $('output').innerHTML = '<div class="status err">Error: ' + escapeHtml(err.message) + '</div>';
+  } finally {
+    $('runBtn').disabled = false;
+    $('runBtn').textContent = 'Run check';
+  }
+}
+
+function render(d) {
+  const { period, truth, dashboard, reconciliation, buckets } = d;
+
+  $('periodLabel').textContent = period.label + ' · ' + period.start + ' → ' + period.end;
+
+  // Verdict
+  let verdict;
+  if (dashboard.totalRevenue == null) {
+    verdict = {
+      tone: 'warn',
+      ico: '!',
+      msg: 'Dashboard cache is cold for this range. Open <a href="/">the main dashboard</a> with this range selected to warm it, then refresh this page. Without a warmed cache the reconciliation has nothing to compare against.'
+    };
+  } else if (reconciliation.delta === 0 && reconciliation.missing === 0 && reconciliation.drift === 0) {
+    verdict = {
+      tone: 'good',
+      ico: '✓',
+      msg: 'All ' + truth.paidInvoiceCount + ' paid invoices in this period are accounted for in the leaderboard. ' +
+        '<strong>' + fmt(truth.totalPaidInPeriod) + '</strong> in HCP matches the dashboard exactly.'
+    };
+  } else if (reconciliation.missing > 0) {
+    verdict = {
+      tone: 'bad',
+      ico: '!',
+      msg: '<strong>' + reconciliation.missing + ' invoice' + (reconciliation.missing === 1 ? '' : 's') + '</strong> ' +
+        '(' + fmt(buckets.missing.reduce((s, r) => s + r.paidInPeriod, 0)) + ') paid in HCP but missing from the leaderboard. ' +
+        'See the &ldquo;Missing&rdquo; section below for the specific fixes.'
+    };
+  } else if (reconciliation.drift > 0) {
+    verdict = {
+      tone: 'warn',
+      ico: '!',
+      msg: '<strong>' + reconciliation.drift + ' invoice' + (reconciliation.drift === 1 ? '' : 's') + '</strong> ' +
+        'credited but with a dollar amount that differs from HCP. See &ldquo;Drift&rdquo; below.'
+    };
+  } else {
+    verdict = {
+      tone: 'good',
+      ico: '✓',
+      msg: 'No missing invoices. ' + reconciliation.excluded + ' intentionally excluded (see below).'
+    };
+  }
+
+  const deltaLine = dashboard.totalRevenue == null
+    ? '<span style="color:var(--ink-mute)">cold cache</span>'
+    : (reconciliation.delta === 0
+        ? '<span style="color:var(--good)">perfect match</span>'
+        : '<span style="color:var(--bad)">' + (reconciliation.delta > 0 ? '+' : '') + fmt(reconciliation.delta) + '</span>');
+
+  const cacheNote = dashboard.cached
+    ? 'Dashboard cache age: ' + Math.round(dashboard.cacheAge / 60) + ' min'
+    : 'Dashboard cache: empty';
+
+  const html = `
+    <div class="verdict verdict--${verdict.tone}">
+      <span class="verdict-ico">${verdict.ico}</span>
+      <span>${verdict.msg}</span>
+    </div>
+
+    <div class="tiles">
+      <div class="tile">
+        <div class="tile-label">HCP truth</div>
+        <div class="tile-value">${fmt(truth.totalPaidInPeriod)}</div>
+        <div class="tile-sub">${truth.paidInvoiceCount} invoices, ${truth.uniqueJobCount} jobs</div>
+      </div>
+      <div class="tile">
+        <div class="tile-label">Dashboard</div>
+        <div class="tile-value">${dashboard.totalRevenue == null ? '—' : fmt(dashboard.totalRevenue)}</div>
+        <div class="tile-sub">${cacheNote}</div>
+      </div>
+      <div class="tile ${reconciliation.delta && reconciliation.delta !== 0 ? 'tile--bad' : 'tile--good'}">
+        <div class="tile-label">Drift</div>
+        <div class="tile-value">${deltaLine}</div>
+        <div class="tile-sub">truth − dashboard</div>
+      </div>
+      <div class="tile ${reconciliation.missing > 0 ? 'tile--bad' : 'tile--good'}">
+        <div class="tile-label">Missing</div>
+        <div class="tile-value">${reconciliation.missing}</div>
+        <div class="tile-sub">paid invoices not credited</div>
+      </div>
+      <div class="tile ${reconciliation.drift > 0 ? 'tile--warn' : 'tile--good'}">
+        <div class="tile-label">Amount Drift</div>
+        <div class="tile-value">${reconciliation.drift}</div>
+        <div class="tile-sub">credited at wrong amount</div>
+      </div>
+      <div class="tile">
+        <div class="tile-label">Excluded</div>
+        <div class="tile-value">${reconciliation.excluded}</div>
+        <div class="tile-sub">by design (ST artifacts, etc.)</div>
+      </div>
+    </div>
+
+    ${bucketHtml('Missing', 'bad', buckets.missing, (row) => `
+      <div class="row">
+        <div>
+          <div class="row-main">
+            <span class="row-invoice">${escapeHtml(row.invoiceNumbers.join(', ') || '—')}</span>
+            <span class="row-customer">${escapeHtml(row.customer || '—')}</span>
+            <span class="row-meta">PAID ${escapeHtml(fmtDateTime(row.latestPaidAt))} · ${escapeHtml(row.workStatus || 'no status')} · ${row.assignedEmployees.length ? escapeHtml(row.assignedEmployees.join(', ')) : 'unassigned'}</span>
+          </div>
+          <div class="row-reasons">
+            <ul>${row.reasons.map(r => '<li>' + escapeHtml(r) + '</li>').join('')}</ul>
+          </div>
+          <div class="row-fixit">Job ID: <code>${escapeHtml(row.jobId)}</code> · ${escapeHtml(row.description || '')}</div>
+        </div>
+        <div class="row-amount">${fmt(row.paidInPeriod)}</div>
+      </div>
+    `)}
+
+    ${bucketHtml('Amount Drift', 'warn', buckets.drift, (row) => `
+      <div class="row">
+        <div>
+          <div class="row-main">
+            <span class="row-invoice">${escapeHtml(row.invoiceNumbers.join(', ') || '—')}</span>
+            <span class="row-customer">${escapeHtml(row.customer || '—')}</span>
+            <span class="row-meta">PAID ${escapeHtml(fmtDateTime(row.latestPaidAt))} · ${escapeHtml(row.workStatus || 'no status')}</span>
+          </div>
+          <div class="row-fixit">Credited <strong>${fmt(row.credited)}</strong> vs. HCP paid <strong>${fmt(row.paidInPeriod)}</strong> &middot; delta <span class="row-amount-delta">${row.delta > 0 ? '+' : ''}${fmt(row.delta)}</span></div>
+        </div>
+        <div class="row-amount">${fmt(row.paidInPeriod)}</div>
+      </div>
+    `)}
+
+    ${bucketHtml('Excluded by design', 'good', buckets.excluded, (row) => `
+      <div class="row">
+        <div>
+          <div class="row-main">
+            <span class="row-invoice">${escapeHtml(row.invoiceNumbers.join(', ') || '—')}</span>
+            <span class="row-customer">${escapeHtml(row.customer || '—')}</span>
+            <span class="row-meta">${escapeHtml(row.reason)}</span>
+          </div>
+        </div>
+        <div class="row-amount">${fmt(row.paidInPeriod)}</div>
+      </div>
+    `)}
+
+    ${bucketHtml('Standalone invoices (no linked job)', 'warn', buckets.standaloneInvoices, (row) => `
+      <div class="row">
+        <div>
+          <div class="row-main">
+            <span class="row-invoice">${escapeHtml(row.invoiceNumber || '—')}</span>
+            <span class="row-customer">${escapeHtml(row.customer || '—')}</span>
+            <span class="row-meta">PAID ${escapeHtml(fmtDateTime(row.paidAt))}</span>
+          </div>
+          <div class="row-fixit">${escapeHtml(row.reason)}</div>
+        </div>
+        <div class="row-amount">${fmt(row.amount)}</div>
+      </div>
+    `)}
+
+    <div class="status" style="margin-top:1.5rem">
+      <strong>How this works:</strong> The tool calls Housecall Pro&rsquo;s
+      <code>/invoices?paid_at_min/max</code> endpoint to enumerate every dollar paid in
+      this period, then pulls each linked job directly by ID (<code>/jobs/{id}</code>)
+      so no scheduled-start filter can hide it. Each invoice is cross-referenced against
+      the dashboard&rsquo;s leaderboard cache (<code>metrics:${escapeHtml(period.range)}</code>).
+      The reconciliation is independent of the dashboard&rsquo;s filter logic, so it&rsquo;ll
+      surface bugs even when the dashboard itself thinks everything is fine.
+      Results cache for 15 minutes.
+    </div>
+  `;
+
+  $('output').innerHTML = html;
+}
+
+function bucketHtml(title, tone, items, rowFn) {
+  return `
+    <div class="bucket">
+      <div class="bucket-head">
+        <span class="bucket-title">${title}</span>
+        <span class="bucket-count">${items.length} ${items.length === 1 ? 'item' : 'items'}</span>
+      </div>
+      <div class="bucket-body">
+        ${items.length === 0
+          ? '<div class="empty">Nothing here — nothing to report.</div>'
+          : items.map(rowFn).join('')}
+      </div>
+    </div>
+  `;
+}
+
+// Auto-run if we already have a password stashed from a previous session
+if (savedPw) {
+  // Small delay so the page paints first
+  setTimeout(run, 100);
+}
+</script>
+
+</body>
+</html>
