@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KPI Admin — Sunwave</title>
+  <link rel="icon" type="image/png" href="/Favicon.png">
+  <style>
+    :root {
+      --bg: #FBF9F4;
+      --card: #FDFCF8;
+      --border: rgba(92, 84, 72, 0.14);
+      --border-strong: rgba(92, 84, 72, 0.26);
+      --ink: #2C2A28;
+      --ink-soft: #5C5448;
+      --ink-mute: #8A8680;
+      --brand: #E88140;
+      --brand-pale: #FDEFE0;
+      --good: #2F7D49;
+      --good-pale: #EBF4ED;
+      --warn: #C9820A;
+      --warn-pale: #FFF1E8;
+      --bad: #C0392B;
+      --bad-pale: #FBECE9;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.45;
+    }
+    .page {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 1.5rem 1rem 4rem;
+    }
+
+    .header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 1.2rem;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .header h1 {
+      font-size: 22px;
+      font-weight: 700;
+      margin: 0;
+      letter-spacing: -0.01em;
+    }
+    .header .sub {
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink-mute);
+      font-weight: 600;
+    }
+
+    /* Auth gate */
+    .gate {
+      max-width: 380px;
+      margin: 4rem auto;
+      padding: 24px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+    }
+    .gate label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      margin-bottom: 8px;
+    }
+    .gate input {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 14px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--bg);
+      margin-bottom: 12px;
+    }
+    .gate button {
+      width: 100%;
+      padding: 10px;
+      background: var(--brand);
+      color: white;
+      border: 0;
+      border-radius: 10px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 1.25rem;
+    }
+    .tab {
+      padding: 10px 18px;
+      background: transparent;
+      border: 0;
+      border-bottom: 2px solid transparent;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink-mute);
+      cursor: pointer;
+      transition: color 0.15s;
+    }
+    .tab.is-active {
+      color: var(--brand);
+      border-bottom-color: var(--brand);
+    }
+    .tab:hover { color: var(--ink); }
+    .tab-count {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 1px 7px;
+      font-size: 11px;
+      background: var(--brand-pale);
+      color: var(--brand);
+      border-radius: 100px;
+      font-weight: 700;
+    }
+
+    .panel { display: none; }
+    .panel.is-active { display: block; }
+
+    /* Issue list */
+    .issue {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 18px;
+      margin-bottom: 12px;
+    }
+    .issue-head {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: baseline;
+      margin-bottom: 4px;
+    }
+    .issue-type {
+      font-weight: 700;
+      font-size: 13px;
+    }
+    .issue-status {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 100px;
+    }
+    .issue-status--open      { background: var(--warn-pale); color: var(--warn); }
+    .issue-status--resolved  { background: var(--good-pale); color: var(--good); }
+    .issue-status--dismissed { background: #ECECE6; color: var(--ink-mute); }
+    .issue-meta {
+      font-size: 11px;
+      color: var(--ink-mute);
+      letter-spacing: 0.04em;
+    }
+    .issue-ref {
+      font-size: 13px;
+      color: var(--ink-soft);
+      margin: 4px 0;
+    }
+    .issue-desc {
+      font-size: 13px;
+      color: var(--ink);
+      line-height: 1.5;
+      margin: 6px 0 10px;
+      padding: 8px 10px;
+      background: var(--bg);
+      border-left: 2px solid var(--border-strong);
+      border-radius: 4px;
+    }
+    .issue-actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--ink-soft);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn:hover { border-color: var(--ink); color: var(--ink); }
+    .btn--primary { background: var(--brand); color: white; border-color: var(--brand); }
+    .btn--primary:hover { filter: brightness(1.05); color: white; }
+    .btn--good { background: var(--good); color: white; border-color: var(--good); }
+    .btn--good:hover { color: white; }
+    .btn--danger { color: var(--bad); }
+    .btn--danger:hover { border-color: var(--bad); color: var(--bad); }
+
+    /* Job editor */
+    .editor-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      margin-top: 10px;
+    }
+    .editor-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 12px;
+    }
+    .editor-head h3 {
+      margin: 0;
+      font-size: 16px;
+      letter-spacing: -0.005em;
+    }
+    .editor-meta {
+      font-size: 11px;
+      color: var(--ink-mute);
+      letter-spacing: 0.06em;
+    }
+    .hcp-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      padding: 10px 12px;
+      background: var(--bg);
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 14px;
+    }
+    .hcp-row dt {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-mute);
+      margin: 0 0 2px;
+    }
+    .hcp-row dd { margin: 0 0 6px; color: var(--ink); }
+    @media (max-width: 600px) {
+      .hcp-row { grid-template-columns: 1fr; }
+    }
+
+    .assignments-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      margin-bottom: 8px;
+    }
+    .assignment-row {
+      display: grid;
+      grid-template-columns: 1fr 140px 90px 32px;
+      gap: 8px;
+      margin-bottom: 6px;
+      align-items: center;
+    }
+    .assignment-row input, .assignment-row select {
+      padding: 8px 10px;
+      font-size: 13px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      font-family: inherit;
+      color: var(--ink);
+    }
+    .assignment-row input:focus, .assignment-row select:focus {
+      outline: none;
+      border-color: var(--brand);
+      background: white;
+    }
+    .remove-btn {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      border-radius: 8px;
+      cursor: pointer;
+      color: var(--bad);
+      font-size: 16px;
+      line-height: 1;
+    }
+    .remove-btn:hover { border-color: var(--bad); }
+    @media (max-width: 600px) {
+      .assignment-row { grid-template-columns: 1fr 1fr 70px 32px; }
+    }
+
+    .pct-bar {
+      margin-top: 10px;
+      font-size: 11px;
+      color: var(--ink-mute);
+    }
+    .pct-bar.is-bad { color: var(--bad); font-weight: 700; }
+
+    .editor-fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin: 16px 0;
+    }
+    .editor-fields label {
+      display: block;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      margin-bottom: 4px;
+    }
+    .editor-fields input {
+      width: 100%;
+      padding: 8px 10px;
+      font-size: 13px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+    }
+    @media (max-width: 600px) {
+      .editor-fields { grid-template-columns: 1fr; }
+    }
+    .notes-field textarea {
+      width: 100%;
+      padding: 8px 10px;
+      font-size: 13px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      font-family: inherit;
+      min-height: 60px;
+      resize: vertical;
+    }
+
+    .lock-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      background: var(--warn-pale);
+      border: 1px solid #F1D48E;
+      border-radius: 8px;
+      margin-top: 10px;
+      font-size: 13px;
+      color: var(--ink);
+    }
+
+    .editor-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .status-msg {
+      font-size: 12px;
+      color: var(--ink-mute);
+      margin-top: 8px;
+    }
+    .status-msg.is-ok  { color: var(--good); font-weight: 600; }
+    .status-msg.is-err { color: var(--bad); font-weight: 600; }
+
+    /* Recon list */
+    .recon-controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+    .recon-controls input {
+      padding: 8px 10px;
+      font-size: 13px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+    }
+    .recon {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 10px;
+      font-size: 13px;
+    }
+    .recon-job { font-weight: 700; }
+    .recon-meta { font-size: 11px; color: var(--ink-mute); }
+
+    .empty {
+      padding: 24px;
+      text-align: center;
+      color: var(--ink-mute);
+      font-size: 13px;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+    }
+
+    .nav-link {
+      font-size: 12px;
+      color: var(--brand);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .nav-link:hover { text-decoration: underline; }
+
+    /* ── Sitemap panel ─────────────────────────────────────────── */
+    .sitemap-group {
+      margin-bottom: 22px;
+    }
+    .sitemap-group-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink-mute);
+      margin-bottom: 10px;
+      padding-left: 4px;
+    }
+    .sitemap-tile {
+      display: block;
+      padding: 14px 18px;
+      margin-bottom: 8px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: var(--ink);
+      text-decoration: none;
+      transition: border-color 0.15s, transform 0.08s, box-shadow 0.15s;
+    }
+    .sitemap-tile:hover {
+      border-color: var(--brand);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 14px rgba(232, 129, 64, 0.10);
+    }
+    .sitemap-tile-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 2px;
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+    .sitemap-tile-path {
+      font-family: ui-monospace, 'SF Mono', 'Menlo', monospace;
+      font-size: 11px;
+      color: var(--ink-mute);
+      letter-spacing: 0.02em;
+      margin-bottom: 6px;
+    }
+    .sitemap-tile-desc {
+      font-size: 13px;
+      color: var(--ink-soft);
+      line-height: 1.45;
+    }
+    .sitemap-tile--admin {
+      border-left: 3px solid var(--brand);
+    }
+    .sitemap-tile--ops {
+      border-left: 3px solid var(--warn);
+    }
+    .sitemap-here {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      background: var(--brand-pale);
+      color: var(--brand);
+      border-radius: 100px;
+    }
+
+    .sitemap-api-block {
+      margin-top: 1.5rem;
+      padding: 14px 18px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+    .sitemap-api-summary {
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-mute);
+      user-select: none;
+    }
+    .sitemap-api-summary:hover { color: var(--ink); }
+    .sitemap-api-list {
+      margin: 6px 0 0;
+      padding-left: 18px;
+      font-size: 13px;
+      color: var(--ink-soft);
+      line-height: 1.7;
+    }
+    .sitemap-api-list code {
+      font-family: ui-monospace, 'SF Mono', 'Menlo', monospace;
+      font-size: 12px;
+      background: var(--bg);
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="page">
+  <div id="gate" class="gate">
+    <label>Admin password</label>
+    <input type="password" id="pwInput" autocomplete="current-password" placeholder="diagnostics password">
+    <button id="gateBtn">Open</button>
+  </div>
+
+  <div id="app" style="display:none">
+    <div class="header">
+      <div>
+        <h1>KPI Admin</h1>
+        <div class="sub" id="signature">Reconcile attribution &middot; Lock jobs</div>
+      </div>
+      <div>
+        <a class="nav-link" href="/">&larr; Dashboard</a>
+        &nbsp;&middot;&nbsp;
+        <a class="nav-link" href="/coverage">Coverage check</a>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab is-active" data-panel="issues">Open issues <span class="tab-count" id="issueCount">0</span></button>
+      <button class="tab" data-panel="reconcile">Reconcile a job</button>
+      <button class="tab" data-panel="locked">Locked records <span class="tab-count" id="lockedCount">0</span></button>
+      <button class="tab" data-panel="sitemap">All pages</button>
+    </div>
+
+    <div id="panel-issues" class="panel is-active">
+      <div id="issuesList"></div>
+    </div>
+
+    <div id="panel-reconcile" class="panel">
+      <div class="recon-controls">
+        <input type="text" id="jobLookup" placeholder="Paste a job ID, invoice #, or HCP URL" style="flex:1 1 320px">
+        <button class="btn btn--primary" id="lookupBtn">Open editor</button>
+      </div>
+      <div id="editorContainer"></div>
+    </div>
+
+    <div id="panel-locked" class="panel">
+      <div class="recon-controls">
+        <label class="sub" style="margin-right:6px">Filter by month</label>
+        <input type="month" id="monthFilter">
+        <button class="btn" id="loadLockedBtn">Load</button>
+      </div>
+      <div id="lockedList"></div>
+    </div>
+
+    <div id="panel-sitemap" class="panel">
+      <p class="recon-controls" style="font-size:13px;color:var(--ink-soft);max-width:640px;line-height:1.5;display:block">
+        Every page in the dashboard, grouped by who it&rsquo;s for. Public pages
+        load without a password; admin pages share the same diagnostics
+        password you used to get here.
+      </p>
+
+      <div class="sitemap-group">
+        <div class="sitemap-group-label">Tech-facing</div>
+        <a class="sitemap-tile" href="/" target="_blank">
+          <div class="sitemap-tile-name">Main Dashboard</div>
+          <div class="sitemap-tile-path">/</div>
+          <div class="sitemap-tile-desc">The KPI leaderboard everyone sees. Tabs for Technicians, Marketing, Location Leaders.</div>
+        </a>
+        <a class="sitemap-tile" href="/#technicians" target="_blank">
+          <div class="sitemap-tile-name">Technicians tab</div>
+          <div class="sitemap-tile-path">/#technicians</div>
+          <div class="sitemap-tile-desc">Per-tech leaderboard, unpaid drill-down, unattributed banner.</div>
+        </a>
+        <a class="sitemap-tile" href="/#marketing" target="_blank">
+          <div class="sitemap-tile-name">Marketing tab</div>
+          <div class="sitemap-tile-path">/#marketing</div>
+          <div class="sitemap-tile-desc">12-month job history, projection, marketing-spend reconciliation against QBO.</div>
+        </a>
+        <a class="sitemap-tile" href="/#owners" target="_blank">
+          <div class="sitemap-tile-name">Location Leaders tab</div>
+          <div class="sitemap-tile-path">/#owners</div>
+          <div class="sitemap-tile-desc">P&amp;L card, expense drill-downs, Planning Ahead account history, balance sheet snapshot.</div>
+        </a>
+        <a class="sitemap-tile" href="/report-issue" target="_blank">
+          <div class="sitemap-tile-name">Report an Issue</div>
+          <div class="sitemap-tile-path">/report-issue</div>
+          <div class="sitemap-tile-desc">Tech-facing report form (missing job, wrong tech, wrong split, wrong seller, etc.). No password.</div>
+        </a>
+      </div>
+
+      <div class="sitemap-group">
+        <div class="sitemap-group-label">Admin (password-gated)</div>
+        <a class="sitemap-tile sitemap-tile--admin" href="/admin/kpi" target="_blank">
+          <div class="sitemap-tile-name">KPI Admin <span class="sitemap-here">you are here</span></div>
+          <div class="sitemap-tile-path">/admin/kpi</div>
+          <div class="sitemap-tile-desc">Issue queue, job reconciliation editor, locked records.</div>
+        </a>
+        <a class="sitemap-tile sitemap-tile--admin" href="/coverage" target="_blank">
+          <div class="sitemap-tile-name">Coverage Check</div>
+          <div class="sitemap-tile-path">/coverage</div>
+          <div class="sitemap-tile-desc">Money-first reconciliation. Enumerates every paid invoice and verifies it appears on the leaderboard. Surfaces drift, missing, excluded, and standalone invoices per period.</div>
+        </a>
+        <a class="sitemap-tile sitemap-tile--admin" href="/diagnostics" target="_blank">
+          <div class="sitemap-tile-name">KPI Diagnostics</div>
+          <div class="sitemap-tile-path">/diagnostics &middot; /di</div>
+          <div class="sitemap-tile-desc">Free-form HCP data investigation. Search by invoice, customer, employee, or date range.</div>
+        </a>
+      </div>
+
+      <div class="sitemap-group">
+        <div class="sitemap-group-label">Integrations &amp; setup</div>
+        <a class="sitemap-tile sitemap-tile--ops" href="/connect-quickbooks" target="_blank">
+          <div class="sitemap-tile-name">Connect QuickBooks</div>
+          <div class="sitemap-tile-path">/connect-quickbooks</div>
+          <div class="sitemap-tile-desc">QBO OAuth flow. Use this if QuickBooks data ever shows &ldquo;not connected&rdquo;.</div>
+        </a>
+      </div>
+
+      <details class="sitemap-api-block">
+        <summary class="sitemap-api-summary">Server API endpoints (advanced)</summary>
+        <p style="font-size:12px;color:var(--ink-mute);margin:8px 0">
+          These are the JSON endpoints the dashboard fetches from. Listed for
+          reference &mdash; you usually don&rsquo;t need to hit them directly.
+        </p>
+        <ul class="sitemap-api-list">
+          <li><code>GET /api/metrics?range=mtd</code> &mdash; technician leaderboard</li>
+          <li><code>GET /api/marketing</code> &mdash; marketing 12-month history</li>
+          <li><code>GET /api/owners-financial</code> &mdash; P&amp;L data</li>
+          <li><code>GET /api/qbo-balance</code> &mdash; balance sheet + bank history</li>
+          <li><code>GET /api/qbo-marketing</code> &mdash; QBO marketing spend</li>
+          <li><code>GET /api/qbo-reconciliation</code> &mdash; QBO recon status</li>
+          <li><code>GET /api/qbo-accounts</code> &mdash; available P&amp;L accounts</li>
+          <li><code>GET /api/account-detail?acct=...&amp;month=...</code> &mdash; expense drill-down</li>
+          <li><code>GET /api/diagnostics/coverage?range=mtd</code> &mdash; coverage reconciliation (password-gated)</li>
+          <li><code>GET /api/diagnostics/kpi</code> &mdash; KPI investigation data (password-gated)</li>
+          <li><code>GET /api/debug/techs</code> &mdash; post-migration data audit</li>
+          <li><code>POST /api/kpi/report-issue</code> &mdash; submit a tech issue report</li>
+          <li><code>GET /api/kpi/recent-reports</code> &mdash; recent issue reports (public)</li>
+          <li><code>GET /api/kpi/admin/issues</code> &mdash; all issue reports (admin)</li>
+          <li><code>POST /api/kpi/admin/issues/:id/status</code> &mdash; resolve/dismiss/re-open</li>
+          <li><code>GET /api/kpi/admin/job/:id</code> &mdash; HCP job + active reconciliation</li>
+          <li><code>POST /api/kpi/admin/reconcile</code> &mdash; save a reconciliation</li>
+          <li><code>DELETE /api/kpi/admin/reconcile/:jobId</code> &mdash; remove a reconciliation</li>
+          <li><code>GET /api/kpi/admin/reconciliations?month=YYYY-MM</code> &mdash; list reconciliations</li>
+        </ul>
+      </details>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const escapeHtml = (s) => String(s == null ? '' : s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const fmt = (n) => '$' + Math.round(n || 0).toLocaleString();
+
+const TYPE_LABEL = {
+  missing:      'Missing job',
+  wrong_tech:   'Wrong tech',
+  wrong_split:  'Wrong split',
+  wrong_seller: 'Wrong seller',
+  other:        'Other'
+};
+
+let PASSWORD = sessionStorage.getItem('kpi-admin-pw') || '';
+if (PASSWORD) initApp();
+
+$('gateBtn').addEventListener('click', () => {
+  PASSWORD = $('pwInput').value.trim();
+  if (!PASSWORD) return;
+  sessionStorage.setItem('kpi-admin-pw', PASSWORD);
+  initApp();
+});
+$('pwInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('gateBtn').click(); });
+
+async function api(path, opts) {
+  opts = opts || {};
+  opts.headers = Object.assign({}, opts.headers || {}, { 'X-Diagnostics-Password': PASSWORD });
+  if (opts.body && typeof opts.body !== 'string') {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(opts.body);
+  }
+  const r = await fetch(path, opts);
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    if (r.status === 401) {
+      sessionStorage.removeItem('kpi-admin-pw');
+      $('gate').style.display = '';
+      $('app').style.display = 'none';
+    }
+    throw new Error(data.error || ('HTTP ' + r.status));
+  }
+  return data;
+}
+
+async function initApp() {
+  try {
+    await api('/api/kpi/admin/issues');
+    $('gate').style.display = 'none';
+    $('app').style.display = '';
+    loadIssues();
+  } catch (err) {
+    $('gate').style.display = '';
+    $('app').style.display = 'none';
+    alert('Auth failed: ' + err.message);
+  }
+}
+
+// Tabs
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('is-active'));
+    t.classList.add('is-active');
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('is-active'));
+    $('panel-' + t.dataset.panel).classList.add('is-active');
+    if (t.dataset.panel === 'locked') loadLocked();
+  });
+});
+
+async function loadIssues() {
+  try {
+    const data = await api('/api/kpi/admin/issues');
+    const reports = data.reports || [];
+    const openCount = reports.filter(r => r.status === 'open').length;
+    $('issueCount').textContent = openCount;
+    if (reports.length === 0) {
+      $('issuesList').innerHTML = '<div class="empty">No issue reports yet.</div>';
+      return;
+    }
+    $('issuesList').innerHTML = reports.map(renderIssue).join('');
+  } catch (err) {
+    $('issuesList').innerHTML = '<div class="empty">Error: ' + escapeHtml(err.message) + '</div>';
+  }
+}
+
+function renderIssue(rep) {
+  const ref = [rep.invoice && '#' + rep.invoice, rep.customer].filter(Boolean).join(' · ');
+  const when = new Date(rep.createdAt);
+  const whenStr = when.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
+    ' · ' + when.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  return '<div class="issue" data-id="' + escapeHtml(rep.id) + '">' +
+    '<div class="issue-head">' +
+      '<span class="issue-type">' + escapeHtml(TYPE_LABEL[rep.type] || rep.type) + '</span>' +
+      '<span class="issue-status issue-status--' + escapeHtml(rep.status) + '">' + escapeHtml(rep.status) + '</span>' +
+      '<span class="issue-meta">' + escapeHtml(rep.reporterName) + ' · ' + whenStr + '</span>' +
+    '</div>' +
+    (ref ? '<div class="issue-ref">' + escapeHtml(ref) + '</div>' : '') +
+    '<div class="issue-desc">' + escapeHtml(rep.description) + '</div>' +
+    '<div class="issue-actions">' +
+      (rep.invoice ? '<button class="btn btn--primary" onclick="openEditorFromInvoice(\'' + escapeHtml(rep.invoice) + '\')">Open editor</button>' : '') +
+      (rep.jobId ? '<button class="btn btn--primary" onclick="openEditorFromJobId(\'' + escapeHtml(rep.jobId) + '\')">Open editor</button>' : '') +
+      (rep.status === 'open'
+        ? '<button class="btn btn--good" onclick="setIssueStatus(\'' + rep.id + '\', \'resolved\')">Mark resolved</button>' +
+          '<button class="btn btn--danger" onclick="setIssueStatus(\'' + rep.id + '\', \'dismissed\')">Dismiss</button>'
+        : '<button class="btn" onclick="setIssueStatus(\'' + rep.id + '\', \'open\')">Re-open</button>') +
+    '</div>' +
+  '</div>';
+}
+
+async function setIssueStatus(id, status) {
+  try {
+    await api('/api/kpi/admin/issues/' + id + '/status', {
+      method: 'POST',
+      body: { status, by: 'admin' }
+    });
+    loadIssues();
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+}
+
+// ── Reconcile / job editor ───────────────────────────────────────────────
+
+$('lookupBtn').addEventListener('click', () => {
+  const v = $('jobLookup').value.trim();
+  if (!v) return;
+  // Extract job ID from a URL or use as-is
+  const m = v.match(/job_[a-z0-9]+/i);
+  if (m) openEditorFromJobId(m[0]);
+  else openEditorFromInvoice(v);
+});
+
+async function openEditorFromInvoice(invoice) {
+  // We don't have a direct invoice→job lookup here; ask the admin to
+  // paste the job ID instead. (HCP's /invoices?q= isn't supported.)
+  alert('Open the job in HCP and copy its URL (or the job_… ID). Paste it into the lookup field. Invoice-only lookup isn\'t supported yet.');
+}
+
+async function openEditorFromJobId(jobId) {
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('is-active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('is-active'));
+  document.querySelector('[data-panel="reconcile"]').classList.add('is-active');
+  $('panel-reconcile').classList.add('is-active');
+  $('editorContainer').innerHTML = '<div class="empty">Loading job ' + escapeHtml(jobId) + '&hellip;</div>';
+  try {
+    const data = await api('/api/kpi/admin/job/' + encodeURIComponent(jobId));
+    renderEditor(data.job, data.reconciliation);
+  } catch (err) {
+    $('editorContainer').innerHTML = '<div class="empty">Error: ' + escapeHtml(err.message) + '</div>';
+  }
+}
+
+function renderEditor(job, recon) {
+  const isReconciled = !!recon;
+  const assignments = recon && recon.assignments && recon.assignments.length
+    ? recon.assignments
+    : job.assignedEmployees.map((e, i, arr) => ({
+        employeeName: e.name,
+        role: 'Did',
+        creditPct: Math.round(100 / arr.length)
+      }));
+
+  const completedDate = job.completedAt ? job.completedAt.slice(0, 10) : '';
+  const kpiDate = recon && recon.kpiDate
+    ? recon.kpiDate.slice(0, 10)
+    : (completedDate || (job.scheduledStart ? job.scheduledStart.slice(0, 10) : ''));
+  const totalAmount = recon && recon.totalAmount != null ? recon.totalAmount : job.totalAmount;
+
+  $('editorContainer').innerHTML = `
+    <div class="editor-card">
+      <div class="editor-head">
+        <h3>Invoice #${escapeHtml(job.invoice || '—')} &middot; ${escapeHtml(job.customer || '—')}</h3>
+        <span class="editor-meta">${escapeHtml(job.id)}</span>
+      </div>
+
+      <dl class="hcp-row">
+        <div>
+          <dt>HCP status</dt><dd>${escapeHtml(job.workStatus || '—')}</dd>
+          <dt>Description</dt><dd>${escapeHtml(job.description || '—')}</dd>
+          <dt>HCP assigned</dt>
+          <dd>${(job.assignedEmployees.length ? job.assignedEmployees.map(e => escapeHtml(e.name)).join(', ') : '<em style="color:var(--ink-mute)">none</em>')}</dd>
+        </div>
+        <div>
+          <dt>HCP total</dt><dd>${fmt(job.totalAmount)}</dd>
+          <dt>Outstanding</dt><dd>${fmt(job.outstandingBalance)}</dd>
+          <dt>Completed</dt><dd>${escapeHtml(completedDate || '—')}</dd>
+          <dt>Scheduled</dt><dd>${escapeHtml(job.scheduledStart ? job.scheduledStart.slice(0, 10) : '—')}</dd>
+        </div>
+      </dl>
+
+      <div class="assignments-label">Attribution</div>
+      <div id="assignments"></div>
+      <div style="margin-top:8px"><button class="btn" onclick="addAssignment()">+ Add tech</button></div>
+      <div class="pct-bar" id="pctBar"></div>
+
+      <div class="editor-fields">
+        <div>
+          <label>Effective total ($)</label>
+          <input type="number" step="0.01" id="totalAmount" value="${Number(totalAmount).toFixed(2)}">
+        </div>
+        <div>
+          <label>KPI date (period this counts toward)</label>
+          <input type="date" id="kpiDate" value="${escapeHtml(kpiDate)}">
+        </div>
+      </div>
+
+      <div class="notes-field">
+        <label class="assignments-label">Notes (admin-only)</label>
+        <textarea id="reconNotes" placeholder="e.g. Patrick + Trevor split this water heater 60/40 because Patrick led the install">${escapeHtml(recon && recon.notes || '')}</textarea>
+      </div>
+
+      <div class="lock-row">
+        <input type="checkbox" id="lockChk" ${isReconciled ? 'checked' : 'checked'}>
+        <label for="lockChk"><strong>Lock this reconciliation.</strong> The auto-pipeline will not overwrite it on future refreshes.</label>
+      </div>
+
+      <div class="editor-actions">
+        ${isReconciled ? '<button class="btn btn--danger" onclick="unreconcile(\'' + escapeHtml(job.id) + '\')">Remove reconciliation</button>' : ''}
+        <button class="btn" onclick="$('editorContainer').innerHTML = ''">Cancel</button>
+        <button class="btn btn--primary" onclick="saveReconciliation('${escapeHtml(job.id)}')">Save${isReconciled ? ' changes' : ' & lock'}</button>
+      </div>
+
+      <div class="status-msg" id="editorStatus"></div>
+    </div>
+  `;
+
+  window._jobAssignments = assignments.slice();
+  renderAssignmentsList();
+}
+
+function renderAssignmentsList() {
+  $('assignments').innerHTML = window._jobAssignments.map((a, i) => `
+    <div class="assignment-row">
+      <input type="text" placeholder="Tech name" value="${escapeHtml(a.employeeName || '')}" onchange="updateAssignment(${i}, 'employeeName', this.value)">
+      <select onchange="updateAssignment(${i}, 'role', this.value)">
+        <option value="Did" ${a.role === 'Did' ? 'selected' : ''}>Did</option>
+        <option value="Sold" ${a.role === 'Sold' ? 'selected' : ''}>Sold</option>
+        <option value="Sold & Did" ${a.role === 'Sold & Did' ? 'selected' : ''}>Sold &amp; Did</option>
+      </select>
+      <input type="number" step="0.1" min="0" max="100" placeholder="%" value="${Number(a.creditPct || 0).toFixed(1)}" onchange="updateAssignment(${i}, 'creditPct', Number(this.value))">
+      <button class="remove-btn" onclick="removeAssignment(${i})" title="Remove">×</button>
+    </div>
+  `).join('');
+  updatePctBar();
+}
+
+function updatePctBar() {
+  const sum = window._jobAssignments.reduce((s, a) => s + (Number(a.creditPct) || 0), 0);
+  const bar = $('pctBar');
+  if (Math.abs(sum - 100) < 0.5) {
+    bar.textContent = '✓ Total: 100%';
+    bar.classList.remove('is-bad');
+  } else {
+    bar.textContent = '⚠ Total: ' + sum.toFixed(1) + '% — must sum to 100';
+    bar.classList.add('is-bad');
+  }
+}
+
+function addAssignment() {
+  window._jobAssignments.push({ employeeName: '', role: 'Did', creditPct: 0 });
+  renderAssignmentsList();
+}
+function removeAssignment(i) {
+  window._jobAssignments.splice(i, 1);
+  renderAssignmentsList();
+}
+function updateAssignment(i, field, value) {
+  window._jobAssignments[i][field] = value;
+  if (field === 'creditPct') updatePctBar();
+}
+
+async function saveReconciliation(jobId) {
+  const assignments = window._jobAssignments.filter(a => a.employeeName && a.employeeName.trim());
+  const totalAmount = parseFloat($('totalAmount').value);
+  const kpiDate = $('kpiDate').value;
+  const notes = $('reconNotes').value;
+  const locked = $('lockChk').checked;
+
+  if (!assignments.length) {
+    setEditorStatus('Add at least one tech.', 'err');
+    return;
+  }
+  const sum = assignments.reduce((s, a) => s + (Number(a.creditPct) || 0), 0);
+  if (Math.abs(sum - 100) > 0.5) {
+    setEditorStatus('Credit percentages must sum to 100 (got ' + sum.toFixed(1) + ').', 'err');
+    return;
+  }
+
+  setEditorStatus('Saving…');
+  try {
+    await api('/api/kpi/admin/reconcile', {
+      method: 'POST',
+      body: {
+        jobId, assignments, totalAmount, kpiDate, notes, locked,
+        reconciledBy: 'admin'
+      }
+    });
+    setEditorStatus('Saved. The dashboard will pick it up on the next refresh.', 'ok');
+  } catch (err) {
+    setEditorStatus('Error: ' + err.message, 'err');
+  }
+}
+
+async function unreconcile(jobId) {
+  if (!confirm('Remove this reconciliation? The job will go back to auto-attribution.')) return;
+  try {
+    await api('/api/kpi/admin/reconcile/' + encodeURIComponent(jobId), { method: 'DELETE' });
+    $('editorContainer').innerHTML = '<div class="empty">Reconciliation removed. Refresh the dashboard to see auto-attribution.</div>';
+    loadLocked();
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+}
+
+function setEditorStatus(msg, tone) {
+  const el = $('editorStatus');
+  el.textContent = msg;
+  el.className = 'status-msg' + (tone === 'ok' ? ' is-ok' : tone === 'err' ? ' is-err' : '');
+}
+
+// ── Locked records list ────────────────────────────────────────────────
+
+async function loadLocked() {
+  try {
+    const month = $('monthFilter').value;
+    const data = await api('/api/kpi/admin/reconciliations' + (month ? '?month=' + month : ''));
+    const recs = data.reconciliations || [];
+    $('lockedCount').textContent = recs.length;
+    if (recs.length === 0) {
+      $('lockedList').innerHTML = '<div class="empty">No reconciliations yet' + (month ? ' for ' + month : '') + '.</div>';
+      return;
+    }
+    $('lockedList').innerHTML = recs.map(r => {
+      const names = (r.assignments || []).map(a => a.employeeName + ' ' + a.creditPct + '%').join(' · ');
+      return '<div class="recon">' +
+        '<div>' +
+          '<div class="recon-job">' + escapeHtml(r.jobId) + '</div>' +
+          '<div class="recon-meta">' + escapeHtml(names) + (r.totalAmount != null ? ' · ' + fmt(r.totalAmount) : '') + '</div>' +
+          (r.notes ? '<div class="recon-meta" style="margin-top:2px">' + escapeHtml(r.notes) + '</div>' : '') +
+        '</div>' +
+        '<div class="recon-meta">' + (r.kpiDate ? escapeHtml(r.kpiDate.slice(0, 10)) : '—') + '</div>' +
+        '<button class="btn" onclick="openEditorFromJobId(\'' + escapeHtml(r.jobId) + '\')">Edit</button>' +
+      '</div>';
+    }).join('');
+  } catch (err) {
+    $('lockedList').innerHTML = '<div class="empty">Error: ' + escapeHtml(err.message) + '</div>';
+  }
+}
+
+$('loadLockedBtn').addEventListener('click', loadLocked);
+</script>
+
+</body>
+</html>

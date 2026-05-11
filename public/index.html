@@ -52,15 +52,16 @@
           Any data imported from Service Titan may not be fully correct.
         </span>
       </div>
-      <!-- Coverage gap banner — populated when /api/tech finds paid
-           invoices in this period that couldn't be credited to a tech
-           (no assigned_employees in HCP). Click → modal listing them so
-           an admin can fix the assignments. Toggled by render() in
-           technicians.js. -->
+      <!-- Unattributed-work banner — populated when /api/metrics finds
+           paid invoices that couldn't be attached to a specific tech's
+           row (no assigned employees, paid in this period but service
+           date elsewhere, missing HCP details, etc.). Every dollar HCP
+           knows about lands on the leaderboard OR in this bucket; nothing
+           is silently dropped. Toggled by render() in technicians.js. -->
       <div class="data-warning data-warning--orphans" id="techOrphansBanner" hidden role="note">
         <span class="data-warning-ico" aria-hidden="true">!</span>
         <span class="data-warning-text">
-          <strong id="techOrphansCount">0 paid jobs</strong> in this period weren&rsquo;t credited to a tech.
+          <strong id="techOrphansCount">0 jobs</strong> in this period couldn&rsquo;t be attached to a specific tech.
           <button type="button" class="data-warning-link" id="techOrphansShow">See details &rarr;</button>
         </span>
       </div>
@@ -251,6 +252,9 @@
 
 <div class="footer">
   Updates every 5 minutes &bull; Last updated: <span id="lastUpdate">Never</span>
+  <div class="footer-feedback">
+    <a href="/report-issue" target="_blank" rel="noopener" class="footer-feedback-link">See something wrong? Report it &rarr;</a>
+  </div>
   <div class="footer-levi">Made with <svg class="footer-heart" viewBox="0 0 24 24" width="13" height="13" aria-label="love" role="img"><path d="M12 20.5s-7.2-4.3-9.5-9.2C.8 7.5 3.2 3.5 7.2 3.5c2 0 3.8 1 4.8 2.6 1-1.6 2.8-2.6 4.8-2.6 4 0 6.4 4 4.7 7.8C19.2 16.2 12 20.5 12 20.5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg> and an obsession for transforming the plumbing industry.<br>-Levi</div>
 </div>
 
@@ -258,6 +262,12 @@
   <div class="modal">
     <div class="modal-header">
       <span class="modal-title" id="modalTitle">Jobs</span>
+      <a class="modal-report-missing" id="modalReportMissing" href="/report-issue?type=missing" target="_blank" rel="noopener" title="Report a job that's missing from this list">
+        <svg viewBox="0 0 12 14" width="11" height="13" aria-hidden="true">
+          <path d="M2 1v12M2 2h7l-1.2 2.4L9 7H2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Missing a job?
+      </a>
       <button class="modal-close" id="modalClose">&times;</button>
     </div>
     <div class="modal-body">
@@ -289,24 +299,25 @@
   </div>
 </div>
 
-<!-- Orphan-jobs modal — opened from the techDataWarning banner. Lists
-     jobs paid in the current period whose HCP record has no assigned
-     employee, so we can't credit a tech. Each row shows what to look
-     up in HCP to fix the assignment. -->
+<!-- Unattributed-work modal — opened from the unattributed banner.
+     Lists every paid invoice in the current period whose dollars
+     didn't make it onto a specific tech's row, with a reason code
+     per row so admins know exactly what to fix. -->
 <div class="modal-backdrop" id="orphansBackdrop">
   <div class="modal">
     <div class="modal-header">
-      <span class="modal-title">Paid Jobs Without an Assigned Tech</span>
+      <span class="modal-title">Unattributed Work</span>
       <button class="modal-close" id="orphansClose">&times;</button>
     </div>
     <div class="modal-body">
       <div class="modal-banner" role="note" style="display:flex">
         <span class="modal-banner-ico" aria-hidden="true">!</span>
         <span class="modal-banner-text">
-          These jobs got paid in the current period but don&rsquo;t have an assigned
-          technician in Housecall Pro, so no one was credited for the work.
-          Open the job in HCP and add the tech who actually did it
-          &mdash; the dashboard will pick up the change on the next refresh.
+          These paid invoices couldn&rsquo;t be attached to a specific tech&rsquo;s row
+          on the leaderboard. Each row shows the reason. Most fixes happen by
+          updating the job in Housecall Pro (add the assigned tech, set a
+          service date, etc.) &mdash; the dashboard picks up changes on the
+          next refresh.
         </span>
       </div>
       <table class="modal-table">
@@ -315,7 +326,7 @@
             <th>Paid</th>
             <th>Invoice</th>
             <th>Customer</th>
-            <th>Status</th>
+            <th>Reason</th>
             <th>Amount</th>
           </tr>
         </thead>

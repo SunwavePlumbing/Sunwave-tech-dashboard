@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Report an Issue — Sunwave KPIs</title>
+  <link rel="icon" type="image/png" href="/Favicon.png">
+  <style>
+    /* Standalone — paper-mode palette but doesn't share styles.css so
+       this page can iterate independently of the main dashboard. */
+    :root {
+      --bg: #FBF9F4;
+      --card: #FDFCF8;
+      --border: rgba(92, 84, 72, 0.14);
+      --ink: #2C2A28;
+      --ink-soft: #5C5448;
+      --ink-mute: #8A8680;
+      --brand: #E88140;
+      --brand-pale: #FDEFE0;
+      --good: #2F7D49;
+      --good-pale: #EBF4ED;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.45;
+    }
+    .page {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 2rem 1.25rem 4rem;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+    .eyebrow {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--brand);
+      margin-bottom: 6px;
+    }
+    h1 {
+      font-size: 26px;
+      font-weight: 700;
+      margin: 0 0 6px;
+      letter-spacing: -0.015em;
+    }
+    .lede {
+      font-size: 14px;
+      color: var(--ink-soft);
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 22px 22px 18px;
+      margin-bottom: 1.25rem;
+    }
+    .field { margin-bottom: 14px; }
+    .field-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      margin-bottom: 6px;
+    }
+    .field-hint {
+      font-size: 11px;
+      color: var(--ink-mute);
+      margin-top: 4px;
+    }
+    input[type="text"], textarea {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 14px;
+      font-family: inherit;
+      color: var(--ink);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      outline: none;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    input[type="text"]:focus, textarea:focus {
+      border-color: var(--brand);
+      background: white;
+    }
+    textarea {
+      min-height: 110px;
+      resize: vertical;
+      line-height: 1.45;
+    }
+
+    /* Issue-type chips */
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 100px;
+      background: var(--bg);
+      color: var(--ink-soft);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s;
+    }
+    .chip:hover { border-color: var(--brand); color: var(--ink); }
+    .chip.is-active {
+      background: var(--brand-pale);
+      border-color: var(--brand);
+      color: var(--brand);
+    }
+
+    /* Two-column row for invoice/customer fields */
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 480px) {
+      .row { grid-template-columns: 1fr; }
+    }
+
+    /* Submit */
+    .submit-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 8px;
+    }
+    .submit-btn {
+      padding: 12px 28px;
+      background: var(--brand);
+      color: white;
+      border: 0;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      transition: filter 0.15s, transform 0.08s;
+    }
+    .submit-btn:hover { filter: brightness(1.05); }
+    .submit-btn:active { transform: scale(0.98); }
+    .submit-btn:disabled { opacity: 0.55; cursor: progress; }
+    .status {
+      font-size: 13px;
+      color: var(--ink-mute);
+    }
+    .status--ok { color: var(--good); font-weight: 600; }
+    .status--err { color: #C0392B; font-weight: 600; }
+
+    /* Recent reports list */
+    .recent-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--ink-mute);
+      margin: 0 0 12px;
+      padding: 0 4px;
+    }
+    .report {
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 4px 14px;
+    }
+    .report:last-child { border-bottom: none; }
+    .report-head {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: baseline;
+      font-size: 13px;
+    }
+    .report-type {
+      font-weight: 700;
+      color: var(--ink);
+    }
+    .report-reporter { color: var(--ink-soft); }
+    .report-meta {
+      font-size: 11px;
+      color: var(--ink-mute);
+      letter-spacing: 0.04em;
+    }
+    .report-desc {
+      grid-column: 1 / -1;
+      font-size: 13px;
+      color: var(--ink-soft);
+      line-height: 1.4;
+    }
+    .report-status {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 100px;
+    }
+    .report-status--open      { background: #FFF1E8; color: #C9591F; }
+    .report-status--resolved  { background: var(--good-pale); color: var(--good); }
+    .report-status--dismissed { background: #ECECE6; color: var(--ink-mute); }
+
+    .empty {
+      padding: 16px 0;
+      text-align: center;
+      color: var(--ink-mute);
+      font-size: 13px;
+    }
+
+    .back {
+      display: inline-block;
+      margin-top: 1.5rem;
+      font-size: 13px;
+      color: var(--brand);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .back:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<div class="page">
+  <div class="header">
+    <div class="eyebrow">Sunwave KPIs</div>
+    <h1>Report an issue</h1>
+    <p class="lede">
+      See something on the dashboard that doesn&rsquo;t match the work you did?
+      Tell us about it &mdash; the admin will sort it out.
+    </p>
+  </div>
+
+  <form class="card" id="reportForm" autocomplete="on">
+    <div class="field">
+      <label class="field-label">What&rsquo;s wrong?</label>
+      <div class="chips" id="typeChips" role="radiogroup" aria-label="Issue type">
+        <button type="button" class="chip" data-type="missing">A job is missing</button>
+        <button type="button" class="chip" data-type="wrong_tech">Wrong tech</button>
+        <button type="button" class="chip" data-type="wrong_split">Wrong split</button>
+        <button type="button" class="chip" data-type="wrong_seller">Wrong seller</button>
+        <button type="button" class="chip" data-type="other">Something else</button>
+      </div>
+      <input type="hidden" id="type" name="type" required>
+    </div>
+
+    <div class="field">
+      <label class="field-label" for="reporterName">Your name</label>
+      <input type="text" id="reporterName" name="reporterName" placeholder="First &amp; last name" required maxlength="100">
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label class="field-label" for="invoice">Invoice / job #</label>
+        <input type="text" id="invoice" name="invoice" placeholder="e.g. 408 or 326-2" maxlength="50">
+        <div class="field-hint">If you know it &mdash; helps us find the job fast.</div>
+      </div>
+      <div class="field">
+        <label class="field-label" for="customer">Customer</label>
+        <input type="text" id="customer" name="customer" placeholder="e.g. Pamela Stevens" maxlength="100">
+        <div class="field-hint">First &amp; last is usually enough.</div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label" for="description">What should change?</label>
+      <textarea id="description" name="description" placeholder="e.g. &quot;I did this water heater job on May 8 with Patrick, but it&rsquo;s not on either of our totals. Pretty sure it&rsquo;s ours.&quot;" required maxlength="2000"></textarea>
+    </div>
+
+    <div class="submit-row">
+      <button type="submit" class="submit-btn" id="submitBtn">Send it</button>
+      <span class="status" id="status"></span>
+    </div>
+  </form>
+
+  <div class="card" id="recentCard">
+    <p class="recent-title">Recent reports</p>
+    <div id="recentList">
+      <div class="empty">Loading recent reports&hellip;</div>
+    </div>
+  </div>
+
+  <a class="back" href="/">&larr; Back to dashboard</a>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const escapeHtml = (s) => String(s == null ? '' : s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+const TYPE_LABEL = {
+  missing:      'Missing job',
+  wrong_tech:   'Wrong tech',
+  wrong_split:  'Wrong split',
+  wrong_seller: 'Wrong seller',
+  other:        'Other'
+};
+
+// Chip selection
+const typeChips = $('typeChips').querySelectorAll('.chip');
+typeChips.forEach(c => c.addEventListener('click', () => {
+  typeChips.forEach(x => x.classList.remove('is-active'));
+  c.classList.add('is-active');
+  $('type').value = c.dataset.type;
+}));
+
+// Persist name across submissions so techs don't retype every time
+const savedName = localStorage.getItem('kpi-reporter-name');
+if (savedName) $('reporterName').value = savedName;
+$('reporterName').addEventListener('change', () => {
+  localStorage.setItem('kpi-reporter-name', $('reporterName').value.trim());
+});
+
+// ── Pre-fill from URL params ───────────────────────────────────────────
+// Contextual report buttons on the dashboard (job rows, role badges,
+// split partners) open this page with query string args like:
+//   ?type=wrong_tech&invoice=408&customer=Pamela%20Stevens&jobId=job_xxx
+//     &context=Currently%20shows%3A%20Trevor%20Cuoco
+// We pre-select the chip, pre-fill the fields, and seed the description
+// with a context line so the tech only has to add a sentence or two.
+(function applyUrlPrefill() {
+  const qs = new URLSearchParams(window.location.search);
+  const type = qs.get('type');
+  if (type) {
+    const chip = document.querySelector('.chip[data-type="' + type + '"]');
+    if (chip) {
+      typeChips.forEach(x => x.classList.remove('is-active'));
+      chip.classList.add('is-active');
+      $('type').value = type;
+    }
+  }
+  if (qs.get('invoice'))  $('invoice').value  = qs.get('invoice');
+  if (qs.get('customer')) $('customer').value = qs.get('customer');
+  // Job ID is hidden from the visible form but sent through to the server.
+  // Add a hidden input if there isn't one yet.
+  if (qs.get('jobId')) {
+    let hidden = document.getElementById('jobId');
+    if (!hidden) {
+      hidden = document.createElement('input');
+      hidden.type = 'hidden';
+      hidden.id = 'jobId';
+      hidden.name = 'jobId';
+      $('reportForm').appendChild(hidden);
+    }
+    hidden.value = qs.get('jobId');
+  }
+  const context = qs.get('context');
+  if (context) {
+    $('description').value = context + '\n\n';
+    // Cursor at end so the user can keep typing
+    setTimeout(() => {
+      $('description').focus();
+      const len = $('description').value.length;
+      $('description').setSelectionRange(len, len);
+    }, 50);
+  }
+})();
+
+$('reportForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const type = $('type').value;
+  const reporterName = $('reporterName').value.trim();
+  const description = $('description').value.trim();
+
+  if (!type) {
+    setStatus('Pick what&rsquo;s wrong first.', 'err');
+    return;
+  }
+  if (!reporterName) { setStatus('Your name is required.', 'err'); return; }
+  if (!description) { setStatus('Tell us what to change.', 'err'); return; }
+
+  $('submitBtn').disabled = true;
+  setStatus('Sending&hellip;');
+  try {
+    const r = await fetch('/api/kpi/report-issue', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type, reporterName,
+        invoice: $('invoice').value.trim(),
+        customer: $('customer').value.trim(),
+        description
+      })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Failed');
+    setStatus('Thanks &mdash; admin will take a look.', 'ok');
+    $('description').value = '';
+    $('invoice').value = '';
+    $('customer').value = '';
+    typeChips.forEach(x => x.classList.remove('is-active'));
+    $('type').value = '';
+    loadRecent();
+  } catch (err) {
+    setStatus('Error: ' + err.message, 'err');
+  } finally {
+    $('submitBtn').disabled = false;
+  }
+});
+
+function setStatus(html, tone) {
+  const el = $('status');
+  el.innerHTML = html;
+  el.className = 'status' + (tone ? ' status--' + tone : '');
+}
+
+async function loadRecent() {
+  try {
+    const r = await fetch('/api/kpi/recent-reports');
+    const data = await r.json();
+    const reports = data.reports || [];
+    if (reports.length === 0) {
+      $('recentList').innerHTML = '<div class="empty">No reports yet. Be the first.</div>';
+      return;
+    }
+    $('recentList').innerHTML = reports.map(rep => {
+      const when = new Date(rep.createdAt);
+      const whenStr = when.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
+        ' &middot; ' + when.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      const ref = [rep.invoice && '#' + rep.invoice, rep.customer].filter(Boolean).join(' &middot; ');
+      return '<div class="report">' +
+        '<div class="report-head">' +
+          '<span class="report-type">' + escapeHtml(TYPE_LABEL[rep.type] || rep.type) + '</span>' +
+          (ref ? '<span class="report-reporter">' + ref + '</span>' : '') +
+          '<span class="report-meta">' + whenStr + ' &middot; ' + escapeHtml(rep.reporterName) + '</span>' +
+        '</div>' +
+        '<span class="report-status report-status--' + escapeHtml(rep.status) + '">' + escapeHtml(rep.status) + '</span>' +
+        '<div class="report-desc">' + escapeHtml(rep.description) + '</div>' +
+      '</div>';
+    }).join('');
+  } catch (err) {
+    $('recentList').innerHTML = '<div class="empty">Could not load recent reports.</div>';
+  }
+}
+
+loadRecent();
+</script>
+
+</body>
+</html>

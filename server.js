@@ -125,6 +125,59 @@ function diagnosticsAllowed(req) {
 
 const KPI_ATTRIBUTION_OVERRIDES_PATH = path.join(__dirname, 'kpi-attribution-overrides.json');
 
+// ── KPI persistent data (issue reports + admin reconciliations) ──────────
+// Both files live on the same persistent volume as the QBO tokens so they
+// survive deploys. Reports = what techs submit when they spot an issue;
+// reconciliations = the authoritative, admin-locked attribution for a job.
+const KPI_DATA_DIR = process.env.QBO_TOKEN_DIR || __dirname;
+const ISSUE_REPORTS_PATH    = path.join(KPI_DATA_DIR, 'kpi-issue-reports.json');
+const RECONCILIATIONS_PATH  = path.join(KPI_DATA_DIR, 'kpi-reconciliations.json');
+
+function loadIssueReports() {
+  try {
+    if (!fs.existsSync(ISSUE_REPORTS_PATH)) return [];
+    const parsed = JSON.parse(fs.readFileSync(ISSUE_REPORTS_PATH, 'utf8'));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (err) {
+    console.warn('[issue-reports load]', err.message);
+    return [];
+  }
+}
+function saveIssueReports(reports) {
+  try {
+    fs.writeFileSync(ISSUE_REPORTS_PATH, JSON.stringify(reports, null, 2), 'utf8');
+    return true;
+  } catch (err) {
+    console.warn('[issue-reports save]', err.message);
+    return false;
+  }
+}
+
+function loadReconciliations() {
+  try {
+    if (!fs.existsSync(RECONCILIATIONS_PATH)) return {};
+    const parsed = JSON.parse(fs.readFileSync(RECONCILIATIONS_PATH, 'utf8'));
+    return (parsed && typeof parsed === 'object') ? parsed : {};
+  } catch (err) {
+    console.warn('[reconciliations load]', err.message);
+    return {};
+  }
+}
+function saveReconciliations(map) {
+  try {
+    fs.writeFileSync(RECONCILIATIONS_PATH, JSON.stringify(map, null, 2), 'utf8');
+    return true;
+  } catch (err) {
+    console.warn('[reconciliations save]', err.message);
+    return false;
+  }
+}
+
+// Light id helper for issue reports
+function newReportId() {
+  return 'rep_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
+}
+
 function normalizePersonName(value) {
   return String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
 }
@@ -1356,8 +1409,83 @@ app.get('/api/metrics', async (req, res) => {
        opts.date (ISO string) — override for the job-row's date. Used
          when `completed_at` isn't set but we know a paid_at on an
          invoice tied to this job in the period. */
+    // Admin reconciliations are loaded once per request — they're the
+    // authoritative attribution for any job they cover. If a job_id has
+    // a reconciliation record, we use it verbatim and skip every other
+    // attribution path (no estimate lookup, no 1/3-2/3 split, no gap
+    // pass logic). Reconciled jobs are locked.
+    const RECONCILIATIONS = loadReconciliations();
+
     function creditJob(job, opts) {
       opts = opts || {};
+
+      // ── Reconciliation short-circuit ──────────────────────────────
+      // If this job has been reconciled by an admin, the reconciliation
+      // record is the truth. Build the credit purely from it.
+      const recon = job && job.id ? RECONCILIATIONS[job.id] : null;
+      if (recon && Array.isArray(recon.assignments) && recon.assignments.length > 0) {
+        const reconAmount = (recon.totalAmount != null
+          ? Number(recon.totalAmount)
+          : (opts.revenue != null ? opts.revenue : parseFloat(job.total_amount || 0) / 100)) || 0;
+        const reconDate = recon.kpiDate
+          || opts.date
+          || (job.work_timestamps && job.work_timestamps.completed_at)
+          || (job.schedule && job.schedule.scheduled_start)
+          || null;
+        // Skip if reconciled job's date is outside the period.
+        if (reconDate) {
+          const rd = new Date(reconDate);
+          if (rd < periodStart || rd >= periodEnd) return true;
+        }
+        const customer = jobCustomerName(job);
+        const jobOutstandingGross = Math.max(0, parseFloat(job.outstanding_balance || 0) / 100);
+        const allInvolvedNames = recon.assignments.map(a => a.employeeName).filter(Boolean);
+        const totalPct = recon.assignments.reduce((s, a) => s + (Number(a.creditPct) || 0), 0) || 100;
+
+        recon.assignments.forEach(a => {
+          const emp = employeeFromName(a.employeeName || '');
+          if (!emp.first_name && !emp.last_name) return;
+          ensureTech(emp);
+          const myName = ((emp.first_name || '') + ' ' + (emp.last_name || '')).trim();
+          const pct = (Number(a.creditPct) || 0) / totalPct;
+          const credit = reconAmount * pct;
+          const role = a.role || 'Did';
+          const outstandingShare = reconAmount > 0 ? jobOutstandingGross * pct : 0;
+          const splitWith = allInvolvedNames
+            .filter(n => n && n !== myName)
+            .map(n => {
+              const other = recon.assignments.find(x => x.employeeName === n);
+              return { name: n, creditPct: other ? Number(other.creditPct) || 0 : 0 };
+            });
+          techMetrics[emp.id].revenue += credit;
+          techMetrics[emp.id].jobs += 1;
+          techMetrics[emp.id].unpaid += outstandingShare;
+          if (jobOutstandingGross > 0) techMetrics[emp.id].unpaidJobs += 1;
+          techMetrics[emp.id].jobList.push({
+            invoice: job.invoice_number || null,
+            description: job.description || null,
+            customer,
+            date: reconDate,
+            jobTotal: reconAmount,
+            credit,
+            creditPct: Math.round((Number(a.creditPct) || 0)),
+            role,
+            splitWith,
+            sellerSource: 'manual_reconciliation',
+            sellerConfidence: 'confirmed',
+            outstanding: jobOutstandingGross,
+            outstandingShare,
+            reconciled: true,
+            reconciledAt: recon.reconciledAt || null,
+            reconciledBy: recon.reconciledBy || null
+          });
+        });
+        if (job.id) creditedJobIds.add(job.id);
+        const ikey = creditedInvoiceKey(job);
+        if (ikey) creditedInvoiceKeys.add(ikey);
+        return true;
+      }
+
       const doers = uniqueEmployees(opts.assignedEmployees || job.assigned_employees || []);
       if (doers.length === 0) return false;
 
@@ -1498,140 +1626,292 @@ app.get('/api/metrics', async (req, res) => {
        in the period. Any job_id we DIDN'T already credit gets a
        targeted /jobs/{id} fetch to figure out whether to credit it
        supplementally, surface as orphan, or ignore. */
-    const orphans = [];
-    try {
-      // Fetch every paid invoice in the period (paginated). Filtered
-      // server-side via paid_at — HCP supports this on /invoices but
-      // not on /jobs.
-      const invParams = {
-        paid_at_min: isoDateOnly(periodStart),
-        paid_at_max: inclusiveEndDateOnly(periodEnd),
-        page_size: 200
-      };
-      const allPaidInvoices = [];
-      let invPage = 1;
-      while (true) {
-        const r = await axios.get(BASE_URL + '/invoices', {
-          headers, params: { ...invParams, page: invPage }
-        });
-        const invs = r.data.invoices || [];
-        allPaidInvoices.push(...invs.filter(inv => {
-          if (!inv.paid_at) return false;
-          const paidAt = new Date(inv.paid_at);
-          return paidAt >= periodStart && paidAt < periodEnd;
-        }));
-        if (invPage >= (r.data.total_pages || 1)) break;
-        invPage++;
-      }
+    /* ── COVERAGE GAP + MANDATORY UNATTRIBUTED SAFETY NET ─────────
+       Major reliability rewrite.
 
-      // Group invoices by their parent job id. Some invoices may not
-      // carry a job_id (rare — typically standalone invoices); we skip
-      // those since they can't be attributed to a tech.
-      const invoicesByJob = {};
-      allPaidInvoices.forEach(inv => {
-        const jid = inv.job_id;
-        if (!jid) return;
-        if (!invoicesByJob[jid]) invoicesByJob[jid] = [];
-        invoicesByJob[jid].push(inv);
-      });
+       Goal: every paid invoice in the period appears SOMEWHERE on the
+       dashboard. No silent drops, ever. If we can't credit a job to a
+       specific tech, it goes into the Unattributed bucket which is
+       always rendered, so techs and admins can see what's pending.
 
-      // Job ids already credited above. Skip those — their existing
-      // numbers are correct and we don't want to double-count.
-      const gapJobIds = Object.keys(invoicesByJob).filter(id => !creditedJobIds.has(id));
+       Failure-mode hardening:
+       • Each /invoices page fetch wrapped in its own try/catch with
+         retry. A single 429/500 can't kill the whole pass.
+       • Each /jobs/{id} fetch wrapped in its own try/catch with
+         retry. A 404 on one job can't drop the other 13.
+       • If a job's details can't be fetched at all, we STILL surface
+         the invoice in Unattributed using whatever data the invoice
+         object carries directly — better an incomplete row than a
+         silent drop.
+       • Counters logged at the end so Railway logs show exactly what
+         the pass found vs. credited. */
+    const orphans = [];           // legacy bucket — kept for the existing modal
+    const unattributed = [];      // new: every uncredited paid invoice in period
+    let gapStats = {
+      invoicesEnumerated: 0,
+      pagesFailed: 0,
+      jobsAttempted: 0,
+      jobsFetched: 0,
+      jobsFetchFailed: 0,
+      gapCreditedCount: 0,
+      gapCreditedDollars: 0,
+      stripedAsST: 0,
+      filteredOutByKpiDate: 0
+    };
 
-      if (gapJobIds.length > 0) {
-        // Fetch each gap job individually. Batched in groups of 10 so
-        // we don't hammer HCP, and tolerant of failures (a 404 on one
-        // job shouldn't blow up the whole response).
-        const BATCH = 10;
-        const gapJobs = [];
-        for (let i = 0; i < gapJobIds.length; i += BATCH) {
-          const batch = gapJobIds.slice(i, i + BATCH);
-          const results = await Promise.all(batch.map(id =>
-            axios.get(BASE_URL + '/jobs/' + id, { headers })
-              .then(r => r.data)
-              .catch(() => null)
-          ));
-          results.forEach(j => { if (j) gapJobs.push(j); });
-        }
-
-        await ensureEstimateSellersForJobs(gapJobs);
-
-        function findSplitSiblingWithEmployees(job) {
-          const root = invoiceRoot(job.invoice_number);
-          if (!root) return null;
-          const customer = normalizedCustomer(job);
-          return [...completedJobs, ...gapJobs].find(candidate => {
-            if (!candidate || candidate.id === job.id) return false;
-            if (invoiceRoot(candidate.invoice_number) !== root) return false;
-            if (customer && normalizedCustomer(candidate) !== customer) return false;
-            return (candidate.assigned_employees || []).length > 0;
-          }) || null;
-        }
-
-        gapJobs.forEach(job => {
-          // ServiceTitan imports can also appear through the paid-invoice
-          // backup path. Keep them out of HCP-era KPI periods just like the
-          // normal completed-job path does.
-          if (periodStart >= ST_CUTOVER && isServiceTitanJob(job)) return;
-
-          // If the job already has a service/KPI date, payment timing must
-          // not move it into another period. The paid-invoice pass is only a
-          // rescue path for jobs we otherwise cannot date/see correctly.
-          const gapKpiDate = kpiDateForJob(job);
-          if (gapKpiDate && (gapKpiDate < periodStart || gapKpiDate >= periodEnd)) return;
-
-          const invs = invoicesByJob[job.id] || [];
-          // Sum amounts paid IN THIS PERIOD only. inv.amount is in
-          // cents (HCP convention). Some invoices return the field as
-          // a number, others as a string — coerce defensively.
-          const paidInPeriod = invs.reduce((s, inv) => {
-            const cents = parseFloat(inv.amount || 0);
-            return s + cents / 100;
-          }, 0);
-
-          if (paidInPeriod <= 0) return; // refund-only / zero-amount, skip
-
-          // Use the most recent paid_at as the row's display date.
-          const latestPaidAt = invs
-            .map(inv => inv.paid_at)
-            .filter(Boolean)
-            .sort()
-            .pop() || null;
-
-          const splitSibling = (job.assigned_employees || []).length === 0
-            ? findSplitSiblingWithEmployees(job)
-            : null;
-
-          const credited = creditJob(job, {
-            revenue: paidInPeriod,
-            date: gapKpiDate ? gapKpiDate.toISOString() : latestPaidAt,
-            assignedEmployees: splitSibling ? splitSibling.assigned_employees : undefined
-          });
-
-          if (!credited) {
-            // No assigned_employees — surface for admin investigation.
-            orphans.push({
-              jobId: job.id,
-              invoice: job.invoice_number || null,
-              customer: job.customer
-                ? ((job.customer.first_name || '') + ' ' + (job.customer.last_name || '')).trim()
-                : '',
-              amount: Math.round(paidInPeriod),
-              paidAt: latestPaidAt,
-              workStatus: job.work_status || null,
-              completedAt: (job.work_timestamps && job.work_timestamps.completed_at) || null,
-              reason: 'no_assigned_employees',
-              description: job.description || null
-            });
+    // Tiny retry helper for transient HCP failures (5xx / 429). Returns
+    // null on permanent failure so callers can handle gracefully.
+    async function hcpGetWithRetry(url, params, label, maxAttempts = 3) {
+      let lastErr;
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          return await axios.get(url, { headers, params });
+        } catch (err) {
+          lastErr = err;
+          const status = err.response?.status;
+          const transient = !status || status === 429 || status >= 500;
+          if (!transient || attempt === maxAttempts) {
+            console.warn('[gap] ' + label + ' final-fail', status || err.message);
+            return null;
           }
-        });
+          // Exponential backoff: 250ms, 750ms, 1500ms
+          await new Promise(r => setTimeout(r, 250 * Math.pow(3, attempt - 1)));
+        }
       }
-    } catch (e) {
-      // Coverage pass failure shouldn't tank the whole response — log
-      // and continue with the original (filter-only) leaderboard.
-      console.warn('[/api/tech coverage-pass]', e.response?.status || '', e.message);
+      return null;
     }
+
+    // ── 1. ENUMERATE: every paid invoice in the period ─────────────
+    const invParams = {
+      paid_at_min: isoDateOnly(periodStart),
+      paid_at_max: inclusiveEndDateOnly(periodEnd),
+      page_size: 200
+    };
+    const allPaidInvoices = [];
+    let invPage = 1;
+    while (invPage <= 100) {  // hard cap to prevent runaway loops
+      const r = await hcpGetWithRetry(BASE_URL + '/invoices',
+        { ...invParams, page: invPage }, 'invoices p' + invPage);
+      if (!r) {
+        gapStats.pagesFailed++;
+        // Keep going — next page might succeed. If we lose pages, the
+        // unattributed bucket may undercount, but we won't crash.
+        invPage++;
+        continue;
+      }
+      const invs = r.data.invoices || [];
+      invs.forEach(inv => {
+        if (!inv.paid_at) return;
+        const paidAt = new Date(inv.paid_at);
+        if (paidAt >= periodStart && paidAt < periodEnd) allPaidInvoices.push(inv);
+      });
+      if (invPage >= (r.data.total_pages || 1)) break;
+      invPage++;
+    }
+    gapStats.invoicesEnumerated = allPaidInvoices.length;
+
+    // Group by job id. Standalone invoices (no job_id) go to a separate
+    // bucket because we can't fetch a job for them.
+    const invoicesByJob = {};
+    const standaloneInvoices = [];
+    allPaidInvoices.forEach(inv => {
+      if (inv.job_id) {
+        if (!invoicesByJob[inv.job_id]) invoicesByJob[inv.job_id] = [];
+        invoicesByJob[inv.job_id].push(inv);
+      } else {
+        standaloneInvoices.push(inv);
+      }
+    });
+
+    // ── 2. FETCH job details for every paid-invoice job ────────────
+    // Critically: we fetch EVERY paid job's details, not just gaps.
+    // This way even if the primary pass already credited a job, we
+    // have its fresh data to cross-check amounts. AND if the primary
+    // pass somehow missed a job that should have been included, the
+    // safety-net pass at the bottom will catch it.
+    const gapJobs = [];
+    const failedJobFetches = new Set();
+    const allPaidJobIds = Object.keys(invoicesByJob);
+    gapStats.jobsAttempted = allPaidJobIds.length;
+    const BATCH = 10;
+    for (let i = 0; i < allPaidJobIds.length; i += BATCH) {
+      const batch = allPaidJobIds.slice(i, i + BATCH);
+      const results = await Promise.all(batch.map(async id => {
+        const r = await hcpGetWithRetry(BASE_URL + '/jobs/' + id, {}, 'job ' + id);
+        return r ? r.data : { _failed: true, id };
+      }));
+      results.forEach(j => {
+        if (j._failed) { failedJobFetches.add(j.id); gapStats.jobsFetchFailed++; }
+        else if (j && j.id) { gapJobs.push(j); gapStats.jobsFetched++; }
+      });
+    }
+
+    await ensureEstimateSellersForJobs(gapJobs);
+
+    function findSplitSiblingWithEmployees(job) {
+      const root = invoiceRoot(job.invoice_number);
+      if (!root) return null;
+      const customer = normalizedCustomer(job);
+      return [...completedJobs, ...gapJobs].find(candidate => {
+        if (!candidate || candidate.id === job.id) return false;
+        if (invoiceRoot(candidate.invoice_number) !== root) return false;
+        if (customer && normalizedCustomer(candidate) !== customer) return false;
+        return (candidate.assigned_employees || []).length > 0;
+      }) || null;
+    }
+
+    // ── 3. CREDIT each gap job (only those not already credited) ───
+    gapJobs.forEach(job => {
+      // Skip jobs the primary pass already credited — don't double-count.
+      if (creditedJobIds.has(job.id)) return;
+
+      if (periodStart >= ST_CUTOVER && isServiceTitanJob(job)) {
+        gapStats.stripedAsST++;
+        return;
+      }
+
+      const gapKpiDate = kpiDateForJob(job);
+      // If the job has a service date that's outside this period,
+      // don't credit here — it belongs to a different period.
+      if (gapKpiDate && (gapKpiDate < periodStart || gapKpiDate >= periodEnd)) {
+        gapStats.filteredOutByKpiDate++;
+        return;
+      }
+
+      const invs = invoicesByJob[job.id] || [];
+      const paidInPeriod = invs.reduce((s, inv) =>
+        s + parseFloat(inv.amount || 0) / 100, 0);
+      if (paidInPeriod <= 0) return;
+
+      const latestPaidAt = invs.map(i => i.paid_at).filter(Boolean).sort().pop() || null;
+
+      const splitSibling = (job.assigned_employees || []).length === 0
+        ? findSplitSiblingWithEmployees(job)
+        : null;
+
+      try {
+        const credited = creditJob(job, {
+          revenue: paidInPeriod,
+          date: gapKpiDate ? gapKpiDate.toISOString() : latestPaidAt,
+          assignedEmployees: splitSibling ? splitSibling.assigned_employees : undefined
+        });
+        if (credited) {
+          gapStats.gapCreditedCount++;
+          gapStats.gapCreditedDollars += paidInPeriod;
+        } else {
+          // No assigned_employees and no salvageable split sibling.
+          // Push to orphans (back-compat) AND unattributed (new path).
+          orphans.push({
+            jobId: job.id,
+            invoice: job.invoice_number || null,
+            customer: job.customer
+              ? ((job.customer.first_name || '') + ' ' + (job.customer.last_name || '')).trim() : '',
+            amount: Math.round(paidInPeriod),
+            paidAt: latestPaidAt,
+            workStatus: job.work_status || null,
+            completedAt: (job.work_timestamps && job.work_timestamps.completed_at) || null,
+            reason: 'no_assigned_employees',
+            description: job.description || null
+          });
+        }
+      } catch (e) {
+        // Per-job credit failure can't kill the whole pass.
+        console.warn('[gap] credit-failed', job.id, e.message);
+      }
+    });
+
+    // ── 4. MANDATORY SAFETY NET ─────────────────────────────────────
+    // After ALL credit paths have run, walk every paid invoice in the
+    // period one more time. If its job's id isn't in creditedJobIds,
+    // the dollars haven't been counted anywhere — surface them in the
+    // unattributed bucket. This is the guarantee that every paid
+    // dollar appears on the dashboard.
+    //
+    // What lands here:
+    //   • Jobs where /jobs/{id} fetch failed entirely (use invoice data)
+    //   • Jobs with no assigned_employees and no split sibling
+    //   • Jobs filtered out by kpiDate (paid in this period but
+    //     completed in a different period — surface with a flag)
+    //   • Standalone invoices (no job_id at all)
+    for (const jobId of allPaidJobIds) {
+      if (creditedJobIds.has(jobId)) continue;
+      const invs = invoicesByJob[jobId];
+      const paidInPeriod = invs.reduce((s, inv) =>
+        s + parseFloat(inv.amount || 0) / 100, 0);
+      if (paidInPeriod <= 0) continue;
+      const job = gapJobs.find(j => j && j.id === jobId);
+      const latestPaidAt = invs.map(i => i.paid_at).filter(Boolean).sort().pop() || null;
+      const invNumbers = invs.map(i => i.invoice_number).filter(Boolean);
+      const customerFromInv = invs[0].customer
+        ? ((invs[0].customer.first_name || '') + ' ' + (invs[0].customer.last_name || '')).trim()
+        : '';
+
+      // Determine why this landed here so the UI can show a useful
+      // reason chip without the tech/admin having to guess.
+      let reason;
+      if (failedJobFetches.has(jobId)) {
+        reason = 'job_details_unavailable';
+      } else if (!job) {
+        reason = 'job_details_unavailable';
+      } else if (periodStart >= ST_CUTOVER && isServiceTitanJob(job)) {
+        reason = 'servicetitan_artifact';
+      } else if ((job.assigned_employees || []).length === 0) {
+        reason = 'no_assigned_employees';
+      } else {
+        const kd = kpiDateForJob(job);
+        if (kd && (kd < periodStart || kd >= periodEnd)) {
+          reason = 'completed_in_different_period';
+        } else {
+          reason = 'pipeline_unknown';  // shouldn't happen — flags a bug
+        }
+      }
+
+      unattributed.push({
+        jobId,
+        invoice: invNumbers.join(', ') || null,
+        customer: (job && job.customer
+          ? ((job.customer.first_name || '') + ' ' + (job.customer.last_name || '')).trim()
+          : '') || customerFromInv,
+        amount: Math.round(paidInPeriod),
+        paidAt: latestPaidAt,
+        workStatus: job ? job.work_status : null,
+        completedAt: job && job.work_timestamps ? job.work_timestamps.completed_at : null,
+        assignedEmployees: job && job.assigned_employees
+          ? job.assigned_employees.map(e => ((e.first_name || '') + ' ' + (e.last_name || '')).trim()).filter(Boolean)
+          : [],
+        description: job ? job.description : null,
+        reason
+      });
+    }
+
+    // Also push standalone invoices (no job_id) so even those appear.
+    standaloneInvoices.forEach(inv => {
+      const paidAmount = parseFloat(inv.amount || 0) / 100;
+      if (paidAmount <= 0) return;
+      unattributed.push({
+        jobId: null,
+        invoice: inv.invoice_number || null,
+        customer: inv.customer
+          ? ((inv.customer.first_name || '') + ' ' + (inv.customer.last_name || '')).trim() : '',
+        amount: Math.round(paidAmount),
+        paidAt: inv.paid_at,
+        workStatus: null,
+        completedAt: null,
+        assignedEmployees: [],
+        description: null,
+        reason: 'standalone_invoice_no_job'
+      });
+    });
+
+    // Operational visibility — shows up in Railway logs.
+    console.log('[/api/tech gap-stats range=' + range + ']',
+      'enum=' + gapStats.invoicesEnumerated,
+      'jobsAttempt=' + gapStats.jobsAttempted,
+      'jobsFetched=' + gapStats.jobsFetched,
+      'jobsFailed=' + gapStats.jobsFetchFailed,
+      'gapCredited=' + gapStats.gapCreditedCount,
+      'gapDollars=$' + Math.round(gapStats.gapCreditedDollars),
+      'unattributed=' + unattributed.length);
 
     const leaderboard = Object.values(techMetrics)
       .map(tech => ({
@@ -1662,6 +1942,10 @@ app.get('/api/metrics', async (req, res) => {
       0)
     );
 
+    const unattributedTotal = Math.round(
+      unattributed.reduce((s, u) => s + (u.amount || 0), 0)
+    );
+
     return {
       leaderboard,
       // periodStart/periodEnd are ISO date strings (YYYY-MM-DD) so the
@@ -1673,12 +1957,26 @@ app.get('/api/metrics', async (req, res) => {
         totalUnpaid,
         periodStart: periodStart.toISOString().slice(0, 10),
         periodEnd:   periodEnd.toISOString().slice(0, 10),
-        orphanCount: orphans.length
+        orphanCount: orphans.length,
+        unattributedCount: unattributed.length,
+        unattributedTotal
       },
-      // Jobs paid in the period but not credited to a tech (no
-      // assigned_employees in HCP). Client surfaces these in a
-      // banner so an admin can fix the assignment in HCP.
-      orphans
+      // Legacy: jobs paid in the period but not credited to a tech (no
+      // assigned_employees in HCP). Surfaced in the existing orphan
+      // modal so the admin-fix workflow keeps working.
+      orphans,
+      // NEW: every paid invoice in the period whose dollars didn't make
+      // it onto a specific tech's row. By construction this guarantees
+      // the dashboard never silently drops money — anything that can't
+      // be attributed lands here, with a reason code telling the user
+      // what to do about it. Reason codes:
+      //   no_assigned_employees       — add an assigned tech in HCP
+      //   completed_in_different_period — paid here but service date elsewhere
+      //   servicetitan_artifact       — legacy ST data (excluded by design)
+      //   job_details_unavailable     — HCP couldn't return the job's details
+      //   standalone_invoice_no_job   — invoice with no linked service job
+      //   pipeline_unknown            — bug flag; check server logs
+      unattributed
     };
     });  // ── end withCache factory ──
     res.json(payload);
@@ -3503,36 +3801,149 @@ app.get('/api/diagnostics/coverage', async (req, res) => {
       const missing = [];
       const excluded = [];
 
-      function whyMissing(job, inv) {
-        const reasons = [];
+      // Walks the dashboard's actual credit pipeline for a single job
+      // and returns the SPECIFIC checkpoint that would have prevented
+      // crediting. This replaces the old "list any HCP data-quality
+      // flag" probe, which surfaced cosmetic issues (like no linked
+      // estimate) that aren't actually exclusion criteria.
+      //
+      // The probe simulates the same control flow used by /api/metrics
+      // (primary pass first, gap pass second), so its conclusions
+      // explain why this specific job's dollars don't appear in the
+      // leaderboard.
+      function whyMissing(job, invs, paidInPeriod) {
         if (!job) {
-          reasons.push('Linked job (' + inv.job_id + ') could not be fetched from HCP');
-          return reasons;
+          return {
+            verdict: 'job_fetch_failed',
+            blocker: 'HCP returned no data for job_id ' + (invs[0] && invs[0].job_id),
+            fix: 'Open the job in HCP — it may have been archived or deleted. ' +
+                 'If it should count, add a manual KPI override.',
+            details: []
+          };
         }
-        if (isPostCutoverSTArtifact(job)) {
-          reasons.push('Job is flagged as a ServiceTitan migration artifact');
-        }
+
         const doers = job.assigned_employees || [];
-        if (doers.length === 0) {
-          reasons.push('Job has no assigned_employees in HCP');
-        }
         const scheduled = job.schedule && job.schedule.scheduled_start;
-        if (!scheduled) {
-          reasons.push('Job has no scheduled_start (primary HCP query filters by this field)');
-        }
         const completed = job.work_timestamps && job.work_timestamps.completed_at;
-        if (!completed) {
-          reasons.push('Job has no completed_at timestamp');
+        const status = job.work_status || null;
+        const stHit = isPostCutoverSTArtifact(job);
+
+        // Compute the same kpiDate the dashboard uses.
+        let kpiDate = null;
+        if (completed) {
+          kpiDate = new Date(completed);
+        } else if (scheduled) {
+          const sd = new Date(scheduled);
+          // The dashboard's "auto-date stale jobs" rule: 3 days past
+          // scheduled with no completion → treat as completed-at-scheduled.
+          if (Date.now() - sd.getTime() > 3 * 24 * 60 * 60 * 1000) kpiDate = sd;
         }
-        if (scheduled) {
-          const days = (now.getTime() - new Date(scheduled).getTime()) / (1000 * 60 * 60 * 24);
-          if (days > 270) reasons.push('Job scheduled ' + Math.round(days) + ' days ago, beyond the 270-day fetch window');
+        const inPeriod = kpiDate && kpiDate >= periodStart && kpiDate < periodEnd;
+
+        // Where in the pipeline would this job have been credited?
+        const details = {
+          workStatus: status,
+          hasCompletedAt: !!completed,
+          hasScheduledStart: !!scheduled,
+          assignedCount: doers.length,
+          kpiDate: kpiDate ? kpiDate.toISOString() : null,
+          kpiDateInPeriod: inPeriod,
+          paidInPeriod,
+          isSTArtifact: stHit
+        };
+
+        if (stHit) {
+          return {
+            verdict: 'st_artifact_blocked',
+            blocker: 'Job tagged as ServiceTitan migration artifact (excluded by design)',
+            fix: 'If this is real post-cutover work mistakenly tagged as ST, ' +
+                 'remove the ServiceTitan tag/lead-source from the job in HCP.',
+            details
+          };
         }
-        const estId = job.original_estimate_id || (job.original_estimate_uuids && job.original_estimate_uuids[0]);
-        if (!estId) {
-          reasons.push('Job has no linked estimate (estimate-seller resolution depends on this)');
+
+        if (doers.length === 0) {
+          return {
+            verdict: 'no_assigned_employees',
+            blocker: 'Job has no assigned technician in HCP — nobody to credit',
+            fix: 'Open the job in HCP, add the tech who did the work as an ' +
+                 'assigned employee. The next refresh will pick them up.',
+            details
+          };
         }
-        return reasons.length ? reasons : ['Unknown — invoice paid in period but no credit appeared'];
+
+        // Primary-pass path: would this job have appeared in
+        // /jobs?work_status=completed,in_progress,scheduled
+        // &scheduled_start_min/max ?
+        const primaryQueryWouldFind = (() => {
+          if (!scheduled) return false;
+          const sd = new Date(scheduled);
+          const days = (Date.now() - sd.getTime()) / (1000 * 60 * 60 * 24);
+          if (days > 270) return false;
+          return true;
+        })();
+        const primaryFilterWouldKeep = inPeriod;
+
+        if (primaryQueryWouldFind && primaryFilterWouldKeep) {
+          // The primary pass should have credited this. If it didn't,
+          // something earlier in the pipeline failed — most likely the
+          // bulk /jobs query didn't return assigned_employees fully,
+          // or the gap pass aborted before reaching this job.
+          return {
+            verdict: 'primary_should_have_credited',
+            blocker: 'Job meets every primary-pass criterion (scheduled in window, ' +
+                     'completed in period, has assigned employees). It should appear ' +
+                     'on the leaderboard but doesn\'t. Likely cause: the coverage-gap ' +
+                     'pass aborted on an HCP error before processing this job, OR the ' +
+                     'bulk /jobs query returned this job without assigned_employees ' +
+                     'populated.',
+            fix: 'Trigger a fresh /api/metrics?range=' + range + ' fetch (clears ' +
+                 'the 2-minute cache) and check whether it appears. If not, the gap ' +
+                 'pass is the culprit — check server logs for "[/api/tech coverage-pass]" warnings.',
+            details
+          };
+        }
+
+        // Primary pass would NOT find it. Gap pass should rescue.
+        const gapPassWouldFind = !!invs.find(i => i.job_id === job.id);
+        const gapPassWouldCredit = gapPassWouldFind && doers.length > 0 &&
+          (kpiDate == null || inPeriod);
+
+        if (gapPassWouldCredit) {
+          return {
+            verdict: 'gap_pass_should_have_credited',
+            blocker: 'Primary pass excludes (no scheduled_start in window) but the ' +
+                     'gap pass should rescue this via /invoices. Since it didn\'t, ' +
+                     'the gap pass likely aborted on an HCP error before reaching ' +
+                     'this job, OR the dashboard cache is stale.',
+            fix: 'Force-refresh the dashboard for this range. Check Railway logs ' +
+                 'for "[/api/tech coverage-pass]" warnings around the cache-warm time.',
+            details
+          };
+        }
+
+        // Genuinely excluded by the pipeline.
+        const reasons = [];
+        if (!primaryQueryWouldFind) {
+          if (!scheduled) reasons.push('No scheduled_start (primary /jobs query needs it)');
+          else reasons.push('scheduled_start is ' + scheduled.slice(0, 10) + ', outside 270-day fetch window');
+        }
+        if (!primaryFilterWouldKeep) {
+          if (!kpiDate) reasons.push('Cannot compute KPI date (no completed_at, no usable scheduled_start)');
+          else reasons.push('KPI date ' + kpiDate.toISOString().slice(0, 10) + ' is outside the period');
+        }
+        return {
+          verdict: 'legitimately_excluded',
+          blocker: reasons.join('; ') || 'Unknown exclusion path',
+          fix: !completed
+            ? 'Mark this job complete in HCP (add a completed_at timestamp). ' +
+              'The dashboard needs that to know when the work happened.'
+            : !scheduled
+            ? 'Add a scheduled_start to the job in HCP, OR add a manual KPI override ' +
+              'pointing this job at the correct period.'
+            : 'Add a manual KPI override or correct the job\'s dates in HCP.',
+          details
+        };
       }
 
       jobIds.forEach(jobId => {
@@ -3656,6 +4067,258 @@ app.get('/api/diagnostics/coverage', async (req, res) => {
 // Serve the coverage diagnostic page (static HTML; auth happens on the API)
 app.get('/coverage', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'coverage.html'));
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// KPI feedback + admin reconciliation API
+// ────────────────────────────────────────────────────────────────────────────
+// Two-sided system:
+//   • /report-issue (tech-facing, no auth) writes to issue-reports
+//   • /admin/kpi    (admin-facing, password-gated) reads issue reports +
+//                    reads/writes reconciliations
+// Reconciliations are authoritative — see creditJob() above for how they
+// short-circuit the normal credit logic. Each reconciliation is locked
+// once saved; the auto-pipeline can never overwrite it.
+
+// Parse JSON bodies on the API endpoints below
+app.use(express.json({ limit: '50kb' }));
+
+// ── Tech-facing endpoints ────────────────────────────────────────────────
+
+// Submit a new issue report. No auth — anyone with the URL can submit.
+// Rate-limited softly by ignoring requests larger than 50kb (above) so a
+// single misbehaving client can't fill the volume.
+app.post('/api/kpi/report-issue', (req, res) => {
+  const body = req.body || {};
+  const type = String(body.type || '').slice(0, 50);
+  const reporterName = String(body.reporterName || '').slice(0, 100).trim();
+  const invoice = String(body.invoice || '').slice(0, 50).trim();
+  const customer = String(body.customer || '').slice(0, 100).trim();
+  const jobId = String(body.jobId || '').slice(0, 100).trim();
+  const description = String(body.description || '').slice(0, 2000).trim();
+
+  if (!type || !reporterName || !description) {
+    return res.status(400).json({ error: 'type, reporterName, and description are required' });
+  }
+
+  const report = {
+    id: newReportId(),
+    type,
+    reporterName,
+    invoice: invoice || null,
+    customer: customer || null,
+    jobId: jobId || null,
+    description,
+    status: 'open',
+    createdAt: new Date().toISOString(),
+    resolvedAt: null,
+    resolvedBy: null,
+    resolutionNote: null
+  };
+
+  const reports = loadIssueReports();
+  reports.push(report);
+  if (!saveIssueReports(reports)) {
+    return res.status(500).json({ error: 'Failed to save report' });
+  }
+  res.json({ ok: true, report });
+});
+
+// List recent reports (tech-facing view). Last 25, newest first.
+// Public so techs can see whether their issue is already in queue.
+app.get('/api/kpi/recent-reports', (req, res) => {
+  const reports = loadIssueReports()
+    .slice()
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 25);
+  // Don't expose internal notes/resolution fields to the tech-facing list.
+  res.json({
+    reports: reports.map(r => ({
+      id: r.id,
+      type: r.type,
+      reporterName: r.reporterName,
+      invoice: r.invoice,
+      customer: r.customer,
+      description: r.description,
+      status: r.status,
+      createdAt: r.createdAt
+    }))
+  });
+});
+
+// ── Admin endpoints (password-gated) ─────────────────────────────────────
+
+function requireAdmin(req, res) {
+  if (!DIAGNOSTICS_PASSWORD) {
+    res.status(403).json({ error: 'Admin disabled. Set DIAGNOSTICS_PASSWORD to enable.' });
+    return false;
+  }
+  if (!diagnosticsAllowed(req)) {
+    res.status(401).json({ error: 'Admin password required.' });
+    return false;
+  }
+  return true;
+}
+
+// List all issue reports (no truncation — admin sees everything)
+app.get('/api/kpi/admin/issues', (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const reports = loadIssueReports()
+    .slice()
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  res.json({ reports });
+});
+
+// Update an issue's status (resolve / dismiss / re-open)
+app.post('/api/kpi/admin/issues/:id/status', (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const id = req.params.id;
+  const newStatus = String((req.body || {}).status || '').toLowerCase();
+  const note = String((req.body || {}).note || '').slice(0, 500).trim();
+  const by = String((req.body || {}).by || 'admin').slice(0, 80).trim();
+
+  if (!['open', 'resolved', 'dismissed'].includes(newStatus)) {
+    return res.status(400).json({ error: 'status must be open|resolved|dismissed' });
+  }
+  const reports = loadIssueReports();
+  const idx = reports.findIndex(r => r.id === id);
+  if (idx < 0) return res.status(404).json({ error: 'Report not found' });
+  reports[idx].status = newStatus;
+  reports[idx].resolvedAt = (newStatus === 'open') ? null : new Date().toISOString();
+  reports[idx].resolvedBy = (newStatus === 'open') ? null : by;
+  reports[idx].resolutionNote = note || null;
+  if (!saveIssueReports(reports)) return res.status(500).json({ error: 'Save failed' });
+  res.json({ ok: true, report: reports[idx] });
+});
+
+// Fetch a specific HCP job for the admin editor
+app.get('/api/kpi/admin/job/:id', async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  if (!API_KEY) return res.status(503).json({ error: 'HCP API key not configured' });
+  try {
+    const r = await axios.get(BASE_URL + '/jobs/' + req.params.id, { headers: hcpHeaders() });
+    const job = r.data;
+    // Convenience fields for the editor — no business logic, just shape.
+    const total = parseFloat(job.total_amount || 0) / 100;
+    const completed = job.work_timestamps && job.work_timestamps.completed_at;
+    const scheduled = job.schedule && job.schedule.scheduled_start;
+    res.json({
+      ok: true,
+      job: {
+        id: job.id,
+        invoice: job.invoice_number,
+        description: job.description,
+        workStatus: job.work_status,
+        customer: job.customer
+          ? ((job.customer.first_name || '') + ' ' + (job.customer.last_name || '')).trim() : '',
+        assignedEmployees: (job.assigned_employees || []).map(e => ({
+          id: e.id,
+          name: ((e.first_name || '') + ' ' + (e.last_name || '')).trim()
+        })),
+        totalAmount: total,
+        outstandingBalance: Math.max(0, parseFloat(job.outstanding_balance || 0) / 100),
+        completedAt: completed || null,
+        scheduledStart: scheduled || null
+      },
+      // The active reconciliation (if any) so the editor can pre-fill
+      reconciliation: loadReconciliations()[job.id] || null
+    });
+  } catch (err) {
+    console.error('[admin/job]', err.response?.status || '', err.message);
+    res.status(err.response?.status || 500).json({ error: err.message });
+  }
+});
+
+// Save a reconciliation. The body's `reconcile` flag controls whether
+// this is a "save & lock" or "save without locking" (rare; usually
+// admin reconciles immediately when editing).
+app.post('/api/kpi/admin/reconcile', (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const body = req.body || {};
+  const jobId = String(body.jobId || '').trim();
+  if (!jobId) return res.status(400).json({ error: 'jobId required' });
+  const assignments = Array.isArray(body.assignments) ? body.assignments : [];
+  if (assignments.length === 0) {
+    return res.status(400).json({ error: 'At least one assignment required' });
+  }
+  // Normalize + validate
+  const norm = assignments.map(a => ({
+    employeeName: String(a.employeeName || '').slice(0, 80).trim(),
+    role: ['Sold', 'Did', 'Sold & Did'].includes(a.role) ? a.role : 'Did',
+    creditPct: Math.max(0, Math.min(100, Number(a.creditPct) || 0))
+  })).filter(a => a.employeeName);
+  if (norm.length === 0) return res.status(400).json({ error: 'No valid assignments' });
+  const pctSum = norm.reduce((s, a) => s + a.creditPct, 0);
+  if (Math.abs(pctSum - 100) > 0.5) {
+    return res.status(400).json({ error: 'Credit percentages must sum to 100 (got ' + pctSum.toFixed(1) + ')' });
+  }
+
+  const recs = loadReconciliations();
+  const existing = recs[jobId] || {};
+  recs[jobId] = {
+    jobId,
+    assignments: norm,
+    totalAmount: body.totalAmount != null ? Number(body.totalAmount) : (existing.totalAmount != null ? existing.totalAmount : null),
+    kpiDate: body.kpiDate || existing.kpiDate || null,
+    notes: String(body.notes || '').slice(0, 1000),
+    locked: body.locked !== false, // default true
+    reconciledAt: new Date().toISOString(),
+    reconciledBy: String(body.reconciledBy || 'admin').slice(0, 80).trim(),
+    // Preserve a history trail
+    history: [
+      ...(existing.history || []),
+      ...(existing.reconciledAt
+        ? [{
+            assignments: existing.assignments,
+            totalAmount: existing.totalAmount,
+            kpiDate: existing.kpiDate,
+            notes: existing.notes,
+            reconciledAt: existing.reconciledAt,
+            reconciledBy: existing.reconciledBy
+          }]
+        : [])
+    ].slice(-20) // keep last 20 versions
+  };
+  if (!saveReconciliations(recs)) return res.status(500).json({ error: 'Save failed' });
+
+  // Invalidate the metrics cache so the next dashboard load shows the
+  // reconciled attribution immediately.
+  Array.from(_cache.keys()).forEach(k => {
+    if (k.startsWith('metrics:')) _cache.delete(k);
+  });
+
+  res.json({ ok: true, reconciliation: recs[jobId] });
+});
+
+// Remove a reconciliation (returns the job to auto-pipeline attribution)
+app.delete('/api/kpi/admin/reconcile/:jobId', (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const recs = loadReconciliations();
+  delete recs[req.params.jobId];
+  if (!saveReconciliations(recs)) return res.status(500).json({ error: 'Save failed' });
+  Array.from(_cache.keys()).forEach(k => {
+    if (k.startsWith('metrics:')) _cache.delete(k);
+  });
+  res.json({ ok: true });
+});
+
+// List reconciliations (optionally filtered to a month YYYY-MM)
+app.get('/api/kpi/admin/reconciliations', (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const month = String(req.query.month || '').slice(0, 7);
+  const all = loadReconciliations();
+  const out = Object.values(all)
+    .filter(r => !month || (r.kpiDate || '').slice(0, 7) === month)
+    .sort((a, b) => new Date(b.reconciledAt) - new Date(a.reconciledAt));
+  res.json({ reconciliations: out });
+});
+
+// ── Page routes ──────────────────────────────────────────────────────────
+app.get(['/report-issue', '/feedback'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'report-issue.html'));
+});
+app.get('/admin/kpi', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin-kpi.html'));
 });
 
 // ────────────────────────────────────────────────────────────────────────────

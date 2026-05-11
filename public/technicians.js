@@ -337,20 +337,34 @@ function render() {
     warnEl.hidden = !showWarn;
   }
 
-  /* Coverage-gap banner. /api/tech reports any jobs that received
-     payment in this period but couldn't be credited to a tech (no
-     assigned_employees in HCP). Stash the list on the global so the
-     orphans modal can read it without re-fetching. */
-  var orphans = currentData.orphans || [];
+  /* Unattributed-work banner. /api/metrics now guarantees that EVERY
+     paid invoice in the period appears somewhere — either credited to
+     a specific tech, or in the `unattributed` bucket. We surface the
+     bucket up top so nothing is hidden. Each entry carries a `reason`
+     code telling the user what to do about it:
+        no_assigned_employees       — admin: add tech in HCP
+        completed_in_different_period — service date elsewhere, this is just where the money landed
+        servicetitan_artifact       — ST migration, excluded by design
+        job_details_unavailable     — HCP couldn't return job details
+        standalone_invoice_no_job   — invoice with no linked job
+        pipeline_unknown            — bug flag; report to admin
+  */
+  var unattributed = currentData.unattributed || [];
+  // Back-compat: older clients consumed `orphans`; keep both populated.
+  var orphans = currentData.orphans || unattributed;
   var orphansBanner = document.getElementById('techOrphansBanner');
   var orphansCountEl = document.getElementById('techOrphansCount');
   if (orphansBanner) {
-    orphansBanner.hidden = orphans.length === 0;
+    orphansBanner.hidden = unattributed.length === 0;
     if (orphansCountEl) {
-      orphansCountEl.textContent = orphans.length + ' paid job' + (orphans.length !== 1 ? 's' : '');
+      var dollars = (summary.unattributedTotal || 0);
+      var dollarsStr = '$' + dollars.toLocaleString();
+      orphansCountEl.textContent = unattributed.length + ' job' +
+        (unattributed.length !== 1 ? 's' : '') + ' (' + dollarsStr + ')';
     }
   }
-  window._orphanJobs = orphans;
+  // Expose to the orphans modal handler.
+  window._orphanJobs = unattributed;
 
   // Stat cards: count-up animation
   animateStatCards(summary);

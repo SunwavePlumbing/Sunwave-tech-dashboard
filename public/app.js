@@ -332,6 +332,18 @@ function openModal(tech, mode) {
   document.getElementById('modalTitle').textContent = esc(tech.name) +
     (isUnpaid ? ' \u2014 Unpaid Jobs' : ' \u2014 Jobs');
 
+  // "Missing a job?" CTA in the header \u2014 seeds the report-issue form
+  // with this tech's name + a friendly default description so the
+  // report comes in tagged to who's missing the work.
+  var missingLink = document.getElementById('modalReportMissing');
+  if (missingLink) {
+    var missingParams = new URLSearchParams();
+    missingParams.set('type', 'missing');
+    missingParams.set('context',
+      'I (' + tech.name + ') did a job that isn\'t showing up on my row. Details below.');
+    missingLink.href = '/report-issue?' + missingParams.toString();
+  }
+
   // Disclaimer banner: only shown in unpaid mode. We populate text via
   // textContent (not innerHTML) so the qualifier copy is XSS-safe even
   // if it ever gets wired to a CMS-controlled string.
@@ -350,6 +362,50 @@ function openModal(tech, mode) {
     return role === 'Sold & Did' ? 'role-sold-did' : role === 'Sold' ? 'role-sold' : 'role-did';
   };
 
+  /* Build a deep-link URL into /report-issue with the job's context
+     pre-filled. The page parses these query params and seeds the form
+     so the tech only has to add a sentence about what's wrong.
+       type    — wrong_tech / wrong_seller / wrong_split / missing / other
+       invoice — the job's invoice number (if any)
+       customer — the customer name (if any)
+       jobId    — the job's UUID for the admin lookup
+       context  — a human-readable line that goes into the description
+                 (e.g. "Currently shows: Trevor Cuoco — wrong tech for #408") */
+  function reportHref(job, type, context) {
+    var params = new URLSearchParams();
+    params.set('type', type);
+    if (job.invoice)  params.set('invoice',  String(job.invoice));
+    if (job.customer) params.set('customer', String(job.customer));
+    if (job.id)       params.set('jobId',    String(job.id));
+    if (context)      params.set('context',  context);
+    return '/report-issue?' + params.toString();
+  }
+  // Shared aria-label + title text per type so the contextual buttons
+  // tell users what they're about to flag before they click.
+  var REPORT_HINT = {
+    wrong_tech:   'Flag wrong tech',
+    wrong_seller: 'Flag wrong seller',
+    wrong_split:  'Flag wrong split'
+  };
+  // Tiny flag SVG used as the visual cue. Inline so it inherits color.
+  var FLAG_SVG = '<svg class="report-flag-ico" viewBox="0 0 12 14" width="11" height="13" aria-hidden="true">' +
+    '<path d="M2 1v12M2 2h7l-1.2 2.4L9 7H2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>' +
+    '</svg>';
+
+  /* Wraps a piece of UI in an anchor that opens the report page with
+     the right pre-fill. Used on the role badge, the split partners,
+     and the customer name. Wrapping (vs replacing) means the visual
+     content reads naturally — the flag icon sits next to it as a soft
+     cue, and the whole element becomes clickable on hover. */
+  function reportable(innerHtml, job, type, context) {
+    if (!job || (!job.invoice && !job.id)) return innerHtml;
+    return '<a class="report-flag" href="' + reportHref(job, type, context) +
+      '" target="_blank" rel="noopener" title="' + REPORT_HINT[type] +
+      '" aria-label="' + REPORT_HINT[type] + '">' +
+      innerHtml + FLAG_SVG +
+      '</a>';
+  }
+
   // Shared qualifier attached to any job that's split across techs.
   // Sits inline after the partner list as a clickable ⓘ that expands
   // a small explanatory note. Phrased to reassure the technician
@@ -366,15 +422,35 @@ function openModal(tech, mode) {
   // Desktop: table rows
   var rows = jobs.map(function(job) {
     var desc = job.description ? esc(job.description) : (job.invoice ? 'Invoice #' + esc(job.invoice) : '\u2014');
-    var roleBadge = job.role ? '<span class="role-badge ' + roleClass(job.role) + '">' + esc(job.role) + '</span>' : '';
+    // Each role badge is a flag-link \u2014 clicking it opens the report
+    // page pre-filled with "wrong tech" + the job context. The role
+    // describes how this row currently credits the viewer's tech, so
+    // flagging it == "I wasn't the {Sold|Did|Sold & Did} on this job".
+    var roleBadgeInner = job.role ? '<span class="role-badge ' + roleClass(job.role) + '">' + esc(job.role) + '</span>' : '';
+    var roleBadge = roleBadgeInner
+      ? reportable(roleBadgeInner, job, 'wrong_tech',
+          'Currently shows me as the "' + (job.role || '') + '" tech on this job \u2014 that\'s not right.')
+      : '';
     var autoDatedLabel = job.autoCompletionKind === 'open_over_three_days'
       ? 'Auto marked complete'
       : 'Auto dated complete';
     var autoDatedBadge = job.autoDatedComplete
       ? '<span class="role-badge role-auto-dated">' + esc(autoDatedLabel) + '</span>' : '';
     var showPercent = Number(job.jobTotal || 0) > 0 && job.creditPct != null && job.creditPct < 100;
+    // Split partner list becomes its own flag-link \u2192 reports "wrong split."
+    // Includes the actual partner names + percentages in the seeded
+    // description so the admin sees exactly what the tech is disputing.
+    var splitText = (job.splitWith || []).map(function(s){
+      return esc(s.name || s) + (s.creditPct != null ? ' <span style="color:#ccc">(' + s.creditPct + '%)</span>' : '');
+    }).join(', ');
+    var splitContext = 'Currently split with: ' +
+      (job.splitWith || []).map(function(s){ return (s.name || s) + (s.creditPct != null ? ' (' + s.creditPct + '%)' : ''); }).join(', ') +
+      '. That split is wrong.';
     var splitNote = (job.splitWith && job.splitWith.length > 0 && Number(job.jobTotal || 0) > 0)
-      ? '<div style="font-size:11px;color:#aaa;margin-top:2px">w/ ' + job.splitWith.map(function(s){ return esc(s.name || s) + (s.creditPct != null ? ' <span style="color:#ccc">(' + s.creditPct + '%)</span>' : ''); }).join(', ') + splitInfoSpan + '</div>' : '';
+      ? '<div style="font-size:11px;color:#aaa;margin-top:2px">w/ ' +
+          reportable(splitText, job, 'wrong_split', splitContext) +
+          splitInfoSpan +
+        '</div>' : '';
     // Show an "Unpaid: $X" pill under the job total when the invoice
     // hasn't been collected. We display the GROSS outstanding amount
     // (not the tech's credited share) on a per-job row so the number
@@ -385,10 +461,19 @@ function openModal(tech, mode) {
     var shareHtml = showPercent
       ? fmt(job.credit) + '<span class="share-pct">(' + job.creditPct + '%)</span>'
       : fmt(job.credit != null ? job.credit : job.amount);
+    // Customer name is also tappable \u2014 opens the "wrong seller" report
+    // flow, since "who sold this job" is the field most commonly
+    // disputed alongside customer context. The flag icon hugs the
+    // name so the visual hint is unmistakable but unobtrusive.
+    var sellerContext = 'For this job (customer: ' + (job.customer || '?') + ')' +
+      (job.splitWith && job.splitWith.length
+        ? ', the actual seller wasn\'t any of: ' + job.splitWith.map(function(s){ return s.name || s; }).join(', ') + ' or me.'
+        : ', the actual seller is different from what shows.');
+    var customerCell = reportable(esc(job.customer || '\u2014'), job, 'wrong_seller', sellerContext);
     return '<tr>' +
       '<td>' + fmtDate(job.date) + '</td>' +
       '<td>' + desc + roleBadge + autoDatedBadge + splitNote + '</td>' +
-      '<td>' + esc(job.customer || '\u2014') + '</td>' +
+      '<td>' + customerCell + '</td>' +
       '<td>' + jobTotal + unpaidNote + '</td>' +
       '<td>' + shareHtml + '</td>' +
       '</tr>';
@@ -405,15 +490,28 @@ function openModal(tech, mode) {
   // Mobile: cards
   var cards = jobs.map(function(job) {
     var desc = job.description ? esc(job.description) : (job.invoice ? 'Invoice #' + esc(job.invoice) : '\u2014');
-    var roleBadge = job.role ? '<span class="role-badge ' + roleClass(job.role) + '">' + esc(job.role) + '</span>' : '';
+    var roleBadgeInner = job.role ? '<span class="role-badge ' + roleClass(job.role) + '">' + esc(job.role) + '</span>' : '';
+    var roleBadge = roleBadgeInner
+      ? reportable(roleBadgeInner, job, 'wrong_tech',
+          'Currently shows me as the "' + (job.role || '') + '" tech on this job \u2014 that\'s not right.')
+      : '';
     var autoDatedLabel = job.autoCompletionKind === 'open_over_three_days'
       ? 'Auto marked complete'
       : 'Auto dated complete';
     var autoDatedBadge = job.autoDatedComplete
       ? '<span class="role-badge role-auto-dated">' + esc(autoDatedLabel) + '</span>' : '';
     var showPercent = Number(job.jobTotal || 0) > 0 && job.creditPct != null && job.creditPct < 100;
+    var splitTextMobile = (job.splitWith || []).map(function(s){
+      return esc(s.name || s) + (s.creditPct != null ? ' (' + s.creditPct + '%)' : '');
+    }).join(', ');
+    var splitContextMobile = 'Currently split with: ' +
+      (job.splitWith || []).map(function(s){ return (s.name || s) + (s.creditPct != null ? ' (' + s.creditPct + '%)' : ''); }).join(', ') +
+      '. That split is wrong.';
     var splitNote = (job.splitWith && job.splitWith.length > 0 && Number(job.jobTotal || 0) > 0)
-      ? ' <span style="font-size:11px;color:#bbb">w/ ' + job.splitWith.map(function(s){ return esc(s.name || s) + (s.creditPct != null ? ' (' + s.creditPct + '%)' : ''); }).join(', ') + splitInfoSpan + '</span>' : '';
+      ? ' <span style="font-size:11px;color:#bbb">w/ ' +
+          reportable(splitTextMobile, job, 'wrong_split', splitContextMobile) +
+          splitInfoSpan +
+        '</span>' : '';
     var creditAmt = fmt(job.credit != null ? job.credit : job.amount);
     var pctHtml = showPercent
       ? '<span class="job-card-credit-pct">(' + job.creditPct + '%)</span>' : '';
@@ -423,13 +521,15 @@ function openModal(tech, mode) {
     // Sits on the meta row alongside role + split partners.
     var unpaidChip = (job.outstanding && job.outstanding > 0)
       ? '<span class="job-card-unpaid">Unpaid ' + fmt(job.outstanding) + '</span>' : '';
+    var sellerContextMobile = 'For this job (customer: ' + (job.customer || '?') + '), the actual seller is different from what shows.';
+    var customerMobile = reportable(esc(job.customer || '\u2014'), job, 'wrong_seller', sellerContextMobile);
     return '<div class="job-card">' +
       '<div class="job-card-top">' +
         '<span class="job-card-date">' + fmtDate(job.date) + '</span>' +
         '<div class="job-card-right"><span class="job-card-credit">' + creditAmt + '</span>' + pctHtml + totalLine + '</div>' +
       '</div>' +
       '<div class="job-card-desc">' + desc + '</div>' +
-      '<div class="job-card-meta">' + esc(job.customer || '\u2014') + roleBadge + autoDatedBadge + splitNote + unpaidChip + '</div>' +
+      '<div class="job-card-meta">' + customerMobile + roleBadge + autoDatedBadge + splitNote + unpaidChip + '</div>' +
       '</div>';
   }).join('');
   document.getElementById('modalCards').innerHTML = cards ||
@@ -461,10 +561,21 @@ function closeModal() {
    Renders the list passed by /api/tech in `currentData.orphans`,
    stashed on `window._orphanJobs` by render(). Two layouts mirror
    the per-tech modal: desktop table + mobile cards. */
+/* Reason-code → human label map. Mirrors the server's enum so the UI
+   can show actionable context next to each uncredited row instead of
+   just a count. */
+var ORPHAN_REASONS = {
+  no_assigned_employees:         'No tech assigned in HCP',
+  completed_in_different_period: 'Service date is outside this period',
+  servicetitan_artifact:         'ServiceTitan migration (excluded by design)',
+  job_details_unavailable:       'HCP could not return job details',
+  standalone_invoice_no_job:     'Standalone invoice (no service job)',
+  pipeline_unknown:              'Pipeline did not credit (report to admin)'
+};
+
 function openOrphansModal() {
   var orphans = (window._orphanJobs || []).slice();
-  // Newest-paid first so the most recent admin oversights surface
-  // at the top of the list.
+  // Newest-paid first so the most recent issues surface at the top.
   orphans.sort(function(a, b) {
     return new Date(b.paidAt || 0) - new Date(a.paidAt || 0);
   });
@@ -473,11 +584,12 @@ function openOrphansModal() {
     var dateLabel = o.paidAt ? fmtDate(o.paidAt) : '—';
     var invLabel  = o.invoice ? '#' + esc(o.invoice) : '—';
     var status    = o.workStatus ? esc(o.workStatus) : '—';
+    var reasonLabel = ORPHAN_REASONS[o.reason] || (o.reason ? esc(o.reason) : 'Uncredited');
     return '<tr>' +
       '<td>' + dateLabel + '</td>' +
       '<td>' + invLabel + '</td>' +
       '<td>' + esc(o.customer || '—') + '</td>' +
-      '<td>' + status + '</td>' +
+      '<td style="font-size:11px;color:#8A8680">' + reasonLabel + '</td>' +
       '<td>' + fmt(o.amount) + '</td>' +
       '</tr>';
   }).join('');
@@ -490,13 +602,18 @@ function openOrphansModal() {
     var status    = o.workStatus
       ? '<span class="role-badge role-did">' + esc(o.workStatus) + '</span>' : '';
     var desc      = o.description ? esc(o.description) : '—';
+    var reasonLabel = ORPHAN_REASONS[o.reason] || (o.reason ? esc(o.reason) : 'Uncredited');
+    var assigned = (o.assignedEmployees && o.assignedEmployees.length)
+      ? ' &middot; <span style="color:#8A8680">assigned: ' + esc(o.assignedEmployees.join(', ')) + '</span>'
+      : '';
     return '<div class="job-card">' +
       '<div class="job-card-top">' +
         '<span class="job-card-date">' + dateLabel + ' · ' + invLabel + '</span>' +
         '<div class="job-card-right"><span class="job-card-credit">' + fmt(o.amount) + '</span></div>' +
       '</div>' +
       '<div class="job-card-desc">' + desc + '</div>' +
-      '<div class="job-card-meta">' + esc(o.customer || '—') + status + '</div>' +
+      '<div class="job-card-meta">' + esc(o.customer || '—') + status + assigned + '</div>' +
+      '<div style="font-size:11px;color:#8A8680;margin-top:4px">' + reasonLabel + '</div>' +
       '</div>';
   }).join('');
   document.getElementById('orphansCards').innerHTML = cards ||
