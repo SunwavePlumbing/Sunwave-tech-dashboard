@@ -748,11 +748,15 @@ async function renderEditPanel(key) {
   const recon = serverData.reconciliation;
 
   // Working state for this row's editor (lives in window.JOBS[key])
+  // Default the FIRST HCP-assigned tech to "Sold & Did" — most Sunwave
+  // jobs are sold and worked by the same person, so this lets the
+  // admin add a helper tech in one click (the new tech defaults to
+  // "Did" and the split formula auto-applies: 66.66% / 33.33%).
   j.edit = {
     assignments: (recon && recon.assignments && recon.assignments.length)
       ? recon.assignments.slice()
       : (job.assignedEmployees.length
-          ? job.assignedEmployees.map((e, i, arr) => ({ employeeName: e.name, role: 'Did', creditPct: Math.round(100 / arr.length) }))
+          ? job.assignedEmployees.map((e, i) => ({ employeeName: e.name, role: i === 0 ? 'Sold & Did' : 'Did', creditPct: 0 }))
           : []),
     totalAmount: recon && recon.totalAmount != null ? recon.totalAmount : job.totalAmount,
     kpiDate: isoDate(recon && recon.kpiDate ? recon.kpiDate : (job.completedAt || job.scheduledStart)),
@@ -763,6 +767,11 @@ async function renderEditPanel(key) {
     job: job,
     isReconciled: !!recon
   };
+  // Apply the Sunwave split formula to the seeded assignments so the
+  // % values match the roles before the first render.
+  if (!(recon && recon.assignments && recon.assignments.length)) {
+    recomputePercents(j.edit.assignments);
+  }
 
   // Map the server's reason codes to actionable explanations for the
   // admin. When a job lands in the unattributed bucket, this tells
