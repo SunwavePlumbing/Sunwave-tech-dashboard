@@ -433,9 +433,10 @@
       </div>
 
       <div class="controls" style="padding-top:10px;padding-bottom:10px">
-        <label for="jobLookup">Or look up a specific job</label>
-        <input type="text" id="jobLookup" placeholder="Invoice # or job_xxx" style="flex:1 1 240px">
-        <button id="lookupBtn">Open</button>
+        <label for="jobLookup">Search loaded jobs</label>
+        <input type="text" id="jobLookup" placeholder="Customer, invoice, $, tech, date, status…" style="flex:1 1 240px">
+        <span id="filterCount" style="font-size:12px;color:var(--ink-mute);min-width:80px"></span>
+        <button id="lookupBtn" title="Fetch a job that's not in the current period (job_xxx or invoice #)">Open exact</button>
       </div>
 
       <div id="jobsList" class="jobs-list">
@@ -671,8 +672,10 @@ async function loadJobs() {
       const key = j.jobId || j.invoice || ('row_' + Math.random().toString(36).slice(2, 8));
       window.JOBS[key] = j;
       j._localKey = key;
+      j._haystack = buildHaystack(j);
     });
     $('jobsList').innerHTML = jobs.map(renderJob).join('');
+    applyFilter(); // Re-apply if there's an active query from a previous load
   } catch (err) {
     $('jobsList').innerHTML = '<div class="empty">Error: ' + esc(err.message) + '</div>';
   }
@@ -691,7 +694,7 @@ function renderJob(j) {
        ? '<span style="color:var(--ink-mute)">HCP: ' + j.hcpAssignedEmployees.map(esc).join(', ') + '</span>'
        : '<span style="color:var(--ink-mute)">unassigned</span>');
 
-  return '<div class="job" data-key="' + esc(j._localKey) + '">' +
+  return '<div class="job" data-key="' + esc(j._localKey) + '" data-haystack="' + esc(j._haystack || '') + '">' +
     '<div class="job-summary" data-action="toggle">' +
       '<span class="job-status job-status--' + esc(j.status) + '">' + esc(j.status) + '</span>' +
       '<div class="job-main">' +
@@ -1129,10 +1132,86 @@ function setRowStatus(key, msg, tone) {
   el.className = 'status-msg' + (tone === 'ok' ? ' is-ok' : tone === 'err' ? ' is-err' : '');
 }
 
-// ── Lookup field — paste invoice or job ID and Open ─────────────────
+// ── Search / lookup ──────────────────────────────────────────────────
+// The search field has two behaviors:
+//   1. As-you-type LIVE FILTER across every job loaded in the current
+//      period — matches against customer, invoice, total, kpiDate,
+//      assigned techs, reconciled-attribution techs, description,
+//      status, and jobId. Multi-word queries AND together.
+//   2. "Open exact" button: if the query is a job_xxx or a pure
+//      invoice number AND nothing matched the live filter (i.e. the
+//      job isn't in the current period), fetch it from HCP and stuff
+//      it into the list as a single row. Same as the old behavior.
+//
+// Building the haystack once per job (cached on `j._haystack` at load
+// time) keeps the filter cheap on every keystroke even for big lists.
+function buildHaystack(j) {
+  const parts = [];
+  if (j.invoice) parts.push(String(j.invoice));
+  if (j.customer) parts.push(j.customer);
+  if (j.description) parts.push(j.description);
+  if (j.status) parts.push(j.status);
+  if (j.jobId) parts.push(j.jobId);
+  // Amount: include raw number, formatted with $, with comma, with cents
+  const amt = Number(j.totalAmount || 0);
+  if (amt) {
+    parts.push(String(Math.round(amt)));
+    parts.push(amt.toFixed(2));
+    parts.push('$' + Math.round(amt));
+    parts.push('$' + amt.toLocaleString('en-US'));
+  }
+  // Outstanding/unpaid amount — same treatment so "unpaid" + a $ matches
+  const out = Number(j.outstanding || 0);
+  if (out) {
+    parts.push('unpaid');
+    parts.push(String(Math.round(out)));
+    parts.push('$' + Math.round(out));
+  }
+  // Date: ISO, US slash, month name (short + long), year
+  if (j.kpiDate) {
+    const d = new Date(j.kpiDate);
+    if (!isNaN(d.getTime())) {
+      const iso = d.toISOString().slice(0, 10);
+      parts.push(iso);
+      parts.push((d.getMonth() + 1) + '/' + d.getDate() + '/' + d.getFullYear());
+      parts.push((d.getMonth() + 1) + '/' + d.getDate());
+      parts.push(d.toLocaleString('en-US', { month: 'long' }));
+      parts.push(d.toLocaleString('en-US', { month: 'short' }));
+      parts.push(String(d.getFullYear()));
+    }
+  }
+  // Techs: HCP-assigned + reconciled assignments
+  (j.hcpAssignedEmployees || []).forEach(n => n && parts.push(n));
+  (j.assignments || []).forEach(a => a && a.name && parts.push(a.name));
+  return parts.join(' ').toLowerCase();
+}
+
+function applyFilter() {
+  const q = $('jobLookup').value.trim().toLowerCase();
+  const rows = document.querySelectorAll('#jobsList .job');
+  const total = rows.length;
+  if (!q) {
+    rows.forEach(r => r.style.display = '');
+    $('filterCount').textContent = total ? total + ' jobs' : '';
+    return;
+  }
+  // Multi-word: split on whitespace, every token must appear.
+  const tokens = q.split(/\s+/).filter(Boolean);
+  let shown = 0;
+  rows.forEach(r => {
+    const hay = r.dataset.haystack || '';
+    const match = tokens.every(t => hay.indexOf(t) !== -1);
+    r.style.display = match ? '' : 'none';
+    if (match) shown++;
+  });
+  $('filterCount').textContent = shown + ' of ' + total;
+}
+
+$('jobLookup').addEventListener('input', applyFilter);
+
 $('lookupBtn').addEventListener('click', () => {
   const v = $('jobLookup').value.trim();
-  if (!v) { alert('Paste an invoice number or job ID first.'); return; }
+  if (!v) { alert('Type something to filter, or paste an invoice / job_xxx and hit Open exact.'); return; }
   // job_xxx in URL?
   const m = v.match(/job_[a-z0-9]+/i);
   if (m) { openLookedUpJob(m[0]); return; }
@@ -1140,7 +1219,15 @@ $('lookupBtn').addEventListener('click', () => {
   if (/^#?\d+$/.test(v)) { openLookedUpInvoice(v.replace(/^#/, '')); return; }
   openLookedUpInvoice(v);
 });
-$('jobLookup').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('lookupBtn').click(); });
+$('jobLookup').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    // If the live filter has zero visible rows, treat Enter as
+    // "Open exact" — try to fetch the typed value from HCP.
+    const visible = Array.from(document.querySelectorAll('#jobsList .job'))
+      .some(r => r.style.display !== 'none');
+    if (!visible) $('lookupBtn').click();
+  }
+});
 
 async function openLookedUpJob(jobId) {
   // Stuff the job into the list as a temporary single row and expand it
@@ -1160,7 +1247,12 @@ async function openLookedUpJob(jobId) {
       assignments: data.reconciliation && data.reconciliation.assignments || [],
       _localKey: jobId
     };
+    synthRow._haystack = buildHaystack(synthRow);
     window.JOBS[jobId] = synthRow;
+    // Replace the list with this one row + clear the filter so it's
+    // visible regardless of what the user had typed.
+    $('jobLookup').value = '';
+    $('filterCount').textContent = '';
     $('jobsList').innerHTML = renderJob(synthRow);
     // Auto-expand
     setTimeout(() => {
