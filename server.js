@@ -4249,31 +4249,88 @@ app.post('/api/kpi/report-issue', (req, res) => {
   res.json({ ok: true, report });
 });
 
-// Public list of active HCP employee names. Used by the report-issue
-// page's "which techs actually did this job?" picker. Returns names
-// only — no IDs, no roles, no email. Cached 4 hours.
+// Discover who's actually a technician by looking at job assignments.
+// An "active tech" is any HCP employee who's been in `assigned_employees`
+// on a complete job within the last 90 days. This automatically filters
+// out office staff (accountant, CSR, etc.) who never get assigned to
+// jobs, and auto-includes new techs the moment they're put on their
+// first job — no env vars or manual roster maintenance required.
+//
+// Returns a Set of HCP employee IDs. Cached 4 hours.
+async function getActiveTechIds() {
+  const ids = await withCache('active-tech-ids', 4 * 60 * 60 * 1000, async () => {
+    const since = new Date();
+    since.setDate(since.getDate() - 90);
+    const found = new Set();
+    let page = 1;
+    while (page <= 25) {
+      const r = await axios.get(BASE_URL + '/jobs', {
+        headers: hcpHeaders(),
+        params: {
+          work_status: 'complete',
+          scheduled_start_min: since.toISOString(),
+          page,
+          page_size: 200
+        }
+      });
+      const jobs = r.data.jobs || [];
+      jobs.forEach(j => (j.assigned_employees || []).forEach(e => {
+        if (e && e.id) found.add(e.id);
+      }));
+      if (page >= (r.data.total_pages || 1)) break;
+      page++;
+    }
+    return Array.from(found); // Sets don't survive JSON disk-persist
+  });
+  return new Set(ids);
+}
+
+// Walk the raw HCP employee list, filter to active techs (per
+// getActiveTechIds), and dedupe by name. HCP sometimes has two records
+// for the same person (mistaken duplicate accounts) — the active one
+// will be in `activeTechIds` because they're getting job assignments,
+// so name-dedup keeps the right one and drops the stale ghost.
+async function fetchTechEmployees() {
+  const activeTechIds = await getActiveTechIds();
+  const all = [];
+  let page = 1;
+  while (page <= 10) {
+    const r = await axios.get(BASE_URL + '/employees', {
+      headers: hcpHeaders(),
+      params: { page, page_size: 100, sort_by: 'first_name', sort_direction: 'asc' }
+    });
+    const emps = r.data.employees || [];
+    all.push(...emps);
+    if (page >= (r.data.total_pages || 1)) break;
+    page++;
+  }
+  const seenNames = new Set();
+  return all
+    .filter(e => activeTechIds.has(e.id))
+    .map(e => ({
+      id: e.id,
+      name: ((e.first_name || '') + ' ' + (e.last_name || '')).trim(),
+      role: e.role || null
+    }))
+    .filter(e => e.name)
+    .filter(e => {
+      const key = e.name.toLowerCase();
+      if (seenNames.has(key)) return false;
+      seenNames.add(key);
+      return true;
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// Public list of active techs. Used by the report-issue page's
+// seller/doer pickers. Returns names only — no IDs, no roles, no
+// email. Cached 4 hours.
 app.get('/api/employees/public', async (req, res) => {
   if (!API_KEY) return res.status(503).json({ error: 'HCP API key not configured' });
   try {
     const payload = await withCache('public-employees', 4 * 60 * 60 * 1000, async () => {
-      const all = [];
-      let page = 1;
-      while (page <= 10) {
-        const r = await axios.get(BASE_URL + '/employees', {
-          headers: hcpHeaders(),
-          params: { page, page_size: 100, sort_by: 'first_name', sort_direction: 'asc' }
-        });
-        const emps = r.data.employees || [];
-        all.push(...emps);
-        if (page >= (r.data.total_pages || 1)) break;
-        page++;
-      }
-      return {
-        employees: all
-          .map(e => ({ name: ((e.first_name || '') + ' ' + (e.last_name || '')).trim() }))
-          .filter(e => e.name)
-          .sort((a, b) => a.name.localeCompare(b.name))
-      };
+      const techs = await fetchTechEmployees();
+      return { employees: techs.map(t => ({ name: t.name })) };
     });
     res.json(payload);
   } catch (err) {
@@ -4387,37 +4444,18 @@ app.get('/api/kpi/admin/job/:id', async (req, res) => {
   }
 });
 
-// List active HCP employees — used by the admin reconciliation editor
+// List active HCP technicians — used by the admin reconciliation editor
 // to populate the "Add tech" dropdown so admins pick from a real list
-// instead of typing names by hand. Cached 4 hours since the roster
-// rarely changes day-to-day.
+// instead of typing names by hand. Same filter as /api/employees/public:
+// only people who've been assigned to a complete job in the last 90
+// days. Cached 4 hours since the roster rarely changes day-to-day.
 app.get('/api/kpi/admin/employees', async (req, res) => {
   if (!requireAdmin(req, res)) return;
   if (!API_KEY) return res.status(503).json({ error: 'HCP API key not configured' });
   try {
     const payload = await withCache('admin-employees', 4 * 60 * 60 * 1000, async () => {
-      const all = [];
-      let page = 1;
-      while (page <= 10) {
-        const r = await axios.get(BASE_URL + '/employees', {
-          headers: hcpHeaders(),
-          params: { page, page_size: 100, sort_by: 'first_name', sort_direction: 'asc' }
-        });
-        const emps = r.data.employees || [];
-        all.push(...emps);
-        if (page >= (r.data.total_pages || 1)) break;
-        page++;
-      }
-      return {
-        employees: all
-          .map(e => ({
-            id: e.id,
-            name: ((e.first_name || '') + ' ' + (e.last_name || '')).trim(),
-            role: e.role || null
-          }))
-          .filter(e => e.name)
-          .sort((a, b) => a.name.localeCompare(b.name))
-      };
+      const techs = await fetchTechEmployees();
+      return { employees: techs };
     });
     res.json(payload);
   } catch (err) {

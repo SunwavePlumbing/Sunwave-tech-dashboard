@@ -180,6 +180,8 @@
       border-radius: 10px;
     }
     .tech-picker.is-on { display: block; }
+    .tech-picker-section { margin-bottom: 14px; }
+    .tech-picker-section:last-of-type { margin-bottom: 4px; }
     .tech-picker-label {
       font-size: 11px;
       font-weight: 700;
@@ -336,13 +338,25 @@
       </div>
     </div>
 
-    <!-- Tech multi-picker — only visible for wrong_split / wrong_tech. -->
+    <!-- Tech multi-picker — only visible for wrong_split / wrong_tech.
+         Two separate sections so the admin knows who SOLD vs who DID
+         the actual work. Same person can be picked in both (e.g. when
+         the same tech sold and did the install) — that's the "Sold &
+         Did" case which gets a full pool share in the credit formula. -->
     <div class="tech-picker" id="techPicker">
-      <div class="tech-picker-label">Who actually did this job? (pick everyone involved)</div>
-      <div class="tech-picker-grid" id="techPickerGrid">
-        <div style="color:var(--ink-mute);font-size:13px">Loading techs…</div>
+      <div class="tech-picker-section">
+        <div class="tech-picker-label">Who sold this job? (pick all that apply)</div>
+        <div class="tech-picker-grid" id="techPickerSellerGrid">
+          <div style="color:var(--ink-mute);font-size:13px">Loading techs…</div>
+        </div>
       </div>
-      <div class="tech-picker-hint">Includes whoever sold it, did the install, or helped on site.</div>
+      <div class="tech-picker-section">
+        <div class="tech-picker-label">Who did the work? (pick all that apply)</div>
+        <div class="tech-picker-grid" id="techPickerDoerGrid">
+          <div style="color:var(--ink-mute);font-size:13px">Loading techs…</div>
+        </div>
+      </div>
+      <div class="tech-picker-hint">If the same person sold and did the work, pick them in both.</div>
     </div>
 
     <div class="field">
@@ -367,7 +381,11 @@ const $ = (id) => document.getElementById(id);
 const escapeHtml = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-let SELECTED_TECHS = []; // names selected in the tech picker
+// Names selected in each picker. A name can appear in both (the
+// "sold and did" case) — we surface that to the admin so they know
+// to credit the tech as Sold & Did rather than splitting two roles.
+let SELECTED_SELLERS = [];
+let SELECTED_DOERS = [];
 
 // ── Issue-type chip selection ───────────────────────────────────────
 const typeChips = $('typeChips').querySelectorAll('.chip');
@@ -483,33 +501,49 @@ document.querySelectorAll('.prefilled-edit').forEach(btn => {
 // Ensure picker visibility reflects whatever the initial chip is.
 syncTechPickerVisibility();
 
-// ── Tech picker — load HCP employees, render chips, track selection ─
+// ── Tech picker — load HCP techs, render chips into BOTH grids ──────
+// Each grid (seller / doer) has its own copy of the chip set so a
+// tech can be selected independently in each — the same person can
+// be in both lists if they sold and did the work.
+function renderTechGrid(gridId, selectionRef, names) {
+  const grid = $(gridId);
+  grid.innerHTML = names.map(name =>
+    '<button type="button" class="tech-chip" data-tech="' + escapeHtml(name) + '">' + escapeHtml(name) + '</button>'
+  ).join('');
+  grid.querySelectorAll('.tech-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      chip.classList.toggle('is-on');
+      const name = chip.dataset.tech;
+      if (chip.classList.contains('is-on')) {
+        if (!selectionRef.list.includes(name)) selectionRef.list.push(name);
+      } else {
+        selectionRef.list = selectionRef.list.filter(n => n !== name);
+      }
+    });
+  });
+}
+
 async function loadTechs() {
   try {
     const r = await fetch('/api/employees/public');
     const data = await r.json();
     const list = (data.employees || []).map(e => e.name);
     if (list.length === 0) {
-      $('techPickerGrid').innerHTML = '<div style="color:var(--ink-mute);font-size:13px">No techs available.</div>';
+      const empty = '<div style="color:var(--ink-mute);font-size:13px">No techs available.</div>';
+      $('techPickerSellerGrid').innerHTML = empty;
+      $('techPickerDoerGrid').innerHTML = empty;
       return;
     }
-    $('techPickerGrid').innerHTML = list.map(name =>
-      '<button type="button" class="tech-chip" data-tech="' + escapeHtml(name) + '">' + escapeHtml(name) + '</button>'
-    ).join('');
-    // Wire chip toggling
-    document.querySelectorAll('.tech-chip').forEach(chip => {
-      chip.addEventListener('click', () => {
-        chip.classList.toggle('is-on');
-        const name = chip.dataset.tech;
-        if (chip.classList.contains('is-on')) {
-          if (!SELECTED_TECHS.includes(name)) SELECTED_TECHS.push(name);
-        } else {
-          SELECTED_TECHS = SELECTED_TECHS.filter(n => n !== name);
-        }
-      });
-    });
+    // Two refs so each grid mutates its own selection array. We rebind
+    // SELECTED_SELLERS / SELECTED_DOERS to the .list each time it changes.
+    const sellerRef = { get list() { return SELECTED_SELLERS; }, set list(v) { SELECTED_SELLERS = v; } };
+    const doerRef   = { get list() { return SELECTED_DOERS;   }, set list(v) { SELECTED_DOERS   = v; } };
+    renderTechGrid('techPickerSellerGrid', sellerRef, list);
+    renderTechGrid('techPickerDoerGrid',   doerRef,   list);
   } catch (err) {
-    $('techPickerGrid').innerHTML = '<div style="color:var(--ink-mute);font-size:13px">Could not load tech list — describe in the field below instead.</div>';
+    const fallback = '<div style="color:var(--ink-mute);font-size:13px">Could not load tech list — describe in the field below instead.</div>';
+    $('techPickerSellerGrid').innerHTML = fallback;
+    $('techPickerDoerGrid').innerHTML = fallback;
   }
 }
 loadTechs();
@@ -529,16 +563,25 @@ $('reportForm').addEventListener('submit', async (e) => {
     setStatus('Your name first, please.', 'err');
     return;
   }
-  if (!description && SELECTED_TECHS.length === 0) {
+  if (!description && SELECTED_SELLERS.length === 0 && SELECTED_DOERS.length === 0) {
     setStatus('Tell us what should change.', 'err');
     return;
   }
 
-  // If the tech picker was used, prepend the selection to the
-  // description so the admin sees exactly who the reporter says did it.
+  // Prepend the seller / doer selections to the description so the
+  // admin sees exactly who the reporter says was on the job. Anyone
+  // who appears in both lists is flagged inline as Sold & Did — that's
+  // the role the admin would set in the reconcile editor.
   let finalDescription = description;
-  if (SELECTED_TECHS.length > 0) {
-    const prefix = 'Actual techs on this job: ' + SELECTED_TECHS.join(', ') + '.';
+  const both = SELECTED_SELLERS.filter(n => SELECTED_DOERS.includes(n));
+  const sellersOnly = SELECTED_SELLERS.filter(n => !both.includes(n));
+  const doersOnly   = SELECTED_DOERS.filter(n => !both.includes(n));
+  const lines = [];
+  if (both.length)         lines.push('Sold & did: ' + both.join(', '));
+  if (sellersOnly.length)  lines.push('Sold by: '   + sellersOnly.join(', '));
+  if (doersOnly.length)    lines.push('Did the work: ' + doersOnly.join(', '));
+  if (lines.length) {
+    const prefix = lines.join('\n');
     finalDescription = description ? prefix + '\n\n' + description : prefix;
   }
 
@@ -566,7 +609,8 @@ $('reportForm').addEventListener('submit', async (e) => {
     $('description').value = '';
     setPrefilled('invoice', '');
     setPrefilled('customer', '');
-    SELECTED_TECHS = [];
+    SELECTED_SELLERS = [];
+    SELECTED_DOERS = [];
     document.querySelectorAll('.tech-chip.is-on').forEach(c => c.classList.remove('is-on'));
   } catch (err) {
     setStatus('Error: ' + err.message, 'err');
