@@ -872,67 +872,94 @@ function updateGreeting() {
   // day-of-week rotation gives every phrase a turn within a couple
   // weeks without any one line dominating.
   var POOLS = {
+    // Daytime pools below mix everyday work texture (coffee, trucks,
+    // wrenches, {Day} progress) with quiet nods to the Sunwave
+    // mission — "create and give value everywhere we go" — and the
+    // ten principles (Creating Value, Giving, Simplicity, Integrity,
+    // Specialize, Improvement, Healthy Growth, Sustainability, People
+    // Skills, Rejuvenating). The principles show up as lived phrases,
+    // not slogans: "honest hours," "doing right by someone," "rest
+    // matters too," "real work for real people," "every job a chance
+    // to do it right," "leave things better than we found them."
+    // Tone matches the night pools: warm, short, addressed to "you,"
+    // never preachy.
+
     // ── Pre-dawn / first crew (5am) ────────────────────────────────
     h05: [
       'First boots up. {Day} starts early',
       'Quiet yard, big {Day} ahead',
       'Up before the kettle',
-      "{Day} loading. Coffee's on its way",
-      'Pre-dawn check-in. Hi'
+      'Early hours are honest hours',
+      'Pre-dawn check-in, hi',
+      "Slow start, strong {Day}",
+      "Coffee soon. {Day}'s yours to shape",
+      '{Day} is loading. Customers waiting'
     ],
     // ── Sunrise, trucks warming (6am) ──────────────────────────────
     h06: [
       "Sun's up, trucks warming",
       'Gloves on, {Day} begins',
       'Morning, early bird',
-      'Loading up for {Day}',
-      "Coffee's on, {Day} starts here",
-      'Yard waking up'
+      'Loading up to make {Day} better',
+      "Yard waking up. Coffee's on",
+      'Trucks ready. Customers waiting',
+      'Sun rising on a {Day} worth doing',
+      "Today's a day to do right by someone"
     ],
     // ── First dispatch (7am) ───────────────────────────────────────
     h07: [
       'Trucks rolling, happy {Day}',
-      'First dispatch of {Day}',
+      'Crew heading out to make {Day} better',
       "Coffee's on, gloves up",
-      '{Day} is in motion',
       "Mornin', crew",
-      'Trucks heading out'
+      'First dispatches, first wins',
+      'Out the door, ready to help',
+      "Trucks heading toward {Day}'s value",
+      'Going to do right by someone today'
     ],
     // ── Full morning, first calls (8am) ────────────────────────────
     h08: [
       'Good morning, and happy {Day}',
       'First service calls of {Day}',
       "Crew's already wrenching",
-      '{Day} is on the board',
       'Wrenches up, happy {Day}',
-      "Coffee's on, happy {Day}"
+      "Coffee's on, happy {Day}",
+      'Customers being taken care of',
+      '{Day} is on the board',
+      'Real work for real people'
     ],
     // ── Mid-morning hustle (9am) ───────────────────────────────────
     h09: [
       'Mid-morning, full speed',
       '{Day} is heating up',
       'Trucks all on a call',
-      'Hope the {Day} run is smooth',
       'Second-coffee window',
-      'Strong {Day} starting to shape up'
+      'Hope the {Day} run is smooth',
+      'Every job, a chance to do it right',
+      'Steady hands, strong {Day}',
+      'Value being created out there'
     ],
     // ── Flow state (10am) ──────────────────────────────────────────
     h10: [
       "Morning's flying, {Day}",
-      'Hope {Day} is wrenching well',
       'Trucks deep in the day',
       'Strong {Day} so far',
+      'Hope {Day} is wrenching well',
       'Mid-morning, momentum',
-      'Hope the calls are easy ones'
+      'Houses being made whole',
+      "Better than yesterday, that's the bar",
+      'Specialists at work'
     ],
     // ── Almost noon push (11am) ────────────────────────────────────
     h11: [
       'Almost noon, push through',
       "{Day}'s lunch is close",
       'One more before the break',
-      'Half-shift mark approaching',
       'Good {Day}, lunch is near',
-      "Hope {Day}'s tickets are stacking up"
+      'Pre-lunch push',
+      'Strong work before the break',
+      'Half-shift well spent',
+      'Last call before lunch'
     ],
     // ── Lunch (12pm) ───────────────────────────────────────────────
     h12: [
@@ -940,26 +967,32 @@ function updateGreeting() {
       'Halfway through {Day}',
       'Lunch break, take it',
       'Sandwich and a sit-down, earned',
-      "Hope {Day}'s feeding you well",
-      'Midpoint, {Day}'
+      "Take the full hour. You've earned it",
+      'Rest matters too',
+      'Midpoint, {Day}. Catch your breath',
+      "Hope {Day}'s feeding you well"
     ],
     // ── Post-lunch return (1pm) ────────────────────────────────────
     h13: [
       'Back at it, happy {Day}',
       'Afternoon kickoff',
       'Fed and rolling',
-      'Lunch is in, {Day} second half',
       'Wrenches back up',
-      "Good afternoon, {Day}'s in"
+      'Lunch is in, {Day} second half',
+      "Good afternoon, {Day}'s in",
+      'Second half is where {Day} earns it',
+      'Back to making {Day} better'
     ],
     // ── Afternoon push (2pm) ───────────────────────────────────────
     h14: [
       'Good afternoon, and happy {Day}',
       'Afternoon push, happy {Day}',
       'Trucks back in motion',
-      'Hope {Day} jobs are smooth',
+      'Afternoon, crew',
       '{Day}, second half going strong',
-      'Afternoon, crew'
+      'Hope {Day} jobs are smooth',
+      'Real {Day} being made out there',
+      "Out making someone's {Day}"
     ],
     // ── Second wind (3pm) ──────────────────────────────────────────
     h15: [
@@ -968,7 +1001,9 @@ function updateGreeting() {
       "{Day}'s in the books soon",
       'Coffee number three?',
       'Afternoon stretch',
-      'Hope {Day} is treating you right'
+      'Final third, give it your best',
+      'Hope {Day} is treating you right',
+      'Almost there. Strong {Day}'
     ],
     // ── Late afternoon (4pm) ───────────────────────────────────────
     h16: [
@@ -977,7 +1012,9 @@ function updateGreeting() {
       'Last calls of {Day}',
       'Trucks heading back soon',
       '{Day} winding down',
-      'Final stretch of {Day}'
+      'Final stretch of {Day}',
+      "Hope {Day}'s been a good one",
+      "Value's been created today"
     ],
     // ── Clock-out hour (5pm) ───────────────────────────────────────
     h17: [
@@ -986,16 +1023,20 @@ function updateGreeting() {
       'Final invoices of {Day}',
       'Hope {Day} treated you right',
       'Wrapping {Day} up',
-      'Last calls in, {Day}'
+      'Last calls in, {Day}',
+      "Today's value is in the books",
+      'Good {Day}, well done'
     ],
     // ── Evening, books-time (6pm) ──────────────────────────────────
     h18: [
       'Good evening, and happy {Day}',
-      'Wrapping up {Day}',
-      'Evening, crew',
       'Closing out {Day}',
       "Trucks parked, {Day}'s in the books",
-      'Hope {Day} paid off'
+      'Evening, crew',
+      'Wrapping up {Day}',
+      'Hope {Day} paid off',
+      'Good work, {Day} is done',
+      '{Day} earned, evening earned'
     ],
     // ── Late check-ins (7pm) ───────────────────────────────────────
     h19: [
