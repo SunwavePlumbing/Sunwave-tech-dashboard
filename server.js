@@ -530,6 +530,7 @@ function invalidateCachesByPrefix(prefixes) {
       count++;
     }
   });
+  count += invalidateInflightByPrefix(list);
   if (count) scheduleDiskCacheWrite();
   return count;
 }
@@ -539,6 +540,7 @@ function invalidateKpiCaches() {
     'metrics:',
     'coverage:',
     'raw-jobs-short:',
+    'raw-short',
     'public-employees',
     'admin-employees',
     'active-tech-ids'
@@ -555,6 +557,18 @@ function inflightGet(key, factory) {
   const p = factory().finally(() => { _inflight.delete(key); });
   _inflight.set(key, p);
   return p;
+}
+
+function invalidateInflightByPrefix(prefixes) {
+  const list = Array.isArray(prefixes) ? prefixes : [prefixes];
+  let count = 0;
+  Array.from(_inflight.keys()).forEach(k => {
+    if (list.some(prefix => k === prefix || k.startsWith(prefix))) {
+      _inflight.delete(k);
+      count++;
+    }
+  });
+  return count;
 }
 
 // ── withCache — stale-while-revalidate wrapper ───────────────────────────────
@@ -1072,7 +1086,7 @@ app.get('/api/metrics', async (req, res) => {
     const METRICS_TTL = 2 * 60 * 1000;
     const cacheKey = 'metrics:' + range;
     if (forceRefresh) {
-      invalidateCachesByPrefix(['metrics:' + range, 'coverage:' + range, 'raw-jobs-short:']);
+      invalidateCachesByPrefix(['metrics:' + range, 'coverage:' + range, 'raw-jobs-short:', 'raw-short']);
     }
     const payload = await withCache(cacheKey, METRICS_TTL, async () => {
 
@@ -3882,7 +3896,7 @@ app.get('/api/diagnostics/coverage', async (req, res) => {
   const COVERAGE_TTL = 15 * 60 * 1000;
   const cacheKey = 'coverage:' + range;
   if (forceRefresh) {
-    invalidateCachesByPrefix(['coverage:' + range, 'metrics:' + range, 'raw-jobs-short:']);
+    invalidateCachesByPrefix(['coverage:' + range, 'metrics:' + range, 'raw-jobs-short:', 'raw-short']);
   }
 
   try {

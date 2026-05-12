@@ -872,255 +872,167 @@ function updateGreeting() {
   // day-of-week rotation gives every phrase a turn within a couple
   // weeks without any one line dominating.
   var POOLS = {
-    // Daytime pools below mix everyday work texture (coffee, trucks,
-    // wrenches, {Day} progress) with quiet nods to the Sunwave
-    // mission — "create and give value everywhere we go" — and the
-    // ten principles (Creating Value, Giving, Simplicity, Integrity,
-    // Specialize, Improvement, Healthy Growth, Sustainability, People
-    // Skills, Rejuvenating). The principles show up as lived phrases,
-    // not slogans: "honest hours," "doing right by someone," "rest
-    // matters too," "real work for real people," "every job a chance
-    // to do it right," "leave things better than we found them."
-    // Tone matches the night pools: warm, short, addressed to "you,"
-    // never preachy.
+    // Daytime pools rewritten to observe a moment, name the trade
+    // specifically, or carry a small point of view. Time-stamping
+    // ("8 a.m. and earning it"), motivational filler, and forced
+    // cleverness cut. Phrases lean longer when needed — a real
+    // observation is worth more than a four-word slogan. Tone stays
+    // close to the night pools, which work because they actually
+    // talk back to the reader.
 
     // ── Pre-dawn / first crew (5am) ────────────────────────────────
     h05: [
-      'First boots up. {Day} starts early',
+      "Pre-dawn. The first call of {Day} hasn't come in yet",
+      "Somewhere a water heater is making it through the night, hopefully",
+      'Up before the trucks, before the customers, before the news',
       'Quiet yard, big {Day} ahead',
       'Up before the kettle',
-      'Early hours are honest hours',
-      'Pre-dawn check-in, hi',
-      "Slow start, strong {Day}",
-      "Coffee soon. {Day}'s yours to shape",
-      '{Day} is loading. Customers waiting',
-      'Stars still out. {Day} starts here',
-      'Headlamps and coffee',
-      'Quiet streets, big {Day}',
-      'First in, set the tone',
-      'Pre-shift, pre-light',
-      '{Day} hasn’t made a sound yet'
+      'Hi, early one',
+      "Headlamps and coffee",
+      "Whoever's first in matters most",
+      "Early hours are honest hours",
+      "{Day} hasn't made a sound yet"
     ],
     // ── Sunrise, trucks warming (6am) ──────────────────────────────
     h06: [
+      'Streetlights still on. The first truck is breathing',
+      'Coffee in one hand, schedule in the other',
+      "Somewhere in Charlottesville, somebody's about to call you",
+      'The hour before the phone rings',
       "Sun's up, trucks warming",
-      'Gloves on, {Day} begins',
-      'Morning, early bird',
-      'Loading up to make {Day} better',
-      "Yard waking up. Coffee's on",
-      'Trucks ready. Customers waiting',
-      'Sun rising on a {Day} worth doing',
-      "Today's a day to do right by someone",
-      'Sunrise check-in, hi',
-      'Trucks fueled, {Day} fueled',
-      'Pre-shift coffee, earned',
-      '{Day} brightening up',
-      'Birds awake, crew next',
-      'Sun on the windshield, {Day} on the schedule'
+      'Cold start, warm cup',
+      "Morning, early bird",
+      'Six. The roads are still mostly empty',
+      "Yard waking up. Coffee's on"
     ],
     // ── First dispatch (7am) ───────────────────────────────────────
     h07: [
-      'Trucks rolling, happy {Day}',
-      'Crew heading out to make {Day} better',
-      "Coffee's on, gloves up",
+      "Out the door. Someone's morning gets easier today",
+      "Trucks rolling into other people's mornings",
+      "First call of {Day}. Hopefully an easy one",
+      "Out to make a stranger's {Day} less bad",
+      "The phone's already warmer than the truck cab",
+      "Trucks rolling, happy {Day}",
       "Mornin', crew",
-      'First dispatches, first wins',
-      'Out the door, ready to help',
-      "Trucks heading toward {Day}'s value",
-      'Going to do right by someone today',
-      'Engines on, {Day} on',
-      'Headed out to help, happy {Day}',
-      'First call of {Day}, here we go',
-      'Trucks lining up for {Day}',
-      'Seven sharp, {Day} starts',
-      '{Day} is officially rolling'
+      "Coffee's on, gloves up"
     ],
     // ── Full morning, first calls (8am) ────────────────────────────
     h08: [
-      'Good morning, and happy {Day}',
-      'First service calls of {Day}',
-      "Crew's already wrenching",
-      'Wrenches up, happy {Day}',
-      "Coffee's on, happy {Day}",
-      'Customers being taken care of',
-      '{Day} is on the board',
-      'Real work for real people',
-      'Service calls landing. Happy {Day}',
-      "{Day}'s first wrench is turning",
-      'Customers waking up to good work',
-      'Heart of the morning, happy {Day}',
-      "{Day}'s rolling. Trucks where they need to be",
-      'Eight a.m. and earning it'
+      'The customers are awake. So is the dispatcher',
+      "Somewhere a kettle is being put on while you arrive",
+      'First wrench of {Day} is turning',
+      "Eight houses today will be glad to see you",
+      "The work's small. The difference isn't",
+      "Good morning, and happy {Day}",
+      "First service calls of {Day}",
+      "Real work for real people",
+      "Wrenches up, happy {Day}"
     ],
     // ── Mid-morning hustle (9am) ───────────────────────────────────
     h09: [
-      'Mid-morning, full speed',
-      '{Day} is heating up',
-      'Trucks all on a call',
-      'Second-coffee window',
-      'Hope the {Day} run is smooth',
-      'Every job, a chance to do it right',
-      'Steady hands, strong {Day}',
-      'Value being created out there',
-      'Quiet pride at 9 a.m.',
-      'Morning routine humming',
-      "{Day}'s rhythm found",
-      "Calls coming in, crew's ready",
-      'Nine and creating',
-      '{Day} is shaping up well'
+      'Halfway between coffee one and coffee two',
+      'Estimates landing, jobs starting',
+      "Some old man somewhere is glad you showed up",
+      "Most plumbing problems aren't plumbing problems",
+      "Steady morning. That's mostly the point",
+      "Mid-morning, full speed",
+      "Trucks all on a call",
+      "Every job, a chance to do it right"
     ],
     // ── Flow state (10am) ──────────────────────────────────────────
     h10: [
-      "Morning's flying, {Day}",
-      'Trucks deep in the day',
-      'Strong {Day} so far',
-      'Hope {Day} is wrenching well',
-      'Mid-morning, momentum',
-      'Houses being made whole',
-      "Better than yesterday, that's the bar",
-      'Specialists at work',
-      '10 a.m. groove',
-      '{Day} at full stride',
-      'Hot coffee, cool fixes',
-      'Quiet competence, loud relief',
-      'Trade in motion',
-      'Hope {Day} is being kind back'
+      "Half the day's questions answered already",
+      "Somewhere a shower is on for the first time in days",
+      "Quiet morning. The trade moves anyway",
+      "The work doesn't care what day it is",
+      "Mornings like this are why people stay in the trade",
+      "Hope {Day} is wrenching well",
+      "Houses being made whole",
+      "Specialists at work"
     ],
     // ── Almost noon push (11am) ────────────────────────────────────
     h11: [
-      'Almost noon, push through',
-      "{Day}'s lunch is close",
-      'One more before the break',
-      'Good {Day}, lunch is near',
-      'Pre-lunch push',
-      'Strong work before the break',
-      'Half-shift well spent',
-      'Last call before lunch',
-      'Eleven o’clock, kitchen calling',
-      'Half a {Day} done',
-      'Strong morning behind you',
-      'Pre-lunch homestretch',
-      'Hot meal earned, almost there',
-      "{Day}'s morning ledger filling up"
+      'Lunch is closer than it feels',
+      "Most of the morning's behind you",
+      'Last call before the first real sit-down',
+      "Coffee's mostly cold by now",
+      "Stomach knows what time it is",
+      "Almost noon, push through",
+      'One more before the break'
     ],
     // ── Lunch (12pm) ───────────────────────────────────────────────
     h12: [
-      'Noon. Hope lunch is hot',
-      'Halfway through {Day}',
-      'Lunch break, take it',
-      'Sandwich and a sit-down, earned',
-      "Take the full hour. You've earned it",
-      'Rest matters too',
-      'Midpoint, {Day}. Catch your breath',
-      "Hope {Day}'s feeding you well",
-      'Lunch and a breath, take both',
-      '{Day} pause',
-      'Noon refuel',
-      'Down tools for an hour',
-      'Body said lunch. Listen',
-      'Half-day mark, half-day fed'
+      "Lunch. Whatever's in the cooler, eat it slow",
+      "Eat. Sit. Look at nothing. That counts",
+      'Sandwich and a quiet truck cab',
+      'The phone can wait one hour',
+      "Half the day behind you. Be present for the second",
+      "Lunch break is also work",
+      "Lunch break, take it",
+      "Rest matters too"
     ],
     // ── Post-lunch return (1pm) ────────────────────────────────────
     h13: [
-      'Back at it, happy {Day}',
-      'Afternoon kickoff',
-      'Fed and rolling',
-      'Wrenches back up',
-      'Lunch is in, {Day} second half',
-      "Good afternoon, {Day}'s in",
-      'Second half is where {Day} earns it',
-      'Back to making {Day} better',
-      'One o’clock, second engine on',
-      'Refueled. Re-rolling',
-      "{Day}'s afternoon shift",
-      'Second half of {Day}, here we go',
-      'Trucks back on the road',
-      'Afternoon dispatch, happy {Day}'
+      "Back in the truck. The afternoon has its own pace",
+      'Second half. The hard calls come now',
+      "Afternoons earn their keep slowly",
+      "The hardest calls come after lunch. Always",
+      "Post-lunch dispatch. Try not to fight it",
+      "Back at it, happy {Day}",
+      'Fed and rolling'
     ],
     // ── Afternoon push (2pm) ───────────────────────────────────────
     h14: [
-      'Good afternoon, and happy {Day}',
-      'Afternoon push, happy {Day}',
-      'Trucks back in motion',
-      'Afternoon, crew',
-      '{Day}, second half going strong',
-      'Hope {Day} jobs are smooth',
-      'Real {Day} being made out there',
-      "Out making someone's {Day}",
-      'Two o’clock and creating value',
-      'Steady afternoon, strong {Day}',
-      'Trucks dispatched, hearts engaged',
-      '{Day} flow continues',
-      'Every call counts',
-      "Hope someone's {Day} is better because of us"
+      "The afternoon dip. Push or pull over",
+      "Somebody's home from work hoping you can stay",
+      "Mid-afternoon. The phone gets specific",
+      'Trade slows down on purpose around two',
+      "Afternoon work is patience work",
+      "Most calls now are real ones",
+      "Good afternoon, and happy {Day}",
+      'Trucks back in motion'
     ],
     // ── Second wind (3pm) ──────────────────────────────────────────
     h15: [
+      'Kids getting off school buses while you finish a job',
+      'Afternoon light makes the work look easier than it is',
+      "Last full-energy hour of {Day}",
+      "Coffee three is a confession",
+      'The afternoon is fully open',
       "Three o'clock, find your second wind",
       'Home stretch in sight',
-      "{Day}'s in the books soon",
-      'Coffee number three?',
-      'Afternoon stretch',
-      'Final third, give it your best',
-      'Hope {Day} is treating you right',
-      'Almost there. Strong {Day}',
-      "{Day}'s afternoon crest",
-      'Quarter to go, hold strong',
-      'Three more hours, three more wins',
-      'Afternoon grit',
-      '{Day} still has room to be good',
-      "Three o'clock. Bend, don't break"
+      'Hope {Day} is treating you right'
     ],
     // ── Late afternoon (4pm) ───────────────────────────────────────
     h16: [
-      'Late afternoon, almost done',
-      'Wrapping {Day} up nicely',
-      'Last calls of {Day}',
-      'Trucks heading back soon',
-      '{Day} winding down',
-      'Final stretch of {Day}',
-      "Hope {Day}'s been a good one",
-      "Value's been created today",
-      'Last hour of {Day} stretching',
-      'Sun lower, {Day} wider',
-      "Four o'clock, last calls landing",
-      'Last hour of value-making',
-      '{Day} winding to a close',
-      'Almost back at the yard'
+      "Most of {Day} is paid for. The rest is wrap-up",
+      "The light is starting to lengthen",
+      "Late calls are mostly small ones. Mostly",
+      "Heading back to the yard soon",
+      'Wrapping invoices, wrapping the day',
+      "Late afternoon, almost done",
+      "{Day} winding down"
     ],
     // ── Clock-out hour (5pm) ───────────────────────────────────────
     h17: [
+      "Whatever {Day} was, it's behind you now",
+      "End of shift. The dashboard doesn't catch what you actually did today",
+      "Trucks heading home. Roads filling up",
+      'Tools back in the truck',
       "Five o'clock. {Day}'s closing",
-      'Trucks heading home',
-      'Final invoices of {Day}',
-      'Hope {Day} treated you right',
-      'Wrapping {Day} up',
-      'Last calls in, {Day}',
-      "Today's value is in the books",
-      'Good {Day}, well done',
-      'Quitting time, well-earned',
-      "Five o'clock. Hats off",
-      'Doors closing, hearts open',
-      '{Day} clocking out',
-      'End-of-shift mark hit',
-      "{Day}'s ledger looks good"
+      "Quitting time. Hat off, head home",
+      "Hope {Day} treated you right"
     ],
     // ── Evening, books-time (6pm) ──────────────────────────────────
     h18: [
-      'Good evening, and happy {Day}',
+      'Evening. Trucks parked. The work waits till tomorrow',
+      "Eight houses tonight have working plumbing because of {Day}",
+      "Hard work behind you. Whatever's next, enjoy it",
+      "The trade rests when it can",
+      "The dashboard goes quiet around now",
+      "Good evening, and happy {Day}",
       'Closing out {Day}',
-      "Trucks parked, {Day}'s in the books",
-      'Evening, crew',
-      'Wrapping up {Day}',
-      'Hope {Day} paid off',
-      'Good work, {Day} is done',
-      '{Day} earned, evening earned',
-      'Books on the shelf, evening on',
-      "Six o'clock. {Day}'s in",
-      'Dinner soon, {Day} done',
-      "{Day}'s glow",
-      'Hard hat off, evening on',
-      "Hope {Day} left something good behind"
+      "Trucks parked, {Day}'s in the books"
     ],
     // ── Late check-ins (7pm) ───────────────────────────────────────
     h19: [
@@ -1128,24 +1040,19 @@ function updateGreeting() {
       'Past business hours, huh?',
       "Hope dinner's calling",
       'Evening, still here?',
-      'Dinner clock',
-      'Hope you’re heading home soon',
-      'Numbers still here at seven'
+      "Hope you're heading home soon"
     ],
     h20: [
       "Hope you're winding down",
       "Hope dinner's done",
       'Books still here, no rush',
       'Easy night ahead?',
-      'Eight o’clock, family time',
-      "Books quiet, you should be too",
-      'Slow down, {Day} earned it'
+      "Books quiet, you should be too"
     ],
     h21: [
       "Hope tomorrow's ticket is a good one",
       'Save some work for tomorrow',
       'Books will keep till morning',
-      'Lights out for the leaderboard',
       "Tomorrow's customers don't know you yet",
       'Couch time'
     ],
@@ -1153,24 +1060,18 @@ function updateGreeting() {
       'Pretty late to be checking the books',
       "Nothing here can't wait till morning",
       'Books look better with fresh eyes',
-      'Ten o’clock and still working?',
-      "Get the rest before tomorrow's first call",
-      'Tomorrow earns more if tonight rests'
+      "Get the rest before tomorrow's first call"
     ],
     h23: [
       'Almost tomorrow',
       "Drains don't sleep, but you should",
       'Last call, get some rest',
-      'Eleven o’clock. Bed is a KPI',
-      'One hour to a fresh {Day}',
       "Don't audit yourself at eleven"
     ],
     h00: [
       'Past midnight, go get some rest',
       'Tomorrow is a workday too',
       'The KPIs will still be here in the morning',
-      'Midnight. Truly, rest',
-      'Even the books are asleep',
       "Sunwave can wait. You can't"
     ],
     h01: [
@@ -1178,94 +1079,72 @@ function updateGreeting() {
       'Still up?',
       'The dashboard can wait',
       'Sleep is also a KPI',
-      'One a.m. checking the numbers?',
       "Whatever it is, morning's better"
     ],
     h02: [
       'Up real late on a {Day}',
       'Even Sunwave needs sleep',
-      'Two a.m. Are the books really worth this?',
-      "Tomorrow's {Day} cares about tonight's sleep",
-      'Off the screen, into the pillow'
+      'Two a.m. Are the books really worth this?'
     ],
     h03: [
       'Are you okay?',
       'Either up late or up very early. Either way, hi',
       "Whatever you're chasing, it can wait",
-      'Three a.m. is for sleeping or for plumbing emergencies',
-      'Pour yourself a glass of water and bed'
+      'Three a.m. is for sleeping or for plumbing emergencies'
     ],
     h04: [
       "Early start? Or didn't sleep?",
       "Coffee's on you this morning",
       'First one in',
-      'Four a.m. early start. Good {Day} ahead',
-      'Owls and early birds welcome',
       'Whatever brought you here, hi'
     ]
   };
 
   // ── Day-of-week bonus lines ─────────────────────────────────────
-  // These get APPENDED to the hourly pool only on the matching
-  // weekday, so day-flavored content (Monday energy, Friday wind-
-  // down, Sunday quiet) actually fires on its day rather than at
-  // random. Days without entries fall through to just the hourly
-  // pool. All lines use {Day} where templating helps; the ones that
-  // mention "week" stand on their own. Voice stays warm + short,
-  // same as the hourly pools.
+  // Fire only on their matching weekday — concatenated onto the
+  // hourly pool so they show up periodically without crowding the
+  // hourly voice. Observational rather than cheerleading; if a line
+  // didn't have a point of view, it got cut.
   var DAY_LINES = {
     monday: [
-      'Fresh week. Trucks ready',
-      'Monday clean slate',
-      'New week, fresh wrench',
-      "Monday: a chance to start strong",
-      'Week one, day one. Let’s create value',
-      'New week, same standard'
+      "Monday. Whatever the weekend was, it's behind you",
+      "First Monday of one of the fifty-two",
+      "Monday is mostly waking up",
+      "The hardest part of Monday is starting"
     ],
     tuesday: [
-      'Tuesday momentum',
-      'Tuesday hustle',
-      'Tuesday: showing up is half of it',
-      'Steady Tuesday, strong Tuesday'
+      "Tuesday. Most underrated day of the week",
+      "Tuesday is when actual work happens",
+      "Quietly, Tuesdays are the best ones"
     ],
     wednesday: [
-      'Halfway through the week',
-      'Wednesday crest',
-      'Midweek check-in',
-      'Hump day, hump it well',
-      'Two down, two to go',
-      'Wednesday: the engine of the week'
+      "Wednesday. Halfway home",
+      "Hump day. You know what it is",
+      "Wednesday: the spine of the week",
+      "Two days down, two to go"
     ],
     thursday: [
-      "Friday's almost in sight",
-      'Thursday push',
-      'One more day after this',
-      'Almost there, Thursday',
-      'Thursday: the underrated MVP'
+      "Friday's in walking distance",
+      'Almost Friday. Try not to count down',
+      "Thursday's the underrated push"
     ],
     friday: [
-      'Friday rolling',
-      'Last shift before the weekend',
-      'Friday and grateful',
-      'End-of-week stretch',
-      'Friday finish line',
-      'Hope Friday treats you right',
-      'Send the week off well'
+      "Friday. The week's tail end",
+      "Last calls of the week. Hopefully easy ones",
+      'Friday at Sunwave. Weekend in sight',
+      'Send the week off without dragging it',
+      'Whatever the week was, finish it well'
     ],
     saturday: [
-      'Saturday call. Real heroes work weekends',
-      'Weekend crew, going strong',
-      "Saturday customers are extra grateful",
-      'Saturday work, full hearts',
-      'Weekend on the boards'
+      "Saturday call. Someone's grateful you came",
+      "Weekend roads are quieter, at least",
+      'Saturday work makes the rest of the week make sense',
+      "On the dashboard on a Saturday. Hope it's the good kind of busy"
     ],
     sunday: [
-      "Sunday quiet. Prep time",
-      'Easy Sunday',
-      'Pre-week breather',
-      'Sunday on the dashboard? Wow',
-      "Sunday's a good day to rest",
-      'Soft Sunday'
+      "Sunday on the dashboard. Hope it's by choice",
+      "Sunday quiet. Most of the world is off",
+      "Sunday: the only day plumbing waits"
     ]
   };
 
