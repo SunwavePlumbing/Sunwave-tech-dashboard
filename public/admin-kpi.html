@@ -1196,9 +1196,12 @@ async function loadIssues() {
       $('issuesList').innerHTML = '<div class="empty">No issue reports yet.</div>';
       return;
     }
+    // wrong_seller is the legacy type ID — kept here so any reports
+    // saved before the rename still display with a friendly label.
     const TYPE_LABEL = {
       missing: 'Missing job', wrong_tech: 'Wrong tech', wrong_split: 'Wrong split',
-      wrong_seller: 'Wrong seller', wrong_unpaid: 'Wrong unpaid amount', other: 'Other'
+      wrong_customer: 'Wrong customer', wrong_seller: 'Wrong customer',
+      wrong_unpaid: 'Wrong unpaid amount', other: 'Other'
     };
     $('issuesList').innerHTML = reports.map(rep => {
       const ref = [rep.invoice && '#' + rep.invoice, rep.customer].filter(Boolean).join(' · ');

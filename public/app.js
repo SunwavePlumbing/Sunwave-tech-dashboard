@@ -365,7 +365,7 @@ function openModal(tech, mode) {
   /* Build a deep-link URL into /report-issue with the job's context
      pre-filled. The page parses these query params and seeds the form
      so the tech only has to add a sentence about what's wrong.
-       type    — wrong_tech / wrong_seller / wrong_split / missing / other
+       type    — wrong_tech / wrong_customer / wrong_split / missing / other
        invoice — the job's invoice number (if any)
        customer — the customer name (if any)
        jobId    — the job's UUID for the admin lookup
@@ -384,7 +384,7 @@ function openModal(tech, mode) {
   // tell users what they're about to flag before they click.
   var REPORT_HINT = {
     wrong_tech:   'Flag wrong tech',
-    wrong_seller: 'Flag wrong seller',
+    wrong_customer: 'Flag wrong customer',
     wrong_split:  'Flag wrong split'
   };
   // Tiny flag SVG used as the visual cue. Inline so it inherits color.
@@ -468,15 +468,12 @@ function openModal(tech, mode) {
     var shareHtml = showPercent
       ? fmt(job.credit) + '<span class="share-pct">(' + job.creditPct + '%)</span>'
       : fmt(job.credit != null ? job.credit : job.amount);
-    // Customer name is also tappable \u2014 opens the "wrong seller" report
-    // flow, since "who sold this job" is the field most commonly
-    // disputed alongside customer context. The flag icon hugs the
-    // name so the visual hint is unmistakable but unobtrusive.
-    var sellerContext = 'For this job (customer: ' + (job.customer || '?') + ')' +
-      (job.splitWith && job.splitWith.length
-        ? ', the actual seller wasn\'t any of: ' + job.splitWith.map(function(s){ return s.name || s; }).join(', ') + ' or me.'
-        : ', the actual seller is different from what shows.');
-    var customerCell = reportable(esc(job.customer || '\u2014'), job, 'wrong_seller', sellerContext);
+    // Customer name is tappable \u2014 opens the "wrong customer" report
+    // flow so a tech can flag when a job is showing the wrong customer
+    // (mismatched, swapped invoice, etc.). The flag icon hugs the name
+    // so the visual hint is unmistakable but unobtrusive.
+    var customerContext = 'For this job (currently showing customer: ' + (job.customer || '?') + '), the customer info on this row doesn\'t match what I actually did.';
+    var customerCell = reportable(esc(job.customer || '\u2014'), job, 'wrong_customer', customerContext);
     return '<tr>' +
       '<td>' + fmtDate(job.date) + '</td>' +
       '<td>' + desc + roleBadge + autoDatedBadge + splitNote + '</td>' +
@@ -531,8 +528,8 @@ function openModal(tech, mode) {
           job, 'wrong_unpaid',
           'This shows as ' + fmt(job.outstanding) + ' unpaid, but it\'s actually been paid (or the amount is wrong).')
       : '';
-    var sellerContextMobile = 'For this job (customer: ' + (job.customer || '?') + '), the actual seller is different from what shows.';
-    var customerMobile = reportable(esc(job.customer || '\u2014'), job, 'wrong_seller', sellerContextMobile);
+    var customerContextMobile = 'For this job (currently showing customer: ' + (job.customer || '?') + '), the customer info on this row doesn\'t match what I actually did.';
+    var customerMobile = reportable(esc(job.customer || '\u2014'), job, 'wrong_customer', customerContextMobile);
     return '<div class="job-card">' +
       '<div class="job-card-top">' +
         '<span class="job-card-date">' + fmtDate(job.date) + '</span>' +

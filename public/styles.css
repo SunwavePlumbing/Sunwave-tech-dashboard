@@ -1184,7 +1184,10 @@ body.exp-modal-lock {
 
 .tech-report-cta {
   text-align: center;
-  margin: 18px 0 4px;
+  /* Breathing room — separates the CTA from the leaderboard total
+     row above and the next section below so it doesn't feel jammed
+     against the table edge. */
+  margin: 32px 0 20px;
   padding: 0 1rem;
 }
 .tech-report-cta-link {
@@ -1210,7 +1213,7 @@ body.exp-modal-lock {
 }
 .tech-report-cta-link:active { transform: translateY(0); }
 .tech-report-cta-sub {
-  margin-top: 6px;
+  margin-top: 12px;
   font-size: 11px;
   color: #8A8680;
   letter-spacing: 0.12em;
@@ -1218,7 +1221,7 @@ body.exp-modal-lock {
   font-weight: 600;
 }
 @media (max-width: 768px) {
-  .tech-report-cta { margin: 14px 0 0; }
+  .tech-report-cta { margin: 24px 0 16px; }
   .tech-report-cta-link { padding: 9px 18px; font-size: 13px; }
 }
 .footer-levi { margin-top: 6px; font-size: 11px; color: #c8c8c8; letter-spacing: 0.2px; }
