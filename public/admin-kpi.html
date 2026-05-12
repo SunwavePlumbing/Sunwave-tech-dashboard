@@ -6,6 +6,7 @@
   <title>KPI Admin — Sunwave</title>
   <link rel="icon" type="image/png" href="/Favicon.png">
   <style>
+    /* ── Palette ────────────────────────────────────────────────── */
     :root {
       --bg: #FBF9F4;
       --card: #FDFCF8;
@@ -31,12 +32,9 @@
       color: var(--ink);
       line-height: 1.45;
     }
-    .page {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 1.5rem 1rem 4rem;
-    }
+    .page { max-width: 1100px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
 
+    /* ── Header ─────────────────────────────────────────────────── */
     .header {
       display: flex;
       align-items: baseline;
@@ -45,816 +43,442 @@
       flex-wrap: wrap;
       gap: 8px;
     }
-    .header h1 {
-      font-size: 22px;
-      font-weight: 700;
-      margin: 0;
-      letter-spacing: -0.01em;
-    }
-    .header .sub {
-      font-size: 11px;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--ink-mute);
-      font-weight: 600;
-    }
+    .header h1 { font-size: 22px; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
+    .header .sub { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-mute); font-weight: 600; }
+    .nav-link { font-size: 12px; color: var(--brand); text-decoration: none; font-weight: 600; }
+    .nav-link:hover { text-decoration: underline; }
 
-    /* Auth gate */
-    .gate {
-      max-width: 380px;
-      margin: 4rem auto;
-      padding: 24px;
+    /* ── Auth gate ──────────────────────────────────────────────── */
+    .gate { max-width: 380px; margin: 4rem auto; padding: 24px; background: var(--card); border: 1px solid var(--border); border-radius: 14px; }
+    .gate label { display: block; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 8px; }
+    .gate input { width: 100%; padding: 10px 12px; font-size: 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); margin-bottom: 12px; }
+    .gate button { width: 100%; padding: 10px; background: var(--brand); color: white; border: 0; border-radius: 10px; font-weight: 700; cursor: pointer; }
+
+    /* ── Tabs ───────────────────────────────────────────────────── */
+    .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 1.25rem; flex-wrap: wrap; }
+    .tab { padding: 10px 18px; background: transparent; border: 0; border-bottom: 2px solid transparent; font-size: 13px; font-weight: 600; color: var(--ink-mute); cursor: pointer; transition: color 0.15s; }
+    .tab.is-active { color: var(--brand); border-bottom-color: var(--brand); }
+    .tab:hover { color: var(--ink); }
+    .tab-count { display: inline-block; margin-left: 6px; padding: 1px 7px; font-size: 11px; background: var(--brand-pale); color: var(--brand); border-radius: 100px; font-weight: 700; }
+    .panel { display: none; }
+    .panel.is-active { display: block; }
+
+    /* ── Period picker ──────────────────────────────────────────── */
+    .controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      padding: 14px 16px;
       background: var(--card);
       border: 1px solid var(--border);
-      border-radius: 14px;
+      border-radius: 12px;
+      margin-bottom: 14px;
     }
-    .gate label {
-      display: block;
+    .controls label { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft); }
+    .controls select, .controls input[type="text"] {
+      padding: 8px 10px;
+      font-size: 13px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      font-family: inherit;
+      color: var(--ink);
+    }
+    .controls button {
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--ink-soft);
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .controls button:hover { border-color: var(--ink); color: var(--ink); }
+    .controls .summary {
+      margin-left: auto;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      font-size: 12px;
+      color: var(--ink-mute);
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
       font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      border-radius: 100px;
+    }
+    .badge--good { background: var(--good-pale); color: var(--good); border: 1px solid #C9DFCD; }
+    .badge--warn { background: var(--warn-pale); color: var(--warn); border: 1px solid #F1D48E; }
+
+    /* ── Job rows (inline-edit) ────────────────────────────────── */
+    .jobs-list {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .job {
+      border-bottom: 1px solid var(--border);
+    }
+    .job:last-child { border-bottom: 0; }
+    .job-summary {
+      display: grid;
+      grid-template-columns: 110px 1fr 95px 110px 32px;
+      gap: 12px;
+      padding: 12px 16px;
+      align-items: center;
+      cursor: pointer;
+      transition: background 0.1s;
+      user-select: none;
+    }
+    .job-summary:hover { background: rgba(232, 129, 64, 0.05); }
+    .job.is-open .job-summary { background: rgba(232, 129, 64, 0.08); }
+    .job-status {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 100px;
+      text-align: center;
+      white-space: nowrap;
+    }
+    .job-status--reconciled   { background: var(--good-pale); color: var(--good); }
+    .job-status--excluded     { background: #ECECE6; color: var(--ink-mute); }
+    .job-status--unattributed { background: var(--warn-pale); color: var(--warn); }
+    .job-status--credited     { background: var(--brand-pale); color: var(--brand); }
+    .job-main { min-width: 0; }
+    .job-line1 { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; font-size: 14px; }
+    .job-line1 .inv { font-weight: 700; font-variant-numeric: tabular-nums; }
+    .job-line1 .cust { color: var(--ink-soft); font-weight: 600; }
+    .job-line2 { font-size: 12px; color: var(--ink-mute); margin-top: 2px; }
+    .job-date { font-size: 11px; color: var(--ink-mute); letter-spacing: 0.04em; text-align: right; }
+    .job-amount { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+    .job-amount-sub { font-size: 11px; color: var(--ink-mute); font-weight: 500; }
+    .job-chevron {
+      width: 22px;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--ink-mute);
+      transition: transform 0.2s;
+    }
+    .job.is-open .job-chevron { transform: rotate(180deg); color: var(--brand); }
+
+    /* ── Inline edit panel (expands under each row) ────────────── */
+    .job-edit {
+      display: none;
+      padding: 16px 20px 20px;
+      background: var(--bg);
+      border-top: 1px dashed var(--border-strong);
+    }
+    .job.is-open .job-edit { display: block; }
+    .edit-section { margin-bottom: 16px; }
+    .edit-section:last-child { margin-bottom: 0; }
+    .edit-label {
+      display: block;
+      font-size: 10px;
       font-weight: 700;
       letter-spacing: 0.14em;
       text-transform: uppercase;
       color: var(--ink-soft);
       margin-bottom: 8px;
     }
-    .gate input {
-      width: 100%;
-      padding: 10px 12px;
-      font-size: 14px;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      background: var(--bg);
-      margin-bottom: 12px;
-    }
-    .gate button {
-      width: 100%;
-      padding: 10px;
-      background: var(--brand);
-      color: white;
-      border: 0;
-      border-radius: 10px;
-      font-weight: 700;
-      cursor: pointer;
-    }
-
-    /* Tabs */
-    .tabs {
-      display: flex;
-      gap: 4px;
-      border-bottom: 1px solid var(--border);
-      margin-bottom: 1.25rem;
-    }
-    .tab {
-      padding: 10px 18px;
-      background: transparent;
-      border: 0;
-      border-bottom: 2px solid transparent;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--ink-mute);
-      cursor: pointer;
-      transition: color 0.15s;
-    }
-    .tab.is-active {
-      color: var(--brand);
-      border-bottom-color: var(--brand);
-    }
-    .tab:hover { color: var(--ink); }
-    .tab-count {
-      display: inline-block;
-      margin-left: 6px;
-      padding: 1px 7px;
-      font-size: 11px;
-      background: var(--brand-pale);
-      color: var(--brand);
-      border-radius: 100px;
-      font-weight: 700;
-    }
-
-    .panel { display: none; }
-    .panel.is-active { display: block; }
-
-    /* Issue list */
-    .issue {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 14px 18px;
-      margin-bottom: 12px;
-    }
-    .issue-head {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: baseline;
-      margin-bottom: 4px;
-    }
-    .issue-type {
-      font-weight: 700;
-      font-size: 13px;
-    }
-    .issue-status {
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      padding: 2px 8px;
-      border-radius: 100px;
-    }
-    .issue-status--open      { background: var(--warn-pale); color: var(--warn); }
-    .issue-status--resolved  { background: var(--good-pale); color: var(--good); }
-    .issue-status--dismissed { background: #ECECE6; color: var(--ink-mute); }
-    .issue-meta {
-      font-size: 11px;
-      color: var(--ink-mute);
-      letter-spacing: 0.04em;
-    }
-    .issue-ref {
-      font-size: 13px;
-      color: var(--ink-soft);
-      margin: 4px 0;
-    }
-    .issue-desc {
-      font-size: 13px;
-      color: var(--ink);
-      line-height: 1.5;
-      margin: 6px 0 10px;
-      padding: 8px 10px;
-      background: var(--bg);
-      border-left: 2px solid var(--border-strong);
-      border-radius: 4px;
-    }
-    .issue-actions {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-    }
-    .btn {
-      padding: 6px 12px;
-      font-size: 12px;
-      font-weight: 600;
-      border: 1px solid var(--border);
-      background: var(--bg);
-      color: var(--ink-soft);
-      border-radius: 8px;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-    .btn:hover { border-color: var(--ink); color: var(--ink); }
-    .btn--primary { background: var(--brand); color: white; border-color: var(--brand); }
-    .btn--primary:hover { filter: brightness(1.05); color: white; }
-    .btn--good { background: var(--good); color: white; border-color: var(--good); }
-    .btn--good:hover { color: white; }
-    .btn--danger { color: var(--bad); }
-    .btn--danger:hover { border-color: var(--bad); color: var(--bad); }
-
-    /* Job editor */
-    .editor-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 18px;
-      margin-top: 10px;
-    }
-    .editor-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      margin-bottom: 12px;
-    }
-    .editor-head h3 {
-      margin: 0;
-      font-size: 16px;
-      letter-spacing: -0.005em;
-    }
-    .editor-meta {
-      font-size: 11px;
-      color: var(--ink-mute);
-      letter-spacing: 0.06em;
-    }
-    .hcp-row {
+    .hcp-context {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 14px;
-      padding: 10px 12px;
-      background: var(--bg);
-      border-radius: 8px;
-      font-size: 13px;
+      gap: 10px 18px;
+      padding: 12px 14px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 12px;
+      color: var(--ink);
       margin-bottom: 14px;
     }
-    .hcp-row dt {
-      font-size: 10px;
+    .hcp-context dt {
+      font-size: 9px;
       font-weight: 700;
       letter-spacing: 0.14em;
       text-transform: uppercase;
       color: var(--ink-mute);
       margin: 0 0 2px;
     }
-    .hcp-row dd { margin: 0 0 6px; color: var(--ink); }
-    @media (max-width: 600px) {
-      .hcp-row { grid-template-columns: 1fr; }
-    }
+    .hcp-context dd { margin: 0; }
+    @media (max-width: 600px) { .hcp-context { grid-template-columns: 1fr; } }
 
-    .assignments-label {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: var(--ink-soft);
-      margin-bottom: 8px;
-    }
-    .assignment-row {
+    /* Attribution rows */
+    .assign-table { display: flex; flex-direction: column; gap: 6px; }
+    .assign-row {
       display: grid;
-      grid-template-columns: 1fr 140px 90px 32px;
+      grid-template-columns: 1fr 130px 90px 32px;
       gap: 8px;
-      margin-bottom: 6px;
       align-items: center;
     }
-    .assignment-row input, .assignment-row select {
+    .assign-row input, .assign-row select {
       padding: 8px 10px;
       font-size: 13px;
       border: 1px solid var(--border);
       border-radius: 8px;
-      background: var(--bg);
-      font-family: inherit;
+      background: var(--card);
       color: var(--ink);
+      font-family: inherit;
+      width: 100%;
     }
-    .assignment-row input:focus, .assignment-row select:focus {
+    .assign-row input:focus, .assign-row select:focus {
       outline: none;
       border-color: var(--brand);
       background: white;
     }
-    .remove-btn {
+    .assign-row .remove {
       width: 32px;
       height: 32px;
       padding: 0;
       border: 1px solid var(--border);
-      background: var(--bg);
+      background: var(--card);
       border-radius: 8px;
       cursor: pointer;
       color: var(--bad);
       font-size: 16px;
       line-height: 1;
     }
-    .remove-btn:hover { border-color: var(--bad); }
+    .assign-row .remove:hover { border-color: var(--bad); }
     @media (max-width: 600px) {
-      .assignment-row { grid-template-columns: 1fr 1fr 70px 32px; }
+      .assign-row { grid-template-columns: 1fr 110px 70px 32px; }
     }
-
-    .pct-bar {
-      margin-top: 10px;
-      font-size: 11px;
-      color: var(--ink-mute);
+    .add-tech-btn {
+      margin-top: 8px;
+      padding: 8px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      background: transparent;
+      color: var(--ink-soft);
+      border: 1px dashed var(--border-strong);
+      border-radius: 8px;
+      cursor: pointer;
     }
-    .pct-bar.is-bad { color: var(--bad); font-weight: 700; }
+    .add-tech-btn:hover { border-color: var(--brand); color: var(--brand); }
+    .pct-status { font-size: 11px; color: var(--ink-mute); margin-top: 8px; letter-spacing: 0.04em; }
+    .pct-status.is-bad { color: var(--bad); font-weight: 700; }
+    .pct-status.is-good { color: var(--good); font-weight: 700; }
 
-    .editor-fields {
+    /* Money + date fields */
+    .money-date {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 12px;
-      margin: 16px 0;
     }
-    .editor-fields label {
-      display: block;
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: var(--ink-soft);
-      margin-bottom: 4px;
-    }
-    .editor-fields input {
+    @media (max-width: 600px) { .money-date { grid-template-columns: 1fr; } }
+    .field input, .field textarea {
       width: 100%;
       padding: 8px 10px;
       font-size: 13px;
       border: 1px solid var(--border);
       border-radius: 8px;
-      background: var(--bg);
-    }
-    @media (max-width: 600px) {
-      .editor-fields { grid-template-columns: 1fr; }
-    }
-    .notes-field textarea {
-      width: 100%;
-      padding: 8px 10px;
-      font-size: 13px;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      background: var(--bg);
-      font-family: inherit;
-      min-height: 60px;
-      resize: vertical;
-    }
-
-    .lock-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 12px;
-      background: var(--warn-pale);
-      border: 1px solid #F1D48E;
-      border-radius: 8px;
-      margin-top: 10px;
-      font-size: 13px;
+      background: var(--card);
       color: var(--ink);
+      font-family: inherit;
     }
+    .field input:focus, .field textarea:focus {
+      outline: none;
+      border-color: var(--brand);
+      background: white;
+    }
+    .field textarea { min-height: 60px; resize: vertical; }
 
-    .editor-actions {
+    /* Toggle rows */
+    .toggle {
       display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-      margin-top: 14px;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
     }
+    .toggle input[type="checkbox"] { margin-top: 2px; cursor: pointer; }
+    .toggle label { cursor: pointer; flex: 1; line-height: 1.4; }
+    .toggle label small { display: block; color: var(--ink-mute); font-size: 12px; margin-top: 2px; }
+    .toggle--paid { background: var(--good-pale); border: 1px solid #C9DFCD; }
+    .toggle--exclude { background: var(--bad-pale); border: 1px solid #E0B0A8; }
+    .toggle--lock { background: var(--warn-pale); border: 1px solid #F1D48E; }
 
-    .status-msg {
-      font-size: 12px;
-      color: var(--ink-mute);
-      margin-top: 8px;
+    /* Action buttons */
+    .edit-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      align-items: center;
+      margin-top: 14px;
+      flex-wrap: wrap;
     }
+    .btn {
+      padding: 9px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--ink-soft);
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .btn:hover { border-color: var(--ink); color: var(--ink); }
+    .btn--primary {
+      background: var(--brand);
+      color: white;
+      border-color: var(--brand);
+      font-weight: 700;
+      padding: 10px 22px;
+      box-shadow: 0 1px 3px rgba(232, 129, 64, 0.25);
+    }
+    .btn--primary:hover { filter: brightness(1.05); color: white; border-color: var(--brand); }
+    .btn--danger { color: var(--bad); }
+    .btn--danger:hover { border-color: var(--bad); color: var(--bad); }
+    .status-msg { font-size: 12px; margin-right: auto; color: var(--ink-mute); }
     .status-msg.is-ok  { color: var(--good); font-weight: 600; }
     .status-msg.is-err { color: var(--bad); font-weight: 600; }
 
-    /* Recon list */
-    .recon-controls {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      margin-bottom: 14px;
-      flex-wrap: wrap;
-    }
-    .recon-controls input {
-      padding: 8px 10px;
-      font-size: 13px;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      background: var(--bg);
-    }
-    .recon {
-      padding: 10px 14px;
-      border-bottom: 1px solid var(--border);
-      display: grid;
-      grid-template-columns: 1fr auto auto;
-      gap: 10px;
-      font-size: 13px;
-    }
-    .recon-job { font-weight: 700; }
-    .recon-meta { font-size: 11px; color: var(--ink-mute); }
+    .empty { padding: 32px; text-align: center; color: var(--ink-mute); font-size: 13px; }
 
-    .empty {
-      padding: 24px;
-      text-align: center;
-      color: var(--ink-mute);
-      font-size: 13px;
+    /* Open-issues + locked-records simple lists */
+    .item-card {
       background: var(--card);
-      border: 1px dashed var(--border);
-      border-radius: 12px;
-    }
-
-    .nav-link {
-      font-size: 12px;
-      color: var(--brand);
-      text-decoration: none;
-      font-weight: 600;
-    }
-    .nav-link:hover { text-decoration: underline; }
-
-    /* Embedded admin tools (Coverage, Diagnostics) render inside the
-       admin page via iframe so /admin is the single canonical URL.
-       Border + soft shadow makes the embed feel like an inset panel
-       rather than a browser-within-a-browser. */
-    .embed-frame {
-      width: 100%;
-      height: 82vh;
-      min-height: 540px;
       border: 1px solid var(--border);
       border-radius: 12px;
-      background: var(--card);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
-    }
-
-    /* Period picker controls */
-    .recon-period-sel {
-      padding: 8px 10px;
-      font-size: 13px;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      background: var(--bg);
-      font-family: inherit;
-      color: var(--ink);
-    }
-    .period-summary {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      font-size: 12px;
-      color: var(--ink-mute);
-      letter-spacing: 0.06em;
-    }
-    .period-summary-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 10px;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      border-radius: 100px;
-    }
-    .period-summary-badge--full {
-      background: var(--good-pale);
-      color: var(--good);
-      border: 1px solid #C9DFCD;
-    }
-    .period-summary-badge--partial {
-      background: var(--warn-pale);
-      color: var(--warn);
-      border: 1px solid #F1D48E;
-    }
-
-    /* Per-job list rows in the period view */
-    .period-jobs-list {
-      margin-top: 14px;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      background: var(--card);
-      overflow: hidden;
-    }
-    .pj-row {
-      display: grid;
-      grid-template-columns: 100px 1fr 110px 100px 70px;
-      gap: 12px;
-      padding: 12px 16px;
-      border-bottom: 1px solid var(--border);
-      align-items: center;
-      cursor: pointer;
-      transition: background 0.1s;
-    }
-    .pj-row:last-child { border-bottom: 0; }
-    .pj-row:hover {
-      background: rgba(232, 129, 64, 0.06);
-    }
-    .pj-edit-btn {
-      font-size: 12px;
-      font-weight: 700;
-      color: white;
-      background: var(--brand);
-      border: 0;
-      border-radius: 100px;
-      padding: 7px 14px;
-      text-align: center;
-      letter-spacing: 0.04em;
-      white-space: nowrap;
-      cursor: pointer;
-      font-family: inherit;
-      transition: all 0.15s;
-      box-shadow: 0 1px 3px rgba(232, 129, 64, 0.25);
-    }
-    .pj-edit-btn:hover {
-      filter: brightness(1.05);
-      transform: translateX(2px);
-      box-shadow: 0 2px 6px rgba(232, 129, 64, 0.35);
-    }
-    .pj-edit-btn:active { transform: scale(0.97); }
-    .pj-edit-btn:focus-visible {
-      outline: 2px solid var(--brand);
-      outline-offset: 2px;
-    }
-    .pj-status {
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      padding: 4px 10px;
-      border-radius: 100px;
-      text-align: center;
-      white-space: nowrap;
-    }
-    .pj-status--reconciled   { background: var(--good-pale); color: var(--good); }
-    .pj-status--excluded     { background: #ECECE6; color: var(--ink-mute); }
-    .pj-status--unattributed { background: var(--warn-pale); color: var(--warn); }
-    .pj-status--credited     { background: var(--brand-pale); color: var(--brand); }
-    .pj-main {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      min-width: 0;
-    }
-    .pj-main-top {
-      display: flex;
-      gap: 8px;
-      align-items: baseline;
-      flex-wrap: wrap;
-    }
-    .pj-invoice {
-      font-weight: 700;
-      font-variant-numeric: tabular-nums;
-      color: var(--ink);
-    }
-    .pj-customer {
-      color: var(--ink-soft);
-      font-weight: 600;
-    }
-    .pj-desc {
-      font-size: 12px;
-      color: var(--ink-mute);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 100%;
-    }
-    .pj-date {
-      font-size: 11px;
-      color: var(--ink-mute);
-      letter-spacing: 0.04em;
-      text-align: right;
-    }
-    .pj-amount {
-      font-weight: 700;
-      font-variant-numeric: tabular-nums;
-      text-align: right;
-      color: var(--ink);
-    }
-    .pj-amount-sub {
-      font-size: 11px;
-      color: var(--ink-mute);
-      font-weight: 500;
-    }
-    @media (max-width: 640px) {
-      .pj-row {
-        grid-template-columns: 1fr auto;
-        gap: 8px;
-      }
-      .pj-status { grid-column: 1 / -1; justify-self: flex-start; }
-      .pj-date   { grid-column: 1 / -1; text-align: left; }
-      .pj-edit-btn { grid-column: 1 / -1; justify-self: stretch; text-align: center; margin-top: 4px; }
-    }
-    .pj-empty {
-      padding: 32px;
-      text-align: center;
-      color: var(--ink-mute);
-      font-size: 13px;
-    }
-
-    /* Lock-row variants for the editor's new Exclude + Mark-paid
-       toggles. Same shape as the existing .lock-row but different
-       palette so they don't all read identically. */
-    .toggle-row {
-      display: flex;
-      align-items: flex-start;
-      gap: 8px;
-      padding: 10px 12px;
-      border-radius: 8px;
-      margin-top: 8px;
-      font-size: 13px;
-      color: var(--ink);
-    }
-    .toggle-row label {
-      font-weight: 600;
-      text-transform: none;
-      letter-spacing: 0;
-      color: var(--ink);
-      font-size: 13px;
-      margin-bottom: 0;
-    }
-    .toggle-row label small {
-      display: block;
-      font-weight: 500;
-      color: var(--ink-mute);
-      font-size: 12px;
-      margin-top: 2px;
-    }
-    .toggle-row--exclude {
-      background: #FBECE9;
-      border: 1px solid #E0B0A8;
-    }
-    .toggle-row--paid {
-      background: var(--good-pale);
-      border: 1px solid #C9DFCD;
-    }
-
-    /* ── Sitemap panel ─────────────────────────────────────────── */
-    .sitemap-group {
-      margin-bottom: 22px;
-    }
-    .sitemap-group-label {
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--ink-mute);
+      padding: 14px 18px;
       margin-bottom: 10px;
-      padding-left: 4px;
-    }
-    .sitemap-tile {
-      display: block;
-      padding: 14px 18px;
-      margin-bottom: 8px;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      color: var(--ink);
-      text-decoration: none;
-      transition: border-color 0.15s, transform 0.08s, box-shadow 0.15s;
-    }
-    .sitemap-tile:hover {
-      border-color: var(--brand);
-      transform: translateY(-1px);
-      box-shadow: 0 4px 14px rgba(232, 129, 64, 0.10);
-    }
-    .sitemap-tile-name {
-      font-size: 15px;
-      font-weight: 700;
-      color: var(--ink);
-      margin-bottom: 2px;
-      display: flex;
-      align-items: baseline;
-      gap: 10px;
-    }
-    .sitemap-tile-path {
-      font-family: ui-monospace, 'SF Mono', 'Menlo', monospace;
-      font-size: 11px;
-      color: var(--ink-mute);
-      letter-spacing: 0.02em;
-      margin-bottom: 6px;
-    }
-    .sitemap-tile-desc {
-      font-size: 13px;
-      color: var(--ink-soft);
-      line-height: 1.45;
-    }
-    .sitemap-tile--admin {
-      border-left: 3px solid var(--brand);
-    }
-    .sitemap-tile--ops {
-      border-left: 3px solid var(--warn);
-    }
-    .sitemap-here {
-      display: inline-block;
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      padding: 2px 8px;
-      background: var(--brand-pale);
-      color: var(--brand);
-      border-radius: 100px;
     }
 
-    .sitemap-api-block {
-      margin-top: 1.5rem;
-      padding: 14px 18px;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-    }
-    .sitemap-api-summary {
-      cursor: pointer;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: var(--ink-mute);
-      user-select: none;
-    }
-    .sitemap-api-summary:hover { color: var(--ink); }
-    .sitemap-api-list {
-      margin: 6px 0 0;
-      padding-left: 18px;
-      font-size: 13px;
-      color: var(--ink-soft);
-      line-height: 1.7;
-    }
-    .sitemap-api-list code {
-      font-family: ui-monospace, 'SF Mono', 'Menlo', monospace;
-      font-size: 12px;
-      background: var(--bg);
-      padding: 1px 6px;
-      border-radius: 4px;
-    }
+    /* Embedded admin tools */
+    .embed-frame { width: 100%; height: 82vh; min-height: 540px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
   </style>
 </head>
 <body>
 
 <div class="page">
+  <!-- Auth gate -->
   <div id="gate" class="gate">
     <label>Admin password</label>
     <input type="password" id="pwInput" autocomplete="current-password" placeholder="diagnostics password">
     <button id="gateBtn">Open</button>
   </div>
 
+  <!-- Main app (hidden until auth succeeds) -->
   <div id="app" style="display:none">
     <div class="header">
       <div>
         <h1>KPI Admin</h1>
-        <div class="sub" id="signature">Reconcile attribution &middot; Lock jobs</div>
+        <div class="sub">Reconcile attribution &middot; Lock jobs</div>
       </div>
-      <div>
-        <a class="nav-link" href="/">&larr; Dashboard</a>
-      </div>
+      <div><a class="nav-link" href="/">&larr; Dashboard</a></div>
     </div>
 
     <div class="tabs">
-      <button class="tab is-active" data-panel="issues">Open issues <span class="tab-count" id="issueCount">0</span></button>
       <button class="tab" data-panel="reconcile">Reconcile a job</button>
+      <button class="tab" data-panel="issues">Open issues <span class="tab-count" id="issueCount">0</span></button>
       <button class="tab" data-panel="locked">Locked records <span class="tab-count" id="lockedCount">0</span></button>
       <button class="tab" data-panel="coverage">Coverage check</button>
       <button class="tab" data-panel="diagnostics">Diagnostics</button>
     </div>
 
-    <div id="panel-issues" class="panel is-active">
+    <!-- ─────────────────── RECONCILE TAB ─────────────────── -->
+    <div id="panel-reconcile" class="panel is-active">
+      <div class="controls">
+        <label for="periodSel">Period</label>
+        <select id="periodSel">
+          <option value="day">Today</option>
+          <option value="yesterday">Yesterday</option>
+          <option value="wtd">Week to Date</option>
+          <option value="l7d">Last 7 Days</option>
+          <option value="l14d">Last 14 Days</option>
+          <option value="mtd" selected>Month to Date</option>
+          <option value="lm">Last Month</option>
+          <option value="l30d">Last 30 Days</option>
+          <option value="l90d">Last 90 Days</option>
+          <option value="ytd">Year to Date</option>
+        </select>
+        <button id="reloadBtn">Reload</button>
+        <div class="summary">
+          <span id="summaryAction">— need action</span>
+          <span class="badge" id="summaryBadge">— of —</span>
+        </div>
+      </div>
+
+      <div class="controls" style="padding-top:10px;padding-bottom:10px">
+        <label for="jobLookup">Or look up a specific job</label>
+        <input type="text" id="jobLookup" placeholder="Invoice # or job_xxx" style="flex:1 1 240px">
+        <button id="lookupBtn">Open</button>
+      </div>
+
+      <div id="jobsList" class="jobs-list">
+        <div class="empty">Pick a period and hit Reload.</div>
+      </div>
+    </div>
+
+    <!-- ─────────────────── ISSUES TAB ─────────────────── -->
+    <div id="panel-issues" class="panel">
       <div id="issuesList"></div>
     </div>
 
-    <div id="panel-reconcile" class="panel">
-      <!-- Period picker + status roll-up. Selecting a range loads every
-           job touching that period — credited, unattributed, excluded,
-           reconciled — into the list below. The pill on the right
-           shows reconciliation coverage so the admin can see at a
-           glance whether they're done. -->
-      <div class="recon-controls" style="justify-content:space-between">
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <label class="sub" style="margin-right:6px">Period</label>
-          <select id="periodSel" class="recon-period-sel">
-            <option value="day">Today</option>
-            <option value="yesterday">Yesterday</option>
-            <option value="wtd">Week to Date</option>
-            <option value="l7d">Last 7 Days</option>
-            <option value="l14d">Last 14 Days</option>
-            <option value="mtd" selected>Month to Date</option>
-            <option value="lm">Last Month</option>
-            <option value="l30d">Last 30 Days</option>
-            <option value="l90d">Last 90 Days</option>
-            <option value="ytd">Year to Date</option>
-          </select>
-          <button class="btn" id="periodReload">Reload</button>
-        </div>
-        <div id="periodSummary" class="period-summary"></div>
-      </div>
-
-      <!-- One-off lookup (paste a job ID) — useful when admin wants to
-           edit a specific job that doesn't fall in any natural period. -->
-      <div class="recon-controls" style="padding-top:0;border-top:1px dashed var(--border);margin-top:8px">
-        <label class="sub" style="margin-right:6px">Or look up a specific job</label>
-        <input type="text" id="jobLookup" placeholder="Paste a job ID or HCP URL" style="flex:1 1 280px">
-        <button class="btn btn--primary" id="lookupBtn">Open editor</button>
-      </div>
-
-      <!-- The job list for the selected period -->
-      <div id="periodJobsList" class="period-jobs-list"></div>
-
-      <!-- The editor renders here when the admin opens a job -->
-      <div id="editorContainer"></div>
-    </div>
-
+    <!-- ─────────────────── LOCKED TAB ─────────────────── -->
     <div id="panel-locked" class="panel">
-      <div class="recon-controls">
-        <label class="sub" style="margin-right:6px">Filter by month</label>
+      <div class="controls">
+        <label for="monthFilter">Filter by month</label>
         <input type="month" id="monthFilter">
-        <button class="btn" id="loadLockedBtn">Load</button>
+        <button id="loadLockedBtn">Load</button>
       </div>
       <div id="lockedList"></div>
     </div>
 
+    <!-- ─────────────────── COVERAGE TAB ─────────────────── -->
     <div id="panel-coverage" class="panel">
-      <p style="font-size:13px;color:var(--ink-soft);margin:0 0 12px;line-height:1.5">
-        Money-first reconciliation. Enumerates every paid invoice in the
-        period and verifies it shows up on the leaderboard. Surfaces
-        missing, drift, and excluded invoices with reason codes.
-      </p>
       <iframe class="embed-frame" id="coverageFrame" title="Coverage check"></iframe>
     </div>
 
+    <!-- ─────────────────── DIAGNOSTICS TAB ─────────────────── -->
     <div id="panel-diagnostics" class="panel">
-      <p style="font-size:13px;color:var(--ink-soft);margin:0 0 12px;line-height:1.5">
-        Free-form HCP data investigation. Search by invoice, customer,
-        employee, or date range to see exactly what HCP returns for a
-        given query.
-      </p>
       <iframe class="embed-frame" id="diagnosticsFrame" title="Diagnostics"></iframe>
     </div>
-
   </div>
 </div>
 
 <script>
-const $ = (id) => document.getElementById(id);
-const escapeHtml = (s) => String(s == null ? '' : s)
-  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-const fmt = (n) => '$' + Math.round(n || 0).toLocaleString();
+/* ════════════════════════════════════════════════════════════════════
+   KPI Admin — inline-edit reconciliation page
 
-const TYPE_LABEL = {
-  missing:      'Missing job',
-  wrong_tech:   'Wrong tech',
-  wrong_split:  'Wrong split',
-  wrong_seller: 'Wrong seller',
-  wrong_unpaid: 'Wrong unpaid amount',
-  other:        'Other'
-};
+   Architecture goals:
+     • Every editable field is a real <input>/<select> element,
+       directly in the row's expand panel. No modal, no "open
+       editor" anywhere. Save button is right there.
+     • Click any row → expands inline. Click again → collapses.
+     • All click handling via event delegation on `document` so
+       it cannot fail to attach.
+     • Server data + UI state kept in one place per job (window.JOBS).
+   ════════════════════════════════════════════════════════════════════ */
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? '' : s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const fmt = (n) => '$' + Math.round(Number(n) || 0).toLocaleString();
+const ymd = (iso) => iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
+const isoDate = (iso) => iso ? String(iso).slice(0, 10) : '';
 
 let PASSWORD = sessionStorage.getItem('kpi-admin-pw') || '';
-if (PASSWORD) initApp();
+let CURRENT_RANGE = localStorage.getItem('kpi-admin-range') || 'mtd';
+// In-memory job state. Map of jobId → { server data + working edits }.
+// The Save button reads from this map.
+window.JOBS = {};
 
+// ── Auth gate ──────────────────────────────────────────────────────
+if (PASSWORD) initApp();
 $('gateBtn').addEventListener('click', () => {
   PASSWORD = $('pwInput').value.trim();
   if (!PASSWORD) return;
@@ -862,6 +486,23 @@ $('gateBtn').addEventListener('click', () => {
   initApp();
 });
 $('pwInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('gateBtn').click(); });
+
+async function initApp() {
+  try {
+    await api('/api/kpi/admin/issues');
+    $('gate').style.display = 'none';
+    $('app').style.display = '';
+    document.querySelector('.tab[data-panel="reconcile"]').classList.add('is-active');
+    $('panel-reconcile').classList.add('is-active');
+    $('periodSel').value = CURRENT_RANGE;
+    loadJobs();
+    loadIssues(); // populate badge counts in the background
+  } catch (err) {
+    $('gate').style.display = '';
+    $('app').style.display = 'none';
+    alert('Auth failed: ' + err.message);
+  }
+}
 
 async function api(path, opts) {
   opts = opts || {};
@@ -883,458 +524,573 @@ async function api(path, opts) {
   return data;
 }
 
-async function initApp() {
-  try {
-    await api('/api/kpi/admin/issues');
-    $('gate').style.display = 'none';
-    $('app').style.display = '';
-    loadIssues();
-  } catch (err) {
-    $('gate').style.display = '';
-    $('app').style.display = 'none';
-    alert('Auth failed: ' + err.message);
-  }
-}
-
-// Tabs
+// ── Tab switching ───────────────────────────────────────────────────
 document.querySelectorAll('.tab').forEach(t => {
   t.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(x => x.classList.remove('is-active'));
     t.classList.add('is-active');
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('is-active'));
     $('panel-' + t.dataset.panel).classList.add('is-active');
-    if (t.dataset.panel === 'locked') loadLocked();
-    if (t.dataset.panel === 'reconcile')   loadPeriodJobs();
-    if (t.dataset.panel === 'coverage')    loadEmbed('coverageFrame',    '/coverage');
+    if (t.dataset.panel === 'issues')   loadIssues();
+    if (t.dataset.panel === 'locked')   loadLocked();
+    if (t.dataset.panel === 'reconcile') loadJobs();
+    if (t.dataset.panel === 'coverage')    loadEmbed('coverageFrame', '/coverage');
     if (t.dataset.panel === 'diagnostics') loadEmbed('diagnosticsFrame', '/diagnostics');
   });
 });
-
-// Lazy-load the embedded admin tools the first time their tab opens.
-// Pass the diagnostics password through the URL so the embedded page
-// can auth without a second prompt. Cached after first load — no
-// reload on subsequent tab switches.
 function loadEmbed(frameId, src) {
-  const frame = $(frameId);
-  if (!frame || frame.src) return; // already loaded
-  const url = src + (src.includes('?') ? '&' : '?') + 'password=' + encodeURIComponent(PASSWORD);
-  frame.src = url;
+  const f = $(frameId);
+  if (!f || f.src) return;
+  f.src = src + (src.includes('?') ? '&' : '?') + 'password=' + encodeURIComponent(PASSWORD);
 }
 
-async function loadIssues() {
-  try {
-    const data = await api('/api/kpi/admin/issues');
-    const reports = data.reports || [];
-    const openCount = reports.filter(r => r.status === 'open').length;
-    $('issueCount').textContent = openCount;
-    if (reports.length === 0) {
-      $('issuesList').innerHTML = '<div class="empty">No issue reports yet.</div>';
-      return;
-    }
-    $('issuesList').innerHTML = reports.map(renderIssue).join('');
-  } catch (err) {
-    $('issuesList').innerHTML = '<div class="empty">Error: ' + escapeHtml(err.message) + '</div>';
-  }
-}
-
-function renderIssue(rep) {
-  const ref = [rep.invoice && '#' + rep.invoice, rep.customer].filter(Boolean).join(' · ');
-  const when = new Date(rep.createdAt);
-  const whenStr = when.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
-    ' · ' + when.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-  return '<div class="issue" data-id="' + escapeHtml(rep.id) + '">' +
-    '<div class="issue-head">' +
-      '<span class="issue-type">' + escapeHtml(TYPE_LABEL[rep.type] || rep.type) + '</span>' +
-      '<span class="issue-status issue-status--' + escapeHtml(rep.status) + '">' + escapeHtml(rep.status) + '</span>' +
-      '<span class="issue-meta">' + escapeHtml(rep.reporterName) + ' · ' + whenStr + '</span>' +
-    '</div>' +
-    (ref ? '<div class="issue-ref">' + escapeHtml(ref) + '</div>' : '') +
-    '<div class="issue-desc">' + escapeHtml(rep.description) + '</div>' +
-    '<div class="issue-actions">' +
-      (rep.invoice ? '<button class="btn btn--primary" onclick="openEditorFromInvoice(\'' + escapeHtml(rep.invoice) + '\')">Open editor</button>' : '') +
-      (rep.jobId ? '<button class="btn btn--primary" onclick="openEditorFromJobId(\'' + escapeHtml(rep.jobId) + '\')">Open editor</button>' : '') +
-      (rep.status === 'open'
-        ? '<button class="btn btn--good" onclick="setIssueStatus(\'' + rep.id + '\', \'resolved\')">Mark resolved</button>' +
-          '<button class="btn btn--danger" onclick="setIssueStatus(\'' + rep.id + '\', \'dismissed\')">Dismiss</button>'
-        : '<button class="btn" onclick="setIssueStatus(\'' + rep.id + '\', \'open\')">Re-open</button>') +
-    '</div>' +
-  '</div>';
-}
-
-async function setIssueStatus(id, status) {
-  try {
-    await api('/api/kpi/admin/issues/' + id + '/status', {
-      method: 'POST',
-      body: { status, by: 'admin' }
-    });
-    loadIssues();
-  } catch (err) {
-    alert('Error: ' + err.message);
-  }
-}
-
-// ── Reconcile / job editor ───────────────────────────────────────────────
-
-$('lookupBtn').addEventListener('click', () => {
-  const v = $('jobLookup').value.trim();
-  if (!v) {
-    alert('Paste an invoice number (like 313) or a job ID (job_xxx) from HCP first.');
-    return;
-  }
-  // job_xxx in the URL? Extract and open directly.
-  const m = v.match(/job_[a-z0-9]+/i);
-  if (m) {
-    openEditorFromJobId(m[0]);
-    return;
-  }
-  // Pure numeric? Treat as invoice number.
-  if (/^\d+$/.test(v.replace(/^#/, ''))) {
-    openEditorByInvoice(v.replace(/^#/, ''));
-    return;
-  }
-  // Anything else — try as invoice (server will 404 if no match).
-  openEditorByInvoice(v);
+// ── Period picker + job list ────────────────────────────────────────
+$('periodSel').addEventListener('change', () => {
+  CURRENT_RANGE = $('periodSel').value;
+  localStorage.setItem('kpi-admin-range', CURRENT_RANGE);
+  loadJobs();
 });
+$('reloadBtn').addEventListener('click', loadJobs);
 
-// ── Period jobs list ───────────────────────────────────────────────
-// Loads every job touching the chosen period and renders one row per
-// job with status badge + click-to-edit. The admin can scroll the
-// whole period's reconciliation queue in one view.
-$('periodReload').addEventListener('click', loadPeriodJobs);
-$('periodSel').addEventListener('change', loadPeriodJobs);
-let _lastPeriodRange = null;
-
-async function loadPeriodJobs() {
-  const range = $('periodSel').value;
-  _lastPeriodRange = range;
-  $('periodJobsList').innerHTML = '<div class="pj-empty">Loading…</div>';
-  $('periodSummary').innerHTML = '';
+async function loadJobs() {
+  $('jobsList').innerHTML = '<div class="empty">Loading…</div>';
+  $('summaryAction').textContent = '';
+  $('summaryBadge').textContent = '…';
   try {
-    const data = await api('/api/kpi/admin/period-jobs?range=' + encodeURIComponent(range));
+    const data = await api('/api/kpi/admin/period-jobs?range=' + encodeURIComponent(CURRENT_RANGE));
     const jobs = data.jobs || [];
     const s = data.summary || {};
 
-    // Summary pill
-    const badgeClass = s.fullyReconciled ? 'period-summary-badge--full' : 'period-summary-badge--partial';
-    const badgeText = s.fullyReconciled
-      ? '✓ Fully reconciled'
-      : (s.reconciled || 0) + ' of ' + (s.total || 0) + ' reconciled';
-    $('periodSummary').innerHTML =
-      '<span>' + (s.unattributed || 0) + ' need action</span>' +
-      '<span class="period-summary-badge ' + badgeClass + '">' + badgeText + '</span>';
+    $('summaryAction').textContent = (s.unattributed || 0) + ' need action';
+    if (s.fullyReconciled) {
+      $('summaryBadge').className = 'badge badge--good';
+      $('summaryBadge').textContent = '✓ Fully reconciled';
+    } else {
+      $('summaryBadge').className = 'badge badge--warn';
+      $('summaryBadge').textContent = (s.reconciled || 0) + ' of ' + (s.total || 0) + ' reconciled';
+    }
 
     if (jobs.length === 0) {
-      $('periodJobsList').innerHTML = '<div class="pj-empty">No jobs in this period.</div>';
+      $('jobsList').innerHTML = '<div class="empty">No jobs in this period.</div>';
       return;
     }
-    $('periodJobsList').innerHTML = jobs.map(renderPeriodRow).join('');
+    // Stash the server data so the Save button can read it
+    window.JOBS = {};
+    jobs.forEach(j => {
+      const key = j.jobId || j.invoice || ('row_' + Math.random().toString(36).slice(2, 8));
+      window.JOBS[key] = j;
+      j._localKey = key;
+    });
+    $('jobsList').innerHTML = jobs.map(renderJob).join('');
   } catch (err) {
-    $('periodJobsList').innerHTML = '<div class="pj-empty">Error: ' + escapeHtml(err.message) + '</div>';
+    $('jobsList').innerHTML = '<div class="empty">Error: ' + esc(err.message) + '</div>';
   }
 }
 
-function renderPeriodRow(j) {
-  const dateStr = j.kpiDate
-    ? new Date(j.kpiDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-    : '—';
-  const invLabel = j.invoice ? '#' + escapeHtml(String(j.invoice)) : '<em style="color:var(--ink-mute)">no invoice</em>';
-  const customer = j.customer ? escapeHtml(j.customer) : '—';
-  const desc = j.description ? escapeHtml(j.description) : '';
-  const assignmentLine = j.assignments && j.assignments.length
-    ? j.assignments.map(a => escapeHtml(a.name) + ' ' + (a.creditPct != null ? a.creditPct + '%' : '')).join(' · ')
+// ── Job row rendering (collapsed + expanded together) ──────────────
+function renderJob(j) {
+  const dateStr = ymd(j.kpiDate);
+  const invLabel = j.invoice ? '#' + esc(String(j.invoice)) : '<em style="color:var(--ink-mute)">no invoice</em>';
+  const customer = j.customer ? esc(j.customer) : '—';
+  const desc = j.description ? esc(j.description) : '';
+
+  const currentAttrLine = j.assignments && j.assignments.length
+    ? j.assignments.map(a => esc(a.name) + ' ' + (a.creditPct != null ? a.creditPct + '%' : '')).join(' · ')
     : (j.hcpAssignedEmployees && j.hcpAssignedEmployees.length
-       ? '<span style="color:var(--ink-mute)">HCP: ' + j.hcpAssignedEmployees.map(escapeHtml).join(', ') + '</span>'
+       ? '<span style="color:var(--ink-mute)">HCP: ' + j.hcpAssignedEmployees.map(esc).join(', ') + '</span>'
        : '<span style="color:var(--ink-mute)">unassigned</span>');
-  // Both jobId and invoice are surfaced on data attrs. The delegated
-  // click handler below reads them at click time. If neither is
-  // available the row falls back to a "look up in HCP" hint.
-  const jobIdAttr = j.jobId  ? ' data-job-id="' + escapeHtml(j.jobId)  + '"' : '';
-  const invAttr   = j.invoice ? ' data-invoice="' + escapeHtml(String(j.invoice)) + '"' : '';
-  // Real <button>, not a styled span. Buttons get keyboard focus, ARIA
-  // semantics, and unambiguous click events. The whole row is also
-  // clickable, but the button is the explicit affordance.
-  const editBtn = '<button type="button" class="pj-edit-btn"' + jobIdAttr + invAttr +
-                  '>Edit &rarr;</button>';
-  return '<div class="pj-row"' + jobIdAttr + invAttr + '>' +
-    '<span class="pj-status pj-status--' + j.status + '">' + j.status + '</span>' +
-    '<div class="pj-main">' +
-      '<div class="pj-main-top">' +
-        '<span class="pj-invoice">' + invLabel + '</span>' +
-        '<span class="pj-customer">' + customer + '</span>' +
+
+  return '<div class="job" data-key="' + esc(j._localKey) + '">' +
+    '<div class="job-summary" data-action="toggle">' +
+      '<span class="job-status job-status--' + esc(j.status) + '">' + esc(j.status) + '</span>' +
+      '<div class="job-main">' +
+        '<div class="job-line1">' +
+          '<span class="inv">' + invLabel + '</span>' +
+          '<span class="cust">' + customer + '</span>' +
+        '</div>' +
+        (desc ? '<div class="job-line2">' + desc + '</div>' : '') +
+        '<div class="job-line2">' + currentAttrLine + '</div>' +
       '</div>' +
-      (desc ? '<div class="pj-desc">' + desc + '</div>' : '') +
-      '<div class="pj-desc">' + assignmentLine + '</div>' +
+      '<span class="job-date">' + dateStr + '</span>' +
+      '<span class="job-amount">' + fmt(j.totalAmount || 0) +
+        (j.outstanding ? '<div class="job-amount-sub">Unpaid ' + fmt(j.outstanding) + '</div>' : '') +
+      '</span>' +
+      '<span class="job-chevron">▾</span>' +
     '</div>' +
-    '<span class="pj-date">' + dateStr + '</span>' +
-    '<span class="pj-amount">' + fmt(j.totalAmount || 0) +
-      (j.outstanding ? '<div class="pj-amount-sub">Unpaid ' + fmt(j.outstanding) + '</div>' : '') +
-    '</span>' +
-    editBtn +
+    '<div class="job-edit" data-edit-for="' + esc(j._localKey) + '">' +
+      '<div class="empty" style="padding:8px">Click the row to load editor…</div>' +
+    '</div>' +
   '</div>';
 }
 
-// ── Robust click handling for period-jobs rows ───────────────────────
-// Document-level delegation. Attaches to `document` (not the list
-// container) so it works regardless of when/if the list element exists
-// and survives any future re-renders. Reads data-job-id / data-invoice
-// from whichever element (row or button) the user actually hit.
-//
-// Console logs are intentional — if you ever wonder whether a click
-// is being detected, open browser DevTools → Console and you'll see
-// the click flow.
-document.addEventListener('click', function(e) {
-  const hit = e.target.closest('.pj-edit-btn, .pj-row');
-  if (!hit) return;
-  // Make sure the click is inside the period-jobs list (or the locked
-  // records list, which uses the same handler shape).
-  if (!hit.closest('#periodJobsList')) return;
-  const jobId  = hit.getAttribute('data-job-id') || hit.closest('.pj-row')?.getAttribute('data-job-id');
-  const invoice = hit.getAttribute('data-invoice') || hit.closest('.pj-row')?.getAttribute('data-invoice');
-  console.log('[period-jobs click]', { jobId, invoice, target: e.target });
-  if (jobId) {
-    openEditorFromJobId(jobId);
-  } else if (invoice) {
-    openEditorByInvoice(invoice);
-  } else {
-    alert('This row has no job ID or invoice number — paste the HCP job ID into the lookup field above.');
-  }
-});
+// Render the expanded editor inside a job row. We do this lazily on
+// first expand so a list of 100 jobs doesn't render 100 forms up front.
+async function renderEditPanel(key) {
+  const j = window.JOBS[key];
+  const panel = document.querySelector('.job-edit[data-edit-for="' + cssEscape(key) + '"]');
+  if (!j || !panel) return;
+  panel.innerHTML = '<div class="empty" style="padding:8px">Loading HCP details…</div>';
 
-async function openEditorFromInvoice(invoice) {
-  return openEditorByInvoice(invoice);
-}
-
-// Look up the job by invoice number, then open the editor. Calls a
-// server-side resolution endpoint that searches HCP's /invoices to
-// find the matching job_id.
-async function openEditorByInvoice(invoice) {
-  document.querySelectorAll('.tab').forEach(x => x.classList.remove('is-active'));
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('is-active'));
-  document.querySelector('[data-panel="reconcile"]').classList.add('is-active');
-  $('panel-reconcile').classList.add('is-active');
-  $('editorContainer').innerHTML = '<div class="empty">Looking up invoice #' + escapeHtml(invoice) + '…</div>';
+  // Fetch fresh HCP details + active reconciliation for this specific job.
+  // If we don't have a jobId, fall back to invoice lookup.
+  let serverData = null;
   try {
-    const data = await api('/api/kpi/admin/job-by-invoice?invoice=' + encodeURIComponent(invoice));
-    if (data && data.jobId) {
-      openEditorFromJobId(data.jobId);
-    } else {
-      $('editorContainer').innerHTML = '<div class="empty">No HCP job found for invoice #' + escapeHtml(invoice) + '. Paste the job_id from HCP above instead.</div>';
+    if (j.jobId) {
+      serverData = await api('/api/kpi/admin/job/' + encodeURIComponent(j.jobId));
+    } else if (j.invoice) {
+      const lookup = await api('/api/kpi/admin/job-by-invoice?invoice=' + encodeURIComponent(j.invoice));
+      if (lookup && lookup.jobId) {
+        j.jobId = lookup.jobId;
+        serverData = await api('/api/kpi/admin/job/' + encodeURIComponent(lookup.jobId));
+      }
     }
   } catch (err) {
-    $('editorContainer').innerHTML = '<div class="empty">Error: ' + escapeHtml(err.message) + '</div>';
+    panel.innerHTML = '<div class="empty" style="padding:8px;color:var(--bad)">Could not load HCP details: ' + esc(err.message) + '</div>';
+    return;
   }
-}
-
-async function openEditorFromJobId(jobId) {
-  document.querySelectorAll('.tab').forEach(x => x.classList.remove('is-active'));
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('is-active'));
-  document.querySelector('[data-panel="reconcile"]').classList.add('is-active');
-  $('panel-reconcile').classList.add('is-active');
-  $('editorContainer').innerHTML = '<div class="empty">Loading job ' + escapeHtml(jobId) + '&hellip;</div>';
-  try {
-    const data = await api('/api/kpi/admin/job/' + encodeURIComponent(jobId));
-    renderEditor(data.job, data.reconciliation);
-  } catch (err) {
-    $('editorContainer').innerHTML = '<div class="empty">Error: ' + escapeHtml(err.message) + '</div>';
+  if (!serverData || !serverData.job) {
+    panel.innerHTML = '<div class="empty" style="padding:8px">No HCP record available for this job. Paste the job_xxx ID from HCP into the lookup field above to edit.</div>';
+    return;
   }
-}
 
-function renderEditor(job, recon) {
-  const isReconciled = !!recon;
-  const assignments = recon && recon.assignments && recon.assignments.length
-    ? recon.assignments
-    : job.assignedEmployees.map((e, i, arr) => ({
-        employeeName: e.name,
-        role: 'Did',
-        creditPct: Math.round(100 / arr.length)
-      }));
+  const job = serverData.job;
+  const recon = serverData.reconciliation;
 
-  const completedDate = job.completedAt ? job.completedAt.slice(0, 10) : '';
-  const kpiDate = recon && recon.kpiDate
-    ? recon.kpiDate.slice(0, 10)
-    : (completedDate || (job.scheduledStart ? job.scheduledStart.slice(0, 10) : ''));
-  const totalAmount = recon && recon.totalAmount != null ? recon.totalAmount : job.totalAmount;
+  // Working state for this row's editor (lives in window.JOBS[key])
+  j.edit = {
+    assignments: (recon && recon.assignments && recon.assignments.length)
+      ? recon.assignments.slice()
+      : (job.assignedEmployees.length
+          ? job.assignedEmployees.map((e, i, arr) => ({ employeeName: e.name, role: 'Did', creditPct: Math.round(100 / arr.length) }))
+          : []),
+    totalAmount: recon && recon.totalAmount != null ? recon.totalAmount : job.totalAmount,
+    kpiDate: isoDate(recon && recon.kpiDate ? recon.kpiDate : (job.completedAt || job.scheduledStart)),
+    notes: (recon && recon.notes) || '',
+    locked: recon ? recon.locked !== false : true,
+    markedPaid: !!(recon && recon.markedPaid),
+    excluded:   !!(recon && recon.excluded),
+    job: job,
+    isReconciled: !!recon
+  };
 
-  $('editorContainer').innerHTML = `
-    <div class="editor-card">
-      <div class="editor-head">
-        <h3>Invoice #${escapeHtml(job.invoice || '—')} &middot; ${escapeHtml(job.customer || '—')}</h3>
-        <span class="editor-meta">${escapeHtml(job.id)}</span>
-      </div>
-
-      <dl class="hcp-row">
+  panel.innerHTML = `
+    <div class="edit-section">
+      <span class="edit-label">HCP Context (read-only)</span>
+      <dl class="hcp-context">
         <div>
-          <dt>HCP status</dt><dd>${escapeHtml(job.workStatus || '—')}</dd>
-          <dt>Description</dt><dd>${escapeHtml(job.description || '—')}</dd>
-          <dt>HCP assigned</dt>
-          <dd>${(job.assignedEmployees.length ? job.assignedEmployees.map(e => escapeHtml(e.name)).join(', ') : '<em style="color:var(--ink-mute)">none</em>')}</dd>
+          <dt>Job ID</dt><dd style="font-family:ui-monospace,monospace;font-size:11px">${esc(job.id)}</dd>
+          <dt>Description</dt><dd>${esc(job.description || '—')}</dd>
+          <dt>HCP status</dt><dd>${esc(job.workStatus || '—')}</dd>
+          <dt>HCP assigned</dt><dd>${job.assignedEmployees.length ? job.assignedEmployees.map(e => esc(e.name)).join(', ') : '<em>none</em>'}</dd>
         </div>
         <div>
           <dt>HCP total</dt><dd>${fmt(job.totalAmount)}</dd>
-          <dt>Outstanding</dt><dd>${fmt(job.outstandingBalance)}</dd>
-          <dt>Completed</dt><dd>${escapeHtml(completedDate || '—')}</dd>
-          <dt>Scheduled</dt><dd>${escapeHtml(job.scheduledStart ? job.scheduledStart.slice(0, 10) : '—')}</dd>
+          <dt>Outstanding (HCP)</dt><dd>${fmt(job.outstandingBalance)}</dd>
+          <dt>Completed</dt><dd>${isoDate(job.completedAt) || '—'}</dd>
+          <dt>Scheduled</dt><dd>${isoDate(job.scheduledStart) || '—'}</dd>
         </div>
       </dl>
+    </div>
 
-      <div class="assignments-label">Attribution</div>
-      <div id="assignments"></div>
-      <div style="margin-top:8px"><button class="btn" onclick="addAssignment()">+ Add tech</button></div>
-      <div class="pct-bar" id="pctBar"></div>
+    <div class="edit-section">
+      <span class="edit-label">Attribution (who gets credit, and how much)</span>
+      <div class="assign-table" data-assignments-for="${esc(key)}"></div>
+      <button type="button" class="add-tech-btn" data-action="add-tech" data-key="${esc(key)}">+ Add tech</button>
+      <div class="pct-status" data-pct-for="${esc(key)}"></div>
+    </div>
 
-      <div class="editor-fields">
-        <div>
-          <label>Effective total ($)</label>
-          <input type="number" step="0.01" id="totalAmount" value="${Number(totalAmount).toFixed(2)}">
+    <div class="edit-section">
+      <span class="edit-label">Money &amp; timing</span>
+      <div class="money-date">
+        <div class="field">
+          <label class="edit-label" style="margin-bottom:4px">Effective total ($)</label>
+          <input type="number" step="0.01" data-field="totalAmount" data-key="${esc(key)}" value="${Number(j.edit.totalAmount).toFixed(2)}">
         </div>
-        <div>
-          <label>KPI date (period this counts toward)</label>
-          <input type="date" id="kpiDate" value="${escapeHtml(kpiDate)}">
+        <div class="field">
+          <label class="edit-label" style="margin-bottom:4px">KPI date (period this counts toward)</label>
+          <input type="date" data-field="kpiDate" data-key="${esc(key)}" value="${esc(j.edit.kpiDate)}">
         </div>
       </div>
+    </div>
 
-      <div class="notes-field">
-        <label class="assignments-label">Notes (admin-only)</label>
-        <textarea id="reconNotes" placeholder="e.g. Patrick + Trevor split this water heater 60/40 because Patrick led the install">${escapeHtml(recon && recon.notes || '')}</textarea>
+    <div class="edit-section">
+      <span class="edit-label">Notes (admin-only)</span>
+      <div class="field">
+        <textarea data-field="notes" data-key="${esc(key)}" placeholder="e.g. Patrick + Trevor split this water heater 60/40 because Patrick led the install.">${esc(j.edit.notes)}</textarea>
       </div>
+    </div>
 
-      <div class="lock-row">
-        <input type="checkbox" id="lockChk" ${isReconciled ? 'checked' : 'checked'}>
-        <label for="lockChk"><strong>Lock this reconciliation.</strong> The auto-pipeline will not overwrite it on future refreshes.</label>
-      </div>
-
-      <div class="toggle-row toggle-row--paid">
-        <input type="checkbox" id="paidChk" ${recon && recon.markedPaid ? 'checked' : ''}>
-        <label for="paidChk">
-          Mark as paid
-          <small>Forces the unpaid balance to $0 for this job, even if HCP still shows it as outstanding. Useful when the customer paid in cash or by another channel that hasn&rsquo;t synced yet.</small>
+    <div class="edit-section">
+      <div class="toggle toggle--paid">
+        <input type="checkbox" id="paidChk-${esc(key)}" data-field="markedPaid" data-key="${esc(key)}" ${j.edit.markedPaid ? 'checked' : ''}>
+        <label for="paidChk-${esc(key)}">
+          <strong>Mark as paid</strong>
+          <small>Forces the outstanding balance to $0 for this job. Use when the customer paid in cash or by another channel HCP hasn't synced yet.</small>
         </label>
       </div>
-
-      <div class="toggle-row toggle-row--exclude">
-        <input type="checkbox" id="excludeChk" ${recon && recon.excluded ? 'checked' : ''}>
-        <label for="excludeChk">
-          Exclude from the dashboard entirely
-          <small>The job won&rsquo;t appear on the leaderboard <em>or</em> in the unattributed list. Use for duplicates, voided invoices, or work that shouldn&rsquo;t count toward any tech&rsquo;s KPIs. Saving with this checked doesn&rsquo;t require attribution fields.</small>
+      <div class="toggle toggle--exclude" style="margin-top:6px">
+        <input type="checkbox" id="excludeChk-${esc(key)}" data-field="excluded" data-key="${esc(key)}" ${j.edit.excluded ? 'checked' : ''}>
+        <label for="excludeChk-${esc(key)}">
+          <strong>Exclude from dashboard entirely</strong>
+          <small>The job won't appear on the leaderboard or in the unattributed list. For duplicates, voided invoices, or work that shouldn't count.</small>
         </label>
       </div>
-
-      <div class="editor-actions">
-        ${isReconciled ? '<button class="btn btn--danger" onclick="unreconcile(\'' + escapeHtml(job.id) + '\')">Remove reconciliation</button>' : ''}
-        <button class="btn" onclick="$('editorContainer').innerHTML = ''">Close</button>
-        <button class="btn btn--primary" onclick="saveReconciliation('${escapeHtml(job.id)}')">Save${isReconciled ? ' changes' : ' & lock'}</button>
+      <div class="toggle toggle--lock" style="margin-top:6px">
+        <input type="checkbox" id="lockChk-${esc(key)}" data-field="locked" data-key="${esc(key)}" ${j.edit.locked ? 'checked' : ''}>
+        <label for="lockChk-${esc(key)}">
+          <strong>Lock this reconciliation</strong>
+          <small>The auto-pipeline can never overwrite locked records on future refreshes.</small>
+        </label>
       </div>
+    </div>
 
-      <div class="status-msg" id="editorStatus"></div>
+    <div class="edit-actions">
+      <span class="status-msg" data-status-for="${esc(key)}"></span>
+      ${j.edit.isReconciled ? '<button type="button" class="btn btn--danger" data-action="unreconcile" data-key="' + esc(key) + '">Remove reconciliation</button>' : ''}
+      <button type="button" class="btn" data-action="close" data-key="${esc(key)}">Close</button>
+      <button type="button" class="btn btn--primary" data-action="save" data-key="${esc(key)}">${j.edit.isReconciled ? 'Save changes' : 'Save & lock'}</button>
     </div>
   `;
 
-  window._jobAssignments = assignments.slice();
-  renderAssignmentsList();
+  renderAssignments(key);
 }
 
-function renderAssignmentsList() {
-  $('assignments').innerHTML = window._jobAssignments.map((a, i) => `
-    <div class="assignment-row">
-      <input type="text" placeholder="Tech name" value="${escapeHtml(a.employeeName || '')}" onchange="updateAssignment(${i}, 'employeeName', this.value)">
-      <select onchange="updateAssignment(${i}, 'role', this.value)">
+function renderAssignments(key) {
+  const j = window.JOBS[key];
+  if (!j || !j.edit) return;
+  const wrap = document.querySelector('.assign-table[data-assignments-for="' + cssEscape(key) + '"]');
+  if (!wrap) return;
+  wrap.innerHTML = j.edit.assignments.map((a, i) => `
+    <div class="assign-row">
+      <input type="text" placeholder="Tech name" value="${esc(a.employeeName || '')}"
+        data-action="assign-name" data-key="${esc(key)}" data-i="${i}">
+      <select data-action="assign-role" data-key="${esc(key)}" data-i="${i}">
         <option value="Did" ${a.role === 'Did' ? 'selected' : ''}>Did</option>
         <option value="Sold" ${a.role === 'Sold' ? 'selected' : ''}>Sold</option>
         <option value="Sold & Did" ${a.role === 'Sold & Did' ? 'selected' : ''}>Sold &amp; Did</option>
       </select>
-      <input type="number" step="0.1" min="0" max="100" placeholder="%" value="${Number(a.creditPct || 0).toFixed(1)}" onchange="updateAssignment(${i}, 'creditPct', Number(this.value))">
-      <button class="remove-btn" onclick="removeAssignment(${i})" title="Remove">×</button>
+      <input type="number" step="0.1" min="0" max="100" placeholder="%" value="${Number(a.creditPct || 0).toFixed(1)}"
+        data-action="assign-pct" data-key="${esc(key)}" data-i="${i}">
+      <button type="button" class="remove" data-action="remove-tech" data-key="${esc(key)}" data-i="${i}" title="Remove">×</button>
     </div>
   `).join('');
-  updatePctBar();
+  refreshPctStatus(key);
 }
 
-function updatePctBar() {
-  const sum = window._jobAssignments.reduce((s, a) => s + (Number(a.creditPct) || 0), 0);
-  const bar = $('pctBar');
+function refreshPctStatus(key) {
+  const j = window.JOBS[key];
+  const el = document.querySelector('.pct-status[data-pct-for="' + cssEscape(key) + '"]');
+  if (!j || !j.edit || !el) return;
+  const sum = j.edit.assignments.reduce((s, a) => s + (Number(a.creditPct) || 0), 0);
   if (Math.abs(sum - 100) < 0.5) {
-    bar.textContent = '✓ Total: 100%';
-    bar.classList.remove('is-bad');
+    el.textContent = '✓ Total: 100%';
+    el.className = 'pct-status is-good';
   } else {
-    bar.textContent = '⚠ Total: ' + sum.toFixed(1) + '% — must sum to 100';
-    bar.classList.add('is-bad');
+    el.textContent = '⚠ Total: ' + sum.toFixed(1) + '% — must sum to 100 (unless excluding the job)';
+    el.className = 'pct-status is-bad';
   }
 }
 
-function addAssignment() {
-  window._jobAssignments.push({ employeeName: '', role: 'Did', creditPct: 0 });
-  renderAssignmentsList();
-}
-function removeAssignment(i) {
-  window._jobAssignments.splice(i, 1);
-  renderAssignmentsList();
-}
-function updateAssignment(i, field, value) {
-  window._jobAssignments[i][field] = value;
-  if (field === 'creditPct') updatePctBar();
+// CSS.escape isn't universal — small shim for older browsers
+function cssEscape(s) {
+  return String(s).replace(/[^a-zA-Z0-9_-]/g, c => '\\' + c);
 }
 
-async function saveReconciliation(jobId) {
-  const assignments = window._jobAssignments.filter(a => a.employeeName && a.employeeName.trim());
-  const totalAmount = parseFloat($('totalAmount').value);
-  const kpiDate = $('kpiDate').value;
-  const notes = $('reconNotes').value;
-  const locked = $('lockChk').checked;
-  const excluded = $('excludeChk').checked;
-  const markedPaid = $('paidChk').checked;
+// ── Single delegated event handler for the entire jobs list ─────────
+document.addEventListener('click', async (e) => {
+  const t = e.target;
+  const actionEl = t.closest('[data-action]');
+  if (!actionEl) return;
+  const action = actionEl.dataset.action;
+  const key = actionEl.dataset.key;
 
-  // Excluded jobs skip attribution validation since they won't appear
-  // anywhere on the dashboard. Otherwise standard %=100 check applies.
-  if (!excluded) {
-    if (!assignments.length) {
-      setEditorStatus('Add at least one tech (or check Exclude to hide this job entirely).', 'err');
+  if (action === 'toggle') {
+    const job = actionEl.closest('.job');
+    if (!job) return;
+    const wasOpen = job.classList.contains('is-open');
+    // Close any other open rows (one expanded at a time keeps things tidy)
+    document.querySelectorAll('.job.is-open').forEach(j => { if (j !== job) j.classList.remove('is-open'); });
+    if (wasOpen) {
+      job.classList.remove('is-open');
+    } else {
+      job.classList.add('is-open');
+      const k = job.dataset.key;
+      // Lazy-load the editor on first expand
+      const panel = job.querySelector('.job-edit');
+      if (panel && !panel.dataset.loaded) {
+        panel.dataset.loaded = '1';
+        await renderEditPanel(k);
+      }
+    }
+    return;
+  }
+
+  if (action === 'add-tech') {
+    const j = window.JOBS[key];
+    if (!j || !j.edit) return;
+    j.edit.assignments.push({ employeeName: '', role: 'Did', creditPct: 0 });
+    renderAssignments(key);
+    return;
+  }
+  if (action === 'remove-tech') {
+    const j = window.JOBS[key];
+    if (!j || !j.edit) return;
+    const i = Number(actionEl.dataset.i);
+    j.edit.assignments.splice(i, 1);
+    renderAssignments(key);
+    return;
+  }
+  if (action === 'close') {
+    const job = actionEl.closest('.job');
+    if (job) job.classList.remove('is-open');
+    return;
+  }
+  if (action === 'unreconcile') {
+    if (!confirm('Remove this reconciliation? The job goes back to auto-attribution.')) return;
+    try {
+      const j = window.JOBS[key];
+      const jobId = j && j.jobId;
+      if (!jobId) throw new Error('No jobId on this row');
+      await api('/api/kpi/admin/reconcile/' + encodeURIComponent(jobId), { method: 'DELETE' });
+      setRowStatus(key, 'Reconciliation removed.', 'ok');
+      setTimeout(loadJobs, 600);
+    } catch (err) {
+      setRowStatus(key, 'Error: ' + err.message, 'err');
+    }
+    return;
+  }
+  if (action === 'save') {
+    await saveJob(key);
+    return;
+  }
+});
+
+// Inputs in the edit panel — wire up via delegation too
+document.addEventListener('input', (e) => {
+  const t = e.target;
+  const action = t.dataset.action;
+  const key = t.dataset.key;
+  if (!action || !key) return;
+  const j = window.JOBS[key];
+  if (!j || !j.edit) return;
+  if (action === 'assign-name') {
+    j.edit.assignments[Number(t.dataset.i)].employeeName = t.value;
+  } else if (action === 'assign-pct') {
+    j.edit.assignments[Number(t.dataset.i)].creditPct = Number(t.value) || 0;
+    refreshPctStatus(key);
+  }
+});
+document.addEventListener('change', (e) => {
+  const t = e.target;
+  const action = t.dataset.action;
+  const field = t.dataset.field;
+  const key = t.dataset.key;
+  if (!key) return;
+  const j = window.JOBS[key];
+  if (!j || !j.edit) return;
+  if (action === 'assign-role') {
+    j.edit.assignments[Number(t.dataset.i)].role = t.value;
+  } else if (field === 'totalAmount') {
+    j.edit.totalAmount = parseFloat(t.value) || 0;
+  } else if (field === 'kpiDate') {
+    j.edit.kpiDate = t.value;
+  } else if (field === 'notes') {
+    j.edit.notes = t.value;
+  } else if (field === 'markedPaid') {
+    j.edit.markedPaid = t.checked;
+  } else if (field === 'excluded') {
+    j.edit.excluded = t.checked;
+  } else if (field === 'locked') {
+    j.edit.locked = t.checked;
+  }
+});
+// Catch textarea/input changes that don't fire 'change' until blur
+document.addEventListener('blur', (e) => {
+  const t = e.target;
+  const field = t.dataset.field;
+  const key = t.dataset.key;
+  if (!field || !key) return;
+  const j = window.JOBS[key];
+  if (!j || !j.edit) return;
+  if (field === 'notes') j.edit.notes = t.value;
+  if (field === 'totalAmount') j.edit.totalAmount = parseFloat(t.value) || 0;
+  if (field === 'kpiDate') j.edit.kpiDate = t.value;
+}, true);
+
+async function saveJob(key) {
+  const j = window.JOBS[key];
+  if (!j || !j.edit) { alert('No job data — try reloading the list.'); return; }
+  const jobId = j.jobId;
+  if (!jobId) { setRowStatus(key, 'No jobId to save against.', 'err'); return; }
+
+  // Validate when not excluding
+  const cleanAssignments = j.edit.assignments
+    .map(a => ({
+      employeeName: String(a.employeeName || '').trim(),
+      role: ['Sold', 'Did', 'Sold & Did'].includes(a.role) ? a.role : 'Did',
+      creditPct: Math.max(0, Math.min(100, Number(a.creditPct) || 0))
+    }))
+    .filter(a => a.employeeName);
+  if (!j.edit.excluded) {
+    if (cleanAssignments.length === 0) {
+      setRowStatus(key, 'Add at least one tech or check Exclude.', 'err');
       return;
     }
-    const sum = assignments.reduce((s, a) => s + (Number(a.creditPct) || 0), 0);
+    const sum = cleanAssignments.reduce((s, a) => s + a.creditPct, 0);
     if (Math.abs(sum - 100) > 0.5) {
-      setEditorStatus('Credit percentages must sum to 100 (got ' + sum.toFixed(1) + ').', 'err');
+      setRowStatus(key, 'Percentages must sum to 100 (currently ' + sum.toFixed(1) + '%).', 'err');
       return;
     }
   }
 
-  setEditorStatus('Saving…');
+  setRowStatus(key, 'Saving…', '');
   try {
     await api('/api/kpi/admin/reconcile', {
       method: 'POST',
       body: {
-        jobId, assignments, totalAmount, kpiDate, notes, locked,
-        excluded, markedPaid,
+        jobId,
+        assignments: cleanAssignments,
+        totalAmount: j.edit.totalAmount,
+        kpiDate: j.edit.kpiDate,
+        notes: j.edit.notes,
+        locked: j.edit.locked,
+        markedPaid: j.edit.markedPaid,
+        excluded: j.edit.excluded,
         reconciledBy: 'admin'
       }
     });
-    const verb = excluded ? 'Excluded' : 'Saved';
-    setEditorStatus(verb + '. The dashboard will pick it up on the next refresh.', 'ok');
-    // Reload the period list so the row's status badge updates inline
-    if (_lastPeriodRange) loadPeriodJobs();
+    setRowStatus(key, 'Saved. The dashboard will pick this up on next refresh.', 'ok');
+    setTimeout(loadJobs, 800);
   } catch (err) {
-    setEditorStatus('Error: ' + err.message, 'err');
+    setRowStatus(key, 'Error: ' + err.message, 'err');
   }
 }
-
-async function unreconcile(jobId) {
-  if (!confirm('Remove this reconciliation? The job will go back to auto-attribution.')) return;
-  try {
-    await api('/api/kpi/admin/reconcile/' + encodeURIComponent(jobId), { method: 'DELETE' });
-    $('editorContainer').innerHTML = '<div class="empty">Reconciliation removed. Refresh the dashboard to see auto-attribution.</div>';
-    loadLocked();
-  } catch (err) {
-    alert('Error: ' + err.message);
-  }
-}
-
-function setEditorStatus(msg, tone) {
-  const el = $('editorStatus');
+function setRowStatus(key, msg, tone) {
+  const el = document.querySelector('.status-msg[data-status-for="' + cssEscape(key) + '"]');
+  if (!el) return;
   el.textContent = msg;
   el.className = 'status-msg' + (tone === 'ok' ? ' is-ok' : tone === 'err' ? ' is-err' : '');
 }
 
-// ── Locked records list ────────────────────────────────────────────────
+// ── Lookup field — paste invoice or job ID and Open ─────────────────
+$('lookupBtn').addEventListener('click', () => {
+  const v = $('jobLookup').value.trim();
+  if (!v) { alert('Paste an invoice number or job ID first.'); return; }
+  // job_xxx in URL?
+  const m = v.match(/job_[a-z0-9]+/i);
+  if (m) { openLookedUpJob(m[0]); return; }
+  // Pure invoice number?
+  if (/^#?\d+$/.test(v)) { openLookedUpInvoice(v.replace(/^#/, '')); return; }
+  openLookedUpInvoice(v);
+});
+$('jobLookup').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('lookupBtn').click(); });
 
+async function openLookedUpJob(jobId) {
+  // Stuff the job into the list as a temporary single row and expand it
+  try {
+    const data = await api('/api/kpi/admin/job/' + encodeURIComponent(jobId));
+    if (!data.job) throw new Error('No job returned');
+    const synthRow = {
+      jobId: data.job.id,
+      invoice: data.job.invoice,
+      customer: data.job.customer,
+      description: data.job.description,
+      totalAmount: data.job.totalAmount,
+      outstanding: data.job.outstandingBalance,
+      kpiDate: data.job.completedAt || data.job.scheduledStart,
+      status: data.reconciliation ? (data.reconciliation.excluded ? 'excluded' : 'reconciled') : 'credited',
+      hcpAssignedEmployees: data.job.assignedEmployees.map(e => e.name),
+      assignments: data.reconciliation && data.reconciliation.assignments || [],
+      _localKey: jobId
+    };
+    window.JOBS[jobId] = synthRow;
+    $('jobsList').innerHTML = renderJob(synthRow);
+    // Auto-expand
+    setTimeout(() => {
+      const job = document.querySelector('.job[data-key="' + cssEscape(jobId) + '"]');
+      if (job) {
+        job.classList.add('is-open');
+        renderEditPanel(jobId);
+        const panel = job.querySelector('.job-edit');
+        if (panel) panel.dataset.loaded = '1';
+      }
+    }, 50);
+  } catch (err) {
+    alert('Could not load job: ' + err.message);
+  }
+}
+async function openLookedUpInvoice(invoice) {
+  try {
+    const r = await api('/api/kpi/admin/job-by-invoice?invoice=' + encodeURIComponent(invoice));
+    if (!r.jobId) throw new Error('No HCP job linked to that invoice');
+    await openLookedUpJob(r.jobId);
+  } catch (err) {
+    alert('Could not look up invoice: ' + err.message);
+  }
+}
+
+// ── Issues + Locked tabs (kept simple) ───────────────────────────────
+async function loadIssues() {
+  try {
+    const data = await api('/api/kpi/admin/issues');
+    const reports = data.reports || [];
+    $('issueCount').textContent = reports.filter(r => r.status === 'open').length;
+    if (reports.length === 0) {
+      $('issuesList').innerHTML = '<div class="empty">No issue reports yet.</div>';
+      return;
+    }
+    const TYPE_LABEL = {
+      missing: 'Missing job', wrong_tech: 'Wrong tech', wrong_split: 'Wrong split',
+      wrong_seller: 'Wrong seller', wrong_unpaid: 'Wrong unpaid amount', other: 'Other'
+    };
+    $('issuesList').innerHTML = reports.map(rep => {
+      const ref = [rep.invoice && '#' + rep.invoice, rep.customer].filter(Boolean).join(' · ');
+      const when = new Date(rep.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+      return `<div class="item-card">
+        <div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin-bottom:4px">
+          <strong>${esc(TYPE_LABEL[rep.type] || rep.type)}</strong>
+          <span class="badge ${rep.status === 'open' ? 'badge--warn' : 'badge--good'}">${esc(rep.status)}</span>
+          <span style="font-size:11px;color:var(--ink-mute)">${esc(rep.reporterName)} · ${esc(when)}</span>
+        </div>
+        ${ref ? '<div style="font-size:13px;color:var(--ink-soft);margin-bottom:4px">' + esc(ref) + '</div>' : ''}
+        <div style="font-size:13px;padding:8px 10px;background:var(--bg);border-left:2px solid var(--border-strong);border-radius:4px;margin-bottom:8px">${esc(rep.description)}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${rep.invoice ? '<button class="btn" data-action="from-issue-inv" data-inv="' + esc(rep.invoice) + '">Open job</button>' : ''}
+          ${rep.status === 'open'
+            ? '<button class="btn" data-action="issue-status" data-id="' + esc(rep.id) + '" data-newstatus="resolved">Mark resolved</button>'
+              + '<button class="btn btn--danger" data-action="issue-status" data-id="' + esc(rep.id) + '" data-newstatus="dismissed">Dismiss</button>'
+            : '<button class="btn" data-action="issue-status" data-id="' + esc(rep.id) + '" data-newstatus="open">Re-open</button>'}
+        </div>
+      </div>`;
+    }).join('');
+  } catch (err) {
+    $('issuesList').innerHTML = '<div class="empty">Error: ' + esc(err.message) + '</div>';
+  }
+}
+// Issue actions via the same delegation
+document.addEventListener('click', async (e) => {
+  const t = e.target.closest('[data-action]');
+  if (!t) return;
+  if (t.dataset.action === 'issue-status') {
+    try {
+      await api('/api/kpi/admin/issues/' + t.dataset.id + '/status', {
+        method: 'POST', body: { status: t.dataset.newstatus, by: 'admin' }
+      });
+      loadIssues();
+    } catch (err) { alert(err.message); }
+  }
+  if (t.dataset.action === 'from-issue-inv') {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('is-active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('is-active'));
+    document.querySelector('[data-panel="reconcile"]').classList.add('is-active');
+    $('panel-reconcile').classList.add('is-active');
+    $('jobLookup').value = t.dataset.inv;
+    $('lookupBtn').click();
+  }
+});
+
+// Locked records
+$('loadLockedBtn').addEventListener('click', loadLocked);
 async function loadLocked() {
   try {
     const month = $('monthFilter').value;
@@ -1347,22 +1103,30 @@ async function loadLocked() {
     }
     $('lockedList').innerHTML = recs.map(r => {
       const names = (r.assignments || []).map(a => a.employeeName + ' ' + a.creditPct + '%').join(' · ');
-      return '<div class="recon">' +
-        '<div>' +
-          '<div class="recon-job">' + escapeHtml(r.jobId) + '</div>' +
-          '<div class="recon-meta">' + escapeHtml(names) + (r.totalAmount != null ? ' · ' + fmt(r.totalAmount) : '') + '</div>' +
-          (r.notes ? '<div class="recon-meta" style="margin-top:2px">' + escapeHtml(r.notes) + '</div>' : '') +
-        '</div>' +
-        '<div class="recon-meta">' + (r.kpiDate ? escapeHtml(r.kpiDate.slice(0, 10)) : '—') + '</div>' +
-        '<button class="btn" onclick="openEditorFromJobId(\'' + escapeHtml(r.jobId) + '\')">Edit</button>' +
-      '</div>';
+      const dateStr = r.kpiDate ? isoDate(r.kpiDate) : '—';
+      return `<div class="item-card" style="display:grid;grid-template-columns:1fr 100px 90px;gap:10px;align-items:center">
+        <div>
+          <div style="font-weight:700;font-family:ui-monospace,monospace;font-size:12px;margin-bottom:4px">${esc(r.jobId)}</div>
+          <div style="font-size:13px;color:var(--ink-soft)">${esc(names) || '<em>excluded</em>'}${r.totalAmount != null ? ' · ' + fmt(r.totalAmount) : ''}</div>
+          ${r.notes ? '<div style="font-size:12px;color:var(--ink-mute);margin-top:3px">' + esc(r.notes) + '</div>' : ''}
+        </div>
+        <div style="font-size:11px;color:var(--ink-mute);text-align:right">${esc(dateStr)}</div>
+        <button class="btn" data-action="open-locked" data-jobid="${esc(r.jobId)}">Edit</button>
+      </div>`;
     }).join('');
   } catch (err) {
-    $('lockedList').innerHTML = '<div class="empty">Error: ' + escapeHtml(err.message) + '</div>';
+    $('lockedList').innerHTML = '<div class="empty">Error: ' + esc(err.message) + '</div>';
   }
 }
-
-$('loadLockedBtn').addEventListener('click', loadLocked);
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('[data-action="open-locked"]');
+  if (!t) return;
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('is-active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('is-active'));
+  document.querySelector('[data-panel="reconcile"]').classList.add('is-active');
+  $('panel-reconcile').classList.add('is-active');
+  openLookedUpJob(t.dataset.jobid);
+});
 </script>
 
 </body>
