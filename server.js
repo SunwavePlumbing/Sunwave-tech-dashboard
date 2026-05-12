@@ -4216,14 +4216,16 @@ app.use(express.json({ limit: '50kb' }));
 app.post('/api/kpi/report-issue', (req, res) => {
   const body = req.body || {};
   const type = String(body.type || '').slice(0, 50);
-  const reporterName = String(body.reporterName || '').slice(0, 100).trim();
+  // Reporter name is optional — the form no longer collects it. Kept
+  // as a passthrough in case any older client still sends one.
+  const reporterName = String(body.reporterName || '').slice(0, 100).trim() || null;
   const invoice = String(body.invoice || '').slice(0, 50).trim();
   const customer = String(body.customer || '').slice(0, 100).trim();
   const jobId = String(body.jobId || '').slice(0, 100).trim();
   const description = String(body.description || '').slice(0, 2000).trim();
 
-  if (!type || !reporterName || !description) {
-    return res.status(400).json({ error: 'type, reporterName, and description are required' });
+  if (!type || !description) {
+    return res.status(400).json({ error: 'type and description are required' });
   }
 
   const report = {

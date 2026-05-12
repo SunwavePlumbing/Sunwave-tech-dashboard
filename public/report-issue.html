@@ -288,17 +288,6 @@
       <input type="hidden" id="type" name="type" value="wrong_split" required>
     </div>
 
-    <!-- Name field — hidden once it's been saved once. First-time
-         visitors see it; everyone else submits silently with their
-         saved name. -->
-    <div class="field" id="nameField" hidden>
-      <label class="field-label" for="reporterName">
-        Your name
-        <span class="field-check" id="check-reporterName" aria-hidden="true">✓</span>
-      </label>
-      <input type="text" id="reporterName" name="reporterName" placeholder="First &amp; last name" maxlength="100">
-    </div>
-
     <div class="row">
       <div class="field">
         <label class="field-label" for="invoice">
@@ -409,24 +398,10 @@ function markFieldChecked(id, on) {
   else    el.classList.remove('is-on');
 }
 
-// ── Name handling ────────────────────────────────────────────────────
-// Hide the name field if we already have one saved. First-time visitor
-// sees the field; everyone else submits silently with the stored name.
-const savedName = localStorage.getItem('kpi-reporter-name');
-if (savedName) {
-  $('reporterName').value = savedName;
-  markFieldChecked('reporterName', true);
-  // Field stays hidden — they don't need to think about it
-} else {
-  $('nameField').hidden = false;
-}
-$('reporterName').addEventListener('change', () => {
-  const v = $('reporterName').value.trim();
-  if (v) {
-    localStorage.setItem('kpi-reporter-name', v);
-    markFieldChecked('reporterName', true);
-  }
-});
+// Name field intentionally removed — reports are submitted without
+// a reporter name. The admin already has invoice/customer/jobId
+// context to figure out who's affected; asking for a name added
+// friction without proportional value.
 
 // ── Pre-fill from URL params + flip cells into "prefilled" mode ────
 function setPrefilled(field, value) {
@@ -552,17 +527,9 @@ loadTechs();
 $('reportForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const type = $('type').value;
-  let reporterName = $('reporterName').value.trim() || localStorage.getItem('kpi-reporter-name') || '';
   let description = $('description').value.trim();
 
   if (!type) { setStatus('Pick what&rsquo;s wrong first.', 'err'); return; }
-  if (!reporterName) {
-    // First-time visitor with the hidden field — surface it.
-    $('nameField').hidden = false;
-    $('reporterName').focus();
-    setStatus('Your name first, please.', 'err');
-    return;
-  }
   if (!description && SELECTED_SELLERS.length === 0 && SELECTED_DOERS.length === 0) {
     setStatus('Tell us what should change.', 'err');
     return;
@@ -589,7 +556,7 @@ $('reportForm').addEventListener('submit', async (e) => {
   setStatus('Sending…');
   try {
     const body = {
-      type, reporterName,
+      type,
       invoice: $('invoice').value.trim(),
       customer: $('customer').value.trim(),
       description: finalDescription
