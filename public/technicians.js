@@ -142,7 +142,7 @@ function showTechSkeleton() {
 
 var _fetchAbort = null;     // AbortController for the currently in-flight fetch
 
-async function fetchData() {
+async function fetchData(forceRefresh) {
   // Abort any previous in-flight fetch — the newer request supersedes it.
   // This lets users click a new range immediately after an accidental
   // click, instead of waiting for the old fetch to complete.
@@ -156,7 +156,9 @@ async function fetchData() {
   _skelTimer = setTimeout(showTechSkeleton, SKELETON_DELAY_MS);
 
   try {
-    var response = await fetch('/api/metrics?range=' + currentTimeRange, { signal: thisAbort.signal });
+    var url = '/api/metrics?range=' + encodeURIComponent(currentTimeRange);
+    if (forceRefresh) url += '&refresh=1';
+    var response = await fetch(url, { signal: thisAbort.signal });
     var data = await response.json();
     // Ignore response if this fetch was superseded by a newer one
     if (thisAbort !== _fetchAbort) return;
@@ -286,6 +288,28 @@ function animateStatCards(summary) {
   };
 }
 
+function renderKpiFreshness(summary) {
+  var wrap = document.getElementById('kpiFreshness');
+  var text = document.getElementById('kpiFreshnessText');
+  if (!wrap || !text || !summary) return;
+
+  var freshness = summary.dataFreshness || {};
+  var generated = freshness.generatedAt ? new Date(freshness.generatedAt) : null;
+  var age = typeof freshness.cacheAgeSeconds === 'number' ? freshness.cacheAgeSeconds : null;
+  var pieces = [];
+  if (generated && !isNaN(generated.getTime())) {
+    pieces.push('HCP data built ' + generated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }));
+  }
+  if (age != null) {
+    pieces.push(age < 60 ? 'cache age ' + age + ' sec' : 'cache age ' + Math.round(age / 60) + ' min');
+  }
+  if (summary.unattributedCount > 0) {
+    pieces.push(summary.unattributedCount + ' item' + (summary.unattributedCount === 1 ? '' : 's') + ' need review');
+  }
+  text.textContent = pieces.length ? pieces.join(' · ') : 'HCP data freshness unavailable';
+  wrap.hidden = false;
+}
+
 /* FLIP reorder: before rerendering, capture each row's bounding rect by
    its technician name. After rerendering, compare to new positions and
    animate the delta. Keeps rows anchored during sort/data refresh so
@@ -393,6 +417,7 @@ function render() {
 
   // Stat cards: count-up animation
   animateStatCards(summary);
+  renderKpiFreshness(summary);
 
   // Capture current row positions BEFORE rerender (for FLIP)
   var oldRects = captureRowRects();
@@ -603,3 +628,12 @@ function render() {
 
   document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+  var refreshBtn = document.getElementById('kpiRefreshBtn');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', function() {
+      fetchData(true);
+    });
+  }
+});

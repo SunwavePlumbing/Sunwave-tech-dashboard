@@ -646,14 +646,14 @@ $('periodSel').addEventListener('change', () => {
   localStorage.setItem('kpi-admin-range', CURRENT_RANGE);
   loadJobs();
 });
-$('reloadBtn').addEventListener('click', loadJobs);
+$('reloadBtn').addEventListener('click', () => loadJobs(true));
 
-async function loadJobs() {
+async function loadJobs(forceRefresh) {
   $('jobsList').innerHTML = '<div class="empty">Loading…</div>';
   $('summaryAction').textContent = '';
   $('summaryBadge').textContent = '…';
   try {
-    const data = await api('/api/kpi/admin/period-jobs?range=' + encodeURIComponent(CURRENT_RANGE));
+    const data = await api('/api/kpi/admin/period-jobs?range=' + encodeURIComponent(CURRENT_RANGE) + (forceRefresh ? '&refresh=1' : ''));
     const jobs = data.jobs || [];
     const s = data.summary || {};
 

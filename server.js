@@ -46,6 +46,124 @@ function inclusiveEndDateOnly(value) {
   return isoDateOnly(d);
 }
 
+function getDayStart(d) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function getDayEnd(d) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+}
+
+function getKpiPeriod(range, nowValue) {
+  const now = nowValue ? new Date(nowValue) : new Date();
+  let periodStart, periodEnd, periodLabel;
+
+  switch (range) {
+    case 'day':
+      periodStart = getDayStart(now);
+      periodEnd = getDayEnd(now);
+      periodLabel = 'Today';
+      break;
+    case 'yesterday': {
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      periodStart = getDayStart(yesterday);
+      periodEnd = getDayEnd(yesterday);
+      periodLabel = 'Yesterday';
+      break;
+    }
+    case 'week':
+      periodStart = new Date(now);
+      periodStart.setDate(now.getDate() - now.getDay());
+      periodEnd = new Date(periodStart);
+      periodEnd.setDate(periodEnd.getDate() + 7);
+      periodLabel = 'This Week';
+      break;
+    case 'wtd':
+      periodStart = new Date(now);
+      periodStart.setDate(now.getDate() - now.getDay());
+      periodEnd = getDayEnd(now);
+      periodLabel = 'Week to Date';
+      break;
+    case 'l7d':
+      periodStart = new Date(now);
+      periodStart.setDate(now.getDate() - 7);
+      periodEnd = getDayEnd(now);
+      periodLabel = 'Last 7 Days';
+      break;
+    case 'l14d':
+      periodStart = new Date(now);
+      periodStart.setDate(now.getDate() - 14);
+      periodEnd = getDayEnd(now);
+      periodLabel = 'Last 14 Days';
+      break;
+    case 'l30d':
+      periodStart = new Date(now);
+      periodStart.setDate(now.getDate() - 30);
+      periodEnd = getDayEnd(now);
+      periodLabel = 'Last 30 Days';
+      break;
+    case 'mtd':
+      periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      periodEnd = getDayEnd(now);
+      periodLabel = 'Month to Date';
+      break;
+    case 'lm': {
+      const lastMonth = new Date(now);
+      lastMonth.setMonth(now.getMonth() - 1);
+      periodStart = new Date(lastMonth.getFullYear(), lastMonth.getMonth(), 1);
+      periodEnd = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 1);
+      periodLabel = 'Last Month';
+      break;
+    }
+    case 'l90d':
+      periodStart = new Date(now);
+      periodStart.setDate(now.getDate() - 90);
+      periodEnd = getDayEnd(now);
+      periodLabel = 'Last 90 Days';
+      break;
+    case 'qtd':
+    case 'q2d': {
+      const quarter = Math.floor(now.getMonth() / 3);
+      periodStart = new Date(now.getFullYear(), quarter * 3, 1);
+      periodEnd = getDayEnd(now);
+      periodLabel = 'Quarter to Date';
+      break;
+    }
+    case 'lq': {
+      const lqQuarter = Math.floor(now.getMonth() / 3) - 1;
+      const lqYear = lqQuarter < 0 ? now.getFullYear() - 1 : now.getFullYear();
+      const lqQ = ((lqQuarter % 4) + 4) % 4;
+      periodStart = new Date(lqYear, lqQ * 3, 1);
+      periodEnd = new Date(lqYear, lqQ * 3 + 3, 1);
+      periodLabel = 'Last Quarter';
+      break;
+    }
+    case 'ytd':
+      periodStart = new Date(now.getFullYear(), 0, 1);
+      periodEnd = getDayEnd(now);
+      periodLabel = 'Year to Date';
+      break;
+    case 'l365d':
+      periodStart = new Date(now);
+      periodStart.setDate(now.getDate() - 365);
+      periodEnd = getDayEnd(now);
+      periodLabel = 'Last 365 Days';
+      break;
+    case 'ly':
+      periodStart = new Date(now.getFullYear() - 1, 0, 1);
+      periodEnd = new Date(now.getFullYear(), 0, 1);
+      periodLabel = 'Last Year';
+      break;
+    default:
+      periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      periodEnd = getDayEnd(now);
+      periodLabel = 'This Month';
+  }
+
+  return { range, periodStart, periodEnd, periodLabel };
+}
+
 function estimateIdForJob(job) {
   return job && (job.original_estimate_id || (job.original_estimate_uuids && job.original_estimate_uuids[0]));
 }
@@ -386,6 +504,45 @@ function cacheGet(key, ttlMs) {
 function cacheSet(key, data) {
   _cache.set(key, { at: Date.now(), data });
   scheduleDiskCacheWrite();
+}
+
+function cacheMeta(key) {
+  const entry = _cache.get(key);
+  return entry ? {
+    key,
+    cached: true,
+    ageSeconds: Math.round((Date.now() - entry.at) / 1000),
+    cachedAt: new Date(entry.at).toISOString()
+  } : {
+    key,
+    cached: false,
+    ageSeconds: null,
+    cachedAt: null
+  };
+}
+
+function invalidateCachesByPrefix(prefixes) {
+  const list = Array.isArray(prefixes) ? prefixes : [prefixes];
+  let count = 0;
+  Array.from(_cache.keys()).forEach(k => {
+    if (list.some(prefix => k === prefix || k.startsWith(prefix))) {
+      _cache.delete(k);
+      count++;
+    }
+  });
+  if (count) scheduleDiskCacheWrite();
+  return count;
+}
+
+function invalidateKpiCaches() {
+  return invalidateCachesByPrefix([
+    'metrics:',
+    'coverage:',
+    'raw-jobs-short:',
+    'public-employees',
+    'admin-employees',
+    'active-tech-ids'
+  ]);
 }
 
 // ── In-flight promise de-dup ─────────────────────────────────────────────────
@@ -903,6 +1060,7 @@ app.get('/api/metrics', async (req, res) => {
 
   try {
     const range = req.query.range || 'mtd';
+    const forceRefresh = req.query.refresh === '1' || req.query.force === '1' || req.get('Cache-Control') === 'no-cache';
 
     // ── Per-range response cache (stale-while-revalidate) ───────────
     // Metrics for a given range rarely change minute-to-minute. A 2-min
@@ -913,117 +1071,14 @@ app.get('/api/metrics', async (req, res) => {
     // the TTL boundary.
     const METRICS_TTL = 2 * 60 * 1000;
     const cacheKey = 'metrics:' + range;
+    if (forceRefresh) {
+      invalidateCachesByPrefix(['metrics:' + range, 'coverage:' + range, 'raw-jobs-short:']);
+    }
     const payload = await withCache(cacheKey, METRICS_TTL, async () => {
 
     const now = new Date();
-    let periodStart, periodEnd, periodLabel;
-
-    const getDayStart = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    const getDayEnd = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
-
-    switch(range) {
-      case 'day':
-        periodStart = getDayStart(now);
-        periodEnd = getDayEnd(now);
-        periodLabel = 'Today';
-        break;
-      case 'yesterday':
-        const yesterday = new Date(now);
-        yesterday.setDate(yesterday.getDate() - 1);
-        periodStart = getDayStart(yesterday);
-        periodEnd = getDayEnd(yesterday);
-        periodLabel = 'Yesterday';
-        break;
-      case 'week':
-        periodStart = new Date(now);
-        periodStart.setDate(now.getDate() - now.getDay());
-        periodEnd = new Date(periodStart);
-        periodEnd.setDate(periodEnd.getDate() + 7);
-        periodLabel = 'This Week';
-        break;
-      case 'wtd':
-        periodStart = new Date(now);
-        periodStart.setDate(now.getDate() - now.getDay());
-        periodEnd = getDayEnd(now);
-        periodLabel = 'Week to Date';
-        break;
-      case 'l7d':
-        periodStart = new Date(now);
-        periodStart.setDate(now.getDate() - 7);
-        periodEnd = getDayEnd(now);
-        periodLabel = 'Last 7 Days';
-        break;
-      case 'l14d':
-        periodStart = new Date(now);
-        periodStart.setDate(now.getDate() - 14);
-        periodEnd = getDayEnd(now);
-        periodLabel = 'Last 14 Days';
-        break;
-      case 'l30d':
-        periodStart = new Date(now);
-        periodStart.setDate(now.getDate() - 30);
-        periodEnd = getDayEnd(now);
-        periodLabel = 'Last 30 Days';
-        break;
-      case 'mtd':
-        periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        periodEnd = getDayEnd(now);
-        periodLabel = 'Month to Date';
-        break;
-      case 'lm':
-        const lastMonth = new Date(now);
-        lastMonth.setMonth(lastMonth.getMonth() - 1);
-        periodStart = new Date(lastMonth.getFullYear(), lastMonth.getMonth(), 1);
-        periodEnd = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 1);
-        periodLabel = 'Last Month';
-        break;
-      case 'l90d':
-        periodStart = new Date(now);
-        periodStart.setDate(now.getDate() - 90);
-        periodEnd = getDayEnd(now);
-        periodLabel = 'Last 90 Days';
-        break;
-      case 'qtd':
-        const qtdQuarter = Math.floor(now.getMonth() / 3);
-        periodStart = new Date(now.getFullYear(), qtdQuarter * 3, 1);
-        periodEnd = getDayEnd(now);
-        periodLabel = 'Quarter to Date';
-        break;
-      case 'lq':
-        const lqQuarter = Math.floor(now.getMonth() / 3) - 1;
-        const lqYear = lqQuarter < 0 ? now.getFullYear() - 1 : now.getFullYear();
-        const lqQ = ((lqQuarter % 4) + 4) % 4;
-        periodStart = new Date(lqYear, lqQ * 3, 1);
-        periodEnd = new Date(lqYear, lqQ * 3 + 3, 1);
-        periodLabel = 'Last Quarter';
-        break;
-      case 'q2d':
-        const q2dQuarter = Math.floor(now.getMonth() / 3);
-        periodStart = new Date(now.getFullYear(), q2dQuarter * 3, 1);
-        periodEnd = getDayEnd(now);
-        periodLabel = 'Quarter to Date';
-        break;
-      case 'ytd':
-        periodStart = new Date(now.getFullYear(), 0, 1);
-        periodEnd = getDayEnd(now);
-        periodLabel = 'Year to Date';
-        break;
-      case 'l365d':
-        periodStart = new Date(now);
-        periodStart.setDate(now.getDate() - 365);
-        periodEnd = getDayEnd(now);
-        periodLabel = 'Last 365 Days';
-        break;
-      case 'ly':
-        periodStart = new Date(now.getFullYear() - 1, 0, 1);
-        periodEnd = new Date(now.getFullYear(), 0, 1);
-        periodLabel = 'Last Year';
-        break;
-      default:
-        periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        periodEnd = getDayEnd(now);
-        periodLabel = 'This Month';
-    }
+    const period = getKpiPeriod(range, now);
+    const { periodStart, periodEnd, periodLabel } = period;
 
     const headers = hcpHeaders();
 
@@ -2056,7 +2111,7 @@ app.get('/api/metrics', async (req, res) => {
         if (!r || !r.excluded) return;
         const kd = typeof r.kpiDate === 'string' ? r.kpiDate.slice(0, 10) : null;
         if (!kd) return;
-        if (kd >= psI && kd <= peI) {
+        if (kd >= psI && kd < peI) {
           totalJobsForRecon++;
           reconciledJobs++;
         }
@@ -2076,6 +2131,7 @@ app.get('/api/metrics', async (req, res) => {
     }
 
     return {
+      generatedAt: new Date().toISOString(),
       leaderboard,
       // periodStart/periodEnd are ISO date strings (YYYY-MM-DD) so the
       // client can compare against data-quality cutoffs without having
@@ -2109,7 +2165,19 @@ app.get('/api/metrics', async (req, res) => {
       unattributed
     };
     });  // ── end withCache factory ──
-    res.json(payload);
+    const meta = cacheMeta(cacheKey);
+    res.json({
+      ...payload,
+      cache: meta,
+      summary: {
+        ...(payload.summary || {}),
+        dataFreshness: {
+          generatedAt: payload.generatedAt || meta.cachedAt || new Date().toISOString(),
+          cacheAgeSeconds: meta.ageSeconds,
+          forceRefreshAvailable: true
+        }
+      }
+    });
 
   } catch (error) {
     console.error('[/api/tech]', error.response?.status || '', error.message);
@@ -3352,7 +3420,7 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
     }
 
     const r = await axios.get(`http://127.0.0.1:${PORT}/api/metrics`, {
-      params: { range },
+      params: { range, refresh: 1 },
       timeout: HTTP_TIMEOUT
     });
     const data = r.data || {};
@@ -3805,6 +3873,7 @@ app.get('/api/diagnostics/coverage', async (req, res) => {
   }
 
   const range = req.query.range || 'mtd';
+  const forceRefresh = req.query.refresh === '1' || req.query.force === '1' || req.get('Cache-Control') === 'no-cache';
 
   // Cache the reconciliation separately from the dashboard's metrics
   // cache. 15-minute TTL because this endpoint does more HCP work than
@@ -3812,32 +3881,15 @@ app.get('/api/diagnostics/coverage', async (req, res) => {
   // the underlying invoice/job state changes slowly.
   const COVERAGE_TTL = 15 * 60 * 1000;
   const cacheKey = 'coverage:' + range;
+  if (forceRefresh) {
+    invalidateCachesByPrefix(['coverage:' + range, 'metrics:' + range, 'raw-jobs-short:']);
+  }
 
   try {
     const payload = await withCache(cacheKey, COVERAGE_TTL, async () => {
-      // ── Compute period from range key ──────────────────────────────
-      // Duplicates the switch from /api/metrics. Kept inline rather than
-      // extracted because (a) the metrics endpoint's closure already
-      // captures `now`/etc. so extraction would be invasive, and (b) the
-      // logic is small enough that a copy is safer than a shared utility.
       const now = new Date();
-      const getDayStart = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-      const getDayEnd = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
-      let periodStart, periodEnd, periodLabel;
-      switch (range) {
-        case 'day':       periodStart = getDayStart(now); periodEnd = getDayEnd(now); periodLabel = 'Today'; break;
-        case 'yesterday': { const y = new Date(now); y.setDate(y.getDate() - 1); periodStart = getDayStart(y); periodEnd = getDayEnd(y); periodLabel = 'Yesterday'; break; }
-        case 'wtd':       periodStart = new Date(now); periodStart.setDate(now.getDate() - now.getDay()); periodEnd = getDayEnd(now); periodLabel = 'Week to Date'; break;
-        case 'l7d':       periodStart = new Date(now); periodStart.setDate(now.getDate() - 7); periodEnd = getDayEnd(now); periodLabel = 'Last 7 Days'; break;
-        case 'l14d':      periodStart = new Date(now); periodStart.setDate(now.getDate() - 14); periodEnd = getDayEnd(now); periodLabel = 'Last 14 Days'; break;
-        case 'l30d':      periodStart = new Date(now); periodStart.setDate(now.getDate() - 30); periodEnd = getDayEnd(now); periodLabel = 'Last 30 Days'; break;
-        case 'lm':        { const lm = new Date(now); lm.setMonth(lm.getMonth() - 1); periodStart = new Date(lm.getFullYear(), lm.getMonth(), 1); periodEnd = new Date(lm.getFullYear(), lm.getMonth() + 1, 1); periodLabel = 'Last Month'; break; }
-        case 'l90d':      periodStart = new Date(now); periodStart.setDate(now.getDate() - 90); periodEnd = getDayEnd(now); periodLabel = 'Last 90 Days'; break;
-        case 'qtd':       { const q = Math.floor(now.getMonth() / 3); periodStart = new Date(now.getFullYear(), q * 3, 1); periodEnd = getDayEnd(now); periodLabel = 'Quarter to Date'; break; }
-        case 'ytd':       periodStart = new Date(now.getFullYear(), 0, 1); periodEnd = getDayEnd(now); periodLabel = 'Year to Date'; break;
-        case 'mtd':
-        default:          periodStart = new Date(now.getFullYear(), now.getMonth(), 1); periodEnd = getDayEnd(now); periodLabel = 'Month to Date';
-      }
+      const period = getKpiPeriod(range, now);
+      const { periodStart, periodEnd, periodLabel } = period;
 
       const headers = hcpHeaders();
 
@@ -3904,7 +3956,18 @@ app.get('/api/diagnostics/coverage', async (req, res) => {
       // get a deterministic answer by reading the cached entry directly
       // and falling back to "no data" — the reconciliation then shows
       // every invoice as MISSING, which is a useful signal in itself.
-      const dashboardEntry = _cache.get('metrics:' + range);
+      let dashboardEntry = _cache.get('metrics:' + range);
+      if (!dashboardEntry) {
+        try {
+          await axios.get('http://127.0.0.1:' + PORT + '/api/metrics', {
+            params: { range },
+            timeout: 60000
+          });
+          dashboardEntry = _cache.get('metrics:' + range);
+        } catch (warmErr) {
+          console.warn('[coverage warm metrics]', warmErr.response?.status || '', warmErr.message);
+        }
+      }
       const dashboardData = dashboardEntry ? dashboardEntry.data : null;
 
       // Build invoice→credit lookup from the leaderboard's per-tech
@@ -3958,16 +4021,7 @@ app.get('/api/diagnostics/coverage', async (req, res) => {
         const status = job.work_status || null;
         const stHit = isPostCutoverSTArtifact(job);
 
-        // Compute the same kpiDate the dashboard uses.
-        let kpiDate = null;
-        if (completed) {
-          kpiDate = new Date(completed);
-        } else if (scheduled) {
-          const sd = new Date(scheduled);
-          // The dashboard's "auto-date stale jobs" rule: 3 days past
-          // scheduled with no completion → treat as completed-at-scheduled.
-          if (Date.now() - sd.getTime() > 3 * 24 * 60 * 60 * 1000) kpiDate = sd;
-        }
+        const kpiDate = kpiDateForJob(job);
         const inPeriod = kpiDate && kpiDate >= periodStart && kpiDate < periodEnd;
 
         // Where in the pipeline would this job have been credited?
@@ -4596,11 +4650,9 @@ app.post('/api/kpi/admin/reconcile', (req, res) => {
   };
   if (!saveReconciliations(recs)) return res.status(500).json({ error: 'Save failed' });
 
-  // Invalidate the metrics cache so the next dashboard load shows the
-  // reconciled attribution immediately.
-  Array.from(_cache.keys()).forEach(k => {
-    if (k.startsWith('metrics:')) _cache.delete(k);
-  });
+  // Reconciliation changes attribution and exception state, so clear
+  // every KPI-facing cache rather than just the leaderboard response.
+  invalidateKpiCaches();
 
   res.json({ ok: true, reconciliation: recs[jobId] });
 });
@@ -4611,9 +4663,7 @@ app.delete('/api/kpi/admin/reconcile/:jobId', (req, res) => {
   const recs = loadReconciliations();
   delete recs[req.params.jobId];
   if (!saveReconciliations(recs)) return res.status(500).json({ error: 'Save failed' });
-  Array.from(_cache.keys()).forEach(k => {
-    if (k.startsWith('metrics:')) _cache.delete(k);
-  });
+  invalidateKpiCaches();
   res.json({ ok: true });
 });
 
@@ -4636,6 +4686,7 @@ app.delete('/api/kpi/admin/reconcile/:jobId', (req, res) => {
 app.get('/api/kpi/admin/period-jobs', async (req, res) => {
   if (!requireAdmin(req, res)) return;
   const range = String(req.query.range || 'mtd');
+  const forceRefresh = req.query.refresh === '1' || req.query.force === '1';
 
   try {
     // Always fetch metrics via internal HTTP rather than reading the
@@ -4649,7 +4700,7 @@ app.get('/api/kpi/admin/period-jobs', async (req, res) => {
     let metricsData = null;
     try {
       const internalRes = await axios.get('http://127.0.0.1:' + internalPort + '/api/metrics', {
-        params: { range },
+        params: { range, ...(forceRefresh ? { refresh: 1 } : {}) },
         timeout: 60000
       });
       metricsData = internalRes.data;
@@ -4766,7 +4817,7 @@ app.get('/api/kpi/admin/period-jobs', async (req, res) => {
       if (!r.excluded) return;
       const kd = r.kpiDate && r.kpiDate.slice(0, 10);
       if (!kd || !periodStartIso || !periodEndIso) return;
-      if (kd < periodStartIso || kd > periodEndIso) return;
+      if (kd < periodStartIso || kd >= periodEndIso) return;
       if (seenInvoices.has(String(r.jobId)) || out.some(o => o.jobId === r.jobId)) return;
       out.push({
         key: r.jobId,

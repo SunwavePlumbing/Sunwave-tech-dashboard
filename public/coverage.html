@@ -359,13 +359,13 @@ async function run() {
   $('runBtn').disabled = true;
   $('runBtn').textContent = 'Running…';
   $('output').innerHTML = '<div class="status">' +
-    'Enumerating invoices and reconciling against the dashboard… ' +
-    '(first run may take 10–30 seconds; subsequent runs are cached.)' +
+    'Enumerating invoices and reconciling against fresh dashboard data… ' +
+    '(this can take 10–30 seconds.)' +
     '</div>';
 
   try {
     const url = '/api/diagnostics/coverage?range=' + encodeURIComponent(range) +
-      '&password=' + encodeURIComponent(pw);
+      '&refresh=1&password=' + encodeURIComponent(pw);
     const r = await fetch(url);
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
