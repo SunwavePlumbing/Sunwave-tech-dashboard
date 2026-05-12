@@ -482,7 +482,7 @@
     }
     .pj-row {
       display: grid;
-      grid-template-columns: 100px 1fr 130px 110px;
+      grid-template-columns: 100px 1fr 110px 100px 70px;
       gap: 12px;
       padding: 12px 16px;
       border-bottom: 1px solid var(--border);
@@ -491,7 +491,27 @@
       transition: background 0.1s;
     }
     .pj-row:last-child { border-bottom: 0; }
-    .pj-row:hover { background: rgba(232, 129, 64, 0.04); }
+    .pj-row:hover {
+      background: rgba(232, 129, 64, 0.06);
+    }
+    .pj-row:hover .pj-edit-btn {
+      color: var(--brand);
+      background: rgba(232, 129, 64, 0.12);
+      transform: translateX(2px);
+    }
+    .pj-edit-btn {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ink-mute);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      padding: 5px 12px;
+      text-align: center;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
     .pj-status {
       font-size: 10px;
       font-weight: 700;
@@ -559,6 +579,7 @@
       }
       .pj-status { grid-column: 1 / -1; justify-self: flex-start; }
       .pj-date   { grid-column: 1 / -1; text-align: left; }
+      .pj-edit-btn { grid-column: 1 / -1; justify-self: stretch; text-align: center; margin-top: 4px; }
     }
     .pj-empty {
       padding: 32px;
@@ -948,11 +969,23 @@ async function setIssueStatus(id, status) {
 
 $('lookupBtn').addEventListener('click', () => {
   const v = $('jobLookup').value.trim();
-  if (!v) return;
-  // Extract job ID from a URL or use as-is
+  if (!v) {
+    alert('Paste an invoice number (like 313) or a job ID (job_xxx) from HCP first.');
+    return;
+  }
+  // job_xxx in the URL? Extract and open directly.
   const m = v.match(/job_[a-z0-9]+/i);
-  if (m) openEditorFromJobId(m[0]);
-  else openEditorFromInvoice(v);
+  if (m) {
+    openEditorFromJobId(m[0]);
+    return;
+  }
+  // Pure numeric? Treat as invoice number.
+  if (/^\d+$/.test(v.replace(/^#/, ''))) {
+    openEditorByInvoice(v.replace(/^#/, ''));
+    return;
+  }
+  // Anything else — try as invoice (server will 404 if no match).
+  openEditorByInvoice(v);
 });
 
 // ── Period jobs list ───────────────────────────────────────────────
@@ -1004,14 +1037,14 @@ function renderPeriodRow(j) {
     : (j.hcpAssignedEmployees && j.hcpAssignedEmployees.length
        ? '<span style="color:var(--ink-mute)">HCP: ' + j.hcpAssignedEmployees.map(escapeHtml).join(', ') + '</span>'
        : '<span style="color:var(--ink-mute)">unassigned</span>');
-  // Job ID needed to open editor — credited entries don't currently
-  // carry it, so for those rows we disable the click and show a hint.
-  const canEdit = !!j.jobId;
-  const clickAttr = canEdit
-    ? 'onclick="openEditorFromJobId(\'' + escapeHtml(j.jobId) + '\')"'
-    : 'title="No job ID available — open via the lookup field above"';
-  const rowStyle = canEdit ? '' : 'style="cursor:default;opacity:0.85"';
-  return '<div class="pj-row" ' + rowStyle + ' ' + clickAttr + '>' +
+  // Use data attributes + event delegation rather than inline onclick.
+  // Inline onclick depends on the handler being on `window` and fails
+  // silently if anything's wrong. Data attributes are bulletproof —
+  // the delegated listener (see periodJobsList click below) reads
+  // them at click time.
+  const dataAttrs = (j.jobId ? ' data-job-id="' + escapeHtml(j.jobId) + '"' : '')
+                  + (j.invoice ? ' data-invoice="' + escapeHtml(String(j.invoice)) + '"' : '');
+  return '<div class="pj-row"' + dataAttrs + '>' +
     '<span class="pj-status pj-status--' + j.status + '">' + j.status + '</span>' +
     '<div class="pj-main">' +
       '<div class="pj-main-top">' +
@@ -1025,13 +1058,53 @@ function renderPeriodRow(j) {
     '<span class="pj-amount">' + fmt(j.totalAmount || 0) +
       (j.outstanding ? '<div class="pj-amount-sub">Unpaid ' + fmt(j.outstanding) + '</div>' : '') +
     '</span>' +
+    '<span class="pj-edit-btn">Edit &rarr;</span>' +
   '</div>';
 }
 
+// Event delegation for the period-jobs list. Attached once to the
+// container so it works for every row, every reload, no matter when
+// they were rendered. Far more robust than per-row inline onclick.
+document.getElementById('periodJobsList').addEventListener('click', function(e) {
+  const row = e.target.closest('.pj-row');
+  if (!row) return;
+  const jobId = row.getAttribute('data-job-id');
+  const invoice = row.getAttribute('data-invoice');
+  if (jobId) {
+    openEditorFromJobId(jobId);
+  } else if (invoice) {
+    // No job ID available — try by invoice. Server endpoint accepts
+    // either path; if it can't find a match, the editor surfaces the
+    // error inline.
+    openEditorByInvoice(invoice);
+  } else {
+    alert('No identifier on this row — please paste the job ID from HCP above.');
+  }
+});
+
 async function openEditorFromInvoice(invoice) {
-  // We don't have a direct invoice→job lookup here; ask the admin to
-  // paste the job ID instead. (HCP's /invoices?q= isn't supported.)
-  alert('Open the job in HCP and copy its URL (or the job_… ID). Paste it into the lookup field. Invoice-only lookup isn\'t supported yet.');
+  return openEditorByInvoice(invoice);
+}
+
+// Look up the job by invoice number, then open the editor. Calls a
+// server-side resolution endpoint that searches HCP's /invoices to
+// find the matching job_id.
+async function openEditorByInvoice(invoice) {
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('is-active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('is-active'));
+  document.querySelector('[data-panel="reconcile"]').classList.add('is-active');
+  $('panel-reconcile').classList.add('is-active');
+  $('editorContainer').innerHTML = '<div class="empty">Looking up invoice #' + escapeHtml(invoice) + '…</div>';
+  try {
+    const data = await api('/api/kpi/admin/job-by-invoice?invoice=' + encodeURIComponent(invoice));
+    if (data && data.jobId) {
+      openEditorFromJobId(data.jobId);
+    } else {
+      $('editorContainer').innerHTML = '<div class="empty">No HCP job found for invoice #' + escapeHtml(invoice) + '. Paste the job_id from HCP above instead.</div>';
+    }
+  } catch (err) {
+    $('editorContainer').innerHTML = '<div class="empty">Error: ' + escapeHtml(err.message) + '</div>';
+  }
 }
 
 async function openEditorFromJobId(jobId) {

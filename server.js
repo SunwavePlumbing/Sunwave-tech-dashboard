@@ -4333,6 +4333,54 @@ app.get('/api/kpi/admin/job/:id', async (req, res) => {
   }
 });
 
+// Resolve an invoice number → HCP job_id. Used by the admin UI when
+// the period-jobs list has a row with an invoice but no jobId (rare
+// edge case; most rows now have both). Searches the last 365 days of
+// /invoices for an exact invoice_number match. If multiple matches,
+// returns the most recently created.
+app.get('/api/kpi/admin/job-by-invoice', async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  if (!API_KEY) return res.status(503).json({ error: 'HCP API key not configured' });
+  const invoice = String(req.query.invoice || '').trim();
+  if (!invoice) return res.status(400).json({ error: 'invoice query param required' });
+  try {
+    const headers = hcpHeaders();
+    // No direct search-by-invoice-number endpoint exists, so we use a
+    // wide date range + filter client-side. 365 days is enough for any
+    // reasonable admin workflow; longer-ago jobs can use the manual
+    // job_id paste flow.
+    const start = new Date();
+    start.setDate(start.getDate() - 365);
+    const params = {
+      created_at_min: start.toISOString(),
+      created_at_max: new Date().toISOString(),
+      page_size: 200
+    };
+    const matches = [];
+    const target = invoice.replace(/^#/, '').toLowerCase();
+    let page = 1;
+    while (page <= 25) {
+      const r = await axios.get(BASE_URL + '/invoices', { headers, params: { ...params, page } });
+      const invs = r.data.invoices || [];
+      invs.forEach(inv => {
+        const num = String(inv.invoice_number || '').toLowerCase();
+        if (num === target || num.split('-')[0] === target) matches.push(inv);
+      });
+      if (matches.length > 0 || page >= (r.data.total_pages || 1)) break;
+      page++;
+    }
+    if (matches.length === 0) return res.status(404).json({ error: 'No invoice match found' });
+    // Pick most recent
+    matches.sort((a, b) => new Date(b.created_at || b.invoice_date || 0) - new Date(a.created_at || a.invoice_date || 0));
+    const winner = matches[0];
+    if (!winner.job_id) return res.status(404).json({ error: 'Invoice found but has no linked job_id' });
+    res.json({ jobId: winner.job_id, invoice: winner.invoice_number });
+  } catch (err) {
+    console.error('[admin/job-by-invoice]', err.response?.status || '', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Save a reconciliation. Supports two flows in one endpoint:
 //   • Full reconcile — body has assignments[] with %s summing to 100,
 //     optional totalAmount, kpiDate, notes. Locks the job's
