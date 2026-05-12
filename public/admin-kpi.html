@@ -494,23 +494,31 @@
     .pj-row:hover {
       background: rgba(232, 129, 64, 0.06);
     }
-    .pj-row:hover .pj-edit-btn {
-      color: var(--brand);
-      background: rgba(232, 129, 64, 0.12);
-      transform: translateX(2px);
-    }
     .pj-edit-btn {
       font-size: 12px;
       font-weight: 700;
-      color: var(--ink-mute);
-      background: var(--bg);
-      border: 1px solid var(--border);
+      color: white;
+      background: var(--brand);
+      border: 0;
       border-radius: 100px;
-      padding: 5px 12px;
+      padding: 7px 14px;
       text-align: center;
       letter-spacing: 0.04em;
       white-space: nowrap;
+      cursor: pointer;
+      font-family: inherit;
       transition: all 0.15s;
+      box-shadow: 0 1px 3px rgba(232, 129, 64, 0.25);
+    }
+    .pj-edit-btn:hover {
+      filter: brightness(1.05);
+      transform: translateX(2px);
+      box-shadow: 0 2px 6px rgba(232, 129, 64, 0.35);
+    }
+    .pj-edit-btn:active { transform: scale(0.97); }
+    .pj-edit-btn:focus-visible {
+      outline: 2px solid var(--brand);
+      outline-offset: 2px;
     }
     .pj-status {
       font-size: 10px;
@@ -1037,14 +1045,17 @@ function renderPeriodRow(j) {
     : (j.hcpAssignedEmployees && j.hcpAssignedEmployees.length
        ? '<span style="color:var(--ink-mute)">HCP: ' + j.hcpAssignedEmployees.map(escapeHtml).join(', ') + '</span>'
        : '<span style="color:var(--ink-mute)">unassigned</span>');
-  // Use data attributes + event delegation rather than inline onclick.
-  // Inline onclick depends on the handler being on `window` and fails
-  // silently if anything's wrong. Data attributes are bulletproof —
-  // the delegated listener (see periodJobsList click below) reads
-  // them at click time.
-  const dataAttrs = (j.jobId ? ' data-job-id="' + escapeHtml(j.jobId) + '"' : '')
-                  + (j.invoice ? ' data-invoice="' + escapeHtml(String(j.invoice)) + '"' : '');
-  return '<div class="pj-row"' + dataAttrs + '>' +
+  // Both jobId and invoice are surfaced on data attrs. The delegated
+  // click handler below reads them at click time. If neither is
+  // available the row falls back to a "look up in HCP" hint.
+  const jobIdAttr = j.jobId  ? ' data-job-id="' + escapeHtml(j.jobId)  + '"' : '';
+  const invAttr   = j.invoice ? ' data-invoice="' + escapeHtml(String(j.invoice)) + '"' : '';
+  // Real <button>, not a styled span. Buttons get keyboard focus, ARIA
+  // semantics, and unambiguous click events. The whole row is also
+  // clickable, but the button is the explicit affordance.
+  const editBtn = '<button type="button" class="pj-edit-btn"' + jobIdAttr + invAttr +
+                  '>Edit &rarr;</button>';
+  return '<div class="pj-row"' + jobIdAttr + invAttr + '>' +
     '<span class="pj-status pj-status--' + j.status + '">' + j.status + '</span>' +
     '<div class="pj-main">' +
       '<div class="pj-main-top">' +
@@ -1058,27 +1069,34 @@ function renderPeriodRow(j) {
     '<span class="pj-amount">' + fmt(j.totalAmount || 0) +
       (j.outstanding ? '<div class="pj-amount-sub">Unpaid ' + fmt(j.outstanding) + '</div>' : '') +
     '</span>' +
-    '<span class="pj-edit-btn">Edit &rarr;</span>' +
+    editBtn +
   '</div>';
 }
 
-// Event delegation for the period-jobs list. Attached once to the
-// container so it works for every row, every reload, no matter when
-// they were rendered. Far more robust than per-row inline onclick.
-document.getElementById('periodJobsList').addEventListener('click', function(e) {
-  const row = e.target.closest('.pj-row');
-  if (!row) return;
-  const jobId = row.getAttribute('data-job-id');
-  const invoice = row.getAttribute('data-invoice');
+// ── Robust click handling for period-jobs rows ───────────────────────
+// Document-level delegation. Attaches to `document` (not the list
+// container) so it works regardless of when/if the list element exists
+// and survives any future re-renders. Reads data-job-id / data-invoice
+// from whichever element (row or button) the user actually hit.
+//
+// Console logs are intentional — if you ever wonder whether a click
+// is being detected, open browser DevTools → Console and you'll see
+// the click flow.
+document.addEventListener('click', function(e) {
+  const hit = e.target.closest('.pj-edit-btn, .pj-row');
+  if (!hit) return;
+  // Make sure the click is inside the period-jobs list (or the locked
+  // records list, which uses the same handler shape).
+  if (!hit.closest('#periodJobsList')) return;
+  const jobId  = hit.getAttribute('data-job-id') || hit.closest('.pj-row')?.getAttribute('data-job-id');
+  const invoice = hit.getAttribute('data-invoice') || hit.closest('.pj-row')?.getAttribute('data-invoice');
+  console.log('[period-jobs click]', { jobId, invoice, target: e.target });
   if (jobId) {
     openEditorFromJobId(jobId);
   } else if (invoice) {
-    // No job ID available — try by invoice. Server endpoint accepts
-    // either path; if it can't find a match, the editor surfaces the
-    // error inline.
     openEditorByInvoice(invoice);
   } else {
-    alert('No identifier on this row — please paste the job ID from HCP above.');
+    alert('This row has no job ID or invoice number — paste the HCP job ID into the lookup field above.');
   }
 });
 
