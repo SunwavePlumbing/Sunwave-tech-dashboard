@@ -433,6 +433,7 @@ const _cache = new Map();
 const CACHE_DIR  = process.env.QBO_TOKEN_DIR || __dirname;
 const CACHE_FILE = path.join(CACHE_DIR, '.dashboard-cache.json');
 let _cacheWriteTimer = null;
+let _cacheEpoch = 0;
 
 // Debounced async disk flush. cacheSet schedules; the timer fires once 5 s
 // after the most-recent set, snapshotting the whole map at that moment. We
@@ -501,9 +502,11 @@ function cacheGet(key, ttlMs) {
   if (Date.now() - e.at > ttlMs) { _cache.delete(key); return null; }
   return e.data;
 }
-function cacheSet(key, data) {
+function cacheSet(key, data, expectedEpoch) {
+  if (expectedEpoch != null && expectedEpoch !== _cacheEpoch) return false;
   _cache.set(key, { at: Date.now(), data });
   scheduleDiskCacheWrite();
+  return true;
 }
 
 function cacheMeta(key) {
@@ -524,6 +527,7 @@ function cacheMeta(key) {
 function invalidateCachesByPrefix(prefixes) {
   const list = Array.isArray(prefixes) ? prefixes : [prefixes];
   let count = 0;
+  _cacheEpoch++;
   Array.from(_cache.keys()).forEach(k => {
     if (list.some(prefix => k === prefix || k.startsWith(prefix))) {
       _cache.delete(k);
@@ -599,10 +603,11 @@ async function withCache(key, ttlMs, factory) {
     if (age <= ttlMs) return entry.data;
     // Stale — kick off background revalidation (deduped) and return stale now
     if (!_inflight.has(key)) {
+      const epoch = _cacheEpoch;
       inflightGet(key, async () => {
         try {
           const fresh = await factory();
-          cacheSet(key, fresh);
+          cacheSet(key, fresh, epoch);
           return fresh;
         } catch (e) {
           console.warn('[cache:bg-revalidate]', key, e.message);
@@ -613,9 +618,10 @@ async function withCache(key, ttlMs, factory) {
     return entry.data;
   }
   // Cold — foreground fetch, deduped against any concurrent caller
+  const epoch = _cacheEpoch;
   const fresh = await inflightGet(key, async () => {
     const result = await factory();
-    cacheSet(key, result);
+    cacheSet(key, result, epoch);
     return result;
   });
   return fresh;
@@ -1114,6 +1120,7 @@ app.get('/api/metrics', async (req, res) => {
     // Builds the raw cache by fetching the wide window + all estimates.
     // De-duped via inflightGet() so concurrent requests share one fetch.
     const fetchRawShort = () => inflightGet('raw-short', async () => {
+      const rawEpoch = _cacheEpoch;
       const RAW_TTL = 5 * 60 * 1000;
       const ck = 'raw-jobs-short:' + RAW_WINDOW_DAYS;
       const cached = cacheGet(ck, RAW_TTL);
@@ -1175,7 +1182,7 @@ app.get('/api/metrics', async (req, res) => {
       }
 
       const result = { jobs, sellerMap };
-      cacheSet(ck, result);
+      cacheSet(ck, result, rawEpoch);
       return result;
     });
 
