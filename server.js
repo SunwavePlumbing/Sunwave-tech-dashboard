@@ -358,6 +358,19 @@ function loadDiskCache() {
   }
 }
 loadDiskCache();
+// Invalidate metrics:* entries from the disk cache on startup. The
+// metrics payload's shape evolves with each deploy (new fields like
+// jobId, summary.reconciliation, etc.) so a payload computed by a
+// previous code version may be missing fields the current code
+// depends on. Recomputing on first request is cheap relative to
+// chasing shape-drift bugs through downstream consumers.
+let _bustedMetrics = 0;
+Array.from(_cache.keys()).forEach(k => {
+  if (k.startsWith('metrics:') || k.startsWith('marketing') || k === 'qbo-marketing') {
+    _cache.delete(k); _bustedMetrics++;
+  }
+});
+if (_bustedMetrics) console.log('[cache] Busted ' + _bustedMetrics + ' metrics/marketing entries on startup to ensure fresh shape');
 
 function cacheGet(key, ttlMs) {
   const e = _cache.get(key);
@@ -4432,21 +4445,37 @@ app.get('/api/kpi/admin/period-jobs', async (req, res) => {
   const range = String(req.query.range || 'mtd');
 
   try {
-    // Fetch the metrics payload for this range — that already has the
-    // leaderboard + per-tech jobLists + unattributed entries.
-    const metricsEntry = await withCache('metrics:' + range, 2 * 60 * 1000, async () => {
-      // Should be cache-warm already; this factory is a fallback.
-      return null;
-    });
-    if (!metricsEntry) {
-      // If the cache was cold, kick the dashboard to warm it first.
-      return res.status(503).json({ error: 'Dashboard cache cold — open the main dashboard with this range first.' });
+    // Always fetch metrics via internal HTTP rather than reading the
+    // cache directly. The metrics endpoint handles its own caching,
+    // so warm cache responds quickly; but going through HTTP means we
+    // always get whatever shape the CURRENT code is producing — never
+    // a stale-shape payload from a previous deploy's cache. This is
+    // what makes the period-jobs editor reliably see `jobId` on every
+    // credited row.
+    const internalPort = process.env.PORT || 3000;
+    let metricsData = null;
+    try {
+      const internalRes = await axios.get('http://127.0.0.1:' + internalPort + '/api/metrics', {
+        params: { range },
+        timeout: 60000
+      });
+      metricsData = internalRes.data;
+    } catch (fetchErr) {
+      console.warn('[period-jobs internal fetch]', fetchErr.message);
+      return res.status(503).json({
+        error: 'Could not load metrics: ' + (fetchErr.response?.data?.error || fetchErr.message)
+      });
+    }
+    if (!metricsData || metricsData.error) {
+      return res.status(503).json({
+        error: 'Metrics endpoint returned error: ' + (metricsData && metricsData.error || 'no data')
+      });
     }
 
     const RECS = loadReconciliations();
-    const summary = metricsEntry.summary || {};
-    const leaderboard = metricsEntry.leaderboard || [];
-    const unattributed = metricsEntry.unattributed || [];
+    const summary = metricsData.summary || {};
+    const leaderboard = metricsData.leaderboard || [];
+    const unattributed = metricsData.unattributed || [];
 
     // Walk the leaderboard's per-tech jobLists, indexed by invoice
     // number (the closest thing to a job key we have here — the
