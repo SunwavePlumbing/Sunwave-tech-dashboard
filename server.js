@@ -1423,6 +1423,18 @@ app.get('/api/metrics', async (req, res) => {
       // If this job has been reconciled by an admin, the reconciliation
       // record is the truth. Build the credit purely from it.
       const recon = job && job.id ? RECONCILIATIONS[job.id] : null;
+
+      // Excluded reconciliations: the admin has chosen to hide this
+      // job entirely. Mark as credited so neither the gap pass nor the
+      // unattributed safety net surfaces it. Returns true (not false)
+      // so the caller doesn't add to orphans.
+      if (recon && recon.excluded) {
+        if (job.id) creditedJobIds.add(job.id);
+        const ikey0 = creditedInvoiceKey(job);
+        if (ikey0) creditedInvoiceKeys.add(ikey0);
+        return true;
+      }
+
       if (recon && Array.isArray(recon.assignments) && recon.assignments.length > 0) {
         const reconAmount = (recon.totalAmount != null
           ? Number(recon.totalAmount)
@@ -1438,7 +1450,14 @@ app.get('/api/metrics', async (req, res) => {
           if (rd < periodStart || rd >= periodEnd) return true;
         }
         const customer = jobCustomerName(job);
-        const jobOutstandingGross = Math.max(0, parseFloat(job.outstanding_balance || 0) / 100);
+        // Admin-marked-as-paid forces the outstanding to zero; otherwise
+        // we use HCP's outstanding_balance directly. This is the escape
+        // hatch for jobs that have been paid in cash/elsewhere and not
+        // yet synced through HCP — admin can mark them paid via the
+        // reconciliation editor and the unpaid column updates.
+        const jobOutstandingGross = recon.markedPaid
+          ? 0
+          : Math.max(0, parseFloat(job.outstanding_balance || 0) / 100);
         const allInvolvedNames = recon.assignments.map(a => a.employeeName).filter(Boolean);
         const totalPct = recon.assignments.reduce((s, a) => s + (Number(a.creditPct) || 0), 0) || 100;
 
@@ -1835,6 +1854,11 @@ app.get('/api/metrics', async (req, res) => {
     //   • Standalone invoices (no job_id at all)
     for (const jobId of allPaidJobIds) {
       if (creditedJobIds.has(jobId)) continue;
+      // Honor admin-excluded reconciliations even in the safety-net
+      // pass — if an admin has chosen to exclude a job, it must not
+      // appear anywhere on the dashboard, including this fallback.
+      const reconForGap = RECONCILIATIONS[jobId];
+      if (reconForGap && reconForGap.excluded) continue;
       const invs = invoicesByJob[jobId];
       const paidInPeriod = invs.reduce((s, inv) =>
         s + parseFloat(inv.amount || 0) / 100, 0);
@@ -1849,6 +1873,12 @@ app.get('/api/metrics', async (req, res) => {
       // Determine why this landed here so the UI can show a useful
       // reason chip without the tech/admin having to guess.
       let reason;
+      // kpiDate carries the actual service date (completed_at, or
+      // scheduled_start if auto-dated). When the reason is
+      // "completed_in_different_period", this is the field the UI
+      // shows so the user knows where the job was *actually* credited.
+      const kdRaw = job ? kpiDateForJob(job) : null;
+      const kpiDateIso = kdRaw && !isNaN(kdRaw.getTime()) ? kdRaw.toISOString() : null;
       if (failedJobFetches.has(jobId)) {
         reason = 'job_details_unavailable';
       } else if (!job) {
@@ -1857,13 +1887,10 @@ app.get('/api/metrics', async (req, res) => {
         reason = 'servicetitan_artifact';
       } else if ((job.assigned_employees || []).length === 0) {
         reason = 'no_assigned_employees';
+      } else if (kdRaw && (kdRaw < periodStart || kdRaw >= periodEnd)) {
+        reason = 'completed_in_different_period';
       } else {
-        const kd = kpiDateForJob(job);
-        if (kd && (kd < periodStart || kd >= periodEnd)) {
-          reason = 'completed_in_different_period';
-        } else {
-          reason = 'pipeline_unknown';  // shouldn't happen — flags a bug
-        }
+        reason = 'pipeline_unknown';  // shouldn't happen — flags a bug
       }
 
       unattributed.push({
@@ -1876,6 +1903,7 @@ app.get('/api/metrics', async (req, res) => {
         paidAt: latestPaidAt,
         workStatus: job ? job.work_status : null,
         completedAt: job && job.work_timestamps ? job.work_timestamps.completed_at : null,
+        kpiDate: kpiDateIso, // service date the job actually counts for
         assignedEmployees: job && job.assigned_employees
           ? job.assigned_employees.map(e => ((e.first_name || '') + ' ' + (e.last_name || '')).trim()).filter(Boolean)
           : [],
@@ -1946,6 +1974,43 @@ app.get('/api/metrics', async (req, res) => {
       unattributed.reduce((s, u) => s + (u.amount || 0), 0)
     );
 
+    // ── Reconciliation coverage for this period ────────────────────
+    // For each invoice on the leaderboard, check whether the
+    // corresponding job is reconciled. Aggregate counts so the client
+    // can show a "fully reconciled" badge when everything's locked.
+    let reconciledJobs = 0;
+    let totalJobs2 = 0;
+    leaderboard.forEach(t => {
+      (t.jobList || []).forEach(row => {
+        // Count each unique invoice only once
+        if (!row._reconCounted) {
+          row._reconCounted = true;
+          totalJobs2++;
+          if (row.reconciled) reconciledJobs++;
+        }
+      });
+    });
+    // Plus excluded reconciliations whose kpiDate falls in period
+    Object.values(RECONCILIATIONS).forEach(r => {
+      if (!r.excluded) return;
+      const kd = r.kpiDate && r.kpiDate.slice(0, 10);
+      if (!kd) return;
+      const psI = periodStart.toISOString().slice(0, 10);
+      const peI = periodEnd.toISOString().slice(0, 10);
+      if (kd >= psI && kd <= peI) {
+        totalJobs2++;
+        reconciledJobs++;  // excluded counts as reconciled (intentional)
+      }
+    });
+    const reconciliationStatus = {
+      totalJobs: totalJobs2,
+      reconciledJobs,
+      unattributedJobs: unattributed.length,
+      fullyReconciled: totalJobs2 > 0 &&
+        reconciledJobs === totalJobs2 &&
+        unattributed.filter(u => u.reason === 'no_assigned_employees' || u.reason === 'pipeline_unknown' || u.reason === 'job_details_unavailable').length === 0
+    };
+
     return {
       leaderboard,
       // periodStart/periodEnd are ISO date strings (YYYY-MM-DD) so the
@@ -1959,7 +2024,8 @@ app.get('/api/metrics', async (req, res) => {
         periodEnd:   periodEnd.toISOString().slice(0, 10),
         orphanCount: orphans.length,
         unattributedCount: unattributed.length,
-        unattributedTotal
+        unattributedTotal,
+        reconciliation: reconciliationStatus
       },
       // Legacy: jobs paid in the period but not credited to a tech (no
       // assigned_employees in HCP). Surfaced in the existing orphan
@@ -4229,28 +4295,42 @@ app.get('/api/kpi/admin/job/:id', async (req, res) => {
   }
 });
 
-// Save a reconciliation. The body's `reconcile` flag controls whether
-// this is a "save & lock" or "save without locking" (rare; usually
-// admin reconciles immediately when editing).
+// Save a reconciliation. Supports two flows in one endpoint:
+//   • Full reconcile — body has assignments[] with %s summing to 100,
+//     optional totalAmount, kpiDate, notes. Locks the job's
+//     attribution against the auto-pipeline.
+//   • Exclude-only — body has { jobId, excluded: true }. No
+//     assignments required because the job won't appear anywhere.
+//     Used to take ServiceTitan artifacts, accidental jobs, or
+//     duplicate invoices off the dashboard entirely.
+// In both modes the previous record gets appended to history[].
 app.post('/api/kpi/admin/reconcile', (req, res) => {
   if (!requireAdmin(req, res)) return;
   const body = req.body || {};
   const jobId = String(body.jobId || '').trim();
   if (!jobId) return res.status(400).json({ error: 'jobId required' });
+
+  const excluded   = body.excluded === true;
+  const markedPaid = body.markedPaid === true;
+
+  // Assignments are required UNLESS the job is being excluded. An
+  // excluded job has no attribution because it won't appear anywhere.
   const assignments = Array.isArray(body.assignments) ? body.assignments : [];
-  if (assignments.length === 0) {
-    return res.status(400).json({ error: 'At least one assignment required' });
-  }
-  // Normalize + validate
-  const norm = assignments.map(a => ({
-    employeeName: String(a.employeeName || '').slice(0, 80).trim(),
-    role: ['Sold', 'Did', 'Sold & Did'].includes(a.role) ? a.role : 'Did',
-    creditPct: Math.max(0, Math.min(100, Number(a.creditPct) || 0))
-  })).filter(a => a.employeeName);
-  if (norm.length === 0) return res.status(400).json({ error: 'No valid assignments' });
-  const pctSum = norm.reduce((s, a) => s + a.creditPct, 0);
-  if (Math.abs(pctSum - 100) > 0.5) {
-    return res.status(400).json({ error: 'Credit percentages must sum to 100 (got ' + pctSum.toFixed(1) + ')' });
+  let norm = [];
+  if (!excluded) {
+    if (assignments.length === 0) {
+      return res.status(400).json({ error: 'At least one assignment required' });
+    }
+    norm = assignments.map(a => ({
+      employeeName: String(a.employeeName || '').slice(0, 80).trim(),
+      role: ['Sold', 'Did', 'Sold & Did'].includes(a.role) ? a.role : 'Did',
+      creditPct: Math.max(0, Math.min(100, Number(a.creditPct) || 0))
+    })).filter(a => a.employeeName);
+    if (norm.length === 0) return res.status(400).json({ error: 'No valid assignments' });
+    const pctSum = norm.reduce((s, a) => s + a.creditPct, 0);
+    if (Math.abs(pctSum - 100) > 0.5) {
+      return res.status(400).json({ error: 'Credit percentages must sum to 100 (got ' + pctSum.toFixed(1) + ')' });
+    }
   }
 
   const recs = loadReconciliations();
@@ -4262,6 +4342,8 @@ app.post('/api/kpi/admin/reconcile', (req, res) => {
     kpiDate: body.kpiDate || existing.kpiDate || null,
     notes: String(body.notes || '').slice(0, 1000),
     locked: body.locked !== false, // default true
+    excluded,
+    markedPaid,
     reconciledAt: new Date().toISOString(),
     reconciledBy: String(body.reconciledBy || 'admin').slice(0, 80).trim(),
     // Preserve a history trail
@@ -4273,6 +4355,8 @@ app.post('/api/kpi/admin/reconcile', (req, res) => {
             totalAmount: existing.totalAmount,
             kpiDate: existing.kpiDate,
             notes: existing.notes,
+            excluded: existing.excluded || false,
+            markedPaid: existing.markedPaid || false,
             reconciledAt: existing.reconciledAt,
             reconciledBy: existing.reconciledBy
           }]
@@ -4300,6 +4384,193 @@ app.delete('/api/kpi/admin/reconcile/:jobId', (req, res) => {
     if (k.startsWith('metrics:')) _cache.delete(k);
   });
   res.json({ ok: true });
+});
+
+// ── /api/kpi/admin/period-jobs — every job touching a period ─────────
+// Returns the comprehensive list for the reconciliation tab: credited
+// jobs + unattributed + excluded reconciliations + manually-reconciled
+// jobs whose KPI date falls in the period.
+//
+// Per-job entry includes its current attribution, reconciliation state,
+// and a single `status` field the admin UI uses to color the row:
+//   reconciled    — has a non-excluded reconciliation record
+//   excluded      — admin chose to hide this job entirely
+//   unattributed  — paid in period but the auto-pipeline couldn't
+//                   credit it (no tech / different period / etc.)
+//   credited      — credited on the leaderboard via auto-pipeline,
+//                   no admin reconciliation yet
+//
+// `summary` rolls up reconciliation coverage so the dashboard can
+// show "fully reconciled" / "reconciled through {date}" badges.
+app.get('/api/kpi/admin/period-jobs', async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const range = String(req.query.range || 'mtd');
+
+  try {
+    // Fetch the metrics payload for this range — that already has the
+    // leaderboard + per-tech jobLists + unattributed entries.
+    const metricsEntry = await withCache('metrics:' + range, 2 * 60 * 1000, async () => {
+      // Should be cache-warm already; this factory is a fallback.
+      return null;
+    });
+    if (!metricsEntry) {
+      // If the cache was cold, kick the dashboard to warm it first.
+      return res.status(503).json({ error: 'Dashboard cache cold — open the main dashboard with this range first.' });
+    }
+
+    const RECS = loadReconciliations();
+    const summary = metricsEntry.summary || {};
+    const leaderboard = metricsEntry.leaderboard || [];
+    const unattributed = metricsEntry.unattributed || [];
+
+    // Walk the leaderboard's per-tech jobLists, indexed by invoice
+    // number (the closest thing to a job key we have here — the
+    // server doesn't currently surface job_id on credited rows, just
+    // invoice_number). Group multi-tech credits by invoice.
+    const creditedByInvoice = {};
+    leaderboard.forEach(tech => {
+      (tech.jobList || []).forEach(row => {
+        const key = String(row.invoice || '').trim();
+        if (!key) return;
+        if (!creditedByInvoice[key]) {
+          creditedByInvoice[key] = {
+            invoice: key,
+            customer: row.customer,
+            description: row.description,
+            date: row.date,
+            jobTotal: row.jobTotal,
+            outstanding: row.outstanding,
+            reconciled: row.reconciled || false,
+            assignments: []
+          };
+        }
+        creditedByInvoice[key].assignments.push({
+          name: tech.name,
+          role: row.role,
+          creditPct: row.creditPct,
+          credit: row.credit
+        });
+      });
+    });
+
+    // Build a unified jobs array. Each entry is keyed by (invoice OR
+    // jobId) — but credited entries don't carry jobId currently, so
+    // we key by invoice and add jobId only for unattributed rows.
+    const out = [];
+    const seenInvoices = new Set();
+
+    Object.values(creditedByInvoice).forEach(c => {
+      const recon = Object.values(RECS).find(r =>
+        // crude reconciliation lookup — we don't have job_id on
+        // credited rows so we'd need a better key. For now, future
+        // edits open the editor via jobId from the unattributed
+        // bucket. Credited-and-already-reconciled show via the
+        // recon flag on the row itself.
+        false
+      );
+      out.push({
+        key: c.invoice,
+        jobId: null, // credited rows don't carry job_id; admin uses
+                     // unattributed entries or direct lookup to edit
+        invoice: c.invoice,
+        customer: c.customer,
+        description: c.description,
+        kpiDate: c.date,
+        totalAmount: c.jobTotal,
+        outstanding: c.outstanding,
+        assignments: c.assignments,
+        reconciled: c.reconciled,
+        status: c.reconciled ? 'reconciled' : 'credited'
+      });
+      seenInvoices.add(c.invoice);
+    });
+
+    unattributed.forEach(u => {
+      const invKey = String(u.invoice || '').split(',')[0].trim();
+      if (invKey && seenInvoices.has(invKey)) return;
+      const recon = u.jobId && RECS[u.jobId];
+      out.push({
+        key: u.jobId || invKey || ('orphan_' + out.length),
+        jobId: u.jobId,
+        invoice: u.invoice,
+        customer: u.customer,
+        description: u.description,
+        kpiDate: u.kpiDate || u.completedAt,
+        paidAt: u.paidAt,
+        totalAmount: u.amount,
+        outstanding: 0,
+        workStatus: u.workStatus,
+        hcpAssignedEmployees: u.assignedEmployees || [],
+        assignments: [],
+        reconciled: !!recon && !recon.excluded,
+        excluded: !!recon && recon.excluded,
+        reason: u.reason,
+        status: recon && recon.excluded ? 'excluded'
+              : recon ? 'reconciled'
+              : 'unattributed'
+      });
+      if (invKey) seenInvoices.add(invKey);
+    });
+
+    // Add any excluded reconciliations whose kpiDate falls in this
+    // period but didn't show via metrics (because excluded jobs are
+    // hidden from the leaderboard and unattributed bucket).
+    const periodStartIso = summary.periodStart;
+    const periodEndIso = summary.periodEnd;
+    Object.values(RECS).forEach(r => {
+      if (!r.excluded) return;
+      const kd = r.kpiDate && r.kpiDate.slice(0, 10);
+      if (!kd || !periodStartIso || !periodEndIso) return;
+      if (kd < periodStartIso || kd > periodEndIso) return;
+      if (seenInvoices.has(String(r.jobId)) || out.some(o => o.jobId === r.jobId)) return;
+      out.push({
+        key: r.jobId,
+        jobId: r.jobId,
+        invoice: null,
+        customer: '(excluded)',
+        description: r.notes || null,
+        kpiDate: r.kpiDate,
+        totalAmount: r.totalAmount,
+        outstanding: 0,
+        assignments: [],
+        reconciled: false,
+        excluded: true,
+        status: 'excluded'
+      });
+    });
+
+    // Sort by status (action-required first) then by date desc.
+    const statusRank = { unattributed: 0, credited: 1, reconciled: 2, excluded: 3 };
+    out.sort((a, b) => {
+      const sa = statusRank[a.status] != null ? statusRank[a.status] : 99;
+      const sb = statusRank[b.status] != null ? statusRank[b.status] : 99;
+      if (sa !== sb) return sa - sb;
+      return new Date(b.kpiDate || 0) - new Date(a.kpiDate || 0);
+    });
+
+    // Reconciliation coverage roll-up — used by the dashboard to show
+    // "fully reconciled" badges on date ranges where every job is
+    // either reconciled or excluded.
+    const total = out.length;
+    const reconciledCount = out.filter(j => j.status === 'reconciled' || j.status === 'excluded').length;
+    const fullyReconciled = total > 0 && reconciledCount === total;
+
+    res.json({
+      period: { range, start: periodStartIso, end: periodEndIso, label: summary.period },
+      summary: {
+        total,
+        reconciled: out.filter(j => j.status === 'reconciled').length,
+        excluded:   out.filter(j => j.status === 'excluded').length,
+        unattributed: out.filter(j => j.status === 'unattributed').length,
+        credited:   out.filter(j => j.status === 'credited').length,
+        fullyReconciled
+      },
+      jobs: out
+    });
+  } catch (err) {
+    console.error('[/api/kpi/admin/period-jobs]', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // List reconciliations (optionally filtered to a month YYYY-MM)

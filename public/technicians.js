@@ -337,6 +337,31 @@ function render() {
     warnEl.hidden = !showWarn;
   }
 
+  /* Reconciliation-status badge — shows when admin has reviewed every
+     job in this period. "Fully reconciled" means every credited job
+     has a locked attribution record AND there are no
+     needs-admin-fix entries in the unattributed bucket. Otherwise
+     shows a softer "N of M reconciled" pill. */
+  var reconEl = document.getElementById('reconciledBadge');
+  var recon = summary.reconciliation;
+  if (reconEl && recon) {
+    if (recon.totalJobs === 0) {
+      reconEl.hidden = true;
+    } else if (recon.fullyReconciled) {
+      reconEl.hidden = false;
+      reconEl.className = 'recon-badge recon-badge--full';
+      reconEl.innerHTML = '<span class="recon-badge-ico">✓</span> Fully reconciled';
+    } else if (recon.reconciledJobs > 0) {
+      reconEl.hidden = false;
+      reconEl.className = 'recon-badge recon-badge--partial';
+      reconEl.textContent = recon.reconciledJobs + ' of ' + recon.totalJobs + ' reconciled';
+    } else {
+      reconEl.hidden = true;
+    }
+  } else if (reconEl) {
+    reconEl.hidden = true;
+  }
+
   /* Unattributed-work banner. /api/metrics now guarantees that EVERY
      paid invoice in the period appears somewhere — either credited to
      a specific tech, or in the `unattributed` bucket. We surface the

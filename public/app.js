@@ -455,8 +455,15 @@ function openModal(tech, mode) {
     // hasn't been collected. We display the GROSS outstanding amount
     // (not the tech's credited share) on a per-job row so the number
     // matches what the customer actually owes.
+    // Unpaid amount is also reportable — clicking the flag opens the
+    // report page with "wrong unpaid amount" pre-selected. Common case:
+    // the customer already paid in cash or by card and HCP hasn't
+    // synced the payment yet, so it shows as unpaid here when it isn't.
     var unpaidNote = (job.outstanding && job.outstanding > 0)
-      ? '<div class="job-unpaid-note">Unpaid: ' + fmt(job.outstanding) + '</div>' : '';
+      ? '<div class="job-unpaid-note">' +
+          reportable('Unpaid: ' + fmt(job.outstanding), job, 'wrong_unpaid',
+            'This shows as ' + fmt(job.outstanding) + ' unpaid, but it\'s actually been paid (or the amount is wrong).') +
+        '</div>' : '';
     var jobTotal = job.jobTotal != null ? fmt(job.jobTotal) : fmt(job.credit);
     var shareHtml = showPercent
       ? fmt(job.credit) + '<span class="share-pct">(' + job.creditPct + '%)</span>'
@@ -520,7 +527,10 @@ function openModal(tech, mode) {
     // Mobile card: red "Unpaid" chip when there's an outstanding balance.
     // Sits on the meta row alongside role + split partners.
     var unpaidChip = (job.outstanding && job.outstanding > 0)
-      ? '<span class="job-card-unpaid">Unpaid ' + fmt(job.outstanding) + '</span>' : '';
+      ? reportable('<span class="job-card-unpaid">Unpaid ' + fmt(job.outstanding) + '</span>',
+          job, 'wrong_unpaid',
+          'This shows as ' + fmt(job.outstanding) + ' unpaid, but it\'s actually been paid (or the amount is wrong).')
+      : '';
     var sellerContextMobile = 'For this job (customer: ' + (job.customer || '?') + '), the actual seller is different from what shows.';
     var customerMobile = reportable(esc(job.customer || '\u2014'), job, 'wrong_seller', sellerContextMobile);
     return '<div class="job-card">' +
@@ -561,17 +571,35 @@ function closeModal() {
    Renders the list passed by /api/tech in `currentData.orphans`,
    stashed on `window._orphanJobs` by render(). Two layouts mirror
    the per-tech modal: desktop table + mobile cards. */
-/* Reason-code → human label map. Mirrors the server's enum so the UI
-   can show actionable context next to each uncredited row instead of
-   just a count. */
-var ORPHAN_REASONS = {
-  no_assigned_employees:         'No tech assigned in HCP',
-  completed_in_different_period: 'Service date is outside this period',
-  servicetitan_artifact:         'ServiceTitan migration (excluded by design)',
-  job_details_unavailable:       'HCP could not return job details',
-  standalone_invoice_no_job:     'Standalone invoice (no service job)',
-  pipeline_unknown:              'Pipeline did not credit (report to admin)'
-};
+/* Reason-code → label. For most cases this is a fixed string, but
+   "completed_in_different_period" is the most common entry in this
+   bucket and deserves a specific answer: which month is the work
+   actually credited toward? We compute that from the row's kpiDate. */
+function reasonLabel(row) {
+  var r = row.reason;
+  if (r === 'completed_in_different_period') {
+    if (row.kpiDate) {
+      var d = new Date(row.kpiDate);
+      var month = d.toLocaleDateString('en-US', { month: 'long' });
+      var day = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      // Show the day for recent dates (helps techs recall the job),
+      // fall back to just the month for older.
+      var now = new Date();
+      var daysAgo = (now - d) / (1000 * 60 * 60 * 24);
+      var when = daysAgo <= 45 ? day : month;
+      return 'Already credited on ' + when + ' — no action needed';
+    }
+    return 'Already credited in another period — no action needed';
+  }
+  var fixed = {
+    no_assigned_employees:     'No tech assigned in HCP — needs admin fix',
+    servicetitan_artifact:     'ServiceTitan migration (excluded by design)',
+    job_details_unavailable:   'HCP couldn’t return job details',
+    standalone_invoice_no_job: 'Standalone invoice (no service job)',
+    pipeline_unknown:          'Pipeline glitch — report to admin'
+  };
+  return fixed[r] || r;
+}
 
 function openOrphansModal() {
   var orphans = (window._orphanJobs || []).slice();
@@ -583,13 +611,12 @@ function openOrphansModal() {
   var rows = orphans.map(function(o) {
     var dateLabel = o.paidAt ? fmtDate(o.paidAt) : '—';
     var invLabel  = o.invoice ? '#' + esc(o.invoice) : '—';
-    var status    = o.workStatus ? esc(o.workStatus) : '—';
-    var reasonLabel = ORPHAN_REASONS[o.reason] || (o.reason ? esc(o.reason) : 'Uncredited');
+    var reasonText = reasonLabel(o);
     return '<tr>' +
       '<td>' + dateLabel + '</td>' +
       '<td>' + invLabel + '</td>' +
       '<td>' + esc(o.customer || '—') + '</td>' +
-      '<td style="font-size:11px;color:#8A8680">' + reasonLabel + '</td>' +
+      '<td style="font-size:11px;color:#8A8680">' + esc(reasonText) + '</td>' +
       '<td>' + fmt(o.amount) + '</td>' +
       '</tr>';
   }).join('');
@@ -602,7 +629,7 @@ function openOrphansModal() {
     var status    = o.workStatus
       ? '<span class="role-badge role-did">' + esc(o.workStatus) + '</span>' : '';
     var desc      = o.description ? esc(o.description) : '—';
-    var reasonLabel = ORPHAN_REASONS[o.reason] || (o.reason ? esc(o.reason) : 'Uncredited');
+    var reasonText = reasonLabel(o);
     var assigned = (o.assignedEmployees && o.assignedEmployees.length)
       ? ' &middot; <span style="color:#8A8680">assigned: ' + esc(o.assignedEmployees.join(', ')) + '</span>'
       : '';
@@ -613,7 +640,7 @@ function openOrphansModal() {
       '</div>' +
       '<div class="job-card-desc">' + desc + '</div>' +
       '<div class="job-card-meta">' + esc(o.customer || '—') + status + assigned + '</div>' +
-      '<div style="font-size:11px;color:#8A8680;margin-top:4px">' + reasonLabel + '</div>' +
+      '<div style="font-size:11px;color:#8A8680;margin-top:4px">' + esc(reasonText) + '</div>' +
       '</div>';
   }).join('');
   document.getElementById('orphansCards').innerHTML = cards ||

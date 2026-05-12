@@ -43,6 +43,10 @@
       <!-- Date range menu — lives INSIDE the Technicians view so it
            automatically hides when other tabs are active. -->
       <div class="sidebar" id="dateSidebar"></div>
+      <!-- Reconciliation-status badge — toggled by render() in
+           technicians.js when /api/metrics reports the period's
+           reconciliation coverage. Hidden when nothing's reconciled. -->
+      <div class="recon-badge" id="reconciledBadge" hidden></div>
       <!-- Data-quality qualifier: shown only when the selected range
            reaches back into the Service Titan era (before HCP migrated
            on 2026-04-01). Toggled by render() in technicians.js. -->
@@ -104,6 +108,18 @@
           </tbody>
           <tfoot id="leaderboardFoot"></tfoot>
         </table>
+      </div>
+      <!-- Inline report-an-issue CTA. Lives directly under the
+           leaderboard so it sits in the eyeline of any tech reviewing
+           their numbers — much more discoverable than the page footer. -->
+      <div class="tech-report-cta">
+        <a class="tech-report-cta-link" href="/report-issue" target="_blank" rel="noopener">
+          <svg viewBox="0 0 12 14" width="12" height="14" aria-hidden="true">
+            <path d="M2 1v12M2 2h7l-1.2 2.4L9 7H2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          See something wrong? Report it &rarr;
+        </a>
+        <div class="tech-report-cta-sub">Help Levi keep this legit.</div>
       </div>
     </div>
 
@@ -252,9 +268,6 @@
 
 <div class="footer">
   Updates every 5 minutes &bull; Last updated: <span id="lastUpdate">Never</span>
-  <div class="footer-feedback">
-    <a href="/report-issue" target="_blank" rel="noopener" class="footer-feedback-link">See something wrong? Report it &rarr;</a>
-  </div>
   <div class="footer-levi">Made with <svg class="footer-heart" viewBox="0 0 24 24" width="13" height="13" aria-label="love" role="img"><path d="M12 20.5s-7.2-4.3-9.5-9.2C.8 7.5 3.2 3.5 7.2 3.5c2 0 3.8 1 4.8 2.6 1-1.6 2.8-2.6 4.8-2.6 4 0 6.4 4 4.7 7.8C19.2 16.2 12 20.5 12 20.5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg> and an obsession for transforming the plumbing industry.<br>-Levi</div>
 </div>
 
@@ -313,11 +326,12 @@
       <div class="modal-banner" role="note" style="display:flex">
         <span class="modal-banner-ico" aria-hidden="true">!</span>
         <span class="modal-banner-text">
-          These paid invoices couldn&rsquo;t be attached to a specific tech&rsquo;s row
-          on the leaderboard. Each row shows the reason. Most fixes happen by
-          updating the job in Housecall Pro (add the assigned tech, set a
-          service date, etc.) &mdash; the dashboard picks up changes on the
-          next refresh.
+          Invoices customers paid in this period whose dollars couldn&rsquo;t
+          land on a specific tech&rsquo;s row <em>for this period</em>. The
+          <strong>Reason</strong> column tells you why. Most rows here
+          aren&rsquo;t bugs &mdash; they&rsquo;re already credited in the
+          period the work was done. The ones to act on are flagged
+          &ldquo;needs admin fix&rdquo;.
         </span>
       </div>
       <table class="modal-table">

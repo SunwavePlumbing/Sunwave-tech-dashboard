@@ -432,6 +432,178 @@
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
     }
 
+    /* Period picker controls */
+    .recon-period-sel {
+      padding: 8px 10px;
+      font-size: 13px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      font-family: inherit;
+      color: var(--ink);
+    }
+    .period-summary {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      font-size: 12px;
+      color: var(--ink-mute);
+      letter-spacing: 0.06em;
+    }
+    .period-summary-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      border-radius: 100px;
+    }
+    .period-summary-badge--full {
+      background: var(--good-pale);
+      color: var(--good);
+      border: 1px solid #C9DFCD;
+    }
+    .period-summary-badge--partial {
+      background: var(--warn-pale);
+      color: var(--warn);
+      border: 1px solid #F1D48E;
+    }
+
+    /* Per-job list rows in the period view */
+    .period-jobs-list {
+      margin-top: 14px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--card);
+      overflow: hidden;
+    }
+    .pj-row {
+      display: grid;
+      grid-template-columns: 100px 1fr 130px 110px;
+      gap: 12px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      align-items: center;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .pj-row:last-child { border-bottom: 0; }
+    .pj-row:hover { background: rgba(232, 129, 64, 0.04); }
+    .pj-status {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 100px;
+      text-align: center;
+      white-space: nowrap;
+    }
+    .pj-status--reconciled   { background: var(--good-pale); color: var(--good); }
+    .pj-status--excluded     { background: #ECECE6; color: var(--ink-mute); }
+    .pj-status--unattributed { background: var(--warn-pale); color: var(--warn); }
+    .pj-status--credited     { background: var(--brand-pale); color: var(--brand); }
+    .pj-main {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+    .pj-main-top {
+      display: flex;
+      gap: 8px;
+      align-items: baseline;
+      flex-wrap: wrap;
+    }
+    .pj-invoice {
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--ink);
+    }
+    .pj-customer {
+      color: var(--ink-soft);
+      font-weight: 600;
+    }
+    .pj-desc {
+      font-size: 12px;
+      color: var(--ink-mute);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+    .pj-date {
+      font-size: 11px;
+      color: var(--ink-mute);
+      letter-spacing: 0.04em;
+      text-align: right;
+    }
+    .pj-amount {
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+      color: var(--ink);
+    }
+    .pj-amount-sub {
+      font-size: 11px;
+      color: var(--ink-mute);
+      font-weight: 500;
+    }
+    @media (max-width: 640px) {
+      .pj-row {
+        grid-template-columns: 1fr auto;
+        gap: 8px;
+      }
+      .pj-status { grid-column: 1 / -1; justify-self: flex-start; }
+      .pj-date   { grid-column: 1 / -1; text-align: left; }
+    }
+    .pj-empty {
+      padding: 32px;
+      text-align: center;
+      color: var(--ink-mute);
+      font-size: 13px;
+    }
+
+    /* Lock-row variants for the editor's new Exclude + Mark-paid
+       toggles. Same shape as the existing .lock-row but different
+       palette so they don't all read identically. */
+    .toggle-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      margin-top: 8px;
+      font-size: 13px;
+      color: var(--ink);
+    }
+    .toggle-row label {
+      font-weight: 600;
+      text-transform: none;
+      letter-spacing: 0;
+      color: var(--ink);
+      font-size: 13px;
+      margin-bottom: 0;
+    }
+    .toggle-row label small {
+      display: block;
+      font-weight: 500;
+      color: var(--ink-mute);
+      font-size: 12px;
+      margin-top: 2px;
+    }
+    .toggle-row--exclude {
+      background: #FBECE9;
+      border: 1px solid #E0B0A8;
+    }
+    .toggle-row--paid {
+      background: var(--good-pale);
+      border: 1px solid #C9DFCD;
+    }
+
     /* ── Sitemap panel ─────────────────────────────────────────── */
     .sitemap-group {
       margin-bottom: 22px;
@@ -566,10 +738,43 @@
     </div>
 
     <div id="panel-reconcile" class="panel">
-      <div class="recon-controls">
-        <input type="text" id="jobLookup" placeholder="Paste a job ID, invoice #, or HCP URL" style="flex:1 1 320px">
+      <!-- Period picker + status roll-up. Selecting a range loads every
+           job touching that period — credited, unattributed, excluded,
+           reconciled — into the list below. The pill on the right
+           shows reconciliation coverage so the admin can see at a
+           glance whether they're done. -->
+      <div class="recon-controls" style="justify-content:space-between">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <label class="sub" style="margin-right:6px">Period</label>
+          <select id="periodSel" class="recon-period-sel">
+            <option value="day">Today</option>
+            <option value="yesterday">Yesterday</option>
+            <option value="wtd">Week to Date</option>
+            <option value="l7d">Last 7 Days</option>
+            <option value="l14d">Last 14 Days</option>
+            <option value="mtd" selected>Month to Date</option>
+            <option value="lm">Last Month</option>
+            <option value="l30d">Last 30 Days</option>
+            <option value="l90d">Last 90 Days</option>
+            <option value="ytd">Year to Date</option>
+          </select>
+          <button class="btn" id="periodReload">Reload</button>
+        </div>
+        <div id="periodSummary" class="period-summary"></div>
+      </div>
+
+      <!-- One-off lookup (paste a job ID) — useful when admin wants to
+           edit a specific job that doesn't fall in any natural period. -->
+      <div class="recon-controls" style="padding-top:0;border-top:1px dashed var(--border);margin-top:8px">
+        <label class="sub" style="margin-right:6px">Or look up a specific job</label>
+        <input type="text" id="jobLookup" placeholder="Paste a job ID or HCP URL" style="flex:1 1 280px">
         <button class="btn btn--primary" id="lookupBtn">Open editor</button>
       </div>
+
+      <!-- The job list for the selected period -->
+      <div id="periodJobsList" class="period-jobs-list"></div>
+
+      <!-- The editor renders here when the admin opens a job -->
       <div id="editorContainer"></div>
     </div>
 
@@ -614,6 +819,7 @@ const TYPE_LABEL = {
   wrong_tech:   'Wrong tech',
   wrong_split:  'Wrong split',
   wrong_seller: 'Wrong seller',
+  wrong_unpaid: 'Wrong unpaid amount',
   other:        'Other'
 };
 
@@ -669,6 +875,7 @@ document.querySelectorAll('.tab').forEach(t => {
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('is-active'));
     $('panel-' + t.dataset.panel).classList.add('is-active');
     if (t.dataset.panel === 'locked') loadLocked();
+    if (t.dataset.panel === 'reconcile')   loadPeriodJobs();
     if (t.dataset.panel === 'coverage')    loadEmbed('coverageFrame',    '/coverage');
     if (t.dataset.panel === 'diagnostics') loadEmbed('diagnosticsFrame', '/diagnostics');
   });
@@ -747,6 +954,79 @@ $('lookupBtn').addEventListener('click', () => {
   if (m) openEditorFromJobId(m[0]);
   else openEditorFromInvoice(v);
 });
+
+// ── Period jobs list ───────────────────────────────────────────────
+// Loads every job touching the chosen period and renders one row per
+// job with status badge + click-to-edit. The admin can scroll the
+// whole period's reconciliation queue in one view.
+$('periodReload').addEventListener('click', loadPeriodJobs);
+$('periodSel').addEventListener('change', loadPeriodJobs);
+let _lastPeriodRange = null;
+
+async function loadPeriodJobs() {
+  const range = $('periodSel').value;
+  _lastPeriodRange = range;
+  $('periodJobsList').innerHTML = '<div class="pj-empty">Loading…</div>';
+  $('periodSummary').innerHTML = '';
+  try {
+    const data = await api('/api/kpi/admin/period-jobs?range=' + encodeURIComponent(range));
+    const jobs = data.jobs || [];
+    const s = data.summary || {};
+
+    // Summary pill
+    const badgeClass = s.fullyReconciled ? 'period-summary-badge--full' : 'period-summary-badge--partial';
+    const badgeText = s.fullyReconciled
+      ? '✓ Fully reconciled'
+      : (s.reconciled || 0) + ' of ' + (s.total || 0) + ' reconciled';
+    $('periodSummary').innerHTML =
+      '<span>' + (s.unattributed || 0) + ' need action</span>' +
+      '<span class="period-summary-badge ' + badgeClass + '">' + badgeText + '</span>';
+
+    if (jobs.length === 0) {
+      $('periodJobsList').innerHTML = '<div class="pj-empty">No jobs in this period.</div>';
+      return;
+    }
+    $('periodJobsList').innerHTML = jobs.map(renderPeriodRow).join('');
+  } catch (err) {
+    $('periodJobsList').innerHTML = '<div class="pj-empty">Error: ' + escapeHtml(err.message) + '</div>';
+  }
+}
+
+function renderPeriodRow(j) {
+  const dateStr = j.kpiDate
+    ? new Date(j.kpiDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    : '—';
+  const invLabel = j.invoice ? '#' + escapeHtml(String(j.invoice)) : '<em style="color:var(--ink-mute)">no invoice</em>';
+  const customer = j.customer ? escapeHtml(j.customer) : '—';
+  const desc = j.description ? escapeHtml(j.description) : '';
+  const assignmentLine = j.assignments && j.assignments.length
+    ? j.assignments.map(a => escapeHtml(a.name) + ' ' + (a.creditPct != null ? a.creditPct + '%' : '')).join(' · ')
+    : (j.hcpAssignedEmployees && j.hcpAssignedEmployees.length
+       ? '<span style="color:var(--ink-mute)">HCP: ' + j.hcpAssignedEmployees.map(escapeHtml).join(', ') + '</span>'
+       : '<span style="color:var(--ink-mute)">unassigned</span>');
+  // Job ID needed to open editor — credited entries don't currently
+  // carry it, so for those rows we disable the click and show a hint.
+  const canEdit = !!j.jobId;
+  const clickAttr = canEdit
+    ? 'onclick="openEditorFromJobId(\'' + escapeHtml(j.jobId) + '\')"'
+    : 'title="No job ID available — open via the lookup field above"';
+  const rowStyle = canEdit ? '' : 'style="cursor:default;opacity:0.85"';
+  return '<div class="pj-row" ' + rowStyle + ' ' + clickAttr + '>' +
+    '<span class="pj-status pj-status--' + j.status + '">' + j.status + '</span>' +
+    '<div class="pj-main">' +
+      '<div class="pj-main-top">' +
+        '<span class="pj-invoice">' + invLabel + '</span>' +
+        '<span class="pj-customer">' + customer + '</span>' +
+      '</div>' +
+      (desc ? '<div class="pj-desc">' + desc + '</div>' : '') +
+      '<div class="pj-desc">' + assignmentLine + '</div>' +
+    '</div>' +
+    '<span class="pj-date">' + dateStr + '</span>' +
+    '<span class="pj-amount">' + fmt(j.totalAmount || 0) +
+      (j.outstanding ? '<div class="pj-amount-sub">Unpaid ' + fmt(j.outstanding) + '</div>' : '') +
+    '</span>' +
+  '</div>';
+}
 
 async function openEditorFromInvoice(invoice) {
   // We don't have a direct invoice→job lookup here; ask the admin to
@@ -832,9 +1112,25 @@ function renderEditor(job, recon) {
         <label for="lockChk"><strong>Lock this reconciliation.</strong> The auto-pipeline will not overwrite it on future refreshes.</label>
       </div>
 
+      <div class="toggle-row toggle-row--paid">
+        <input type="checkbox" id="paidChk" ${recon && recon.markedPaid ? 'checked' : ''}>
+        <label for="paidChk">
+          Mark as paid
+          <small>Forces the unpaid balance to $0 for this job, even if HCP still shows it as outstanding. Useful when the customer paid in cash or by another channel that hasn&rsquo;t synced yet.</small>
+        </label>
+      </div>
+
+      <div class="toggle-row toggle-row--exclude">
+        <input type="checkbox" id="excludeChk" ${recon && recon.excluded ? 'checked' : ''}>
+        <label for="excludeChk">
+          Exclude from the dashboard entirely
+          <small>The job won&rsquo;t appear on the leaderboard <em>or</em> in the unattributed list. Use for duplicates, voided invoices, or work that shouldn&rsquo;t count toward any tech&rsquo;s KPIs. Saving with this checked doesn&rsquo;t require attribution fields.</small>
+        </label>
+      </div>
+
       <div class="editor-actions">
         ${isReconciled ? '<button class="btn btn--danger" onclick="unreconcile(\'' + escapeHtml(job.id) + '\')">Remove reconciliation</button>' : ''}
-        <button class="btn" onclick="$('editorContainer').innerHTML = ''">Cancel</button>
+        <button class="btn" onclick="$('editorContainer').innerHTML = ''">Close</button>
         <button class="btn btn--primary" onclick="saveReconciliation('${escapeHtml(job.id)}')">Save${isReconciled ? ' changes' : ' & lock'}</button>
       </div>
 
@@ -893,15 +1189,21 @@ async function saveReconciliation(jobId) {
   const kpiDate = $('kpiDate').value;
   const notes = $('reconNotes').value;
   const locked = $('lockChk').checked;
+  const excluded = $('excludeChk').checked;
+  const markedPaid = $('paidChk').checked;
 
-  if (!assignments.length) {
-    setEditorStatus('Add at least one tech.', 'err');
-    return;
-  }
-  const sum = assignments.reduce((s, a) => s + (Number(a.creditPct) || 0), 0);
-  if (Math.abs(sum - 100) > 0.5) {
-    setEditorStatus('Credit percentages must sum to 100 (got ' + sum.toFixed(1) + ').', 'err');
-    return;
+  // Excluded jobs skip attribution validation since they won't appear
+  // anywhere on the dashboard. Otherwise standard %=100 check applies.
+  if (!excluded) {
+    if (!assignments.length) {
+      setEditorStatus('Add at least one tech (or check Exclude to hide this job entirely).', 'err');
+      return;
+    }
+    const sum = assignments.reduce((s, a) => s + (Number(a.creditPct) || 0), 0);
+    if (Math.abs(sum - 100) > 0.5) {
+      setEditorStatus('Credit percentages must sum to 100 (got ' + sum.toFixed(1) + ').', 'err');
+      return;
+    }
   }
 
   setEditorStatus('Saving…');
@@ -910,10 +1212,14 @@ async function saveReconciliation(jobId) {
       method: 'POST',
       body: {
         jobId, assignments, totalAmount, kpiDate, notes, locked,
+        excluded, markedPaid,
         reconciledBy: 'admin'
       }
     });
-    setEditorStatus('Saved. The dashboard will pick it up on the next refresh.', 'ok');
+    const verb = excluded ? 'Excluded' : 'Saved';
+    setEditorStatus(verb + '. The dashboard will pick it up on the next refresh.', 'ok');
+    // Reload the period list so the row's status badge updates inline
+    if (_lastPeriodRange) loadPeriodJobs();
   } catch (err) {
     setEditorStatus('Error: ' + err.message, 'err');
   }

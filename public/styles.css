@@ -314,6 +314,7 @@ body.tech-mount-in #techView > .table-wrapper {
   animation: fadeSlideUp 0.5s cubic-bezier(0.2, 0.65, 0.3, 1) both;
 }
 body.tech-mount-in #techView > .sidebar       { animation-delay: 0ms;   }
+body.tech-mount-in #techView > .recon-badge   { animation-delay: 40ms;  }
 body.tech-mount-in #techView > .stats         { animation-delay: 80ms;  }
 body.tech-mount-in #techView > .greeting-bar  { animation-delay: 140ms; }
 body.tech-mount-in #techView > .sort-section  { animation-delay: 200ms; }
@@ -1135,24 +1136,90 @@ body.exp-modal-lock {
 .mf-zoom-drillable:hover .mf-drill-ind { color: #f97316; transform: translateX(2px); }
 
 .footer { text-align: center; font-size: 11px; color: #aaa; padding: 1rem 1rem 1.4rem; }
-.footer-feedback { margin-top: 8px; }
-.footer-feedback-link {
-  display: inline-block;
-  padding: 6px 14px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #5C5448;
-  background: rgba(232, 129, 64, 0.10);
-  border: 1px solid rgba(232, 129, 64, 0.35);
+
+/* "See something wrong? Report it" CTA — sits directly under the
+   leaderboard so it's in the line of sight of any tech reviewing their
+   numbers. Two-tier: prominent orange pill + small tagline below. */
+/* ── Reconciliation status badge ───────────────────────────────
+   Sits between the date-range pills and the stat cards inside
+   #techView. Two variants: "Fully reconciled" (green) when admin has
+   reviewed and locked every job for the period; "N of M reconciled"
+   (amber) for partial progress. Hidden by default. */
+.recon-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: -4px 0 16px;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  border-radius: 100px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.recon-badge[hidden] { display: none; }
+.recon-badge-ico {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: currentColor;
+  color: var(--paper-card, #FBFAF6);
+  font-size: 10px;
+}
+.recon-badge--full {
+  background: #EBF4ED;
+  color: #2F7D49;
+  border-color: #C9DFCD;
+}
+.recon-badge--partial {
+  background: #FFF1E8;
+  color: #C9591F;
+  border-color: rgba(232, 129, 64, 0.32);
+}
+
+.tech-report-cta {
+  text-align: center;
+  margin: 18px 0 4px;
+  padding: 0 1rem;
+}
+.tech-report-cta-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 22px;
+  font-size: 14px;
+  font-weight: 700;
+  color: white;
+  background: #E88140;
+  border: 0;
   border-radius: 100px;
   text-decoration: none;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
+  box-shadow: 0 2px 8px rgba(232, 129, 64, 0.28);
   transition: all 0.15s;
 }
-.footer-feedback-link:hover {
-  background: rgba(232, 129, 64, 0.18);
-  border-color: rgba(232, 129, 64, 0.65);
-  color: #2C2A28;
+.tech-report-cta-link:hover {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(232, 129, 64, 0.36);
+}
+.tech-report-cta-link:active { transform: translateY(0); }
+.tech-report-cta-sub {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #8A8680;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+@media (max-width: 768px) {
+  .tech-report-cta { margin: 14px 0 0; }
+  .tech-report-cta-link { padding: 9px 18px; font-size: 13px; }
 }
 .footer-levi { margin-top: 6px; font-size: 11px; color: #c8c8c8; letter-spacing: 0.2px; }
 .error-msg { background: #fff3f3; color: #c62828; padding: 1.2rem 1.4rem; font-size: 14px; }
