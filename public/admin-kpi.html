@@ -476,6 +476,58 @@ let CURRENT_RANGE = localStorage.getItem('kpi-admin-range') || 'mtd';
 // In-memory job state. Map of jobId → { server data + working edits }.
 // The Save button reads from this map.
 window.JOBS = {};
+// Cached HCP employee list (loaded once after auth, used to populate
+// the "Add tech" datalist in every edit panel).
+window.EMPLOYEES = [];
+
+/* ════════════════════════════════════════════════════════════════════
+   Sunwave attribution rules (auto-applied on add/remove/role-change):
+
+     • Sold pool = 1/3 of job total  → split evenly across sellers
+     • Did pool  = 2/3 of job total  → split evenly across doers
+     • A tech with role "Sold & Did" sits in BOTH pools, so they get
+       a slice of each (matches the user's rule: "if a tech sold it
+       and did it with someone else, they get 2/3 and the helper
+       gets 1/3").
+
+   Edge cases:
+     • No seller? Doers split 100%.
+     • No doer?   Sellers split 100%.
+     • Empty list? Nothing to compute.
+
+   A manual percentage edit in the input field overrides the auto
+   value for that tech until the next add/remove/role-change event,
+   which re-applies the formula across all rows.
+   ════════════════════════════════════════════════════════════════════ */
+function recomputePercents(assignments) {
+  if (!assignments || assignments.length === 0) return;
+  const sellers = assignments.filter(a => a.role === 'Sold' || a.role === 'Sold & Did');
+  const doers   = assignments.filter(a => a.role === 'Did'  || a.role === 'Sold & Did');
+  const hasS = sellers.length > 0, hasD = doers.length > 0;
+  // Pool sizes — fall back to 100% on whichever side exists when the
+  // other is empty, so a job with only doers (or only sellers) still
+  // sums to 100.
+  const sellerPool = hasS && hasD ? 100 / 3 : (hasS ? 100 : 0);
+  const doerPool   = hasS && hasD ? 200 / 3 : (hasD ? 100 : 0);
+  const sellerShare = hasS ? sellerPool / sellers.length : 0;
+  const doerShare   = hasD ? doerPool   / doers.length   : 0;
+  assignments.forEach(a => {
+    let pct = 0;
+    if (a.role === 'Sold' || a.role === 'Sold & Did') pct += sellerShare;
+    if (a.role === 'Did'  || a.role === 'Sold & Did') pct += doerShare;
+    // 1 decimal of precision so the UI is readable.
+    a.creditPct = Math.round(pct * 10) / 10;
+  });
+  // Reconcile rounding so sum is exactly 100 — adjust the last entry.
+  const sum = assignments.reduce((s, a) => s + a.creditPct, 0);
+  if (sum > 0 && assignments.length > 0) {
+    const drift = 100 - sum;
+    if (Math.abs(drift) >= 0.05) {
+      assignments[assignments.length - 1].creditPct =
+        Math.round((assignments[assignments.length - 1].creditPct + drift) * 10) / 10;
+    }
+  }
+}
 
 // ── Auth gate ──────────────────────────────────────────────────────
 if (PASSWORD) initApp();
@@ -495,12 +547,31 @@ async function initApp() {
     document.querySelector('.tab[data-panel="reconcile"]').classList.add('is-active');
     $('panel-reconcile').classList.add('is-active');
     $('periodSel').value = CURRENT_RANGE;
+    // Kick off all three in parallel — none blocks the others.
+    loadEmployees();
     loadJobs();
-    loadIssues(); // populate badge counts in the background
+    loadIssues();
   } catch (err) {
     $('gate').style.display = '';
     $('app').style.display = 'none';
     alert('Auth failed: ' + err.message);
+  }
+}
+
+// Pull the active HCP employee roster once and stash it on window so
+// every editor panel can populate its "Add tech" dropdown without an
+// extra round-trip. Failures here are non-fatal — the input just
+// falls back to free-text typing.
+async function loadEmployees() {
+  try {
+    const data = await api('/api/kpi/admin/employees');
+    window.EMPLOYEES = (data.employees || []).slice();
+    // Update any datalists that may already be in the DOM
+    document.querySelectorAll('datalist#techsList').forEach(dl => {
+      dl.innerHTML = window.EMPLOYEES.map(e => '<option value="' + esc(e.name) + '">').join('');
+    });
+  } catch (err) {
+    console.warn('Could not load employees:', err.message);
   }
 }
 
@@ -694,8 +765,15 @@ async function renderEditPanel(key) {
 
     <div class="edit-section">
       <span class="edit-label">Attribution (who gets credit, and how much)</span>
+      <p style="font-size:12px;color:var(--ink-mute);margin:0 0 10px;line-height:1.5">
+        Percentages auto-apply Sunwave's split: <strong>1/3 for selling</strong>, <strong>2/3 split among doers</strong>.
+        Pick "Sold &amp; Did" if the same tech sold and worked it. Manually edit the % to override.
+      </p>
       <div class="assign-table" data-assignments-for="${esc(key)}"></div>
       <button type="button" class="add-tech-btn" data-action="add-tech" data-key="${esc(key)}">+ Add tech</button>
+      <datalist id="techsList-${esc(key)}">
+        ${(window.EMPLOYEES || []).map(e => '<option value="' + esc(e.name) + '">').join('')}
+      </datalist>
       <div class="pct-status" data-pct-for="${esc(key)}"></div>
     </div>
 
@@ -762,8 +840,8 @@ function renderAssignments(key) {
   if (!wrap) return;
   wrap.innerHTML = j.edit.assignments.map((a, i) => `
     <div class="assign-row">
-      <input type="text" placeholder="Tech name" value="${esc(a.employeeName || '')}"
-        data-action="assign-name" data-key="${esc(key)}" data-i="${i}">
+      <input type="text" list="techsList-${esc(key)}" placeholder="Type or pick a tech…" value="${esc(a.employeeName || '')}"
+        data-action="assign-name" data-key="${esc(key)}" data-i="${i}" autocomplete="off">
       <select data-action="assign-role" data-key="${esc(key)}" data-i="${i}">
         <option value="Did" ${a.role === 'Did' ? 'selected' : ''}>Did</option>
         <option value="Sold" ${a.role === 'Sold' ? 'selected' : ''}>Sold</option>
@@ -829,6 +907,8 @@ document.addEventListener('click', async (e) => {
     const j = window.JOBS[key];
     if (!j || !j.edit) return;
     j.edit.assignments.push({ employeeName: '', role: 'Did', creditPct: 0 });
+    // Auto-recompute every tech's share using the 1/3 - 2/3 rule.
+    recomputePercents(j.edit.assignments);
     renderAssignments(key);
     return;
   }
@@ -837,6 +917,7 @@ document.addEventListener('click', async (e) => {
     if (!j || !j.edit) return;
     const i = Number(actionEl.dataset.i);
     j.edit.assignments.splice(i, 1);
+    recomputePercents(j.edit.assignments);
     renderAssignments(key);
     return;
   }
@@ -890,6 +971,11 @@ document.addEventListener('change', (e) => {
   if (!j || !j.edit) return;
   if (action === 'assign-role') {
     j.edit.assignments[Number(t.dataset.i)].role = t.value;
+    // Role changes the seller/doer split — recompute every tech's
+    // share and re-render so the percentage inputs reflect the new
+    // attribution.
+    recomputePercents(j.edit.assignments);
+    renderAssignments(key);
   } else if (field === 'totalAmount') {
     j.edit.totalAmount = parseFloat(t.value) || 0;
   } else if (field === 'kpiDate') {

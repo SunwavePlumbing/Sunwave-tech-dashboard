@@ -4333,6 +4333,45 @@ app.get('/api/kpi/admin/job/:id', async (req, res) => {
   }
 });
 
+// List active HCP employees — used by the admin reconciliation editor
+// to populate the "Add tech" dropdown so admins pick from a real list
+// instead of typing names by hand. Cached 4 hours since the roster
+// rarely changes day-to-day.
+app.get('/api/kpi/admin/employees', async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  if (!API_KEY) return res.status(503).json({ error: 'HCP API key not configured' });
+  try {
+    const payload = await withCache('admin-employees', 4 * 60 * 60 * 1000, async () => {
+      const all = [];
+      let page = 1;
+      while (page <= 10) {
+        const r = await axios.get(BASE_URL + '/employees', {
+          headers: hcpHeaders(),
+          params: { page, page_size: 100, sort_by: 'first_name', sort_direction: 'asc' }
+        });
+        const emps = r.data.employees || [];
+        all.push(...emps);
+        if (page >= (r.data.total_pages || 1)) break;
+        page++;
+      }
+      return {
+        employees: all
+          .map(e => ({
+            id: e.id,
+            name: ((e.first_name || '') + ' ' + (e.last_name || '')).trim(),
+            role: e.role || null
+          }))
+          .filter(e => e.name)
+          .sort((a, b) => a.name.localeCompare(b.name))
+      };
+    });
+    res.json(payload);
+  } catch (err) {
+    console.error('[admin/employees]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Resolve an invoice number → HCP job_id. Used by the admin UI when
 // the period-jobs list has a row with an invoice but no jobId (rare
 // edge case; most rows now have both). Searches the last 365 days of
