@@ -366,11 +366,16 @@ loadDiskCache();
 // chasing shape-drift bugs through downstream consumers.
 let _bustedMetrics = 0;
 Array.from(_cache.keys()).forEach(k => {
-  if (k.startsWith('metrics:') || k.startsWith('marketing') || k === 'qbo-marketing') {
+  // Bust anything whose SHAPE or FILTER LOGIC may have changed across
+  // deploys. Employee-list caches are included so the tech-filter
+  // rules (active-tech threshold, name dedup) take effect on the
+  // first request after deploy rather than waiting out the 4-hour TTL.
+  if (k.startsWith('metrics:') || k.startsWith('marketing') || k === 'qbo-marketing'
+      || k === 'public-employees' || k === 'admin-employees' || k === 'active-tech-ids') {
     _cache.delete(k); _bustedMetrics++;
   }
 });
-if (_bustedMetrics) console.log('[cache] Busted ' + _bustedMetrics + ' metrics/marketing entries on startup to ensure fresh shape');
+if (_bustedMetrics) console.log('[cache] Busted ' + _bustedMetrics + ' shape-sensitive entries on startup');
 
 function cacheGet(key, ttlMs) {
   const e = _cache.get(key);
@@ -4255,18 +4260,20 @@ app.post('/api/kpi/report-issue', (req, res) => {
 });
 
 // Discover who's actually a technician by looking at job assignments.
-// An "active tech" is any HCP employee who's been in `assigned_employees`
-// on a complete job within the last 90 days. This automatically filters
-// out office staff (accountant, CSR, etc.) who never get assigned to
-// jobs, and auto-includes new techs the moment they're put on their
-// first job — no env vars or manual roster maintenance required.
+// An "active tech" is any HCP employee who's been on >= MIN_JOBS
+// complete jobs within the last 90 days. The threshold filters out
+// office staff (accountant, CSR, etc.) who occasionally get added to
+// a job by mistake or for tracking — they don't rack up enough
+// assignments to count. New apprentice techs catch up fast: even a
+// slow start (one job per week) puts them over the bar in 3 weeks.
 //
 // Returns a Set of HCP employee IDs. Cached 4 hours.
+const ACTIVE_TECH_MIN_JOBS = 3;
 async function getActiveTechIds() {
   const ids = await withCache('active-tech-ids', 4 * 60 * 60 * 1000, async () => {
     const since = new Date();
     since.setDate(since.getDate() - 90);
-    const found = new Set();
+    const counts = {};
     let page = 1;
     while (page <= 25) {
       const r = await axios.get(BASE_URL + '/jobs', {
@@ -4280,12 +4287,12 @@ async function getActiveTechIds() {
       });
       const jobs = r.data.jobs || [];
       jobs.forEach(j => (j.assigned_employees || []).forEach(e => {
-        if (e && e.id) found.add(e.id);
+        if (e && e.id) counts[e.id] = (counts[e.id] || 0) + 1;
       }));
       if (page >= (r.data.total_pages || 1)) break;
       page++;
     }
-    return Array.from(found); // Sets don't survive JSON disk-persist
+    return Object.keys(counts).filter(id => counts[id] >= ACTIVE_TECH_MIN_JOBS);
   });
   return new Set(ids);
 }
@@ -4319,7 +4326,9 @@ async function fetchTechEmployees() {
     }))
     .filter(e => e.name)
     .filter(e => {
-      const key = e.name.toLowerCase();
+      // Normalize whitespace + non-breaking spaces so "Levi  Otis"
+      // and "Levi Otis" dedupe as the same person.
+      const key = e.name.toLowerCase().replace(/\s+/g, ' ').replace(/ /g, ' ').trim();
       if (seenNames.has(key)) return false;
       seenNames.add(key);
       return true;
