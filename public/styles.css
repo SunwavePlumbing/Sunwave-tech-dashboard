@@ -313,6 +313,7 @@ body {
 body.anim-entrance .header,
 body.anim-entrance .tab-nav,
 body.anim-entrance #techView > .sidebar,
+body.anim-entrance #techView > .greeting-bar,
 body.anim-entrance #techView > .stats,
 body.anim-entrance #techView > .table-wrapper {
   opacity: 0;
@@ -321,8 +322,9 @@ body.anim-entrance #techView > .table-wrapper {
 body.anim-entrance .header                    { animation-delay: 0ms;   }
 body.anim-entrance .tab-nav                   { animation-delay: 80ms;  }
 body.anim-entrance #techView > .sidebar       { animation-delay: 160ms; }
-body.anim-entrance #techView > .stats         { animation-delay: 240ms; }
-body.anim-entrance #techView > .table-wrapper { animation-delay: 320ms; }
+body.anim-entrance #techView > .greeting-bar  { animation-delay: 240ms; }
+body.anim-entrance #techView > .stats         { animation-delay: 320ms; }
+body.anim-entrance #techView > .table-wrapper { animation-delay: 400ms; }
 
 /* Tab re-entry cascade — scoped to the Technicians view's own children
    so re-clicking the Technicians tab replays the same staggered fade-up
@@ -330,6 +332,7 @@ body.anim-entrance #techView > .table-wrapper { animation-delay: 320ms; }
    or tab-nav chrome. Toggled by replayTechAnimations() in app.js via
    an rAF pair. */
 body.tech-mount-in #techView > .sidebar,
+body.tech-mount-in #techView > .greeting-bar,
 body.tech-mount-in #techView > .stats,
 body.tech-mount-in #techView > .table-wrapper {
   opacity: 0;
@@ -337,17 +340,9 @@ body.tech-mount-in #techView > .table-wrapper {
 }
 body.tech-mount-in #techView > .sidebar       { animation-delay: 0ms;   }
 body.tech-mount-in #techView > .recon-badge   { animation-delay: 40ms;  }
-body.tech-mount-in #techView > .stats         { animation-delay: 80ms;  }
-body.tech-mount-in #techView > .greeting-bar  { animation-delay: 140ms; }
+body.tech-mount-in #techView > .greeting-bar  { animation-delay: 80ms;  }
+body.tech-mount-in #techView > .stats         { animation-delay: 140ms; }
 body.tech-mount-in #techView > .table-wrapper { animation-delay: 200ms; }
-/* Greeting bar joins both the first-paint cascade and the tab re-entry
-   cascade so it doesn't "pop in" out of sync with its neighbors. */
-body.anim-entrance #techView > .greeting-bar,
-body.tech-mount-in #techView > .greeting-bar {
-  opacity: 0;
-  animation: fadeSlideUp 0.5s cubic-bezier(0.2, 0.65, 0.3, 1) both;
-}
-body.anim-entrance #techView > .greeting-bar { animation-delay: 280ms; }
 /* Include the data-warning banner in the cascade so it doesn't pop in
    separately from the rest of the view. Same stagger slot as .stats so
    it rides in right after the date-range pills. */

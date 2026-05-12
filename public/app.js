@@ -92,7 +92,7 @@ function esc(s) {
 
 // Build sidebar
 var sidebar = document.getElementById('dateSidebar');
-var commonKeys = ['day', 'yesterday', 'mtd', 'lm', 'l30d', 'ytd'];
+var commonKeys = ['mtd'];
 
 // Selects a range and updates all UI that reflects it (pill row + bottom
 // sheet). Safe to call from any source (pill tap, sheet tap, etc.).
@@ -232,48 +232,36 @@ function updateMoreBtnLabel() {
   var isCommon = commonKeys.indexOf(currentTimeRange) !== -1;
   var labelEl = moreBtn.querySelector('.date-more-label');
   if (isCommon) {
-    labelEl.textContent = 'More';
+    labelEl.textContent = 'Other';
     moreBtn.classList.remove('active');
   } else {
     var range = dateRanges.find(function(r) { return r.key === currentTimeRange; });
-    labelEl.textContent = range ? range.label : 'More';
+    labelEl.textContent = range ? range.label : 'Other';
     moreBtn.classList.add('active');
   }
 }
 
-if (window.innerWidth <= 768) {
-  // Common pills flow horizontally; "More" is the LAST pill in the same
-  // scroll container (not absolutely positioned anymore).
-  //
-  // Mobile-only ordering: hoist Month-to-Date to the very first position
-  // so the default-selected pill is fully visible on first load — instead
-  // of landing in the 4th slot where it was being clipped by the right-
-  // edge fade mask. Other common pills follow in their natural order.
-  var mobileOrder = ['mtd', 'day', 'yesterday', 'l30d', 'lm', 'ytd'];
-  mobileOrder.forEach(function(key) {
-    var range = dateRanges.find(function(r) { return r.key === key; });
-    if (range) sidebar.appendChild(createDateBtn(range));
-  });
-  var moreBtn = document.createElement('button');
-  moreBtn.id = 'dateMoreBtn';
-  moreBtn.className = 'date-btn date-more-btn';
-  /* Small calendar glyph + short label ("More" or the current picked range) */
-  moreBtn.innerHTML =
-    '<svg class="date-more-icon" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">' +
-      '<rect x="2" y="3" width="12" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/>' +
-      '<path d="M2 6h12" stroke="currentColor" stroke-width="1.5"/>' +
-      '<path d="M5 2v3M11 2v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>' +
-    '</svg>' +
-    '<span class="date-more-label">More</span>';
-  moreBtn.addEventListener('click', openDateSheet);
-  sidebar.appendChild(moreBtn);
-  buildDateSheet();
-  updateMoreBtnLabel();
-} else {
-  dateRanges.forEach(function(range) {
-    sidebar.appendChild(createDateBtn(range));
-  });
-}
+// Keep the default range visible and tuck every other option into one
+// sheet. This keeps the technician view quiet while preserving access
+// to every historical range.
+commonKeys.forEach(function(key) {
+  var range = dateRanges.find(function(r) { return r.key === key; });
+  if (range) sidebar.appendChild(createDateBtn(range));
+});
+var moreBtn = document.createElement('button');
+moreBtn.id = 'dateMoreBtn';
+moreBtn.className = 'date-btn date-more-btn';
+moreBtn.innerHTML =
+  '<svg class="date-more-icon" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">' +
+    '<rect x="2" y="3" width="12" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/>' +
+    '<path d="M2 6h12" stroke="currentColor" stroke-width="1.5"/>' +
+    '<path d="M5 2v3M11 2v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>' +
+  '</svg>' +
+  '<span class="date-more-label">Other</span>';
+moreBtn.addEventListener('click', openDateSheet);
+sidebar.appendChild(moreBtn);
+buildDateSheet();
+updateMoreBtnLabel();
 
 function defaultSortDir(sortKey) {
   return sortKey === 'name' ? 'asc' : 'desc';

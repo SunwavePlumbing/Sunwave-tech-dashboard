@@ -480,7 +480,13 @@ syncTechPickerVisibility();
 // Each grid (seller / doer) has its own copy of the chip set so a
 // tech can be selected independently in each — the same person can
 // be in both lists if they sold and did the work.
-function renderTechGrid(gridId, selectionRef, names) {
+function setTechChip(gridId, name, on) {
+  $(gridId).querySelectorAll('.tech-chip').forEach(chip => {
+    if (chip.dataset.tech === name) chip.classList.toggle('is-on', on);
+  });
+}
+
+function renderTechGrid(gridId, selectionRef, names, options = {}) {
   const grid = $(gridId);
   grid.innerHTML = names.map(name =>
     '<button type="button" class="tech-chip" data-tech="' + escapeHtml(name) + '">' + escapeHtml(name) + '</button>'
@@ -493,6 +499,10 @@ function renderTechGrid(gridId, selectionRef, names) {
         if (!selectionRef.list.includes(name)) selectionRef.list.push(name);
       } else {
         selectionRef.list = selectionRef.list.filter(n => n !== name);
+      }
+      if (options.mirrorToDoer && chip.classList.contains('is-on') && !SELECTED_DOERS.includes(name)) {
+        SELECTED_DOERS.push(name);
+        setTechChip('techPickerDoerGrid', name, true);
       }
     });
   });
@@ -513,7 +523,7 @@ async function loadTechs() {
     // SELECTED_SELLERS / SELECTED_DOERS to the .list each time it changes.
     const sellerRef = { get list() { return SELECTED_SELLERS; }, set list(v) { SELECTED_SELLERS = v; } };
     const doerRef   = { get list() { return SELECTED_DOERS;   }, set list(v) { SELECTED_DOERS   = v; } };
-    renderTechGrid('techPickerSellerGrid', sellerRef, list);
+    renderTechGrid('techPickerSellerGrid', sellerRef, list, { mirrorToDoer: true });
     renderTechGrid('techPickerDoerGrid',   doerRef,   list);
   } catch (err) {
     const fallback = '<div style="color:var(--ink-mute);font-size:13px">Could not load tech list — describe in the field below instead.</div>';

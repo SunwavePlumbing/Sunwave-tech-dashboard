@@ -4354,7 +4354,7 @@ async function getActiveTechIds() {
       const r = await axios.get(BASE_URL + '/jobs', {
         headers: hcpHeaders(),
         params: {
-          work_status: 'complete',
+          work_status: 'completed',
           scheduled_start_min: since.toISOString(),
           page,
           page_size: 200
@@ -4367,7 +4367,8 @@ async function getActiveTechIds() {
       if (page >= (r.data.total_pages || 1)) break;
       page++;
     }
-    return Object.keys(counts).filter(id => counts[id] >= ACTIVE_TECH_MIN_JOBS);
+    const active = Object.keys(counts).filter(id => counts[id] >= ACTIVE_TECH_MIN_JOBS);
+    return active.length ? active : Object.keys(counts);
   });
   return new Set(ids);
 }
