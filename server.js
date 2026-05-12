@@ -4124,7 +4124,10 @@ app.get('/api/diagnostics/coverage', async (req, res) => {
         }
 
         if (creditFoundRounded === 0) {
-          missing.push({ ...row, reasons: whyMissing(job, invs[0]) });
+          // whyMissing wants the full invoices array (for .find(i =>
+          // i.job_id === ...) in the gap-pass simulation) plus the
+          // computed paid total. Passing invs[0] alone breaks .find.
+          missing.push({ ...row, reasons: whyMissing(job, invs, paidInPeriod) });
         } else if (Math.abs(creditFoundRounded - totalPaidRounded) > 1) {
           drift.push({ ...row, delta: creditFoundRounded - totalPaidRounded });
         } else {

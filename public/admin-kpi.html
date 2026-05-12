@@ -405,7 +405,7 @@
       <button class="tab" data-panel="reconcile">Reconcile a job</button>
       <button class="tab" data-panel="issues">Open issues <span class="tab-count" id="issueCount">0</span></button>
       <button class="tab" data-panel="locked">Locked records <span class="tab-count" id="lockedCount">0</span></button>
-      <button class="tab" data-panel="coverage">Coverage check</button>
+      <button class="tab" data-panel="coverage" title="Verifies every paid invoice in HCP appears credited on the leaderboard">Paid jobs audit</button>
       <button class="tab" data-panel="diagnostics">Diagnostics</button>
     </div>
 
@@ -568,10 +568,14 @@ async function initApp() {
     document.querySelector('.tab[data-panel="reconcile"]').classList.add('is-active');
     $('panel-reconcile').classList.add('is-active');
     $('periodSel').value = CURRENT_RANGE;
-    // Kick off all three in parallel — none blocks the others.
+    // Kick off all of these in parallel — none blocks the others.
+    // loadIssues + loadLocked both populate their tab-count badges
+    // so the admin can see at-a-glance whether there's anything in
+    // those tabs without having to click each one.
     loadEmployees();
     loadJobs();
     loadIssues();
+    loadLocked();
   } catch (err) {
     $('gate').style.display = '';
     $('app').style.display = 'none';
@@ -1316,6 +1320,8 @@ async function loadIssues() {
       </div>`;
     }).join('');
   } catch (err) {
+    console.warn('[loadIssues]', err);
+    $('issueCount').textContent = '?';
     $('issuesList').innerHTML = '<div class="empty">Error: ' + esc(err.message) + '</div>';
   }
 }
@@ -1367,6 +1373,8 @@ async function loadLocked() {
       </div>`;
     }).join('');
   } catch (err) {
+    console.warn('[loadLocked]', err);
+    $('lockedCount').textContent = '?';
     $('lockedList').innerHTML = '<div class="empty">Error: ' + esc(err.message) + '</div>';
   }
 }
