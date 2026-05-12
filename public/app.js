@@ -843,16 +843,16 @@ window.addEventListener('hashchange', function() {
 
 /* Time-of-day + day-of-week greeting at the top of the page.
 
-   Each hour band has multiple phrasings; the active one rotates by
+   Every hour of the day has its own pool of phrasings in the same
+   warm, slightly playful Sunwave voice. The active phrase rotates by
    day-of-week (`phrases[dayOfWeek % phrases.length]`) so the message
-   stays stable for everyone on the same calendar day but varies
-   through the week. Roughly each phrase repeats every 2-3 weeks.
+   stays stable across a single calendar day but varies through the
+   week — roughly each phrase repeats every 1-2 weeks given pool sizes.
 
-   Bands:
-     5am – 11:59am   →  morning (warm, day-positive)
-     12pm – 5:59pm   →  afternoon
-     6pm – 6:59pm    →  evening
-     7pm – 4:59am    →  hour-by-hour late-night escalation
+   Hour-by-hour from 5am through 4am the next morning. Daytime hours
+   match the night-hour granularity so the whole 24-hour cycle reads
+   as one continuous voice instead of "generic mornings, character at
+   night".
 
    Em-dashes deliberately avoided per the user's voice preference.
    "{Day}" tokens get replaced with the current weekday name. */
@@ -868,29 +868,141 @@ function updateGreeting() {
   var MONS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   var dayName = DAYS[d];
 
-  // Phrase pools per band. Order doesn't matter functionally, but for
-  // editing convenience the more "default" line of each band sits first.
+  // Phrase pools keyed by hour (24h). Each pool has 5-7 entries so the
+  // day-of-week rotation gives every phrase a turn within a couple
+  // weeks without any one line dominating.
   var POOLS = {
-    morning: [
-      'Good morning, and happy {Day}',
-      "Mornin', crew",
-      "Coffee's on, happy {Day}",
-      'Trucks rolling, happy {Day}'
+    // ── Pre-dawn / first crew (5am) ────────────────────────────────
+    h05: [
+      'First boots up. {Day} starts early',
+      'Quiet yard, big {Day} ahead',
+      'Up before the kettle',
+      "{Day} loading. Coffee's on its way",
+      'Pre-dawn check-in. Hi'
     ],
-    afternoon: [
+    // ── Sunrise, trucks warming (6am) ──────────────────────────────
+    h06: [
+      "Sun's up, trucks warming",
+      'Gloves on, {Day} begins',
+      'Morning, early bird',
+      'Loading up for {Day}',
+      "Coffee's on, {Day} starts here",
+      'Yard waking up'
+    ],
+    // ── First dispatch (7am) ───────────────────────────────────────
+    h07: [
+      'Trucks rolling, happy {Day}',
+      'First dispatch of {Day}',
+      "Coffee's on, gloves up",
+      '{Day} is in motion',
+      "Mornin', crew",
+      'Trucks heading out'
+    ],
+    // ── Full morning, first calls (8am) ────────────────────────────
+    h08: [
+      'Good morning, and happy {Day}',
+      'First service calls of {Day}',
+      "Crew's already wrenching",
+      '{Day} is on the board',
+      'Wrenches up, happy {Day}',
+      "Coffee's on, happy {Day}"
+    ],
+    // ── Mid-morning hustle (9am) ───────────────────────────────────
+    h09: [
+      'Mid-morning, full speed',
+      '{Day} is heating up',
+      'Trucks all on a call',
+      'Hope the {Day} run is smooth',
+      'Second-coffee window',
+      'Strong {Day} starting to shape up'
+    ],
+    // ── Flow state (10am) ──────────────────────────────────────────
+    h10: [
+      "Morning's flying, {Day}",
+      'Hope {Day} is wrenching well',
+      'Trucks deep in the day',
+      'Strong {Day} so far',
+      'Mid-morning, momentum',
+      'Hope the calls are easy ones'
+    ],
+    // ── Almost noon push (11am) ────────────────────────────────────
+    h11: [
+      'Almost noon, push through',
+      "{Day}'s lunch is close",
+      'One more before the break',
+      'Half-shift mark approaching',
+      'Good {Day}, lunch is near',
+      "Hope {Day}'s tickets are stacking up"
+    ],
+    // ── Lunch (12pm) ───────────────────────────────────────────────
+    h12: [
+      'Noon. Hope lunch is hot',
+      'Halfway through {Day}',
+      'Lunch break, take it',
+      'Sandwich and a sit-down, earned',
+      "Hope {Day}'s feeding you well",
+      'Midpoint, {Day}'
+    ],
+    // ── Post-lunch return (1pm) ────────────────────────────────────
+    h13: [
+      'Back at it, happy {Day}',
+      'Afternoon kickoff',
+      'Fed and rolling',
+      'Lunch is in, {Day} second half',
+      'Wrenches back up',
+      "Good afternoon, {Day}'s in"
+    ],
+    // ── Afternoon push (2pm) ───────────────────────────────────────
+    h14: [
       'Good afternoon, and happy {Day}',
-      'Afternoon, crew',
+      'Afternoon push, happy {Day}',
+      'Trucks back in motion',
+      'Hope {Day} jobs are smooth',
+      '{Day}, second half going strong',
+      'Afternoon, crew'
+    ],
+    // ── Second wind (3pm) ──────────────────────────────────────────
+    h15: [
+      "Three o'clock, find your second wind",
+      'Home stretch in sight',
+      "{Day}'s in the books soon",
+      'Coffee number three?',
+      'Afternoon stretch',
       'Hope {Day} is treating you right'
     ],
-    evening: [
+    // ── Late afternoon (4pm) ───────────────────────────────────────
+    h16: [
+      'Late afternoon, almost done',
+      'Wrapping {Day} up nicely',
+      'Last calls of {Day}',
+      'Trucks heading back soon',
+      '{Day} winding down',
+      'Final stretch of {Day}'
+    ],
+    // ── Clock-out hour (5pm) ───────────────────────────────────────
+    h17: [
+      "Five o'clock. {Day}'s closing",
+      'Trucks heading home',
+      'Final invoices of {Day}',
+      'Hope {Day} treated you right',
+      'Wrapping {Day} up',
+      'Last calls in, {Day}'
+    ],
+    // ── Evening, books-time (6pm) ──────────────────────────────────
+    h18: [
       'Good evening, and happy {Day}',
       'Wrapping up {Day}',
       'Evening, crew',
-      'Closing out {Day}'
+      'Closing out {Day}',
+      "Trucks parked, {Day}'s in the books",
+      'Hope {Day} paid off'
     ],
+    // ── Late check-ins (7pm) ───────────────────────────────────────
     h19: [
       "Woah, you're checking this late?",
-      'Past business hours, huh?'
+      'Past business hours, huh?',
+      "Hope dinner's calling",
+      'Evening, still here?'
     ],
     h20: [
       "Hope you're winding down",
@@ -900,7 +1012,8 @@ function updateGreeting() {
     ],
     h21: [
       "Hope tomorrow's ticket is a good one",
-      'Save some work for tomorrow'
+      'Save some work for tomorrow',
+      'Books will keep till morning'
     ],
     h22: [
       'Pretty late to be checking the books',
@@ -944,21 +1057,11 @@ function updateGreeting() {
   // little freshness without random-feeling noise.
   function pick(pool) { return pool[d % pool.length]; }
 
-  var raw;
-  if (h >= 5 && h < 12)       raw = pick(POOLS.morning);
-  else if (h >= 12 && h < 18) raw = pick(POOLS.afternoon);
-  else if (h === 18)          raw = pick(POOLS.evening);
-  else if (h === 19)          raw = pick(POOLS.h19);
-  else if (h === 20)          raw = pick(POOLS.h20);
-  else if (h === 21)          raw = pick(POOLS.h21);
-  else if (h === 22)          raw = pick(POOLS.h22);
-  else if (h === 23)          raw = pick(POOLS.h23);
-  else if (h === 0)           raw = pick(POOLS.h00);
-  else if (h === 1)           raw = pick(POOLS.h01);
-  else if (h === 2)           raw = pick(POOLS.h02);
-  else if (h === 3)           raw = pick(POOLS.h03);
-  else if (h === 4)           raw = pick(POOLS.h04);
-  else                        raw = 'Hello'; // unreachable but defensive
+  // Single lookup by zero-padded hour. Falls back to noon's pool if
+  // somehow an out-of-range hour slips through (shouldn't, but cheap
+  // insurance against a clock bug).
+  var key = 'h' + (h < 10 ? '0' + h : '' + h);
+  var raw = pick(POOLS[key] || POOLS.h12);
 
   var headline = raw.replace(/\{Day\}/g, dayName);
   var subline  = dayName + ' · ' + MONS[now.getMonth()] + ' ' + now.getDate();
