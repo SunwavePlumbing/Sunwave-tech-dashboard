@@ -1420,22 +1420,24 @@ app.get('/api/metrics', async (req, res) => {
       opts = opts || {};
 
       // ── Reconciliation short-circuit ──────────────────────────────
-      // If this job has been reconciled by an admin, the reconciliation
-      // record is the truth. Build the credit purely from it.
-      const recon = job && job.id ? RECONCILIATIONS[job.id] : null;
+      // Wrapped in try/catch so a malformed reconciliation record
+      // can't crash the entire credit pass. On failure, fall through
+      // to the normal HCP-driven attribution.
+      try {
+        const recon = job && job.id && RECONCILIATIONS && RECONCILIATIONS[job.id]
+          ? RECONCILIATIONS[job.id] : null;
 
-      // Excluded reconciliations: the admin has chosen to hide this
-      // job entirely. Mark as credited so neither the gap pass nor the
-      // unattributed safety net surfaces it. Returns true (not false)
-      // so the caller doesn't add to orphans.
-      if (recon && recon.excluded) {
-        if (job.id) creditedJobIds.add(job.id);
-        const ikey0 = creditedInvoiceKey(job);
-        if (ikey0) creditedInvoiceKeys.add(ikey0);
-        return true;
-      }
+        // Excluded reconciliations: the admin has chosen to hide this
+        // job entirely. Mark as credited so neither the gap pass nor
+        // the unattributed safety net surfaces it.
+        if (recon && recon.excluded) {
+          if (job.id) creditedJobIds.add(job.id);
+          const ikey0 = creditedInvoiceKey(job);
+          if (ikey0) creditedInvoiceKeys.add(ikey0);
+          return true;
+        }
 
-      if (recon && Array.isArray(recon.assignments) && recon.assignments.length > 0) {
+        if (recon && Array.isArray(recon.assignments) && recon.assignments.length > 0) {
         const reconAmount = (recon.totalAmount != null
           ? Number(recon.totalAmount)
           : (opts.revenue != null ? opts.revenue : parseFloat(job.total_amount || 0) / 100)) || 0;
@@ -1481,6 +1483,7 @@ app.get('/api/metrics', async (req, res) => {
           techMetrics[emp.id].unpaid += outstandingShare;
           if (jobOutstandingGross > 0) techMetrics[emp.id].unpaidJobs += 1;
           techMetrics[emp.id].jobList.push({
+            jobId: job.id || null,
             invoice: job.invoice_number || null,
             description: job.description || null,
             customer,
@@ -1503,6 +1506,12 @@ app.get('/api/metrics', async (req, res) => {
         const ikey = creditedInvoiceKey(job);
         if (ikey) creditedInvoiceKeys.add(ikey);
         return true;
+      }
+      } catch (reconErr) {
+        // Malformed reconciliation record — log and fall through to
+        // the normal HCP-driven attribution. We never want a bad row
+        // in kpi-reconciliations.json to take down the leaderboard.
+        console.warn('[creditJob recon]', job && job.id, reconErr.message);
       }
 
       const doers = uniqueEmployees(opts.assignedEmployees || job.assigned_employees || []);
@@ -1594,6 +1603,11 @@ app.get('/api/metrics', async (req, res) => {
         techMetrics[emp.id].unpaid += outstandingShare;
         if (jobOutstandingGross > 0) techMetrics[emp.id].unpaidJobs += 1;
         techMetrics[emp.id].jobList.push({
+          // jobId is what makes credited rows clickable in the admin
+          // period-jobs editor list. Without it, the row renders but
+          // can't be opened for reconciliation. The reconciliation
+          // path above already includes this.
+          jobId: job.id || null,
           invoice: job.invoice_number || null,
           description: job.description || null,
           customer,
@@ -1975,41 +1989,52 @@ app.get('/api/metrics', async (req, res) => {
     );
 
     // ── Reconciliation coverage for this period ────────────────────
-    // For each invoice on the leaderboard, check whether the
-    // corresponding job is reconciled. Aggregate counts so the client
-    // can show a "fully reconciled" badge when everything's locked.
-    let reconciledJobs = 0;
-    let totalJobs2 = 0;
-    leaderboard.forEach(t => {
-      (t.jobList || []).forEach(row => {
-        // Count each unique invoice only once
-        if (!row._reconCounted) {
-          row._reconCounted = true;
-          totalJobs2++;
+    // Defensive: any failure in this aggregation block must not crash
+    // /api/metrics. The leaderboard is the primary thing techs see; if
+    // the "fully reconciled" badge calculation has a bug, log and ship
+    // an empty status rather than 500-ing the whole dashboard.
+    let reconciliationStatus = { totalJobs: 0, reconciledJobs: 0, unattributedJobs: 0, fullyReconciled: false };
+    try {
+      // Dedupe reconciliation counting by invoice number — the same job
+      // can appear in multiple techs' jobLists for split credit.
+      const countedInvoices = new Set();
+      let reconciledJobs = 0;
+      let totalJobsForRecon = 0;
+      (leaderboard || []).forEach(t => {
+        (t.jobList || []).forEach(row => {
+          const key = row && row.invoice ? String(row.invoice) : null;
+          if (!key) return;
+          if (countedInvoices.has(key)) return;
+          countedInvoices.add(key);
+          totalJobsForRecon++;
           if (row.reconciled) reconciledJobs++;
-        }
+        });
       });
-    });
-    // Plus excluded reconciliations whose kpiDate falls in period
-    Object.values(RECONCILIATIONS).forEach(r => {
-      if (!r.excluded) return;
-      const kd = r.kpiDate && r.kpiDate.slice(0, 10);
-      if (!kd) return;
+      // Plus excluded reconciliations whose kpiDate falls in period
       const psI = periodStart.toISOString().slice(0, 10);
       const peI = periodEnd.toISOString().slice(0, 10);
-      if (kd >= psI && kd <= peI) {
-        totalJobs2++;
-        reconciledJobs++;  // excluded counts as reconciled (intentional)
-      }
-    });
-    const reconciliationStatus = {
-      totalJobs: totalJobs2,
-      reconciledJobs,
-      unattributedJobs: unattributed.length,
-      fullyReconciled: totalJobs2 > 0 &&
-        reconciledJobs === totalJobs2 &&
-        unattributed.filter(u => u.reason === 'no_assigned_employees' || u.reason === 'pipeline_unknown' || u.reason === 'job_details_unavailable').length === 0
-    };
+      Object.values(RECONCILIATIONS || {}).forEach(r => {
+        if (!r || !r.excluded) return;
+        const kd = typeof r.kpiDate === 'string' ? r.kpiDate.slice(0, 10) : null;
+        if (!kd) return;
+        if (kd >= psI && kd <= peI) {
+          totalJobsForRecon++;
+          reconciledJobs++;
+        }
+      });
+      const blockingReasons = new Set(['no_assigned_employees', 'pipeline_unknown', 'job_details_unavailable']);
+      const blockingCount = (unattributed || []).filter(u => u && blockingReasons.has(u.reason)).length;
+      reconciliationStatus = {
+        totalJobs: totalJobsForRecon,
+        reconciledJobs,
+        unattributedJobs: (unattributed || []).length,
+        fullyReconciled: totalJobsForRecon > 0 &&
+          reconciledJobs === totalJobsForRecon &&
+          blockingCount === 0
+      };
+    } catch (reconErr) {
+      console.warn('[/api/tech reconciliation-summary]', reconErr.message);
+    }
 
     return {
       leaderboard,
@@ -4434,6 +4459,7 @@ app.get('/api/kpi/admin/period-jobs', async (req, res) => {
         if (!key) return;
         if (!creditedByInvoice[key]) {
           creditedByInvoice[key] = {
+            jobId: row.jobId || null,
             invoice: key,
             customer: row.customer,
             description: row.description,
@@ -4443,6 +4469,12 @@ app.get('/api/kpi/admin/period-jobs', async (req, res) => {
             reconciled: row.reconciled || false,
             assignments: []
           };
+        }
+        // If we encounter the same invoice from a second tech (split
+        // credit), keep whichever jobId we already had — they're the
+        // same job, so the jobId should match.
+        if (!creditedByInvoice[key].jobId && row.jobId) {
+          creditedByInvoice[key].jobId = row.jobId;
         }
         creditedByInvoice[key].assignments.push({
           name: tech.name,
@@ -4460,18 +4492,9 @@ app.get('/api/kpi/admin/period-jobs', async (req, res) => {
     const seenInvoices = new Set();
 
     Object.values(creditedByInvoice).forEach(c => {
-      const recon = Object.values(RECS).find(r =>
-        // crude reconciliation lookup — we don't have job_id on
-        // credited rows so we'd need a better key. For now, future
-        // edits open the editor via jobId from the unattributed
-        // bucket. Credited-and-already-reconciled show via the
-        // recon flag on the row itself.
-        false
-      );
       out.push({
-        key: c.invoice,
-        jobId: null, // credited rows don't carry job_id; admin uses
-                     // unattributed entries or direct lookup to edit
+        key: c.jobId || c.invoice,
+        jobId: c.jobId,
         invoice: c.invoice,
         customer: c.customer,
         description: c.description,
