@@ -725,14 +725,10 @@ $('adminRefreshBtn').addEventListener('click', () => {
   if (ACTIVE_PANEL === 'issues') loadIssues(true);
   else if (ACTIVE_PANEL === 'locked') loadLocked(true);
   else if (ACTIVE_PANEL === 'coverage') {
-    const f = $('coverageFrame');
-    if (f) f.src = '';
-    loadEmbed('coverageFrame', '/coverage?embed=1&refresh=1');
+    loadEmbed('coverageFrame', '/coverage?embed=1&refresh=1', { force: true });
     setFreshness('Paid jobs audit', null, true);
   } else if (ACTIVE_PANEL === 'diagnostics') {
-    const f = $('diagnosticsFrame');
-    if (f) f.src = '';
-    loadEmbed('diagnosticsFrame', '/diagnostics');
+    loadEmbed('diagnosticsFrame', '/diagnostics', { force: true });
     setFreshness('Diagnostics', null, true);
   } else {
     loadJobs(true);
@@ -767,10 +763,16 @@ document.querySelectorAll('.tab').forEach(t => {
     if (t.dataset.panel === 'diagnostics') loadEmbed('diagnosticsFrame', '/diagnostics');
   });
 });
-function loadEmbed(frameId, src) {
+function loadEmbed(frameId, src, opts) {
+  opts = opts || {};
+  const force = !!opts.force;
   const f = $(frameId);
-  if (!f || f.src) return;
-  f.src = src + (src.includes('?') ? '&' : '?') + 'password=' + encodeURIComponent(PASSWORD);
+  if (!f) return;
+  const existing = f.getAttribute('src');
+  // An <iframe> without an explicit src reports `about:blank` in `f.src`,
+  // so use the attribute to decide whether we've populated it.
+  if (!force && existing && existing !== 'about:blank') return;
+  f.setAttribute('src', src + (src.includes('?') ? '&' : '?') + 'password=' + encodeURIComponent(PASSWORD));
 }
 
 // ── Period picker + job list ────────────────────────────────────────

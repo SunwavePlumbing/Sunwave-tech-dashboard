@@ -4356,32 +4356,37 @@ app.post('/api/kpi/report-issue', (req, res) => {
 // Returns a Set of HCP employee IDs. Cached 4 hours.
 const ACTIVE_TECH_MIN_JOBS = 3;
 async function getActiveTechIds() {
-  const ids = await withCache('active-tech-ids', 4 * 60 * 60 * 1000, async () => {
-    const since = new Date();
-    since.setDate(since.getDate() - 90);
-    const counts = {};
-    let page = 1;
-    while (page <= 25) {
-      const r = await axios.get(BASE_URL + '/jobs', {
-        headers: hcpHeaders(),
-        params: {
-          work_status: 'completed',
-          scheduled_start_min: since.toISOString(),
-          page,
-          page_size: 200
-        }
-      });
-      const jobs = r.data.jobs || [];
-      jobs.forEach(j => (j.assigned_employees || []).forEach(e => {
-        if (e && e.id) counts[e.id] = (counts[e.id] || 0) + 1;
-      }));
-      if (page >= (r.data.total_pages || 1)) break;
-      page++;
-    }
-    const active = Object.keys(counts).filter(id => counts[id] >= ACTIVE_TECH_MIN_JOBS);
-    return active.length ? active : Object.keys(counts);
-  });
-  return new Set(ids);
+  try {
+    const ids = await withCache('active-tech-ids', 4 * 60 * 60 * 1000, async () => {
+      const since = new Date();
+      since.setDate(since.getDate() - 90);
+      const counts = {};
+      let page = 1;
+      while (page <= 25) {
+        const r = await axios.get(BASE_URL + '/jobs', {
+          headers: hcpHeaders(),
+          params: {
+            work_status: 'completed',
+            scheduled_start_min: since.toISOString(),
+            page,
+            page_size: 200
+          }
+        });
+        const jobs = r.data.jobs || [];
+        jobs.forEach(j => (j.assigned_employees || []).forEach(e => {
+          if (e && e.id) counts[e.id] = (counts[e.id] || 0) + 1;
+        }));
+        if (page >= (r.data.total_pages || 1)) break;
+        page++;
+      }
+      const active = Object.keys(counts).filter(id => counts[id] >= ACTIVE_TECH_MIN_JOBS);
+      return active.length ? active : Object.keys(counts);
+    });
+    return new Set(ids);
+  } catch (err) {
+    console.error('[active-tech-ids]', err.response?.status || '', err.message);
+    return new Set();
+  }
 }
 
 // Walk the raw HCP employee list, filter to active techs (per
@@ -4400,7 +4405,8 @@ async function fetchTechEmployees() {
   while (page <= 10) {
     const r = await axios.get(BASE_URL + '/employees', {
       headers: hcpHeaders(),
-      params: { page, page_size: 100, sort_by: 'first_name', sort_direction: 'asc' }
+      // HCP's employees endpoint is picky; keep params minimal and sort client-side.
+      params: { page, page_size: 100 }
     });
     const emps = r.data.employees || [];
     all.push(...emps);

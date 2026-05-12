@@ -1276,6 +1276,90 @@ body.exp-modal-lock {
 .footer-levi { margin-top: 6px; font-size: 11px; color: #c8c8c8; letter-spacing: 0.2px; }
 .error-msg { background: #fff3f3; color: #c62828; padding: 1.2rem 1.4rem; font-size: 14px; }
 
+/* ── Bottom sheet for "Other" date ranges ───────────────────────
+   Lives outside any media query so the sheet stays hidden on desktop
+   until opened via the "Other" button (BugHerd #20). */
+.date-bs-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(15, 23, 42, 0);
+  display: flex; align-items: flex-end;
+  justify-content: center;
+  z-index: 100;
+  pointer-events: none;
+  transition: background 0.22s ease;
+}
+.date-bs-backdrop.open {
+  pointer-events: auto;
+  background: rgba(15, 23, 42, 0.55);
+}
+.date-bs-sheet {
+  width: 100%;
+  background: #ffffff;
+  border-radius: 20px 20px 0 0;
+  padding: 10px 0 max(18px, env(safe-area-inset-bottom));
+  transform: translateY(100%);
+  transition: transform 0.32s cubic-bezier(0.32, 0.72, 0.24, 1);
+  max-height: 82vh;
+  display: flex; flex-direction: column;
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
+}
+.date-bs-backdrop.open .date-bs-sheet { transform: translateY(0); }
+/* Unified drag zone covering both the handle indicator AND the
+   "Select Date Range" title. */
+.date-bs-drag {
+  cursor: grab;
+  touch-action: none;
+  flex-shrink: 0;
+  padding: 10px 0 0;
+  border-bottom: 1px solid #f1f5f9;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.date-bs-drag:active { cursor: grabbing; }
+.date-bs-handle {
+  width: 38px; height: 4px;
+  background: #cbd5e1;
+  border-radius: 2px;
+  margin: 0 auto 8px;
+  pointer-events: none;
+}
+.date-bs-title {
+  font-size: 16px; font-weight: 700;
+  color: #0f172a;
+  text-align: center;
+  padding: 4px 20px 14px;
+  pointer-events: none;
+}
+.date-bs-list {
+  display: flex; flex-direction: column;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 6px 0 4px;
+}
+.date-bs-item {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%;
+  padding: 14px 22px;
+  font-size: 16px; font-weight: 500;
+  color: #1e293b;
+  background: transparent;
+  border: none; border-bottom: 1px solid #f8fafc;
+  cursor: pointer;
+  text-align: left;
+  min-height: 48px;
+  transition: background 0.1s;
+}
+.date-bs-item:active { background: #f1f5f9; }
+.date-bs-item-check {
+  font-size: 18px; font-weight: 700; color: #FF8A1F;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.date-bs-item.active { background: #fff8ed; color: #FF8A1F; font-weight: 700; }
+.date-bs-item.active .date-bs-item-check { opacity: 1; }
+/* Lock background scroll while the sheet is open */
+body.date-bs-open { overflow: hidden; touch-action: none; }
+
 @media (max-width: 768px) {
   .main-wrapper { grid-template-columns: 1fr; }
   /* Horizontal-scroll pill row with iOS momentum + CSS scroll-snap for
@@ -1345,94 +1429,10 @@ body.exp-modal-lock {
     z-index: 2;
   }
 
-  /* ── Bottom sheet for "More" date ranges ─────────────────── */
-  .date-bs-backdrop {
-    position: fixed; inset: 0;
-    background: rgba(15, 23, 42, 0);
-    display: flex; align-items: flex-end;
-    justify-content: center;
-    z-index: 100;
-    pointer-events: none;
-    transition: background 0.22s ease;
-  }
-  .date-bs-backdrop.open {
-    pointer-events: auto;
-    background: rgba(15, 23, 42, 0.55);
-  }
-  .date-bs-sheet {
-    width: 100%;
-    background: #ffffff;
-    border-radius: 20px 20px 0 0;
-    padding: 10px 0 max(18px, env(safe-area-inset-bottom));
-    transform: translateY(100%);
-    transition: transform 0.32s cubic-bezier(0.32, 0.72, 0.24, 1);
-    max-height: 82vh;
-    display: flex; flex-direction: column;
-    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
-  }
-  .date-bs-backdrop.open .date-bs-sheet { transform: translateY(0); }
-  /* Unified drag zone covering both the handle indicator AND the
-     "Select Date Range" title. A user thumbing the title accidentally
-     now gets the exact same drag behavior as grabbing the tiny strip. */
-  .date-bs-drag {
-    cursor: grab;
-    touch-action: none;         /* we handle vertical panning ourselves */
-    flex-shrink: 0;
-    padding: 10px 0 0;
-    border-bottom: 1px solid #f1f5f9;
-    user-select: none;
-    -webkit-user-select: none;
-  }
-  .date-bs-drag:active { cursor: grabbing; }
-  .date-bs-handle {
-    width: 38px; height: 4px;
-    background: #cbd5e1;
-    border-radius: 2px;
-    margin: 0 auto 8px;
-    pointer-events: none;       /* let events fall through to the zone */
-  }
-  .date-bs-title {
-    font-size: 16px; font-weight: 700;
-    color: #0f172a;
-    text-align: center;
-    padding: 4px 20px 14px;
-    pointer-events: none;       /* prevent text-selection stealing the drag */
-  }
-  .date-bs-list {
-    display: flex; flex-direction: column;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    padding: 6px 0 4px;
-  }
-  .date-bs-item {
-    display: flex; align-items: center; justify-content: space-between;
-    width: 100%;
-    padding: 14px 22px;
-    font-size: 16px; font-weight: 500;
-    color: #1e293b;
-    background: transparent;
-    border: none; border-bottom: 1px solid #f8fafc;
-    cursor: pointer;
-    text-align: left;
-    min-height: 48px;
-    transition: background 0.1s;
-  }
-  .date-bs-item:active { background: #f1f5f9; }
-  .date-bs-item-check {
-    font-size: 18px; font-weight: 700; color: #FF8A1F;
-    opacity: 0;
-    transition: opacity 0.12s;
-  }
-  .date-bs-item.active { background: #fff8ed; color: #FF8A1F; font-weight: 700; }
-  .date-bs-item.active .date-bs-item-check { opacity: 1; }
-
-  /* Lock background scroll while the sheet is open */
-  body.date-bs-open { overflow: hidden; touch-action: none; }
-
-/* Body-level scroll lock while the tech-jobs modal is open. iOS
-   Safari ignores `overflow: hidden` on <body> for touch gestures —
-   users can still scroll the page by swiping anywhere inside a modal,
-   which is the bug here. The bulletproof fix is `position: fixed`
+  /* Body-level scroll lock while the tech-jobs modal is open. iOS
+     Safari ignores `overflow: hidden` on <body> for touch gestures —
+     users can still scroll the page by swiping anywhere inside a modal,
+     which is the bug here. The bulletproof fix is `position: fixed`
    with `width: 100%`, which genuinely removes the body from the
    scroll graph. The JS side captures `window.scrollY` BEFORE locking
    and restores it on close (via `top: -<y>px` while locked, then
