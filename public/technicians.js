@@ -354,11 +354,9 @@ function render() {
      2026-04-01; anything earlier was imported and may have gaps or
      misattributed jobs. Comparing ISO date strings lexicographically
      is safe for YYYY-MM-DD. */
-  var HCP_CUTOVER = '2026-04-01';
   var warnEl = document.getElementById('techDataWarning');
   if (warnEl) {
-    var showWarn = summary.periodStart && summary.periodStart < HCP_CUTOVER;
-    warnEl.hidden = !showWarn;
+    warnEl.hidden = true;
   }
 
   /* Reconciliation-status badge — shows when admin has reviewed every
@@ -417,7 +415,8 @@ function render() {
 
   // Stat cards: count-up animation
   animateStatCards(summary);
-  renderKpiFreshness(summary);
+  // HCP freshness is useful for admin/debugging, but the technician view
+  // should stay focused on their board and rankings.
 
   // Capture current row positions BEFORE rerender (for FLIP)
   var oldRects = captureRowRects();

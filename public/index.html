@@ -43,10 +43,6 @@
       <!-- Date range menu — lives INSIDE the Technicians view so it
            automatically hides when other tabs are active. -->
       <div class="sidebar" id="dateSidebar"></div>
-      <!-- Reconciliation-status badge — toggled by render() in
-           technicians.js when /api/metrics reports the period's
-           reconciliation coverage. Hidden when nothing's reconciled. -->
-      <div class="recon-badge" id="reconciledBadge" hidden></div>
       <!-- Data-quality qualifier: shown only when the selected range
            reaches back into the Service Titan era (before HCP migrated
            on 2026-04-01). Toggled by render() in technicians.js. -->
@@ -73,10 +69,6 @@
         <div class="stat-card"><div class="stat-label">Total Value Created</div><div class="stat-value">&mdash;</div></div>
         <div class="stat-card"><div class="stat-label">Avg Ticket</div><div class="stat-value">&mdash;</div></div>
         <div class="stat-card"><div class="stat-label">Total Jobs</div><div class="stat-value">&mdash;</div></div>
-      </div>
-      <div class="kpi-freshness" id="kpiFreshness" hidden>
-        <span id="kpiFreshnessText">Checking data freshness...</span>
-        <button type="button" id="kpiRefreshBtn">Refresh HCP data</button>
       </div>
       <!-- Time-of-day + day-of-week greeting. Sits between the summary
            cards and the sort row so it acts as a soft visual divider
@@ -125,6 +117,10 @@
         </a>
         <div class="tech-report-cta-sub">Help Levi keep this legit.</div>
       </div>
+      <!-- Reconciliation-status badge — toggled by render() in
+           technicians.js when /api/metrics reports the period's
+           reconciliation coverage. Hidden when nothing's reconciled. -->
+      <div class="recon-badge" id="reconciledBadge" hidden></div>
     </div>
 
     <!-- Marketing view -->

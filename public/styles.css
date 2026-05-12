@@ -1171,15 +1171,15 @@ body.exp-modal-lock {
    leaderboard so it's in the line of sight of any tech reviewing their
    numbers. Two-tier: prominent orange pill + small tagline below. */
 /* ── Reconciliation status badge ───────────────────────────────
-   Sits between the date-range pills and the stat cards inside
-   #techView. Two variants: "Fully reconciled" (green) when admin has
+   Sits below the technician work area inside #techView. Two variants:
+   "Fully reconciled" (green) when admin has
    reviewed and locked every job for the period; "N of M reconciled"
    (amber) for partial progress. Hidden by default. */
 .recon-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin: -4px 0 16px;
+  margin: 14px auto 0;
   padding: 4px 12px;
   font-size: 11px;
   font-weight: 700;

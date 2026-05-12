@@ -105,37 +105,37 @@ window.GREETING_POOLS = {
     'Big morning shaping up'
   ],
 
-  // 11am — pre-lunch push, last hour before the break
+  // 11am — late-morning push
   h11: [
-    'Morning crushed. Lunch earned',
+    'Morning crushed. Keep stacking',
     'Strong half-shift behind you',
     "{Day}'s board is filling up",
     'Big morning. Real wins',
-    'Almost lunch. {Day} is winning',
-    'One more before the break',
+    '{Day} is winning',
+    'One more strong call',
     'Last morning call. Stack it'
   ],
 
-  // 12pm — lunch
+  // 12pm — midday
   h12: [
-    'Big morning. Eat well',
-    'Lunch. You earned every bite',
-    'Look at the board. Then eat',
+    'Big morning. Keep it moving',
+    'Midday push. Stack the next win',
+    'Look at the board. Then build on it',
     '{Day} is strong so far',
     'Midpoint, {Day}. Feeling good',
-    'Lunch break, take it',
-    'Sandwich earned',
-    'Hot meal, hot {Day}'
+    'Middle of the day, numbers climbing',
+    'Momentum earned',
+    'Hot {Day}, strong board'
   ],
 
-  // 1pm — post-lunch, second half kickoff
+  // 1pm — second half kickoff
   h13: [
     'Back at it. Big afternoon coming',
     "Second half. Let's stack more",
     'Trucks rolling, {Day} climbing',
     'Afternoon push. Numbers go up',
-    'Refueled and going',
-    'Fed and rolling',
+    'Reset and rolling',
+    'Still rolling',
     'Half a {Day} done, half to win'
   ],
 
