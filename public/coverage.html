@@ -340,6 +340,20 @@ if (savedPw) $('pw').value = savedPw;
 const savedRange = localStorage.getItem(RANGE_KEY);
 if (savedRange) $('rangeSel').value = savedRange;
 
+// If embedded from KPI Admin, allow the password to be passed via query
+// params so admins don't have to re-type it inside the iframe.
+try {
+  const qs = new URLSearchParams(location.search || '');
+  const qp = (qs.get('password') || qs.get('token') || '').trim();
+  const isEmbed = (qs.get('embed') === '1' || qs.get('embed') === 'true');
+  if (qp && !$('pw').value) {
+    $('pw').value = qp;
+    sessionStorage.setItem(PW_KEY, qp);
+  }
+  // Optional: auto-run when opened as an embedded tool and we have a password.
+  if (isEmbed && qp) setTimeout(() => run(), 50);
+} catch (e) {}
+
 $('runBtn').addEventListener('click', run);
 $('pw').addEventListener('keydown', (e) => { if (e.key === 'Enter') run(); });
 $('rangeSel').addEventListener('change', () => {

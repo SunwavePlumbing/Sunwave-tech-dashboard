@@ -36,15 +36,18 @@
 
     /* ── Header ─────────────────────────────────────────────────── */
     .header {
+      position: relative;
       display: flex;
       align-items: baseline;
-      justify-content: space-between;
+      justify-content: center;
       margin-bottom: 1.2rem;
       flex-wrap: wrap;
       gap: 8px;
+      text-align: center;
     }
     .header h1 { font-size: 22px; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
     .header .sub { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-mute); font-weight: 600; }
+    .header-nav { position: absolute; right: 0; top: 0; }
     .nav-link { font-size: 12px; color: var(--brand); text-decoration: none; font-weight: 600; }
     .nav-link:hover { text-decoration: underline; }
 
@@ -396,9 +399,9 @@
     <div class="header">
       <div>
         <h1>KPI Admin</h1>
-        <div class="sub">Reconcile attribution &middot; Lock jobs</div>
+        <div class="sub" id="subhead">Reconcile attribution</div>
       </div>
-      <div><a class="nav-link" href="/">&larr; Dashboard</a></div>
+      <div class="header-nav"><a class="nav-link" href="/">&larr; Dashboard</a></div>
     </div>
 
     <div class="tabs">
@@ -621,16 +624,29 @@ async function api(path, opts) {
 }
 
 // ── Tab switching ───────────────────────────────────────────────────
+const PANEL_TITLES = {
+  reconcile: 'Reconcile attribution',
+  issues: 'Issue reports',
+  locked: 'Locked records',
+  coverage: 'Paid jobs audit',
+  diagnostics: 'Diagnostics'
+};
+function setSubhead(panel) {
+  const el = $('subhead');
+  if (!el) return;
+  el.textContent = PANEL_TITLES[panel] || 'KPI Admin';
+}
 document.querySelectorAll('.tab').forEach(t => {
   t.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(x => x.classList.remove('is-active'));
     t.classList.add('is-active');
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('is-active'));
     $('panel-' + t.dataset.panel).classList.add('is-active');
+    setSubhead(t.dataset.panel);
     if (t.dataset.panel === 'issues')   loadIssues();
     if (t.dataset.panel === 'locked')   loadLocked();
     if (t.dataset.panel === 'reconcile') loadJobs();
-    if (t.dataset.panel === 'coverage')    loadEmbed('coverageFrame', '/coverage');
+    if (t.dataset.panel === 'coverage')    loadEmbed('coverageFrame', '/coverage?embed=1');
     if (t.dataset.panel === 'diagnostics') loadEmbed('diagnosticsFrame', '/diagnostics');
   });
 });
@@ -1287,7 +1303,9 @@ async function loadIssues() {
   try {
     const data = await api('/api/kpi/admin/issues');
     const reports = data.reports || [];
-    $('issueCount').textContent = reports.filter(r => r.status === 'open').length;
+    const open = reports.filter(r => r.status === 'open');
+    const handled = reports.filter(r => r.status !== 'open');
+    $('issueCount').textContent = open.length;
     if (reports.length === 0) {
       $('issuesList').innerHTML = '<div class="empty">No issue reports yet.</div>';
       return;
@@ -1299,7 +1317,7 @@ async function loadIssues() {
       wrong_customer: 'Wrong customer', wrong_seller: 'Wrong customer',
       wrong_unpaid: 'Wrong unpaid amount', other: 'Other'
     };
-    $('issuesList').innerHTML = reports.map(rep => {
+    const renderReport = (rep) => {
       const ref = [rep.invoice && '#' + rep.invoice, rep.customer].filter(Boolean).join(' · ');
       const when = new Date(rep.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
       return `<div class="item-card">
@@ -1318,7 +1336,25 @@ async function loadIssues() {
             : '<button class="btn" data-action="issue-status" data-id="' + esc(rep.id) + '" data-newstatus="open">Re-open</button>'}
         </div>
       </div>`;
-    }).join('');
+    };
+
+    let html = '';
+    if (open.length === 0) {
+      html += '<div class="item-card"><div style="display:flex;align-items:center;gap:10px">' +
+        '<span class="badge badge--good">No open issues</span>' +
+        '<span style="font-size:13px;color:var(--ink-soft)">Everything in the inbox is handled.</span>' +
+      '</div></div>';
+    } else {
+      html += open.map(renderReport).join('');
+    }
+    if (handled.length) {
+      html += '<div style="margin:18px 2px 8px;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-mute);font-weight:700">' +
+        'Handled (resolved / dismissed)' +
+      '</div>';
+      html += '<div style="height:1px;background:var(--border);margin:0 2px 12px"></div>';
+      html += handled.map(renderReport).join('');
+    }
+    $('issuesList').innerHTML = html;
   } catch (err) {
     console.warn('[loadIssues]', err);
     $('issueCount').textContent = '?';
@@ -1359,13 +1395,36 @@ async function loadLocked() {
       $('lockedList').innerHTML = '<div class="empty">No reconciliations yet' + (month ? ' for ' + month : '') + '.</div>';
       return;
     }
+
+    // Enrich each reconciliation with the underlying job details so the list
+    // reads like "who/what/when" instead of just an internal job id.
+    const jobInfoById = {};
+    await Promise.allSettled(recs.map(async (r) => {
+      const jobId = r && r.jobId;
+      if (!jobId) return;
+      try {
+        const jr = await api('/api/kpi/admin/job/' + encodeURIComponent(jobId));
+        if (jr && jr.job) jobInfoById[jobId] = jr.job;
+      } catch (e) {
+        // Non-fatal (e.g., API key not configured locally).
+      }
+    }));
+
     $('lockedList').innerHTML = recs.map(r => {
+      const job = jobInfoById[r.jobId] || null;
       const names = (r.assignments || []).map(a => a.employeeName + ' ' + a.creditPct + '%').join(' · ');
       const dateStr = r.kpiDate ? isoDate(r.kpiDate) : '—';
+      const who = (job && job.customer) ? esc(job.customer) : null;
+      const done = (job && job.completedAt) ? esc(isoDate(job.completedAt)) : null;
+      const desc = (job && job.description) ? esc(job.description) : '';
+      const title = who || (r.invoice ? ('Invoice #' + esc(String(r.invoice))) : esc(r.jobId));
+      const meta = [done && ('Done ' + done), r.totalAmount != null ? fmt(r.totalAmount) : null].filter(Boolean).join(' · ');
       return `<div class="item-card" style="display:grid;grid-template-columns:1fr 100px 90px;gap:10px;align-items:center">
         <div>
-          <div style="font-weight:700;font-family:ui-monospace,monospace;font-size:12px;margin-bottom:4px">${esc(r.jobId)}</div>
-          <div style="font-size:13px;color:var(--ink-soft)">${esc(names) || '<em>excluded</em>'}${r.totalAmount != null ? ' · ' + fmt(r.totalAmount) : ''}</div>
+          <div style="font-weight:800;font-size:13px;margin-bottom:4px">${title}</div>
+          ${desc ? '<div style="font-size:12px;color:var(--ink-mute);margin-bottom:4px">' + desc + '</div>' : ''}
+          <div style="font-size:13px;color:var(--ink-soft)">${esc(names) || '<em>excluded</em>'}${meta ? ' · ' + esc(meta) : ''}</div>
+          <div style="font-size:11px;color:var(--ink-mute);margin-top:3px">Job ID: <span style="font-family:ui-monospace,monospace">${esc(r.jobId)}</span></div>
           ${r.notes ? '<div style="font-size:12px;color:var(--ink-mute);margin-top:3px">' + esc(r.notes) + '</div>' : ''}
         </div>
         <div style="font-size:11px;color:var(--ink-mute);text-align:right">${esc(dateStr)}</div>
