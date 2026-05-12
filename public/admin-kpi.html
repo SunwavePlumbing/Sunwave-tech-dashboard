@@ -348,6 +348,26 @@
 
     .empty { padding: 32px; text-align: center; color: var(--ink-mute); font-size: 13px; }
 
+    /* "Why this is unattributed" callout in the edit panel */
+    .why-card {
+      padding: 14px 16px;
+      background: var(--warn-pale);
+      border: 1px solid #F1D48E;
+      border-left: 4px solid var(--warn);
+      border-radius: 10px;
+    }
+    .why-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--warn);
+      margin-bottom: 6px;
+    }
+    .why-detail {
+      font-size: 13px;
+      color: var(--ink);
+      line-height: 1.5;
+    }
+
     /* Open-issues + locked-records simple lists */
     .item-card {
       background: var(--card);
@@ -744,7 +764,49 @@ async function renderEditPanel(key) {
     isReconciled: !!recon
   };
 
+  // Map the server's reason codes to actionable explanations for the
+  // admin. When a job lands in the unattributed bucket, this tells
+  // the admin WHY the auto-pipeline couldn't credit it and what to
+  // do about it right here in the editor.
+  const REASON_LABELS = {
+    no_assigned_employees: {
+      title: 'No tech assigned in HCP',
+      detail: 'The job has no assigned_employees set in Housecall Pro, so the auto-pipeline can\'t guess who to credit. Pick the right tech(s) below in the Attribution section and hit Save — they\'ll show up on the leaderboard on the next refresh.'
+    },
+    completed_in_different_period: {
+      title: 'Work was done in a different period',
+      detail: 'The customer paid in this period, but the job\'s service date (see KPI date below) is outside it. The job is already credited on the period where the work actually happened. You usually don\'t need to do anything here — but you can adjust the KPI date below if HCP has the wrong service date.'
+    },
+    servicetitan_artifact: {
+      title: 'ServiceTitan migration record',
+      detail: 'This job was imported from ServiceTitan before the HCP migration. Excluded by design from post-cutover KPI periods. If this is real post-cutover work mistakenly tagged as ST, remove the ServiceTitan tag/lead-source in HCP.'
+    },
+    job_details_unavailable: {
+      title: 'HCP couldn\'t return job details',
+      detail: 'The /jobs/{id} fetch from HCP failed (likely archived, deleted, or a transient error). The invoice shows the work happened, but we can\'t read the underlying job. Manually fill out the attribution below if it should count.'
+    },
+    standalone_invoice_no_job: {
+      title: 'Invoice has no linked service job',
+      detail: 'An invoice was paid, but there\'s no service job tied to it in HCP. Standalone invoices can\'t be auto-attributed. If a tech actually did the work, add their name(s) below and save.'
+    },
+    pipeline_unknown: {
+      title: 'Pipeline glitch',
+      detail: 'The auto-pipeline didn\'t credit this for an unexpected reason. This is rare — likely a bug. Reconcile manually here, and let Levi know which job # this is so the underlying logic can be fixed.'
+    }
+  };
+  const reasonInfo = j.status === 'unattributed' && j.reason ? REASON_LABELS[j.reason] : null;
+  const reasonBlock = reasonInfo ? `
+    <div class="edit-section unattributed-why">
+      <span class="edit-label" style="color:var(--warn)">Why this is unattributed</span>
+      <div class="why-card">
+        <div class="why-title">${esc(reasonInfo.title)}</div>
+        <div class="why-detail">${esc(reasonInfo.detail)}</div>
+      </div>
+    </div>
+  ` : '';
+
   panel.innerHTML = `
+    ${reasonBlock}
     <div class="edit-section">
       <span class="edit-label">HCP Context (read-only)</span>
       <dl class="hcp-context">

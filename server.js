@@ -1477,7 +1477,19 @@ app.get('/api/metrics', async (req, res) => {
         const totalPct = recon.assignments.reduce((s, a) => s + (Number(a.creditPct) || 0), 0) || 100;
 
         recon.assignments.forEach(a => {
-          const emp = employeeFromName(a.employeeName || '');
+          // Resolve to the REAL HCP employee record first — otherwise
+          // every reconciled credit goes to a synthetic `manual:name`
+          // ID and the same tech shows up TWICE on the leaderboard
+          // (once from their auto-attributed jobs under their real
+          // HCP id, once from this reconciliation under the synthetic
+          // one). The employeeByName map is built from every job in
+          // the wide HCP window, so any real tech who's appeared on
+          // any recent job is in there. Synthetic fallback only for
+          // names that aren't in HCP (e.g. a tech who left, or one
+          // an admin typed by hand that doesn't match a roster name).
+          const lookupKey = normalizePersonName(a.employeeName || '');
+          const emp = (lookupKey && employeeByName[lookupKey])
+            || employeeFromName(a.employeeName || '');
           if (!emp.first_name && !emp.last_name) return;
           ensureTech(emp);
           const myName = ((emp.first_name || '') + ' ' + (emp.last_name || '')).trim();
@@ -1906,6 +1918,17 @@ app.get('/api/metrics', async (req, res) => {
       // shows so the user knows where the job was *actually* credited.
       const kdRaw = job ? kpiDateForJob(job) : null;
       const kpiDateIso = kdRaw && !isNaN(kdRaw.getTime()) ? kdRaw.toISOString() : null;
+
+      // Skip rows that aren't actually uncredited. A job paid in this
+      // period but whose service date is in another period IS already
+      // counted on that other period's leaderboard — so it shouldn't
+      // appear in the "unattributed" list here. Used to surface for
+      // transparency; the noise outweighed the value.
+      if (job && (job.assigned_employees || []).length > 0
+          && kdRaw && (kdRaw < periodStart || kdRaw >= periodEnd)) {
+        continue;
+      }
+
       if (failedJobFetches.has(jobId)) {
         reason = 'job_details_unavailable';
       } else if (!job) {
@@ -1914,8 +1937,6 @@ app.get('/api/metrics', async (req, res) => {
         reason = 'servicetitan_artifact';
       } else if ((job.assigned_employees || []).length === 0) {
         reason = 'no_assigned_employees';
-      } else if (kdRaw && (kdRaw < periodStart || kdRaw >= periodEnd)) {
-        reason = 'completed_in_different_period';
       } else {
         reason = 'pipeline_unknown';  // shouldn't happen — flags a bug
       }
@@ -4226,6 +4247,39 @@ app.post('/api/kpi/report-issue', (req, res) => {
     return res.status(500).json({ error: 'Failed to save report' });
   }
   res.json({ ok: true, report });
+});
+
+// Public list of active HCP employee names. Used by the report-issue
+// page's "which techs actually did this job?" picker. Returns names
+// only — no IDs, no roles, no email. Cached 4 hours.
+app.get('/api/employees/public', async (req, res) => {
+  if (!API_KEY) return res.status(503).json({ error: 'HCP API key not configured' });
+  try {
+    const payload = await withCache('public-employees', 4 * 60 * 60 * 1000, async () => {
+      const all = [];
+      let page = 1;
+      while (page <= 10) {
+        const r = await axios.get(BASE_URL + '/employees', {
+          headers: hcpHeaders(),
+          params: { page, page_size: 100, sort_by: 'first_name', sort_direction: 'asc' }
+        });
+        const emps = r.data.employees || [];
+        all.push(...emps);
+        if (page >= (r.data.total_pages || 1)) break;
+        page++;
+      }
+      return {
+        employees: all
+          .map(e => ({ name: ((e.first_name || '') + ' ' + (e.last_name || '')).trim() }))
+          .filter(e => e.name)
+          .sort((a, b) => a.name.localeCompare(b.name))
+      };
+    });
+    res.json(payload);
+  } catch (err) {
+    console.error('[employees/public]', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // List recent reports (tech-facing view). Last 25, newest first.
