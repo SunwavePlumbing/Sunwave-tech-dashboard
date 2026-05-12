@@ -1,5 +1,6 @@
 var currentData = null;
 var currentSort = 'revenue';
+var currentSortDir = 'desc';
 var currentTimeRange = 'mtd';
 var isFetching = false;
 
@@ -274,13 +275,32 @@ if (window.innerWidth <= 768) {
   });
 }
 
-document.querySelectorAll('.sort-btn').forEach(function(btn) {
+function defaultSortDir(sortKey) {
+  return sortKey === 'name' ? 'asc' : 'desc';
+}
+
+function updateSortHeaders() {
+  document.querySelectorAll('.sort-th').forEach(function(btn) {
+    var isActive = btn.dataset.sort === currentSort;
+    btn.classList.toggle('is-active', isActive);
+    btn.removeAttribute('aria-sort');
+    if (isActive) {
+      btn.setAttribute('aria-sort', currentSortDir === 'asc' ? 'ascending' : 'descending');
+    }
+  });
+}
+
+document.querySelectorAll('.sort-th').forEach(function(btn) {
   btn.addEventListener('click', function() {
     var newSort = this.dataset.sort;
-    if (newSort === currentSort) return;
-    currentSort = newSort;
-    document.querySelectorAll('.sort-btn').forEach(function(b) { b.classList.remove('active'); });
-    this.classList.add('active');
+    if (!newSort) return;
+    if (newSort === currentSort) {
+      currentSortDir = currentSortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      currentSort = newSort;
+      currentSortDir = defaultSortDir(newSort);
+    }
+    updateSortHeaders();
     var body = document.getElementById('leaderboardBody');
     body.classList.add('sorting');
     setTimeout(function() {
@@ -289,6 +309,7 @@ document.querySelectorAll('.sort-btn').forEach(function(btn) {
     }, 120);
   });
 });
+updateSortHeaders();
 
 // Modal
 document.getElementById('modalClose').addEventListener('click', closeModal);

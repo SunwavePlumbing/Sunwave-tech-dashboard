@@ -184,11 +184,6 @@ body {
   .kpi-freshness { align-items: flex-start; flex-direction: column; }
 }
 
-.sort-section { display: flex; align-items: center; gap: 8px; margin-bottom: 1rem; flex-wrap: wrap; }
-.sort-label { font-size: 12px; color: #888; text-transform: uppercase; font-weight: 600; }
-.sort-btn { padding: 6px 14px; font-size: 13px; border: 1px solid #e0e0e0; border-radius: 20px; background: white; color: #555; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
-.sort-btn:hover { background: #f5f5f5; }
-.sort-btn.active { background: #FF8A1F; color: white; border-color: #FF8A1F; font-weight: 600; }
 #leaderboardBody { transition: opacity 0.15s ease; }
 #leaderboardBody.sorting { opacity: 0.3; }
 
@@ -319,7 +314,6 @@ body.anim-entrance .header,
 body.anim-entrance .tab-nav,
 body.anim-entrance #techView > .sidebar,
 body.anim-entrance #techView > .stats,
-body.anim-entrance #techView > .sort-section,
 body.anim-entrance #techView > .table-wrapper {
   opacity: 0;
   animation: fadeSlideUp 0.5s cubic-bezier(0.2, 0.65, 0.3, 1) both;
@@ -328,8 +322,7 @@ body.anim-entrance .header                    { animation-delay: 0ms;   }
 body.anim-entrance .tab-nav                   { animation-delay: 80ms;  }
 body.anim-entrance #techView > .sidebar       { animation-delay: 160ms; }
 body.anim-entrance #techView > .stats         { animation-delay: 240ms; }
-body.anim-entrance #techView > .sort-section  { animation-delay: 320ms; }
-body.anim-entrance #techView > .table-wrapper { animation-delay: 400ms; }
+body.anim-entrance #techView > .table-wrapper { animation-delay: 320ms; }
 
 /* Tab re-entry cascade — scoped to the Technicians view's own children
    so re-clicking the Technicians tab replays the same staggered fade-up
@@ -338,7 +331,6 @@ body.anim-entrance #techView > .table-wrapper { animation-delay: 400ms; }
    an rAF pair. */
 body.tech-mount-in #techView > .sidebar,
 body.tech-mount-in #techView > .stats,
-body.tech-mount-in #techView > .sort-section,
 body.tech-mount-in #techView > .table-wrapper {
   opacity: 0;
   animation: fadeSlideUp 0.5s cubic-bezier(0.2, 0.65, 0.3, 1) both;
@@ -347,8 +339,7 @@ body.tech-mount-in #techView > .sidebar       { animation-delay: 0ms;   }
 body.tech-mount-in #techView > .recon-badge   { animation-delay: 40ms;  }
 body.tech-mount-in #techView > .stats         { animation-delay: 80ms;  }
 body.tech-mount-in #techView > .greeting-bar  { animation-delay: 140ms; }
-body.tech-mount-in #techView > .sort-section  { animation-delay: 200ms; }
-body.tech-mount-in #techView > .table-wrapper { animation-delay: 280ms; }
+body.tech-mount-in #techView > .table-wrapper { animation-delay: 200ms; }
 /* Greeting bar joins both the first-paint cascade and the tab re-entry
    cascade so it doesn't "pop in" out of sync with its neighbors. */
 body.anim-entrance #techView > .greeting-bar,
@@ -634,12 +625,12 @@ tbody td.unpaid-cell.is-clickable:hover .row-count {
 /* Micro-interaction: press-compress on tappable pills. A quick scale
    dip + spring-back confirms the tap before the API even starts. */
 .tab-btn:active,
-.sort-btn:active {
+.sort-th:active {
   transform: scale(0.96);
   transition: transform 0.08s ease-out;
 }
 .tab-btn  { transition: color 0.15s ease, transform 0.15s cubic-bezier(0.5,1.8,0.5,1); }
-.sort-btn { transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.15s cubic-bezier(0.5,1.8,0.5,1); }
+.sort-th { transition: color 0.15s ease, transform 0.15s cubic-bezier(0.5,1.8,0.5,1); }
 
 table { width: 100%; border-collapse: collapse; }
 
@@ -672,6 +663,39 @@ table { width: 100%; border-collapse: collapse; }
 
 thead th { padding: 12px 16px; text-align: left; font-size: 12px; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1px solid #f0f0f0; }
 thead th:not(:first-child) { text-align: right; }
+.sort-th {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+thead th:not(:first-child) .sort-th { justify-content: flex-end; }
+.sort-th:hover,
+.sort-th.is-active { color: #FF8A1F; }
+.sort-th::after {
+  content: '';
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  opacity: 0;
+}
+.sort-th.is-active::after {
+  opacity: 1;
+  border-top: 5px solid currentColor;
+}
+.sort-th.is-active[aria-sort="ascending"]::after {
+  border-top: 0;
+  border-bottom: 5px solid currentColor;
+}
 tbody tr { border-bottom: 1px solid #f7f7f7; transition: background 0.1s; cursor: pointer; }
 tbody tr:last-child { border-bottom: none; }
 tbody tr:hover { background: #fff8f0; }
@@ -1436,9 +1460,6 @@ body.exp-modal-lock {
      widths (375px) and up. The header/tab-nav still own their own
      padding so they stay visually centered on the wider page bg. */
   .content { padding: 1.2rem 0.6rem; }
-  .sort-section { gap: 8px; margin-bottom: 1.5rem; }
-  .sort-label { display: none; }
-  .sort-btn { padding: 6px 14px; font-size: 13px; }
   .stats { grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 1.8rem; }
   .stat-card { padding: 0.7rem 0.4rem; }
   .stat-label { font-size: 10px; }

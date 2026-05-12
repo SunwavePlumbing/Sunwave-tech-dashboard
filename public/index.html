@@ -80,23 +80,16 @@
         <div class="greeting-headline" id="greetingHeadline">&nbsp;</div>
         <div class="greeting-subline"  id="greetingSubline">&nbsp;</div>
       </div>
-      <div class="sort-section">
-        <span class="sort-label">Sort:</span>
-        <button class="sort-btn active" data-sort="revenue">Value Created</button>
-        <button class="sort-btn" data-sort="ticket">Avg Ticket</button>
-        <button class="sort-btn" data-sort="jobs"># Jobs</button>
-        <button class="sort-btn" data-sort="unpaid">Unpaid</button>
-      </div>
       <div class="table-wrapper" id="tableWrapper">
         <div class="spinner"></div>
         <table>
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Value Created</th>
-              <th>Avg Ticket</th>
-              <th># Jobs</th>
-              <th>Unpaid</th>
+              <th><button type="button" class="sort-th" data-sort="name">Name</button></th>
+              <th><button type="button" class="sort-th is-active" data-sort="revenue" aria-sort="descending">Value Created</button></th>
+              <th><button type="button" class="sort-th" data-sort="ticket">Avg Ticket</button></th>
+              <th><button type="button" class="sort-th" data-sort="jobs"># Jobs</button></th>
+              <th><button type="button" class="sort-th" data-sort="unpaid">Unpaid</button></th>
             </tr>
           </thead>
           <tbody id="leaderboardBody">

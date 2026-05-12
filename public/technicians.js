@@ -422,10 +422,22 @@ function render() {
   var oldRects = captureRowRects();
 
   var sorted = leaderboard.slice();
-  if (currentSort === 'revenue') sorted.sort(function(a, b) { return b.monthlyRevenue - a.monthlyRevenue; });
-  else if (currentSort === 'ticket') sorted.sort(function(a, b) { return b.averageTicket - a.averageTicket; });
-  else if (currentSort === 'jobs') sorted.sort(function(a, b) { return b.jobsCompleted - a.jobsCompleted; });
-  else if (currentSort === 'unpaid') sorted.sort(function(a, b) { return (b.unpaid || 0) - (a.unpaid || 0); });
+  var dir = currentSortDir === 'asc' ? 1 : -1;
+  sorted.sort(function(a, b) {
+    var cmp = 0;
+    if (currentSort === 'name') {
+      cmp = a.name.localeCompare(b.name);
+    } else if (currentSort === 'ticket') {
+      cmp = a.averageTicket - b.averageTicket;
+    } else if (currentSort === 'jobs') {
+      cmp = a.jobsCompleted - b.jobsCompleted;
+    } else if (currentSort === 'unpaid') {
+      cmp = (a.unpaid || 0) - (b.unpaid || 0);
+    } else {
+      cmp = a.monthlyRevenue - b.monthlyRevenue;
+    }
+    return cmp * dir;
+  });
 
   var medals = ['\uD83E\uDD47', '\uD83E\uDD48', '\uD83E\uDD49'];
   var rows = sorted.map(function(tech, idx) {
