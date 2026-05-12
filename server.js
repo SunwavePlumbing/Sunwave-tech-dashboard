@@ -31,6 +31,17 @@ app.use((req, res, next) => {
   next();
 });
 
+// Railway probes this endpoint to decide whether the container is alive.
+// Keep it dependency-free so upstream API issues never make a healthy
+// web process look crashed during deploys.
+app.get('/healthz', (req, res) => {
+  res.status(200).json({
+    ok: true,
+    service: 'sunwave-tech-dashboard',
+    uptime: Math.round(process.uptime())
+  });
+});
+
 // Headers for Housecall Pro requests
 function hcpHeaders() {
   return { 'Authorization': 'Token ' + API_KEY, 'Accept': 'application/json' };
@@ -4914,7 +4925,7 @@ app.get(['/admin', '/admin/kpi'], (req, res) => {
 
 // ────────────────────────────────────────────────────────────────────────────
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   const parts = [
     'Dashboard running on port ' + PORT,
     'HCP:' + (API_KEY ? 'configured' : 'MISSING'),
@@ -4922,3 +4933,18 @@ app.listen(PORT, () => {
   ];
   console.log(parts.join(' | '));
 });
+
+function shutdown(signal) {
+  console.log(signal + ' received; shutting down gracefully');
+  server.close(() => {
+    console.log('HTTP server closed');
+    process.exit(0);
+  });
+  setTimeout(() => {
+    console.warn('Graceful shutdown timed out; exiting');
+    process.exit(0);
+  }, 10000).unref();
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
