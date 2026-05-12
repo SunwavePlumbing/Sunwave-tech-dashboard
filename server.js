@@ -4405,7 +4405,7 @@ async function fetchTechEmployees() {
   }
   const seenNames = new Set();
   return all
-    .filter(e => activeTechIds.has(e.id))
+    .filter(e => activeTechIds.has(String(e.id)))
     .map(e => ({
       id: e.id,
       name: ((e.first_name || '') + ' ' + (e.last_name || '')).trim(),
@@ -4906,11 +4906,30 @@ app.get('/api/kpi/admin/period-jobs', async (req, res) => {
 app.get('/api/kpi/admin/reconciliations', (req, res) => {
   if (!requireAdmin(req, res)) return;
   const month = String(req.query.month || '').slice(0, 7);
+  const range = String(req.query.range || '').trim();
+  let period = null;
+  if (!month && range) {
+    period = getKpiPeriod(range);
+  }
   const all = loadReconciliations();
   const out = Object.values(all)
-    .filter(r => !month || (r.kpiDate || '').slice(0, 7) === month)
+    .filter(r => {
+      const kpiDate = r.kpiDate || '';
+      if (month) return kpiDate.slice(0, 7) === month;
+      if (!period) return true;
+      const d = kpiDate ? new Date(kpiDate) : null;
+      return d && !isNaN(d.getTime()) && d >= period.periodStart && d < period.periodEnd;
+    })
     .sort((a, b) => new Date(b.reconciledAt) - new Date(a.reconciledAt));
-  res.json({ reconciliations: out });
+  res.json({
+    reconciliations: out,
+    period: period ? {
+      range: period.range,
+      start: period.periodStart.toISOString().slice(0, 10),
+      end: period.periodEnd.toISOString().slice(0, 10),
+      label: period.periodLabel
+    } : null
+  });
 });
 
 // ── Page routes ──────────────────────────────────────────────────────────

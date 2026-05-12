@@ -348,6 +348,26 @@
     .status-msg { font-size: 12px; margin-right: auto; color: var(--ink-mute); }
     .status-msg.is-ok  { color: var(--good); font-weight: 600; }
     .status-msg.is-err { color: var(--bad); font-weight: 600; }
+    .admin-freshness {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 10px;
+      margin: -6px 0 12px;
+      font-size: 12px;
+      color: var(--ink-mute);
+    }
+    .admin-freshness button {
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--card);
+      color: var(--ink-soft);
+      cursor: pointer;
+    }
+    .admin-freshness button:hover { border-color: var(--brand); color: var(--brand); }
 
     .empty { padding: 32px; text-align: center; color: var(--ink-mute); font-size: 13px; }
 
@@ -411,23 +431,16 @@
       <button class="tab" data-panel="coverage" title="Verifies every paid invoice in HCP appears credited on the leaderboard">Paid jobs audit</button>
       <button class="tab" data-panel="diagnostics">Diagnostics</button>
     </div>
+    <div class="admin-freshness">
+      <span id="adminFreshnessText">Fresh data will load when you open a tab.</span>
+      <button type="button" id="adminRefreshBtn">Refresh data</button>
+    </div>
 
     <!-- ─────────────────── RECONCILE TAB ─────────────────── -->
     <div id="panel-reconcile" class="panel is-active">
       <div class="controls">
         <label for="periodSel">Period</label>
-        <select id="periodSel">
-          <option value="day">Today</option>
-          <option value="yesterday">Yesterday</option>
-          <option value="wtd">Week to Date</option>
-          <option value="l7d">Last 7 Days</option>
-          <option value="l14d">Last 14 Days</option>
-          <option value="mtd" selected>Month to Date</option>
-          <option value="lm">Last Month</option>
-          <option value="l30d">Last 30 Days</option>
-          <option value="l90d">Last 90 Days</option>
-          <option value="ytd">Year to Date</option>
-        </select>
+        <select id="periodSel" data-kpi-range-select></select>
         <button id="reloadBtn">Reload</button>
         <div class="summary">
           <span id="summaryAction">— need action</span>
@@ -455,8 +468,8 @@
     <!-- ─────────────────── LOCKED TAB ─────────────────── -->
     <div id="panel-locked" class="panel">
       <div class="controls">
-        <label for="monthFilter">Filter by month</label>
-        <input type="month" id="monthFilter">
+        <label for="lockedRangeSel">Period</label>
+        <select id="lockedRangeSel" data-kpi-range-select></select>
         <button id="loadLockedBtn">Load</button>
       </div>
       <div id="lockedList"></div>
@@ -497,12 +510,78 @@ const isoDate = (iso) => iso ? String(iso).slice(0, 10) : '';
 
 let PASSWORD = sessionStorage.getItem('kpi-admin-pw') || '';
 let CURRENT_RANGE = localStorage.getItem('kpi-admin-range') || 'mtd';
+let CURRENT_LOCKED_RANGE = localStorage.getItem('kpi-admin-locked-range') || CURRENT_RANGE || 'mtd';
+let ACTIVE_PANEL = 'reconcile';
+const ADMIN_CACHE_TTL_MS = 5 * 60 * 1000;
+const KPI_RANGES = [
+  { label: 'Today', key: 'day' },
+  { label: 'Yesterday', key: 'yesterday' },
+  { label: 'This Week', key: 'week' },
+  { label: 'Week to Date', key: 'wtd' },
+  { label: 'Last 7 Days', key: 'l7d' },
+  { label: 'Last 14 Days', key: 'l14d' },
+  { label: 'Last 30 Days', key: 'l30d' },
+  { label: 'Month to Date', key: 'mtd' },
+  { label: 'Last Month', key: 'lm' },
+  { label: 'Last 90 Days', key: 'l90d' },
+  { label: 'This Quarter', key: 'qtd' },
+  { label: 'Last Quarter', key: 'lq' },
+  { label: 'Quarter to Date', key: 'q2d' },
+  { label: 'Year to Date', key: 'ytd' },
+  { label: 'Last 365 Days', key: 'l365d' },
+  { label: 'Last Year', key: 'ly' }
+];
 // In-memory job state. Map of jobId → { server data + working edits }.
 // The Save button reads from this map.
 window.JOBS = {};
 // Cached HCP employee list (loaded once after auth, used to populate
 // the "Add tech" datalist in every edit panel).
 window.EMPLOYEES = [];
+
+document.querySelectorAll('[data-kpi-range-select]').forEach(sel => {
+  sel.innerHTML = KPI_RANGES.map(r =>
+    '<option value="' + esc(r.key) + '">' + esc(r.label) + '</option>'
+  ).join('');
+});
+
+function cacheKeyFor(path) {
+  return 'kpi-admin-cache:' + path;
+}
+function readAdminCache(path) {
+  try {
+    const raw = sessionStorage.getItem(cacheKeyFor(path));
+    if (!raw) return null;
+    const entry = JSON.parse(raw);
+    if (!entry || !entry.at || !entry.data) return null;
+    if (Date.now() - entry.at > ADMIN_CACHE_TTL_MS) return null;
+    return entry;
+  } catch (err) {
+    return null;
+  }
+}
+function writeAdminCache(path, data) {
+  try {
+    sessionStorage.setItem(cacheKeyFor(path), JSON.stringify({ at: Date.now(), data }));
+  } catch (err) {}
+}
+function clearAdminCache() {
+  Object.keys(sessionStorage).forEach(k => {
+    if (k.indexOf('kpi-admin-cache:') === 0) sessionStorage.removeItem(k);
+  });
+}
+function cacheAgeLabel(at) {
+  if (!at) return '';
+  const age = Math.max(0, Math.round((Date.now() - at) / 1000));
+  if (age < 60) return age + ' sec old';
+  return Math.round(age / 60) + ' min old';
+}
+function setFreshness(label, at, forceFresh) {
+  const el = $('adminFreshnessText');
+  if (!el) return;
+  if (forceFresh) el.textContent = label + ' just refreshed.';
+  else if (at) el.textContent = label + ' from cache, ' + cacheAgeLabel(at) + '.';
+  else el.textContent = label + ' loaded fresh.';
+}
 
 /* ════════════════════════════════════════════════════════════════════
    Sunwave attribution rules (auto-applied on add/remove/role-change):
@@ -571,6 +650,7 @@ async function initApp() {
     document.querySelector('.tab[data-panel="reconcile"]').classList.add('is-active');
     $('panel-reconcile').classList.add('is-active');
     $('periodSel').value = CURRENT_RANGE;
+    $('lockedRangeSel').value = CURRENT_LOCKED_RANGE;
     // Kick off all of these in parallel — none blocks the others.
     // loadIssues + loadLocked both populate their tab-count badges
     // so the admin can see at-a-glance whether there's anything in
@@ -592,7 +672,7 @@ async function initApp() {
 // falls back to free-text typing.
 async function loadEmployees() {
   try {
-    const data = await api('/api/kpi/admin/employees');
+    const data = await cachedApi('/api/kpi/admin/employees', { label: 'Employee list' });
     window.EMPLOYEES = (data.employees || []).slice();
     // Update any datalists that may already be in the DOM
     document.querySelectorAll('datalist#techsList').forEach(dl => {
@@ -623,6 +703,42 @@ async function api(path, opts) {
   return data;
 }
 
+async function cachedApi(path, options) {
+  options = options || {};
+  const force = !!options.force;
+  const label = options.label || 'Admin data';
+  if (!force) {
+    const cached = readAdminCache(path);
+    if (cached) {
+      setFreshness(label, cached.at, false);
+      return cached.data;
+    }
+  }
+  const data = await api(path);
+  writeAdminCache(path, data);
+  setFreshness(label, null, force);
+  return data;
+}
+
+$('adminRefreshBtn').addEventListener('click', () => {
+  clearAdminCache();
+  if (ACTIVE_PANEL === 'issues') loadIssues(true);
+  else if (ACTIVE_PANEL === 'locked') loadLocked(true);
+  else if (ACTIVE_PANEL === 'coverage') {
+    const f = $('coverageFrame');
+    if (f) f.src = '';
+    loadEmbed('coverageFrame', '/coverage?embed=1&refresh=1');
+    setFreshness('Paid jobs audit', null, true);
+  } else if (ACTIVE_PANEL === 'diagnostics') {
+    const f = $('diagnosticsFrame');
+    if (f) f.src = '';
+    loadEmbed('diagnosticsFrame', '/diagnostics');
+    setFreshness('Diagnostics', null, true);
+  } else {
+    loadJobs(true);
+  }
+});
+
 // ── Tab switching ───────────────────────────────────────────────────
 const PANEL_TITLES = {
   reconcile: 'Reconcile attribution',
@@ -638,6 +754,7 @@ function setSubhead(panel) {
 }
 document.querySelectorAll('.tab').forEach(t => {
   t.addEventListener('click', () => {
+    ACTIVE_PANEL = t.dataset.panel;
     document.querySelectorAll('.tab').forEach(x => x.classList.remove('is-active'));
     t.classList.add('is-active');
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('is-active'));
@@ -665,11 +782,13 @@ $('periodSel').addEventListener('change', () => {
 $('reloadBtn').addEventListener('click', () => loadJobs(true));
 
 async function loadJobs(forceRefresh) {
+  if (forceRefresh) clearAdminCache();
   $('jobsList').innerHTML = '<div class="empty">Loading…</div>';
   $('summaryAction').textContent = '';
   $('summaryBadge').textContent = '…';
   try {
-    const data = await api('/api/kpi/admin/period-jobs?range=' + encodeURIComponent(CURRENT_RANGE) + (forceRefresh ? '&refresh=1' : ''));
+    const path = '/api/kpi/admin/period-jobs?range=' + encodeURIComponent(CURRENT_RANGE) + (forceRefresh ? '&refresh=1' : '');
+    const data = await cachedApi(path, { force: forceRefresh, label: 'Reconciliation jobs' });
     const jobs = data.jobs || [];
     const s = data.summary || {};
 
@@ -1027,6 +1146,7 @@ document.addEventListener('click', async (e) => {
       const jobId = j && j.jobId;
       if (!jobId) throw new Error('No jobId on this row');
       await api('/api/kpi/admin/reconcile/' + encodeURIComponent(jobId), { method: 'DELETE' });
+      clearAdminCache();
       setRowStatus(key, 'Reconciliation removed.', 'ok');
       setTimeout(loadJobs, 600);
     } catch (err) {
@@ -1139,6 +1259,7 @@ async function saveJob(key) {
         reconciledBy: 'admin'
       }
     });
+    clearAdminCache();
     setRowStatus(key, 'Saved. The dashboard will pick this up on next refresh.', 'ok');
     setTimeout(loadJobs, 800);
   } catch (err) {
@@ -1299,9 +1420,9 @@ async function openLookedUpInvoice(invoice) {
 }
 
 // ── Issues + Locked tabs (kept simple) ───────────────────────────────
-async function loadIssues() {
+async function loadIssues(forceRefresh) {
   try {
-    const data = await api('/api/kpi/admin/issues');
+    const data = await cachedApi('/api/kpi/admin/issues', { force: forceRefresh, label: 'Issue reports' });
     const reports = data.reports || [];
     const open = reports.filter(r => r.status === 'open');
     const handled = reports.filter(r => r.status !== 'open');
@@ -1370,7 +1491,8 @@ document.addEventListener('click', async (e) => {
       await api('/api/kpi/admin/issues/' + t.dataset.id + '/status', {
         method: 'POST', body: { status: t.dataset.newstatus, by: 'admin' }
       });
-      loadIssues();
+      clearAdminCache();
+      loadIssues(true);
     } catch (err) { alert(err.message); }
   }
   if (t.dataset.action === 'from-issue-inv') {
@@ -1384,15 +1506,24 @@ document.addEventListener('click', async (e) => {
 });
 
 // Locked records
-$('loadLockedBtn').addEventListener('click', loadLocked);
-async function loadLocked() {
+$('lockedRangeSel').addEventListener('change', () => {
+  CURRENT_LOCKED_RANGE = $('lockedRangeSel').value;
+  localStorage.setItem('kpi-admin-locked-range', CURRENT_LOCKED_RANGE);
+  loadLocked();
+});
+$('loadLockedBtn').addEventListener('click', () => loadLocked(true));
+async function loadLocked(forceRefresh) {
   try {
-    const month = $('monthFilter').value;
-    const data = await api('/api/kpi/admin/reconciliations' + (month ? '?month=' + month : ''));
+    const range = $('lockedRangeSel').value || CURRENT_LOCKED_RANGE || 'mtd';
+    const data = await cachedApi('/api/kpi/admin/reconciliations?range=' + encodeURIComponent(range), {
+      force: forceRefresh,
+      label: 'Locked records'
+    });
     const recs = data.reconciliations || [];
     $('lockedCount').textContent = recs.length;
     if (recs.length === 0) {
-      $('lockedList').innerHTML = '<div class="empty">No reconciliations yet' + (month ? ' for ' + month : '') + '.</div>';
+      const periodLabel = (data.period && data.period.label) || (KPI_RANGES.find(r => r.key === range) || {}).label || 'this period';
+      $('lockedList').innerHTML = '<div class="empty">No reconciliations yet for ' + esc(periodLabel) + '.</div>';
       return;
     }
 
@@ -1403,7 +1534,10 @@ async function loadLocked() {
       const jobId = r && r.jobId;
       if (!jobId) return;
       try {
-        const jr = await api('/api/kpi/admin/job/' + encodeURIComponent(jobId));
+        const jr = await cachedApi('/api/kpi/admin/job/' + encodeURIComponent(jobId), {
+          force: forceRefresh,
+          label: 'Locked records'
+        });
         if (jr && jr.job) jobInfoById[jobId] = jr.job;
       } catch (e) {
         // Non-fatal (e.g., API key not configured locally).
