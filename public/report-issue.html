@@ -511,10 +511,15 @@ function renderTechGrid(gridId, selectionRef, names, options = {}) {
 async function loadTechs() {
   try {
     const r = await fetch('/api/employees/public');
-    const data = await r.json();
+    let data = {};
+    try { data = await r.json(); } catch (e) {}
+    if (!r.ok) {
+      const msg = (data && data.error) ? String(data.error) : ('HTTP ' + r.status);
+      throw new Error(msg);
+    }
     const list = (data.employees || []).map(e => e.name);
     if (list.length === 0) {
-      const empty = '<div style="color:var(--ink-mute);font-size:13px">No techs available.</div>';
+      const empty = '<div style="color:var(--ink-mute);font-size:13px">No tech list returned — describe in the field below instead.</div>';
       $('techPickerSellerGrid').innerHTML = empty;
       $('techPickerDoerGrid').innerHTML = empty;
       return;
@@ -526,7 +531,8 @@ async function loadTechs() {
     renderTechGrid('techPickerSellerGrid', sellerRef, list, { mirrorToDoer: true });
     renderTechGrid('techPickerDoerGrid',   doerRef,   list);
   } catch (err) {
-    const fallback = '<div style="color:var(--ink-mute);font-size:13px">Could not load tech list — describe in the field below instead.</div>';
+    const msg = (err && err.message) ? String(err.message) : 'unknown error';
+    const fallback = '<div style="color:var(--ink-mute);font-size:13px">Could not load tech list (' + escapeHtml(msg) + ') — describe in the field below instead.</div>';
     $('techPickerSellerGrid').innerHTML = fallback;
     $('techPickerDoerGrid').innerHTML = fallback;
   }

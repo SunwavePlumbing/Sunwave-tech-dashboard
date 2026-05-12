@@ -65,20 +65,18 @@
           <button type="button" class="data-warning-link" id="techOrphansShow">See details &rarr;</button>
         </span>
       </div>
-      <!-- Time-of-day + day-of-week greeting. Sits between the summary
-           date controls and the summary cards so it acts as a soft
-           welcome beat before the numbers. Populated by
-           updateGreeting() in app.js (init + every minute). Lives only
-           inside #techView since that's the working tab; marketing /
-           owners get their own framing. -->
-      <div class="greeting-bar" id="greetingBar">
-        <div class="greeting-headline" id="greetingHeadline">&nbsp;</div>
-        <div class="greeting-subline"  id="greetingSubline">&nbsp;</div>
-      </div>
       <div class="stats" id="stats">
         <div class="stat-card"><div class="stat-label">Total Value Created</div><div class="stat-value">&mdash;</div></div>
         <div class="stat-card"><div class="stat-label">Avg Ticket</div><div class="stat-value">&mdash;</div></div>
         <div class="stat-card"><div class="stat-label">Total Jobs</div><div class="stat-value">&mdash;</div></div>
+      </div>
+      <!-- Time-of-day + day-of-week greeting. Sits between the summary
+           cards and the leaderboard so it acts as a soft beat before
+           the row-by-row details. Populated by updateGreeting() in
+           app.js (init + every minute). Lives only inside #techView. -->
+      <div class="greeting-bar" id="greetingBar">
+        <div class="greeting-headline" id="greetingHeadline">&nbsp;</div>
+        <div class="greeting-subline"  id="greetingSubline">&nbsp;</div>
       </div>
       <div class="table-wrapper" id="tableWrapper">
         <div class="spinner"></div>
