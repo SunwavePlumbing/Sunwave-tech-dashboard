@@ -4317,7 +4317,9 @@ app.get('/api/kpi/admin/reconciliations', (req, res) => {
 app.get(['/report-issue', '/feedback'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'report-issue.html'));
 });
-app.get('/admin/kpi', (req, res) => {
+// /admin is the single canonical admin entry point. /admin/kpi kept as
+// a back-compat alias for any old bookmarks but resolves to the same UI.
+app.get(['/admin', '/admin/kpi'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin-kpi.html'));
 });
 

@@ -35,7 +35,7 @@
     }
     .header {
       text-align: center;
-      margin-bottom: 1.5rem;
+      margin-bottom: 1.25rem;
     }
     .eyebrow {
       font-size: 10px;
@@ -56,6 +56,68 @@
       color: var(--ink-soft);
       max-width: 480px;
       margin: 0 auto;
+    }
+
+    /* "Just send it" pre-fill confirmation banner — only shows when the
+       form was opened with deep-linked context (e.g. from a flag chip
+       inside a job row). Tells the tech everything's pre-filled and
+       they can just hit Send. */
+    .prefilled-banner {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      max-width: 540px;
+      margin: 0 auto 1.2rem;
+      padding: 12px 16px;
+      background: var(--good-pale);
+      border: 1px solid #C9DFCD;
+      border-radius: 12px;
+      font-size: 13px;
+      color: var(--good);
+      line-height: 1.4;
+    }
+    .prefilled-banner.is-on { display: flex; }
+    .prefilled-banner-ico {
+      flex-shrink: 0;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--good);
+      color: white;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .prefilled-banner-text strong { color: var(--good); }
+
+    /* Field-label decorations: each pre-filled field gets a tiny ✓
+       beside its label so the user can scan at a glance and know
+       there's nothing to do. */
+    .field-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .field-check {
+      display: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--good);
+      color: white;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .field-check.is-on { display: inline-flex; }
+    /* When the chip is pre-selected via URL, give it a soft "locked in"
+       ring so the tech reads it as confirmed, not just selected. */
+    .chip.is-prefilled {
+      box-shadow: 0 0 0 2px rgba(47, 125, 73, 0.18);
     }
 
     .card {
@@ -247,14 +309,31 @@
     <div class="eyebrow">Sunwave KPIs</div>
     <h1>Report an issue</h1>
     <p class="lede">
-      See something on the dashboard that doesn&rsquo;t match the work you did?
-      Tell us about it &mdash; the admin will sort it out.
+      Help Levi keep this dashboard legit. Anything that looks off &mdash;
+      a job missing from your row, a split that doesn&rsquo;t match what really
+      happened, the wrong tech credited &mdash; flag it here and he&rsquo;ll fix
+      it before the month closes.
     </p>
+  </div>
+
+  <!-- Visible only when the form was opened with deep-linked context
+       from a flag chip on the dashboard. Tells the tech everything's
+       pre-filled and they can just hit Send. -->
+  <div class="prefilled-banner" id="prefilledBanner">
+    <span class="prefilled-banner-ico" aria-hidden="true">✓</span>
+    <span class="prefilled-banner-text">
+      <strong>No need to edit this</strong> &mdash; we already filled in
+      everything we needed. Just hit <em>Send it</em>. If you want to add
+      a note, type below.
+    </span>
   </div>
 
   <form class="card" id="reportForm" autocomplete="on">
     <div class="field">
-      <label class="field-label">What&rsquo;s wrong?</label>
+      <label class="field-label">
+        What&rsquo;s wrong?
+        <span class="field-check" id="check-type" aria-hidden="true">✓</span>
+      </label>
       <div class="chips" id="typeChips" role="radiogroup" aria-label="Issue type">
         <button type="button" class="chip" data-type="missing">A job is missing</button>
         <button type="button" class="chip" data-type="wrong_tech">Wrong tech</button>
@@ -266,26 +345,39 @@
     </div>
 
     <div class="field">
-      <label class="field-label" for="reporterName">Your name</label>
+      <label class="field-label" for="reporterName">
+        Your name
+        <span class="field-check" id="check-reporterName" aria-hidden="true">✓</span>
+      </label>
       <input type="text" id="reporterName" name="reporterName" placeholder="First &amp; last name" required maxlength="100">
     </div>
 
     <div class="row">
       <div class="field">
-        <label class="field-label" for="invoice">Invoice / job #</label>
+        <label class="field-label" for="invoice">
+          Invoice / job #
+          <span class="field-check" id="check-invoice" aria-hidden="true">✓</span>
+        </label>
         <input type="text" id="invoice" name="invoice" placeholder="e.g. 408 or 326-2" maxlength="50">
         <div class="field-hint">If you know it &mdash; helps us find the job fast.</div>
       </div>
       <div class="field">
-        <label class="field-label" for="customer">Customer</label>
+        <label class="field-label" for="customer">
+          Customer
+          <span class="field-check" id="check-customer" aria-hidden="true">✓</span>
+        </label>
         <input type="text" id="customer" name="customer" placeholder="e.g. Pamela Stevens" maxlength="100">
         <div class="field-hint">First &amp; last is usually enough.</div>
       </div>
     </div>
 
     <div class="field">
-      <label class="field-label" for="description">What should change?</label>
+      <label class="field-label" for="description">
+        What should change?
+        <span class="field-check" id="check-description" aria-hidden="true">✓</span>
+      </label>
       <textarea id="description" name="description" placeholder="e.g. &quot;I did this water heater job on May 8 with Patrick, but it&rsquo;s not on either of our totals. Pretty sure it&rsquo;s ours.&quot;" required maxlength="2000"></textarea>
+      <div class="field-hint" id="descriptionHint" style="display:none">Looks good. Add anything else here if you want, or just send it.</div>
     </div>
 
     <div class="submit-row">
@@ -332,28 +424,53 @@ $('reporterName').addEventListener('change', () => {
   localStorage.setItem('kpi-reporter-name', $('reporterName').value.trim());
 });
 
-// ── Pre-fill from URL params ───────────────────────────────────────────
+// ── Pre-fill from URL params + checkmark UI ──────────────────────────
 // Contextual report buttons on the dashboard (job rows, role badges,
-// split partners) open this page with query string args like:
-//   ?type=wrong_tech&invoice=408&customer=Pamela%20Stevens&jobId=job_xxx
-//     &context=Currently%20shows%3A%20Trevor%20Cuoco
-// We pre-select the chip, pre-fill the fields, and seed the description
-// with a context line so the tech only has to add a sentence or two.
+// split partners) open this page with query string args. When any
+// pre-fill happens, we surface a "no need to edit — just send it"
+// banner and put a green ✓ next to every field that got auto-filled.
+// The vibe: the form is already done; the tech's job is just to hit
+// Send (and add a sentence if they feel like it).
+function markFieldChecked(id, on) {
+  const el = document.getElementById('check-' + id);
+  if (!el) return;
+  if (on) el.classList.add('is-on');
+  else    el.classList.remove('is-on');
+}
+
 (function applyUrlPrefill() {
   const qs = new URLSearchParams(window.location.search);
+  let anyPrefilled = false;
+
   const type = qs.get('type');
   if (type) {
     const chip = document.querySelector('.chip[data-type="' + type + '"]');
     if (chip) {
       typeChips.forEach(x => x.classList.remove('is-active'));
       chip.classList.add('is-active');
+      chip.classList.add('is-prefilled');
       $('type').value = type;
+      markFieldChecked('type', true);
+      anyPrefilled = true;
     }
   }
-  if (qs.get('invoice'))  $('invoice').value  = qs.get('invoice');
-  if (qs.get('customer')) $('customer').value = qs.get('customer');
+  if (qs.get('invoice'))  {
+    $('invoice').value  = qs.get('invoice');
+    markFieldChecked('invoice', true);
+    anyPrefilled = true;
+  }
+  if (qs.get('customer')) {
+    $('customer').value = qs.get('customer');
+    markFieldChecked('customer', true);
+    anyPrefilled = true;
+  }
+  // Reporter name is pre-filled from localStorage on every visit, not
+  // from URL params. Still treat it as "checked" if a value is present
+  // because the tech doesn't have to touch it.
+  if ($('reporterName').value.trim()) {
+    markFieldChecked('reporterName', true);
+  }
   // Job ID is hidden from the visible form but sent through to the server.
-  // Add a hidden input if there isn't one yet.
   if (qs.get('jobId')) {
     let hidden = document.getElementById('jobId');
     if (!hidden) {
@@ -367,15 +484,40 @@ $('reporterName').addEventListener('change', () => {
   }
   const context = qs.get('context');
   if (context) {
-    $('description').value = context + '\n\n';
-    // Cursor at end so the user can keep typing
-    setTimeout(() => {
-      $('description').focus();
-      const len = $('description').value.length;
-      $('description').setSelectionRange(len, len);
-    }, 50);
+    $('description').value = context;
+    markFieldChecked('description', true);
+    $('descriptionHint').style.display = '';
+    anyPrefilled = true;
+  }
+
+  if (anyPrefilled) {
+    document.getElementById('prefilledBanner').classList.add('is-on');
+    // Don't auto-focus the description anymore — the goal is to make
+    // the user feel like they're done. They can tap to edit if they
+    // want. If the description came in empty (only chip + invoice were
+    // set), focus it so they can add a sentence — but only after a
+    // beat so the page paints first.
+    if (!context) {
+      setTimeout(() => $('description').focus(), 300);
+    }
   }
 })();
+
+// Live checkmark updates as the user types. If they clear a field,
+// the ✓ disappears. If they fill one, it appears.
+['reporterName', 'invoice', 'customer', 'description'].forEach(id => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('input', () => {
+    markFieldChecked(id, !!el.value.trim());
+  });
+});
+// Chip selection updates the type checkmark too. The existing chip
+// handler above adds `is-active`; this listens at the container level
+// and toggles the ✓ alongside.
+$('typeChips').addEventListener('click', (e) => {
+  if (e.target.closest('.chip')) markFieldChecked('type', !!$('type').value);
+});
 
 $('reportForm').addEventListener('submit', async (e) => {
   e.preventDefault();

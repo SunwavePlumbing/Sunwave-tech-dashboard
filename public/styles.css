@@ -611,6 +611,34 @@ tbody td.unpaid-cell.is-clickable:hover .row-count {
 .sort-btn { transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.15s cubic-bezier(0.5,1.8,0.5,1); }
 
 table { width: 100%; border-collapse: collapse; }
+
+/* ── Leaderboard column widths (table-layout: fixed) ───────────────
+   The technicians leaderboard table uses table-layout: fixed so the
+   column widths are determined by the header row and NEVER recompute
+   based on cell content. Without this, the default table-layout: auto
+   recalculates column widths every frame during the name-scramble
+   animation — each letter typed in changes the cell's intrinsic
+   width, the engine re-sizes, and the Value Created column visibly
+   "jerks right then snaps back" once the animation finishes.
+
+   Percentages sum to 100. Scoped to #tableWrapper so the modal-table
+   and mkt-table keep their existing auto-layout behavior. */
+#tableWrapper table { table-layout: fixed; }
+#tableWrapper thead th:nth-child(1) { width: 36%; }
+#tableWrapper thead th:nth-child(2) { width: 17%; }
+#tableWrapper thead th:nth-child(3) { width: 17%; }
+#tableWrapper thead th:nth-child(4) { width: 13%; }
+#tableWrapper thead th:nth-child(5) { width: 17%; }
+/* Long-name safety: if a name exceeds the column width, ellipsis
+   rather than wrap. Locked widths mean the column can't grow to
+   accommodate, but no Sunwave tech currently has a name long enough
+   to trigger this — it's defense for future hires. */
+#tableWrapper tbody td:first-child .tech-name-label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 thead th { padding: 12px 16px; text-align: left; font-size: 12px; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1px solid #f0f0f0; }
 thead th:not(:first-child) { text-align: right; }
 tbody tr { border-bottom: 1px solid #f7f7f7; transition: background 0.1s; cursor: pointer; }

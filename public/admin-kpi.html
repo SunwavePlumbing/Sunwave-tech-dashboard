@@ -418,6 +418,20 @@
     }
     .nav-link:hover { text-decoration: underline; }
 
+    /* Embedded admin tools (Coverage, Diagnostics) render inside the
+       admin page via iframe so /admin is the single canonical URL.
+       Border + soft shadow makes the embed feel like an inset panel
+       rather than a browser-within-a-browser. */
+    .embed-frame {
+      width: 100%;
+      height: 82vh;
+      min-height: 540px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--card);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    }
+
     /* ── Sitemap panel ─────────────────────────────────────────── */
     .sitemap-group {
       margin-bottom: 22px;
@@ -536,8 +550,6 @@
       </div>
       <div>
         <a class="nav-link" href="/">&larr; Dashboard</a>
-        &nbsp;&middot;&nbsp;
-        <a class="nav-link" href="/coverage">Coverage check</a>
       </div>
     </div>
 
@@ -545,7 +557,8 @@
       <button class="tab is-active" data-panel="issues">Open issues <span class="tab-count" id="issueCount">0</span></button>
       <button class="tab" data-panel="reconcile">Reconcile a job</button>
       <button class="tab" data-panel="locked">Locked records <span class="tab-count" id="lockedCount">0</span></button>
-      <button class="tab" data-panel="sitemap">All pages</button>
+      <button class="tab" data-panel="coverage">Coverage check</button>
+      <button class="tab" data-panel="diagnostics">Diagnostics</button>
     </div>
 
     <div id="panel-issues" class="panel is-active">
@@ -569,99 +582,24 @@
       <div id="lockedList"></div>
     </div>
 
-    <div id="panel-sitemap" class="panel">
-      <p class="recon-controls" style="font-size:13px;color:var(--ink-soft);max-width:640px;line-height:1.5;display:block">
-        Every page in the dashboard, grouped by who it&rsquo;s for. Public pages
-        load without a password; admin pages share the same diagnostics
-        password you used to get here.
+    <div id="panel-coverage" class="panel">
+      <p style="font-size:13px;color:var(--ink-soft);margin:0 0 12px;line-height:1.5">
+        Money-first reconciliation. Enumerates every paid invoice in the
+        period and verifies it shows up on the leaderboard. Surfaces
+        missing, drift, and excluded invoices with reason codes.
       </p>
-
-      <div class="sitemap-group">
-        <div class="sitemap-group-label">Tech-facing</div>
-        <a class="sitemap-tile" href="/" target="_blank">
-          <div class="sitemap-tile-name">Main Dashboard</div>
-          <div class="sitemap-tile-path">/</div>
-          <div class="sitemap-tile-desc">The KPI leaderboard everyone sees. Tabs for Technicians, Marketing, Location Leaders.</div>
-        </a>
-        <a class="sitemap-tile" href="/#technicians" target="_blank">
-          <div class="sitemap-tile-name">Technicians tab</div>
-          <div class="sitemap-tile-path">/#technicians</div>
-          <div class="sitemap-tile-desc">Per-tech leaderboard, unpaid drill-down, unattributed banner.</div>
-        </a>
-        <a class="sitemap-tile" href="/#marketing" target="_blank">
-          <div class="sitemap-tile-name">Marketing tab</div>
-          <div class="sitemap-tile-path">/#marketing</div>
-          <div class="sitemap-tile-desc">12-month job history, projection, marketing-spend reconciliation against QBO.</div>
-        </a>
-        <a class="sitemap-tile" href="/#owners" target="_blank">
-          <div class="sitemap-tile-name">Location Leaders tab</div>
-          <div class="sitemap-tile-path">/#owners</div>
-          <div class="sitemap-tile-desc">P&amp;L card, expense drill-downs, Planning Ahead account history, balance sheet snapshot.</div>
-        </a>
-        <a class="sitemap-tile" href="/report-issue" target="_blank">
-          <div class="sitemap-tile-name">Report an Issue</div>
-          <div class="sitemap-tile-path">/report-issue</div>
-          <div class="sitemap-tile-desc">Tech-facing report form (missing job, wrong tech, wrong split, wrong seller, etc.). No password.</div>
-        </a>
-      </div>
-
-      <div class="sitemap-group">
-        <div class="sitemap-group-label">Admin (password-gated)</div>
-        <a class="sitemap-tile sitemap-tile--admin" href="/admin/kpi" target="_blank">
-          <div class="sitemap-tile-name">KPI Admin <span class="sitemap-here">you are here</span></div>
-          <div class="sitemap-tile-path">/admin/kpi</div>
-          <div class="sitemap-tile-desc">Issue queue, job reconciliation editor, locked records.</div>
-        </a>
-        <a class="sitemap-tile sitemap-tile--admin" href="/coverage" target="_blank">
-          <div class="sitemap-tile-name">Coverage Check</div>
-          <div class="sitemap-tile-path">/coverage</div>
-          <div class="sitemap-tile-desc">Money-first reconciliation. Enumerates every paid invoice and verifies it appears on the leaderboard. Surfaces drift, missing, excluded, and standalone invoices per period.</div>
-        </a>
-        <a class="sitemap-tile sitemap-tile--admin" href="/diagnostics" target="_blank">
-          <div class="sitemap-tile-name">KPI Diagnostics</div>
-          <div class="sitemap-tile-path">/diagnostics &middot; /di</div>
-          <div class="sitemap-tile-desc">Free-form HCP data investigation. Search by invoice, customer, employee, or date range.</div>
-        </a>
-      </div>
-
-      <div class="sitemap-group">
-        <div class="sitemap-group-label">Integrations &amp; setup</div>
-        <a class="sitemap-tile sitemap-tile--ops" href="/connect-quickbooks" target="_blank">
-          <div class="sitemap-tile-name">Connect QuickBooks</div>
-          <div class="sitemap-tile-path">/connect-quickbooks</div>
-          <div class="sitemap-tile-desc">QBO OAuth flow. Use this if QuickBooks data ever shows &ldquo;not connected&rdquo;.</div>
-        </a>
-      </div>
-
-      <details class="sitemap-api-block">
-        <summary class="sitemap-api-summary">Server API endpoints (advanced)</summary>
-        <p style="font-size:12px;color:var(--ink-mute);margin:8px 0">
-          These are the JSON endpoints the dashboard fetches from. Listed for
-          reference &mdash; you usually don&rsquo;t need to hit them directly.
-        </p>
-        <ul class="sitemap-api-list">
-          <li><code>GET /api/metrics?range=mtd</code> &mdash; technician leaderboard</li>
-          <li><code>GET /api/marketing</code> &mdash; marketing 12-month history</li>
-          <li><code>GET /api/owners-financial</code> &mdash; P&amp;L data</li>
-          <li><code>GET /api/qbo-balance</code> &mdash; balance sheet + bank history</li>
-          <li><code>GET /api/qbo-marketing</code> &mdash; QBO marketing spend</li>
-          <li><code>GET /api/qbo-reconciliation</code> &mdash; QBO recon status</li>
-          <li><code>GET /api/qbo-accounts</code> &mdash; available P&amp;L accounts</li>
-          <li><code>GET /api/account-detail?acct=...&amp;month=...</code> &mdash; expense drill-down</li>
-          <li><code>GET /api/diagnostics/coverage?range=mtd</code> &mdash; coverage reconciliation (password-gated)</li>
-          <li><code>GET /api/diagnostics/kpi</code> &mdash; KPI investigation data (password-gated)</li>
-          <li><code>GET /api/debug/techs</code> &mdash; post-migration data audit</li>
-          <li><code>POST /api/kpi/report-issue</code> &mdash; submit a tech issue report</li>
-          <li><code>GET /api/kpi/recent-reports</code> &mdash; recent issue reports (public)</li>
-          <li><code>GET /api/kpi/admin/issues</code> &mdash; all issue reports (admin)</li>
-          <li><code>POST /api/kpi/admin/issues/:id/status</code> &mdash; resolve/dismiss/re-open</li>
-          <li><code>GET /api/kpi/admin/job/:id</code> &mdash; HCP job + active reconciliation</li>
-          <li><code>POST /api/kpi/admin/reconcile</code> &mdash; save a reconciliation</li>
-          <li><code>DELETE /api/kpi/admin/reconcile/:jobId</code> &mdash; remove a reconciliation</li>
-          <li><code>GET /api/kpi/admin/reconciliations?month=YYYY-MM</code> &mdash; list reconciliations</li>
-        </ul>
-      </details>
+      <iframe class="embed-frame" id="coverageFrame" title="Coverage check"></iframe>
     </div>
+
+    <div id="panel-diagnostics" class="panel">
+      <p style="font-size:13px;color:var(--ink-soft);margin:0 0 12px;line-height:1.5">
+        Free-form HCP data investigation. Search by invoice, customer,
+        employee, or date range to see exactly what HCP returns for a
+        given query.
+      </p>
+      <iframe class="embed-frame" id="diagnosticsFrame" title="Diagnostics"></iframe>
+    </div>
+
   </div>
 </div>
 
@@ -731,8 +669,21 @@ document.querySelectorAll('.tab').forEach(t => {
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('is-active'));
     $('panel-' + t.dataset.panel).classList.add('is-active');
     if (t.dataset.panel === 'locked') loadLocked();
+    if (t.dataset.panel === 'coverage')    loadEmbed('coverageFrame',    '/coverage');
+    if (t.dataset.panel === 'diagnostics') loadEmbed('diagnosticsFrame', '/diagnostics');
   });
 });
+
+// Lazy-load the embedded admin tools the first time their tab opens.
+// Pass the diagnostics password through the URL so the embedded page
+// can auth without a second prompt. Cached after first load — no
+// reload on subsequent tab switches.
+function loadEmbed(frameId, src) {
+  const frame = $(frameId);
+  if (!frame || frame.src) return; // already loaded
+  const url = src + (src.includes('?') ? '&' : '?') + 'password=' + encodeURIComponent(PASSWORD);
+  frame.src = url;
+}
 
 async function loadIssues() {
   try {
