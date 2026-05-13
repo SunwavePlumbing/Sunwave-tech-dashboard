@@ -193,6 +193,31 @@
     }
     .job-quick:hover { border-color: var(--brand); color: var(--brand); }
     .job-quick[disabled] { opacity: 0.55; cursor: default; }
+    .job-quick::before {
+      content: "";
+      width: 11px;
+      height: 11px;
+      display: inline-block;
+      margin-right: 6px;
+      border: 1.5px solid currentColor;
+      border-radius: 3px;
+      vertical-align: -1px;
+    }
+    .job-quick.is-done {
+      border-color: var(--good);
+      color: var(--good);
+      background: var(--good-pale);
+    }
+    .job-quick.is-done::before {
+      content: "✓";
+      width: auto;
+      height: auto;
+      border: 0;
+      margin-right: 5px;
+      font-weight: 900;
+    }
+    .job.is-completing { background: var(--good-pale); }
+    .job.is-completing .job-summary { opacity: 0.72; }
     .job-chevron {
       width: 22px;
       height: 22px;
@@ -435,6 +460,11 @@
     .admin-freshness button:hover { border-color: var(--brand); color: var(--brand); }
 
     .empty { padding: 32px; text-align: center; color: var(--ink-mute); font-size: 13px; }
+    .empty--done {
+      color: var(--good);
+      font-weight: 700;
+      background: var(--good-pale);
+    }
 
     /* "Why this is unattributed" callout in the edit panel */
     .why-card {
@@ -884,9 +914,10 @@ async function loadJobs(forceRefresh) {
     const path = '/api/kpi/admin/period-jobs?range=' + encodeURIComponent(CURRENT_RANGE) + (forceRefresh ? '&refresh=1' : '');
     const data = await cachedApi(path, { force: forceRefresh, label: 'Reconciliation jobs' });
     const jobs = data.jobs || [];
+    const openJobs = jobs.filter(isOpenAuditJob);
     const s = data.summary || {};
 
-    $('summaryAction').textContent = (s.unattributed || 0) + ' need action';
+    $('summaryAction').textContent = openJobs.length + ' open task' + (openJobs.length === 1 ? '' : 's');
     if (s.fullyReconciled) {
       $('summaryBadge').className = 'badge badge--good';
       $('summaryBadge').textContent = '✓ Fully reconciled';
@@ -895,24 +926,32 @@ async function loadJobs(forceRefresh) {
       $('summaryBadge').textContent = (s.reconciled || 0) + ' of ' + (s.total || 0) + ' reconciled';
     }
 
-    if (jobs.length === 0) {
-      $('jobsList').innerHTML = '<div class="empty">No jobs in this period.</div>';
+    if (openJobs.length === 0) {
+      window.JOBS = {};
+      $('jobsList').innerHTML = jobs.length
+        ? '<div class="empty empty--done">All jobs checked off for this period.</div>'
+        : '<div class="empty">No jobs in this period.</div>';
+      $('filterCount').textContent = '';
       return;
     }
     // Stash the server data so the Save button can read it
     window.JOBS = {};
-    jobs.forEach(j => {
+    openJobs.forEach(j => {
       const key = j.jobId || j.invoice || ('row_' + Math.random().toString(36).slice(2, 8));
       window.JOBS[key] = j;
       j._localKey = key;
       j._haystack = buildHaystack(j);
     });
-    const orderedJobs = sortJobsForAudit(jobs);
+    const orderedJobs = sortJobsForAudit(openJobs);
     $('jobsList').innerHTML = renderJobGroups(orderedJobs);
     applyFilter(); // Re-apply if there's an active query from a previous load
   } catch (err) {
     $('jobsList').innerHTML = '<div class="empty">Error: ' + esc(err.message) + '</div>';
   }
+}
+
+function isOpenAuditJob(j) {
+  return j && j.status !== 'reconciled' && j.status !== 'excluded';
 }
 
 function auditSignals(j) {
@@ -964,10 +1003,10 @@ function renderJobGroups(jobs) {
     html += priority.map(renderJob).join('');
   }
   if (normal.length) {
-    html += '<div class="job-section">Other jobs (' + normal.length + ')</div>';
+    html += '<div class="job-section">Ready to check off (' + normal.length + ')</div>';
     html += normal.map(renderJob).join('');
   }
-  return html || '<div class="empty">No jobs in this period.</div>';
+  return html || '<div class="empty empty--done">All jobs checked off for this period.</div>';
 }
 
 function quickApprovePayload(j) {
@@ -1006,7 +1045,7 @@ function renderJob(j) {
     : '';
   const quickPayload = quickApprovePayload(j);
   const quickButton = quickPayload
-    ? '<button type="button" class="job-quick" data-action="quick-approve" data-key="' + esc(j._localKey) + '">Approve</button>'
+    ? '<button type="button" class="job-quick" data-action="quick-approve" data-key="' + esc(j._localKey) + '">Correct</button>'
     : '<span></span>';
 
   const currentAttrLine = j.assignments && j.assignments.length
@@ -1353,11 +1392,15 @@ document.addEventListener('click', async (e) => {
     try {
       await api('/api/kpi/admin/reconcile', { method: 'POST', body: payload });
       clearAdminCache();
-      actionEl.textContent = 'Approved';
+      actionEl.textContent = 'Done';
+      actionEl.classList.add('is-done');
+      const row = actionEl.closest('.job');
+      if (row) row.classList.add('is-completing');
       setTimeout(loadJobs, 600);
     } catch (err) {
       actionEl.disabled = false;
-      actionEl.textContent = 'Approve';
+      actionEl.textContent = 'Correct';
+      actionEl.classList.remove('is-done');
       alert('Could not approve: ' + err.message);
     }
     return;
