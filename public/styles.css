@@ -1239,9 +1239,12 @@ body.exp-modal-lock {
    reviewed and locked every job for the period; "N of M reconciled"
    (amber) for partial progress. Hidden by default. */
 .recon-badge {
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
+  width: max-content;
+  max-width: calc(100% - 2rem);
   margin: 14px auto 0;
   padding: 4px 12px;
   font-size: 11px;
