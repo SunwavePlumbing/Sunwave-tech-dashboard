@@ -525,6 +525,37 @@
     /* Embedded admin tools */
     .embed-frame { width: 100%; height: 82vh; min-height: 540px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
 
+    /* Diagnostics super-tab sub-nav. Lives under the Diagnostics
+       super-tab and toggles between Audit / Issues / Locked /
+       Pipeline. Visual style is lower-key than the main tabs so
+       the hierarchy is obvious. */
+    .diag-subtabs {
+      display: flex;
+      gap: 6px;
+      padding: 4px 6px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+    .diag-subtab {
+      padding: 8px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      background: transparent;
+      color: var(--ink-mute);
+      border: 0;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .diag-subtab:hover { background: var(--bg); color: var(--ink); }
+    .diag-subtab.is-active { background: var(--brand-pale); color: var(--brand); }
+    .diag-view { display: none; }
+    .diag-view.is-active { display: block; }
+
     /* ════════════════════════════════════════════════════════════════
        Verification queue — sticky header, drawer, pills, undo toast.
        Layered on top of the existing inline-edit structure: clicking
@@ -862,11 +893,13 @@
       <div class="header-nav"><a class="nav-link" href="/">&larr; Dashboard</a></div>
     </div>
 
+    <!-- Two super-tabs. "Verify" is the working queue (Reconcile +
+         filter pills for Issues / Verified / Excluded). "Diagnostics"
+         is a super-tab that holds the four admin-debugging views as
+         sub-tabs so they stay accessible but don't clutter the main
+         workflow. -->
     <div class="tabs">
-      <button class="tab" data-panel="reconcile">Reconcile a job</button>
-      <button class="tab" data-panel="issues">Open issues <span class="tab-count" id="issueCount">0</span></button>
-      <button class="tab" data-panel="locked">Locked records <span class="tab-count" id="lockedCount">0</span></button>
-      <button class="tab" data-panel="coverage" title="Verifies every paid invoice in HCP appears credited on the leaderboard">Paid jobs audit</button>
+      <button class="tab" data-panel="reconcile">Verify</button>
       <button class="tab" data-panel="diagnostics">Diagnostics</button>
     </div>
     <div class="admin-freshness">
@@ -902,6 +935,7 @@
            handled. "All" shows every job touching the period. -->
       <div class="filter-pills" id="filterPills">
         <button class="filter-pill is-active" data-filter="unverified">⏳ Unverified <span class="filter-pill-count" id="pillCount-unverified">0</span></button>
+        <button class="filter-pill" data-filter="issues">🚩 Issues <span class="filter-pill-count" id="pillCount-issues">0</span></button>
         <button class="filter-pill" data-filter="verified">✓ Verified <span class="filter-pill-count" id="pillCount-verified">0</span></button>
         <button class="filter-pill" data-filter="excluded">🚫 Excluded <span class="filter-pill-count" id="pillCount-excluded">0</span></button>
         <button class="filter-pill" data-filter="all">All <span class="filter-pill-count" id="pillCount-all">0</span></button>
@@ -916,29 +950,36 @@
       </div>
     </div>
 
-    <!-- ─────────────────── ISSUES TAB ─────────────────── -->
-    <div id="panel-issues" class="panel">
-      <div id="issuesList"></div>
-    </div>
-
-    <!-- ─────────────────── LOCKED TAB ─────────────────── -->
-    <div id="panel-locked" class="panel">
-      <div class="controls">
-        <label for="lockedRangeSel">Period</label>
-        <select id="lockedRangeSel" data-kpi-range-select></select>
-        <button id="loadLockedBtn">Load</button>
-      </div>
-      <div id="lockedList"></div>
-    </div>
-
-    <!-- ─────────────────── COVERAGE TAB ─────────────────── -->
-    <div id="panel-coverage" class="panel">
-      <iframe class="embed-frame" id="coverageFrame" title="Coverage check"></iframe>
-    </div>
-
-    <!-- ─────────────────── DIAGNOSTICS TAB ─────────────────── -->
+    <!-- ─────────────────── DIAGNOSTICS SUPER-TAB ───────────────────
+         Holds the four admin-debugging sub-views as a sub-nav so
+         they stay one click away without crowding the main Verify
+         workflow. Sub-tabs: Audit · Issues · Locked · Pipeline. -->
     <div id="panel-diagnostics" class="panel">
-      <iframe class="embed-frame" id="diagnosticsFrame" title="Diagnostics"></iframe>
+      <div class="diag-subtabs">
+        <button class="diag-subtab is-active" data-diag="audit" title="Verifies every paid invoice in HCP appears credited on the leaderboard">Paid jobs audit</button>
+        <button class="diag-subtab" data-diag="issues">Open issues <span class="tab-count" id="issueCount">0</span></button>
+        <button class="diag-subtab" data-diag="locked">Locked records <span class="tab-count" id="lockedCount">0</span></button>
+        <button class="diag-subtab" data-diag="pipeline">Pipeline diagnostics</button>
+      </div>
+      <div class="diag-content">
+        <div class="diag-view is-active" id="diag-audit">
+          <iframe class="embed-frame" id="coverageFrame" title="Paid jobs audit"></iframe>
+        </div>
+        <div class="diag-view" id="diag-issues" hidden>
+          <div id="issuesList"></div>
+        </div>
+        <div class="diag-view" id="diag-locked" hidden>
+          <div class="controls">
+            <label for="lockedRangeSel">Period</label>
+            <select id="lockedRangeSel" data-kpi-range-select></select>
+            <button id="loadLockedBtn">Load</button>
+          </div>
+          <div id="lockedList"></div>
+        </div>
+        <div class="diag-view" id="diag-pipeline" hidden>
+          <iframe class="embed-frame" id="diagnosticsFrame" title="Pipeline diagnostics"></iframe>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -1178,31 +1219,48 @@ async function cachedApi(path, options) {
 
 $('adminRefreshBtn').addEventListener('click', () => {
   clearAdminCache();
-  if (ACTIVE_PANEL === 'issues') loadIssues(true);
-  else if (ACTIVE_PANEL === 'locked') loadLocked(true);
-  else if (ACTIVE_PANEL === 'coverage') {
-    loadEmbed('coverageFrame', '/coverage?embed=1&refresh=1', { force: true });
-    setFreshness('Paid jobs audit', null, true);
-  } else if (ACTIVE_PANEL === 'diagnostics') {
-    loadEmbed('diagnosticsFrame', '/diagnostics', { force: true });
-    setFreshness('Diagnostics', null, true);
+  // ACTIVE_PANEL is now either 'reconcile' or 'diagnostics'. Inside
+  // 'diagnostics' we also have ACTIVE_DIAG_SUBTAB (audit / issues /
+  // locked / pipeline) — refresh whichever sub-view is active.
+  if (ACTIVE_PANEL === 'diagnostics') {
+    if      (ACTIVE_DIAG_SUBTAB === 'issues')   loadIssues(true);
+    else if (ACTIVE_DIAG_SUBTAB === 'locked')   loadLocked(true);
+    else if (ACTIVE_DIAG_SUBTAB === 'audit') {
+      loadEmbed('coverageFrame', '/coverage?embed=1&refresh=1', { force: true });
+      setFreshness('Paid jobs audit', null, true);
+    } else if (ACTIVE_DIAG_SUBTAB === 'pipeline') {
+      loadEmbed('diagnosticsFrame', '/diagnostics', { force: true });
+      setFreshness('Pipeline diagnostics', null, true);
+    }
   } else {
     loadJobs(true);
   }
 });
 
 // ── Tab switching ───────────────────────────────────────────────────
+// Two super-tabs now: Verify (data-panel="reconcile" — we kept the
+// original panel id to avoid breaking dozens of internal references)
+// and Diagnostics (data-panel="diagnostics") which contains the four
+// admin-debugging sub-views.
+let ACTIVE_DIAG_SUBTAB = 'audit';
 const PANEL_TITLES = {
-  reconcile: 'Reconcile attribution',
+  reconcile: 'Verify',
+  diagnostics: 'Diagnostics'
+};
+const DIAG_TITLES = {
+  audit: 'Paid jobs audit',
   issues: 'Issue reports',
   locked: 'Locked records',
-  coverage: 'Paid jobs audit',
-  diagnostics: 'Diagnostics'
+  pipeline: 'Pipeline diagnostics'
 };
 function setSubhead(panel) {
   const el = $('subhead');
   if (!el) return;
-  el.textContent = PANEL_TITLES[panel] || 'KPI Admin';
+  let txt = PANEL_TITLES[panel] || 'KPI Admin';
+  if (panel === 'diagnostics' && DIAG_TITLES[ACTIVE_DIAG_SUBTAB]) {
+    txt += ' · ' + DIAG_TITLES[ACTIVE_DIAG_SUBTAB];
+  }
+  el.textContent = txt;
 }
 document.querySelectorAll('.tab').forEach(t => {
   t.addEventListener('click', () => {
@@ -1212,12 +1270,32 @@ document.querySelectorAll('.tab').forEach(t => {
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('is-active'));
     $('panel-' + t.dataset.panel).classList.add('is-active');
     setSubhead(t.dataset.panel);
-    if (t.dataset.panel === 'issues')   loadIssues();
-    if (t.dataset.panel === 'locked')   loadLocked();
     if (t.dataset.panel === 'reconcile') loadJobs();
-    if (t.dataset.panel === 'coverage')    loadEmbed('coverageFrame', '/coverage?embed=1');
-    if (t.dataset.panel === 'diagnostics') loadEmbed('diagnosticsFrame', '/diagnostics');
+    if (t.dataset.panel === 'diagnostics') {
+      // Re-fire the active sub-tab's loader so data is fresh.
+      activateDiagSubtab(ACTIVE_DIAG_SUBTAB);
+    }
   });
+});
+
+// Sub-tab handling inside the Diagnostics super-tab.
+function activateDiagSubtab(name) {
+  ACTIVE_DIAG_SUBTAB = name;
+  document.querySelectorAll('.diag-subtab').forEach(b =>
+    b.classList.toggle('is-active', b.dataset.diag === name));
+  document.querySelectorAll('.diag-view').forEach(v => {
+    const on = v.id === 'diag-' + name;
+    v.classList.toggle('is-active', on);
+    v.hidden = !on;
+  });
+  setSubhead('diagnostics');
+  if (name === 'issues')   loadIssues();
+  if (name === 'locked')   loadLocked();
+  if (name === 'audit')    loadEmbed('coverageFrame', '/coverage?embed=1');
+  if (name === 'pipeline') loadEmbed('diagnosticsFrame', '/diagnostics');
+}
+document.querySelectorAll('.diag-subtab').forEach(b => {
+  b.addEventListener('click', () => activateDiagSubtab(b.dataset.diag));
 });
 function loadEmbed(frameId, src, opts) {
   opts = opts || {};
@@ -1982,15 +2060,14 @@ async function openLookedUpJob(jobId) {
     $('jobLookup').value = '';
     $('filterCount').textContent = '';
     $('jobsList').innerHTML = renderJob(synthRow);
-    // Auto-expand
+    // Update progress + pill counts now that window.JOBS has changed.
+    if (typeof updateProgress === 'function') updateProgress();
+    if (typeof applyFilterPills === 'function') applyFilterPills();
+    // Open in the drawer instead of inline-expanding — matches the
+    // new verification queue UX so the editor always lands in the
+    // same place regardless of entry point.
     setTimeout(() => {
-      const job = document.querySelector('.job[data-key="' + cssEscape(jobId) + '"]');
-      if (job) {
-        job.classList.add('is-open');
-        renderEditPanel(jobId);
-        const panel = job.querySelector('.job-edit');
-        if (panel) panel.dataset.loaded = '1';
-      }
+      if (typeof openInDrawer === 'function') openInDrawer(jobId);
     }, 50);
   } catch (err) {
     alert('Could not load job: ' + err.message);
@@ -2014,6 +2091,23 @@ async function loadIssues(forceRefresh) {
     const open = reports.filter(r => r.status === 'open');
     const handled = reports.filter(r => r.status !== 'open');
     $('issueCount').textContent = open.length;
+    // Build the issue-by-job lookup so the Verify queue's Issues
+    // filter pill can show jobs that have tech-submitted issue
+    // reports. Keyed by jobId AND by invoice (so we match whichever
+    // identifier the report attached to the job).
+    window.ISSUE_BY_JOB = {};
+    open.forEach(r => {
+      const keys = [];
+      if (r.jobId)   keys.push(String(r.jobId));
+      if (r.invoice) keys.push(String(r.invoice));
+      keys.forEach(k => {
+        if (!window.ISSUE_BY_JOB[k]) window.ISSUE_BY_JOB[k] = [];
+        window.ISSUE_BY_JOB[k].push(r);
+      });
+    });
+    // Re-run the pill counters now that we have fresh issue data.
+    if (typeof updateProgress === 'function') updateProgress();
+    if (typeof applyFilterPills === 'function') applyFilterPills();
     if (reports.length === 0) {
       $('issuesList').innerHTML = '<div class="empty">No issue reports yet.</div>';
       return;
@@ -2297,12 +2391,39 @@ function openInDrawer(key) {
     '<span class="customer">' + cust + '</span>' +
     '<span style="color:var(--ink-mute); font-weight:600">· ' + total + '</span>';
   drawerHeadMeta.textContent = dateStr + ' · ' + (j.status || 'unknown');
+  // If this job has tech-submitted issue reports, surface them at
+  // the top of the drawer so the admin sees them before the editor.
+  // Issues come from window.ISSUE_BY_JOB (built by loadIssues).
+  const issueMap = window.ISSUE_BY_JOB || {};
+  const k1 = j.jobId && String(j.jobId);
+  const k2 = j.invoice && String(j.invoice);
+  const issues = ((k1 && issueMap[k1]) || []).concat((k2 && k1 !== k2 && issueMap[k2]) || []);
+  let issuesHtml = '';
+  if (issues.length) {
+    const TYPE_LABEL = {
+      missing: 'Missing job', wrong_tech: 'Wrong tech', wrong_split: 'Wrong split',
+      wrong_customer: 'Wrong customer', wrong_seller: 'Wrong customer',
+      wrong_unpaid: 'Wrong unpaid amount', job_issue: 'Job issue', other: 'Other'
+    };
+    issuesHtml =
+      '<div class="why-card" style="margin-bottom:14px">' +
+        '<div class="why-title">🚩 ' + issues.length + ' tech-submitted ' +
+        (issues.length === 1 ? 'issue on this job' : 'issues on this job') + '</div>' +
+        issues.map(r =>
+          '<div class="why-detail" style="margin-top:8px">' +
+            '<strong>' + esc(TYPE_LABEL[r.type] || r.type) + '</strong>' +
+            (r.reporterName ? ' · ' + esc(r.reporterName) : '') +
+            '<div style="margin-top:4px">' + esc(r.description || '') + '</div>' +
+          '</div>'
+        ).join('') +
+      '</div>';
+  }
   // Render the editor INTO the drawer body. renderEditPanel looks
   // for `.job-edit[data-edit-for="<key>"]` and populates it; we
   // give it exactly that element inside the drawer body so the
   // existing template + edit logic works untouched. The `.is-open`
   // class on the wrapper makes the editor CSS display: block.
-  drawerBody.innerHTML =
+  drawerBody.innerHTML = issuesHtml +
     '<div class="job is-open" data-key="' + esc(key) + '">' +
       '<div class="job-edit" data-edit-for="' + esc(key) + '"></div>' +
     '</div>';
@@ -2524,18 +2645,35 @@ function updateProgress() {
   $('pillCount-verified').textContent = verifiedDisplay;
   $('pillCount-excluded').textContent = excludedDisplay;
   $('pillCount-all').textContent = total;
+  // Issues pill — count jobs in window.JOBS that have a matching
+  // open issue report (joined client-side via the lookup loadIssues
+  // built on window.ISSUE_BY_JOB).
+  const issueMap = window.ISSUE_BY_JOB || {};
+  let withIssues = 0;
+  Object.values(window.JOBS || {}).forEach(j => {
+    const k1 = j.jobId && String(j.jobId);
+    const k2 = j.invoice && String(j.invoice);
+    if ((k1 && issueMap[k1]) || (k2 && issueMap[k2])) withIssues++;
+  });
+  $('pillCount-issues').textContent = withIssues;
 }
 
 function applyFilterPills() {
   const f = DRAWER_STATE.activeFilter;
+  const issueMap = window.ISSUE_BY_JOB || {};
   document.querySelectorAll('#jobsList .job').forEach(row => {
     const key = row.dataset.key;
     const j = window.JOBS[key];
     if (!j) return;
     let visible = true;
-    if (f === 'unverified') visible = j.status !== 'reconciled' && j.status !== 'excluded';
-    else if (f === 'verified') visible = j.status === 'reconciled';
-    else if (f === 'excluded') visible = j.status === 'excluded';
+    if      (f === 'unverified') visible = j.status !== 'reconciled' && j.status !== 'excluded';
+    else if (f === 'verified')   visible = j.status === 'reconciled';
+    else if (f === 'excluded')   visible = j.status === 'excluded';
+    else if (f === 'issues') {
+      const k1 = j.jobId && String(j.jobId);
+      const k2 = j.invoice && String(j.invoice);
+      visible = !!((k1 && issueMap[k1]) || (k2 && issueMap[k2]));
+    }
     // 'all' → visible stays true
     row.style.display = visible ? '' : 'none';
   });
