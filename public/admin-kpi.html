@@ -133,7 +133,7 @@
     .job:last-child { border-bottom: 0; }
     .job-summary {
       display: grid;
-      grid-template-columns: 110px 1fr 95px 110px 32px;
+      grid-template-columns: 110px minmax(0, 1fr) 95px 110px 96px 32px;
       gap: 12px;
       padding: 12px 16px;
       align-items: center;
@@ -162,9 +162,37 @@
     .job-line1 .inv { font-weight: 700; font-variant-numeric: tabular-nums; }
     .job-line1 .cust { color: var(--ink-soft); font-weight: 600; }
     .job-line2 { font-size: 12px; color: var(--ink-mute); margin-top: 2px; }
+    .job-signals { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 5px; }
+    .job-signal {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 7px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--bg);
+      color: var(--ink-soft);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
     .job-date { font-size: 11px; color: var(--ink-mute); letter-spacing: 0.04em; text-align: right; }
     .job-amount { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
     .job-amount-sub { font-size: 11px; color: var(--ink-mute); font-weight: 500; }
+    .job-quick {
+      min-width: 86px;
+      padding: 7px 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--card);
+      color: var(--ink-soft);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .job-quick:hover { border-color: var(--brand); color: var(--brand); }
+    .job-quick[disabled] { opacity: 0.55; cursor: default; }
     .job-chevron {
       width: 22px;
       height: 22px;
@@ -175,6 +203,25 @@
       transition: transform 0.2s;
     }
     .job.is-open .job-chevron { transform: rotate(180deg); color: var(--brand); }
+    .job-section {
+      padding: 10px 16px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-mute);
+    }
+    @media (max-width: 760px) {
+      .job-summary {
+        grid-template-columns: 86px minmax(0, 1fr) 74px 28px;
+        gap: 8px;
+      }
+      .job-date { display: none; }
+      .job-amount { font-size: 13px; }
+      .job-quick { grid-column: 2 / 4; justify-self: start; min-width: 0; }
+    }
 
     /* ── Inline edit panel (expands under each row) ────────────── */
     .job-edit {
@@ -195,6 +242,23 @@
       color: var(--ink-soft);
       margin-bottom: 8px;
     }
+    .hcp-context-wrap {
+      margin-bottom: 14px;
+    }
+    .hcp-context-wrap summary {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 11px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--card);
+      color: var(--ink-soft);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .hcp-context-wrap summary:hover { border-color: var(--brand); color: var(--brand); }
     .hcp-context {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -205,7 +269,8 @@
       border-radius: 10px;
       font-size: 12px;
       color: var(--ink);
-      margin-bottom: 14px;
+      margin-top: 8px;
+      margin-bottom: 0;
     }
     .hcp-context dt {
       font-size: 9px;
@@ -842,11 +907,91 @@ async function loadJobs(forceRefresh) {
       j._localKey = key;
       j._haystack = buildHaystack(j);
     });
-    $('jobsList').innerHTML = jobs.map(renderJob).join('');
+    const orderedJobs = sortJobsForAudit(jobs);
+    $('jobsList').innerHTML = renderJobGroups(orderedJobs);
     applyFilter(); // Re-apply if there's an active query from a previous load
   } catch (err) {
     $('jobsList').innerHTML = '<div class="empty">Error: ' + esc(err.message) + '</div>';
   }
+}
+
+function auditSignals(j) {
+  const signals = [];
+  const total = Number(j.totalAmount || 0);
+  const assignmentCount = (j.assignments || []).length || (j.hcpAssignedEmployees || []).length;
+  if (j.status === 'unattributed') signals.push('Needs attribution');
+  if (total >= 5000) signals.push('High ticket');
+  if (assignmentCount > 1) signals.push('Shared');
+  if (Number(j.outstanding || 0) > 0) signals.push('Unpaid');
+  if (j.reason) signals.push('Data issue');
+  if (!j.customer || !j.description || !j.kpiDate) signals.push('Missing detail');
+  return signals;
+}
+
+function auditPriority(j) {
+  let score = 0;
+  const total = Number(j.totalAmount || 0);
+  const assignmentCount = (j.assignments || []).length || (j.hcpAssignedEmployees || []).length;
+  if (j.status === 'unattributed') score += 100;
+  if (j.reason) score += 35;
+  if (total >= 5000) score += 25;
+  else if (total >= 2500) score += 12;
+  if (assignmentCount > 1) score += 20;
+  if (Number(j.outstanding || 0) > 0) score += 10;
+  if (!j.customer || !j.description || !j.kpiDate) score += 8;
+  return score;
+}
+
+function sortJobsForAudit(jobs) {
+  return jobs.slice().sort((a, b) => {
+    const pa = auditPriority(a);
+    const pb = auditPriority(b);
+    if (pa !== pb) return pb - pa;
+    const statusRank = { unattributed: 0, credited: 1, reconciled: 2, excluded: 3 };
+    const sa = statusRank[a.status] != null ? statusRank[a.status] : 99;
+    const sb = statusRank[b.status] != null ? statusRank[b.status] : 99;
+    if (sa !== sb) return sa - sb;
+    return new Date(b.kpiDate || 0) - new Date(a.kpiDate || 0);
+  });
+}
+
+function renderJobGroups(jobs) {
+  const priority = jobs.filter(j => auditPriority(j) > 0);
+  const normal = jobs.filter(j => auditPriority(j) === 0);
+  let html = '';
+  if (priority.length) {
+    html += '<div class="job-section">Audit first (' + priority.length + ')</div>';
+    html += priority.map(renderJob).join('');
+  }
+  if (normal.length) {
+    html += '<div class="job-section">Other jobs (' + normal.length + ')</div>';
+    html += normal.map(renderJob).join('');
+  }
+  return html || '<div class="empty">No jobs in this period.</div>';
+}
+
+function quickApprovePayload(j) {
+  if (!j || !j.jobId || j.status !== 'credited') return null;
+  const assignments = (j.assignments || [])
+    .map(a => ({
+      employeeName: String(a.name || a.employeeName || '').trim(),
+      role: ['Sold', 'Did', 'Sold & Did'].includes(a.role) ? a.role : 'Did',
+      creditPct: Math.max(0, Math.min(100, Number(a.creditPct) || 0))
+    }))
+    .filter(a => a.employeeName);
+  const pctSum = assignments.reduce((s, a) => s + a.creditPct, 0);
+  if (!assignments.length || Math.abs(pctSum - 100) > 0.5) return null;
+  return {
+    jobId: j.jobId,
+    assignments,
+    totalAmount: j.totalAmount,
+    kpiDate: isoDate(j.kpiDate),
+    notes: 'Quick-approved from KPI Admin audit list.',
+    locked: true,
+    markedPaid: false,
+    excluded: false,
+    reconciledBy: 'admin'
+  };
 }
 
 // ── Job row rendering (collapsed + expanded together) ──────────────
@@ -855,6 +1000,14 @@ function renderJob(j) {
   const invLabel = j.invoice ? '#' + esc(String(j.invoice)) : '<em style="color:var(--ink-mute)">no invoice</em>';
   const customer = j.customer ? esc(j.customer) : '—';
   const desc = j.description ? esc(j.description) : '';
+  const signals = auditSignals(j).slice(0, 4);
+  const signalHtml = signals.length
+    ? '<div class="job-signals">' + signals.map(s => '<span class="job-signal">' + esc(s) + '</span>').join('') + '</div>'
+    : '';
+  const quickPayload = quickApprovePayload(j);
+  const quickButton = quickPayload
+    ? '<button type="button" class="job-quick" data-action="quick-approve" data-key="' + esc(j._localKey) + '">Approve</button>'
+    : '<span></span>';
 
   const currentAttrLine = j.assignments && j.assignments.length
     ? j.assignments.map(a => esc(a.name) + ' ' + (a.creditPct != null ? a.creditPct + '%' : '')).join(' · ')
@@ -872,11 +1025,13 @@ function renderJob(j) {
         '</div>' +
         (desc ? '<div class="job-line2">' + desc + '</div>' : '') +
         '<div class="job-line2">' + currentAttrLine + '</div>' +
+        signalHtml +
       '</div>' +
       '<span class="job-date">' + dateStr + '</span>' +
       '<span class="job-amount">' + fmt(j.totalAmount || 0) +
         (j.outstanding ? '<div class="job-amount-sub">Unpaid ' + fmt(j.outstanding) + '</div>' : '') +
       '</span>' +
+      quickButton +
       '<span class="job-chevron">▾</span>' +
     '</div>' +
     '<div class="job-edit" data-edit-for="' + esc(j._localKey) + '">' +
@@ -989,20 +1144,22 @@ async function renderEditPanel(key) {
     ${reasonBlock}
     <div class="edit-section">
       <span class="edit-label">HCP Context (read-only)</span>
-      <dl class="hcp-context">
-        <div>
-          <dt>Job ID</dt><dd style="font-family:ui-monospace,monospace;font-size:11px">${esc(job.id)}</dd>
-          <dt>Description</dt><dd>${esc(job.description || '—')}</dd>
-          <dt>HCP status</dt><dd>${esc(job.workStatus || '—')}</dd>
-          <dt>HCP assigned</dt><dd>${job.assignedEmployees.length ? job.assignedEmployees.map(e => esc(e.name)).join(', ') : '<em>none</em>'}</dd>
-        </div>
-        <div>
-          <dt>HCP total</dt><dd>${fmt(job.totalAmount)}</dd>
-          <dt>Outstanding (HCP)</dt><dd>${fmt(job.outstandingBalance)}</dd>
-          <dt>Completed</dt><dd>${isoDate(job.completedAt) || '—'}</dd>
-          <dt>Scheduled</dt><dd>${isoDate(job.scheduledStart) || '—'}</dd>
-        </div>
-      </dl>
+      <details class="hcp-context-wrap">
+        <summary>Show HCP context</summary>
+        <dl class="hcp-context">
+          <div>
+            <dt>Description</dt><dd>${esc(job.description || '—')}</dd>
+            <dt>HCP status</dt><dd>${esc(job.workStatus || '—')}</dd>
+            <dt>HCP assigned</dt><dd>${job.assignedEmployees.length ? job.assignedEmployees.map(e => esc(e.name)).join(', ') : '<em>none</em>'}</dd>
+          </div>
+          <div>
+            <dt>HCP total</dt><dd>${fmt(job.totalAmount)}</dd>
+            <dt>Outstanding (HCP)</dt><dd>${fmt(job.outstandingBalance)}</dd>
+            <dt>Completed</dt><dd>${isoDate(job.completedAt) || '—'}</dd>
+            <dt>Scheduled</dt><dd>${isoDate(job.scheduledStart) || '—'}</dd>
+          </div>
+        </dl>
+      </details>
     </div>
 
     <div class="edit-section">
@@ -1185,6 +1342,24 @@ document.addEventListener('click', async (e) => {
   }
   if (action === 'save') {
     await saveJob(key);
+    return;
+  }
+  if (action === 'quick-approve') {
+    const j = window.JOBS[key];
+    const payload = quickApprovePayload(j);
+    if (!payload) return;
+    actionEl.disabled = true;
+    actionEl.textContent = 'Saving...';
+    try {
+      await api('/api/kpi/admin/reconcile', { method: 'POST', body: payload });
+      clearAdminCache();
+      actionEl.textContent = 'Approved';
+      setTimeout(loadJobs, 600);
+    } catch (err) {
+      actionEl.disabled = false;
+      actionEl.textContent = 'Approve';
+      alert('Could not approve: ' + err.message);
+    }
     return;
   }
 });
@@ -1607,14 +1782,13 @@ async function loadLocked(forceRefresh) {
       const who = (job && job.customer) ? esc(job.customer) : null;
       const done = (job && job.completedAt) ? esc(isoDate(job.completedAt)) : null;
       const desc = (job && job.description) ? esc(job.description) : '';
-      const title = who || (r.invoice ? ('Invoice #' + esc(String(r.invoice))) : esc(r.jobId));
+      const title = who || (r.invoice ? ('Invoice #' + esc(String(r.invoice))) : 'Reconciled job');
       const meta = [done && ('Done ' + done), r.totalAmount != null ? fmt(r.totalAmount) : null].filter(Boolean).join(' · ');
       return `<div class="item-card" style="display:grid;grid-template-columns:1fr 100px 90px;gap:10px;align-items:center">
         <div>
           <div style="font-weight:800;font-size:13px;margin-bottom:4px">${title}</div>
           ${desc ? '<div style="font-size:12px;color:var(--ink-mute);margin-bottom:4px">' + desc + '</div>' : ''}
           <div style="font-size:13px;color:var(--ink-soft)">${esc(names) || '<em>excluded</em>'}${meta ? ' · ' + esc(meta) : ''}</div>
-          <div style="font-size:11px;color:var(--ink-mute);margin-top:3px">Job ID: <span style="font-family:ui-monospace,monospace">${esc(r.jobId)}</span></div>
           ${r.notes ? '<div style="font-size:12px;color:var(--ink-mute);margin-top:3px">' + esc(r.notes) + '</div>' : ''}
         </div>
         <div style="font-size:11px;color:var(--ink-mute);text-align:right">${esc(dateStr)}</div>

@@ -493,7 +493,7 @@ function render(d) {
             <span class="row-meta">PAID ${escapeHtml(fmtDateTime(row.latestPaidAt))} · ${escapeHtml(row.workStatus || 'no status')} · ${row.assignedEmployees.length ? escapeHtml(row.assignedEmployees.join(', ')) : 'unassigned'}</span>
           </div>
           <div class="row-reasons">
-            <ul>${row.reasons.map(r => '<li>' + escapeHtml(r) + '</li>').join('')}</ul>
+            <ul>${reasonItems(row.reasons).map(r => '<li>' + escapeHtml(r) + '</li>').join('')}</ul>
           </div>
           <div class="row-fixit">Job ID: <code>${escapeHtml(row.jobId)}</code> · ${escapeHtml(row.description || '')}</div>
         </div>
@@ -555,6 +555,24 @@ function render(d) {
   `;
 
   $('output').innerHTML = html;
+}
+
+function reasonItems(reasons) {
+  if (Array.isArray(reasons)) return reasons.map(r => String(r));
+  if (!reasons || typeof reasons !== 'object') {
+    return [reasons ? String(reasons) : 'No reason returned.'];
+  }
+  const out = [];
+  if (reasons.verdict) out.push('Verdict: ' + reasons.verdict);
+  if (reasons.blocker) out.push('Blocker: ' + reasons.blocker);
+  if (reasons.fix) out.push('Fix: ' + reasons.fix);
+  if (reasons.details && typeof reasons.details === 'object') {
+    const detailBits = Object.keys(reasons.details)
+      .filter(k => reasons.details[k] != null && reasons.details[k] !== '')
+      .map(k => k + ': ' + reasons.details[k]);
+    if (detailBits.length) out.push('Details: ' + detailBits.join(' · '));
+  }
+  return out.length ? out : ['No reason returned.'];
 }
 
 function bucketHtml(title, tone, items, rowFn) {
