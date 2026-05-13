@@ -133,7 +133,7 @@
     .job:last-child { border-bottom: 0; }
     .job-summary {
       display: grid;
-      grid-template-columns: 110px minmax(0, 1fr) 95px 110px 96px 32px;
+      grid-template-columns: 110px minmax(0, 1fr) 95px 110px 96px 48px 32px;
       gap: 12px;
       padding: 12px 16px;
       align-items: center;
@@ -240,12 +240,13 @@
     }
     @media (max-width: 760px) {
       .job-summary {
-        grid-template-columns: 86px minmax(0, 1fr) 74px 28px;
+        grid-template-columns: 86px minmax(0, 1fr) 74px 42px 28px;
         gap: 8px;
       }
       .job-date { display: none; }
       .job-amount { font-size: 13px; }
       .job-quick { grid-column: 2 / 4; justify-self: start; min-width: 0; }
+      .confidence-badge { min-width: 36px; padding: 2px 4px; font-size: 10px; }
     }
 
     /* ── Inline edit panel (expands under each row) ────────────── */
@@ -871,6 +872,129 @@
        the drawer footer replaces it. Keep the field structure
        so renderEditPanel doesn't need a rewrite. */
     .drawer-body .edit-actions { display: none; }
+
+    /* Color-coded flag chips. Green = clean signal, orange = worth a
+       look, red = manual decision needed. Drives both the per-row
+       inline chips and the drawer's flag list, plus the confidence
+       score and "auto-verify clean cases" eligibility. */
+    .job-flag {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      border: 1px solid transparent;
+    }
+    .job-flag--green  { background: var(--good-pale); color: var(--good); border-color: #C9DFCD; }
+    .job-flag--orange { background: var(--warn-pale); color: var(--warn); border-color: #F1D48E; }
+    .job-flag--red    { background: var(--bad-pale);  color: var(--bad);  border-color: #E0B0A8; }
+    .job-flag-more {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: var(--ink-mute);
+    }
+
+    /* Confidence score badge — sits in the row summary next to the
+       chevron. High (≥80) is muted green, medium (50-79) orange,
+       low (<50) red. Same numeric vibe as a credit score so admins
+       intuitively get it. */
+    .confidence-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 38px;
+      padding: 2px 7px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      border: 1px solid transparent;
+    }
+    .confidence-badge--high { background: var(--good-pale); color: var(--good); border-color: #C9DFCD; }
+    .confidence-badge--med  { background: var(--warn-pale); color: var(--warn); border-color: #F1D48E; }
+    .confidence-badge--low  { background: var(--bad-pale);  color: var(--bad);  border-color: #E0B0A8; }
+
+    /* Drawer flag list — vertical, with labels you can read. */
+    .drawer-flags {
+      margin-bottom: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .drawer-flag-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      padding: 7px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .drawer-flag-row.is-green  { background: var(--good-pale); color: var(--good); }
+    .drawer-flag-row.is-orange { background: var(--warn-pale); color: var(--warn); }
+    .drawer-flag-row.is-red    { background: var(--bad-pale);  color: var(--bad);  }
+    .drawer-flag-row .dot {
+      flex-shrink: 0;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+    .drawer-confidence-line {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 14px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 14px;
+      font-size: 13px;
+      color: var(--ink-soft);
+    }
+    .drawer-confidence-line strong { font-weight: 800; color: var(--ink); }
+
+    /* Auto-verify bar — sits above the job list. Visible only when
+       there's at least one auto-verifiable job in the queue. */
+    .auto-verify-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: var(--good-pale);
+      border: 1px solid #C9DFCD;
+      border-radius: 12px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+    .auto-verify-bar.is-empty { display: none; }
+    .auto-verify-bar .auto-verify-text {
+      font-size: 13px;
+      color: var(--ink);
+      flex: 1 1 auto;
+    }
+    .auto-verify-bar .auto-verify-text strong { color: var(--good); font-weight: 800; }
+    .auto-verify-bar button {
+      padding: 9px 18px;
+      background: var(--good);
+      color: white;
+      border: 0;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .auto-verify-bar button:hover { filter: brightness(1.08); }
+    .auto-verify-bar button[disabled] { opacity: 0.55; cursor: progress; }
   </style>
 </head>
 <body>
@@ -943,6 +1067,18 @@
 
       <div class="summary" style="margin: -2px 0 10px; font-size: 12px; color: var(--ink-mute)">
         <span id="summaryAction">— need action</span>
+      </div>
+
+      <!-- Auto-verify clean cases — visible only when there's at
+           least one job that passed every pre-check (single tech,
+           full credit, paid, in period, HCP-attribution matches).
+           One click runs through all of them. -->
+      <div class="auto-verify-bar is-empty" id="autoVerifyBar">
+        <span class="auto-verify-text">
+          <strong id="autoVerifyCount">0</strong> clean cases ready to verify in one click —
+          single tech, full credit, fully paid, matches HCP.
+        </span>
+        <button id="autoVerifyBtn" type="button" title="Verify every clean case in batch. Each gets its own per-row undo via the standard undo toast.">✓ Auto-verify clean cases</button>
       </div>
 
       <div id="jobsList" class="jobs-list">
@@ -1381,6 +1517,90 @@ function auditSignals(j) {
   return signals;
 }
 
+/* ════════════════════════════════════════════════════════════════════
+   Smart pre-check flags + confidence score (Chunk 2).
+
+   computeFlags(j) returns an array of {kind, label} where kind is
+   'green' | 'orange' | 'red'. Driven entirely by data already on
+   the job — no extra fetches needed.
+
+   confidence is derived: 100 - 35*reds - 10*oranges, clamped to 0.
+
+   isAutoVerifiable(j) returns true for jobs that are safe to batch-
+   approve: status === 'credited' (auto-pipeline already attributed)
+   AND no red OR orange flags AND quickApprovePayload(j) returns a
+   well-formed payload (assignments sum to 100, employee names set).
+   ════════════════════════════════════════════════════════════════════ */
+function severity(kind) {
+  return kind === 'red' ? 3 : kind === 'orange' ? 2 : kind === 'green' ? 1 : 0;
+}
+
+function computeFlags(j) {
+  const flags = [];
+  const total = Number(j.totalAmount || 0);
+  const outstanding = Number(j.outstanding || 0);
+  const assigns = j.assignments || [];
+  const hcpNames = (j.hcpAssignedEmployees || []).map(n => String(n || '').toLowerCase().trim()).filter(Boolean);
+  const assignNames = assigns.map(a => String(a.name || a.employeeName || '').toLowerCase().trim()).filter(Boolean);
+  const pctSum = assigns.reduce((s, a) => s + (Number(a.creditPct) || 0), 0);
+
+  // ── RED — manual decision needed ────────────────────────────
+  if (j.status === 'unattributed') flags.push({ kind: 'red', label: 'Needs attribution' });
+  if (j.reason && j.status !== 'unattributed') flags.push({ kind: 'red', label: 'Data issue' });
+  if (total <= 0 && j.status !== 'excluded') flags.push({ kind: 'red', label: '$0 total' });
+  if (!j.kpiDate) flags.push({ kind: 'red', label: 'No KPI date' });
+
+  // ── ORANGE — worth a look ───────────────────────────────────
+  // Issue report joined client-side via window.ISSUE_BY_JOB
+  const issueMap = window.ISSUE_BY_JOB || {};
+  const k1 = j.jobId && String(j.jobId);
+  const k2 = j.invoice && String(j.invoice);
+  if ((k1 && issueMap[k1]) || (k2 && issueMap[k2])) {
+    flags.push({ kind: 'orange', label: 'Tech-flagged issue' });
+  }
+  if (outstanding > 0) flags.push({ kind: 'orange', label: 'Unpaid balance' });
+  if (assigns.length > 1) flags.push({ kind: 'orange', label: 'Split between techs' });
+  if (total >= 5000) flags.push({ kind: 'orange', label: 'High ticket' });
+  // HCP-attribution mismatch — assigned tech in HCP differs from
+  // whoever's actually getting credited. Skip if either side is
+  // empty (avoid false positives on edge cases).
+  if (assignNames.length && hcpNames.length) {
+    const overlap = assignNames.some(n => hcpNames.indexOf(n) >= 0);
+    if (!overlap) flags.push({ kind: 'orange', label: 'Mismatch vs HCP' });
+  }
+  if (!j.customer) flags.push({ kind: 'orange', label: 'No customer name' });
+
+  // ── GREEN — positive signals ────────────────────────────────
+  if (outstanding === 0 && total > 0) flags.push({ kind: 'green', label: 'Fully paid' });
+  if (assigns.length === 1 && Math.abs(pctSum - 100) < 0.5) {
+    flags.push({ kind: 'green', label: 'Clean attribution' });
+  }
+  if (assignNames.length && hcpNames.length && assignNames.length === hcpNames.length) {
+    const allMatch = assignNames.every(n => hcpNames.indexOf(n) >= 0);
+    if (allMatch) flags.push({ kind: 'green', label: 'Matches HCP' });
+  }
+
+  return flags;
+}
+
+function computeConfidence(flags) {
+  let score = 100;
+  flags.forEach(f => {
+    if (f.kind === 'red') score -= 35;
+    else if (f.kind === 'orange') score -= 10;
+  });
+  return Math.max(0, Math.min(100, score));
+}
+
+function isAutoVerifiable(j) {
+  if (!j || j.status !== 'credited') return false;
+  const flags = computeFlags(j);
+  const hasRed = flags.some(f => f.kind === 'red');
+  const hasOrange = flags.some(f => f.kind === 'orange');
+  if (hasRed || hasOrange) return false;
+  return !!quickApprovePayload(j);
+}
+
 function auditPriority(j) {
   let score = 0;
   const total = Number(j.totalAmount || 0);
@@ -1457,10 +1677,23 @@ function renderJob(j) {
   const invLabel = j.invoice ? '#' + esc(String(j.invoice)) : '<em style="color:var(--ink-mute)">no invoice</em>';
   const customer = j.customer ? esc(j.customer) : '—';
   const desc = j.description ? esc(j.description) : '';
-  const signals = auditSignals(j).slice(0, 4);
-  const signalHtml = signals.length
-    ? '<div class="job-signals">' + signals.map(s => '<span class="job-signal">' + esc(s) + '</span>').join('') + '</div>'
+  // Color-coded flag chips driven by computeFlags. Show the top 3
+  // by severity (red > orange > green), with a "+N more" indicator
+  // if there are extras. Full flag list shows in the drawer when
+  // the row is opened.
+  const flags = computeFlags(j);
+  const sorted = flags.slice().sort((a, b) => severity(b.kind) - severity(a.kind));
+  const shown = sorted.slice(0, 3);
+  const extra = sorted.length - shown.length;
+  const signalHtml = shown.length
+    ? '<div class="job-signals">' +
+        shown.map(f => '<span class="job-flag job-flag--' + f.kind + '">' + esc(f.label) + '</span>').join('') +
+        (extra > 0 ? '<span class="job-flag-more">+' + extra + ' more</span>' : '') +
+      '</div>'
     : '';
+  const confidence = computeConfidence(flags);
+  const confClass = confidence >= 80 ? 'high' : confidence >= 50 ? 'med' : 'low';
+  const confidenceBadge = '<span class="confidence-badge confidence-badge--' + confClass + '" title="Confidence score — driven by the flag set above. Higher = safer to verify as-is.">' + confidence + '</span>';
   const quickPayload = quickApprovePayload(j);
   const quickButton = quickPayload
     ? '<button type="button" class="job-quick" data-action="quick-approve" data-key="' + esc(j._localKey) + '">Correct</button>'
@@ -1489,6 +1722,7 @@ function renderJob(j) {
         (j.outstanding ? '<div class="job-amount-sub">Unpaid ' + fmt(j.outstanding) + '</div>' : '') +
       '</span>' +
       quickButton +
+      confidenceBadge +
       '<span class="job-chevron">▾</span>' +
     '</div>' +
     '<div class="job-edit" data-edit-for="' + esc(j._localKey) + '">' +
@@ -2391,6 +2625,31 @@ function openInDrawer(key) {
     '<span class="customer">' + cust + '</span>' +
     '<span style="color:var(--ink-mute); font-weight:600">· ' + total + '</span>';
   drawerHeadMeta.textContent = dateStr + ' · ' + (j.status || 'unknown');
+  // Show the pre-check flag list + confidence score at the top of
+  // the drawer so the admin sees the auto-evaluation before they
+  // touch the editor. Drives confidence in the call.
+  const flags = computeFlags(j);
+  const confidence = computeConfidence(flags);
+  const confClass = confidence >= 80 ? 'high' : confidence >= 50 ? 'med' : 'low';
+  let confidenceHtml = '<div class="drawer-confidence-line">' +
+    '<span class="confidence-badge confidence-badge--' + confClass + '">' + confidence + '</span>' +
+    '<span>Confidence — based on the flags below. <strong>' +
+      (confidence >= 80 ? 'Safe to verify as-is' : confidence >= 50 ? 'Worth a quick look' : 'Manual decision needed') +
+    '</strong></span>' +
+  '</div>';
+  let flagsHtml = '';
+  if (flags.length) {
+    const sorted = flags.slice().sort((a, b) => severity(b.kind) - severity(a.kind));
+    flagsHtml = '<div class="drawer-flags">' +
+      sorted.map(f =>
+        '<div class="drawer-flag-row is-' + f.kind + '">' +
+          '<span class="dot"></span>' +
+          '<span>' + esc(f.label) + '</span>' +
+        '</div>'
+      ).join('') +
+    '</div>';
+  }
+
   // If this job has tech-submitted issue reports, surface them at
   // the top of the drawer so the admin sees them before the editor.
   // Issues come from window.ISSUE_BY_JOB (built by loadIssues).
@@ -2423,7 +2682,7 @@ function openInDrawer(key) {
   // give it exactly that element inside the drawer body so the
   // existing template + edit logic works untouched. The `.is-open`
   // class on the wrapper makes the editor CSS display: block.
-  drawerBody.innerHTML = issuesHtml +
+  drawerBody.innerHTML = confidenceHtml + flagsHtml + issuesHtml +
     '<div class="job is-open" data-key="' + esc(key) + '">' +
       '<div class="job-edit" data-edit-for="' + esc(key) + '"></div>' +
     '</div>';
@@ -2596,13 +2855,19 @@ function refreshRowInList(key) {
   if (!j) return;
   const row = document.querySelector('#jobsList .job[data-key="' + cssSafe(key) + '"]');
   if (!row) return;
-  // Update the status badge text + class
-  const statusEl = row.querySelector('.job-status');
-  if (statusEl) {
-    statusEl.textContent = j.status || '';
-    statusEl.className = 'job-status job-status--' + (j.status || 'credited');
+  // Re-render the whole row so status badge, flag chips, confidence
+  // score, and quick-approve button all reflect the latest state.
+  // Preserve deferred / active-drawer class state across the swap.
+  const wasDeferred = row.classList.contains('is-deferred');
+  const wasActiveDrawer = row.classList.contains('is-active-drawer');
+  const tmp = document.createElement('div');
+  tmp.innerHTML = renderJob(j);
+  const fresh = tmp.firstChild;
+  if (fresh) {
+    if (wasDeferred) fresh.classList.add('is-deferred');
+    if (wasActiveDrawer) fresh.classList.add('is-active-drawer');
+    row.replaceWith(fresh);
   }
-  // Apply filter pill visibility
   applyFilterPills();
 }
 
@@ -2656,7 +2921,69 @@ function updateProgress() {
     if ((k1 && issueMap[k1]) || (k2 && issueMap[k2])) withIssues++;
   });
   $('pillCount-issues').textContent = withIssues;
+  // Auto-verify bar — count jobs that pass every pre-check and
+  // could be batch-verified safely.
+  let autoCount = 0;
+  Object.values(window.JOBS || {}).forEach(j => { if (isAutoVerifiable(j)) autoCount++; });
+  const bar = $('autoVerifyBar');
+  $('autoVerifyCount').textContent = autoCount;
+  bar.classList.toggle('is-empty', autoCount === 0);
 }
+
+/* ════════════════════════════════════════════════════════════════════
+   Auto-verify clean cases — batch action.
+
+   Walks every job that passes isAutoVerifiable(), POSTs the
+   quickApprove payload for each one sequentially (so HCP / our
+   server isn't slammed with parallel writes), updates the row
+   status + counters live, and shows progress in the button text.
+   ════════════════════════════════════════════════════════════════════ */
+async function runAutoVerify() {
+  const candidates = Object.values(window.JOBS || {}).filter(isAutoVerifiable);
+  if (!candidates.length) return;
+  if (!confirm('Auto-verify ' + candidates.length + ' clean case' + (candidates.length === 1 ? '' : 's') +
+               '?\n\nEach has a single tech, full credit, is fully paid, and matches HCP. Per-row undo is still available via the toast that pops up for each one.')) {
+    return;
+  }
+  const btn = $('autoVerifyBtn');
+  btn.disabled = true;
+  const original = btn.textContent;
+  let done = 0, failed = 0;
+  for (const j of candidates) {
+    btn.textContent = 'Verifying ' + (done + 1) + ' of ' + candidates.length + '…';
+    try {
+      const payload = quickApprovePayload(j);
+      if (!payload) { failed++; continue; }
+      await api('/api/kpi/admin/reconcile', { method: 'POST', body: payload });
+      j.status = 'reconciled';
+      j.reconciled = true;
+      j._countedInSummary = false;
+      refreshRowInList(j._localKey);
+      done++;
+      // Update progress live so the admin sees momentum.
+      updateProgress();
+    } catch (err) {
+      console.warn('[auto-verify] failed for', j.jobId, err.message);
+      failed++;
+    }
+  }
+  btn.textContent = original;
+  btn.disabled = false;
+  // Final summary toast (reuses the undo toast UI for the message,
+  // but without an undoable action — clicking Undo here would do
+  // nothing useful since we'd need to undo all of them individually).
+  undoText.textContent = 'Auto-verified ' + done + ' job' + (done === 1 ? '' : 's') +
+    (failed ? ' · ' + failed + ' failed' : '');
+  $('undoBtn').style.display = 'none';
+  undoToast.classList.add('is-on');
+  if (undoTimer) clearTimeout(undoTimer);
+  undoTimer = setTimeout(() => {
+    undoToast.classList.remove('is-on');
+    $('undoBtn').style.display = '';
+  }, 6000);
+  applyFilterPills();
+}
+$('autoVerifyBtn').addEventListener('click', runAutoVerify);
 
 function applyFilterPills() {
   const f = DRAWER_STATE.activeFilter;
