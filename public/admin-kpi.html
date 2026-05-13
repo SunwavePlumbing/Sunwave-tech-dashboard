@@ -962,6 +962,218 @@
     }
     .drawer-confidence-line strong { font-weight: 800; color: var(--ink); }
 
+    /* ──────────────────────────────────────────────────────────────
+       Chunk-3 drawer context sections — event timeline, line items,
+       invoice/payment summary, estimates, prior jobs at this customer,
+       period-fit banner, activity log, verified-by line, HCP link.
+       All collapsible <details> so the drawer isn't a wall of data —
+       admin opens what's relevant.
+       ────────────────────────────────────────────────────────────── */
+    .ctx-section {
+      margin-bottom: 12px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .ctx-section > summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      user-select: none;
+    }
+    .ctx-section > summary::-webkit-details-marker { display: none; }
+    .ctx-section > summary::before {
+      content: "▸";
+      color: var(--ink-mute);
+      transition: transform 0.15s;
+    }
+    .ctx-section[open] > summary::before { transform: rotate(90deg); }
+    .ctx-section > summary:hover { background: var(--bg); }
+    .ctx-section > summary .ctx-subtle {
+      margin-left: auto;
+      font-weight: 500;
+      color: var(--ink-mute);
+      text-transform: none;
+      letter-spacing: 0;
+      font-size: 11px;
+    }
+    .ctx-body {
+      padding: 4px 14px 14px;
+      font-size: 13px;
+      color: var(--ink);
+    }
+    .ctx-empty {
+      padding: 8px 0;
+      color: var(--ink-mute);
+      font-size: 12px;
+      font-style: italic;
+    }
+
+    /* Event timeline */
+    .ctx-timeline { list-style: none; margin: 0; padding: 0; }
+    .ctx-timeline li {
+      position: relative;
+      padding-left: 22px;
+      padding-bottom: 12px;
+      font-size: 13px;
+    }
+    .ctx-timeline li:last-child { padding-bottom: 0; }
+    .ctx-timeline li::before {
+      content: "";
+      position: absolute;
+      left: 5px;
+      top: 6px;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--ink-mute);
+      border: 2px solid var(--card);
+      box-shadow: 0 0 0 1px var(--border);
+    }
+    .ctx-timeline li:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      left: 9px;
+      top: 16px;
+      bottom: -2px;
+      width: 1px;
+      background: var(--border);
+    }
+    .ctx-timeline li.is-done::before { background: var(--good); }
+    .ctx-timeline li.is-future::before { background: var(--card); border-color: var(--border); }
+    .ctx-timeline .ctx-evt-label {
+      font-weight: 700;
+      color: var(--ink);
+    }
+    .ctx-timeline .ctx-evt-when {
+      display: block;
+      font-size: 12px;
+      color: var(--ink-mute);
+      margin-top: 1px;
+    }
+
+    /* Line items table */
+    .ctx-lines {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .ctx-lines th, .ctx-lines td {
+      padding: 6px 8px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    .ctx-lines th {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink-mute);
+    }
+    .ctx-lines td.num, .ctx-lines th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .ctx-lines tfoot td { font-weight: 700; border-top: 2px solid var(--border); border-bottom: 0; }
+
+    /* Payment list / estimate list / prior-job list — shared compact rows */
+    .ctx-rows { display: flex; flex-direction: column; gap: 6px; }
+    .ctx-row {
+      display: flex;
+      gap: 10px;
+      align-items: baseline;
+      padding: 7px 10px;
+      background: var(--bg);
+      border-radius: 7px;
+      font-size: 12px;
+    }
+    .ctx-row .ctx-row-label { font-weight: 700; color: var(--ink); }
+    .ctx-row .ctx-row-meta  { color: var(--ink-mute); }
+    .ctx-row .ctx-row-amt   { margin-left: auto; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+    /* Period-fit banner — explicit visual that says which period this
+       job's service date falls in vs the period the admin is viewing.
+       Helps cut confusion when a March job shows up in May. */
+    .period-fit {
+      padding: 10px 14px;
+      border-radius: 10px;
+      margin-bottom: 14px;
+      font-size: 12px;
+      display: flex;
+      gap: 10px;
+      align-items: baseline;
+    }
+    .period-fit.is-match    { background: var(--good-pale); color: var(--good); }
+    .period-fit.is-mismatch { background: var(--warn-pale); color: var(--warn); }
+    .period-fit strong { font-weight: 800; }
+
+    /* HCP open-link button */
+    .hcp-link-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      background: var(--card);
+      color: var(--ink-soft);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      text-decoration: none;
+    }
+    .hcp-link-btn:hover { border-color: var(--brand); color: var(--brand); }
+
+    /* Verified-by line at the bottom of the drawer body */
+    .verified-by {
+      margin-top: 10px;
+      padding: 10px 14px;
+      background: var(--good-pale);
+      border: 1px solid #C9DFCD;
+      border-radius: 8px;
+      font-size: 12px;
+      color: var(--good);
+    }
+    .verified-by strong { font-weight: 800; }
+
+    /* Period-level reconciliation summary tile at the top of Verify */
+    .period-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 10px;
+      padding: 14px 16px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 12px;
+    }
+    .period-summary-tile {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .period-summary-tile .label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-mute);
+    }
+    .period-summary-tile .val {
+      font-size: 20px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      color: var(--ink);
+    }
+    .period-summary-tile .val.is-good { color: var(--good); }
+    .period-summary-tile .val.is-warn { color: var(--warn); }
+
     /* Auto-verify bar — sits above the job list. Visible only when
        there's at least one auto-verifiable job in the queue. */
     .auto-verify-bar {
@@ -1067,6 +1279,33 @@
 
       <div class="summary" style="margin: -2px 0 10px; font-size: 12px; color: var(--ink-mute)">
         <span id="summaryAction">— need action</span>
+      </div>
+
+      <!-- Period-level reconciliation summary. Tiles for total jobs,
+           verified count, period $ total, period $ verified-so-far,
+           remaining $. Populates from window.LAST_RECON_SUMMARY +
+           a sum across window.JOBS. -->
+      <div class="period-summary" id="periodSummary" hidden>
+        <div class="period-summary-tile">
+          <span class="label">Total jobs</span>
+          <span class="val" id="ps-total">—</span>
+        </div>
+        <div class="period-summary-tile">
+          <span class="label">Verified</span>
+          <span class="val is-good" id="ps-verified">—</span>
+        </div>
+        <div class="period-summary-tile">
+          <span class="label">Period $ total</span>
+          <span class="val" id="ps-amount">—</span>
+        </div>
+        <div class="period-summary-tile">
+          <span class="label">$ verified</span>
+          <span class="val is-good" id="ps-amount-verified">—</span>
+        </div>
+        <div class="period-summary-tile">
+          <span class="label">$ remaining</span>
+          <span class="val is-warn" id="ps-amount-remaining">—</span>
+        </div>
       </div>
 
       <!-- Auto-verify clean cases — visible only when there's at
@@ -1760,6 +1999,10 @@ async function renderEditPanel(key) {
     panel.innerHTML = '<div class="empty" style="padding:8px">No HCP record available for this job. Paste the job_xxx ID from HCP into the lookup field above to edit.</div>';
     return;
   }
+  // Stash on the job so the drawer can read context (line items,
+  // invoices, estimates, prior customer jobs) and render the
+  // Chunk-3 context sections without re-fetching.
+  j._serverData = serverData;
 
   const job = serverData.job;
   const recon = serverData.reconciliation;
@@ -2677,16 +2920,34 @@ function openInDrawer(key) {
         ).join('') +
       '</div>';
   }
+  // Period-fit banner — explicit visual telling the admin whether
+  // this job's service date falls inside the period they're
+  // currently viewing. Helps cut "why is this March job in May?"
+  // confusion.
+  const periodFitHtml = renderPeriodFit(j);
+
   // Render the editor INTO the drawer body. renderEditPanel looks
   // for `.job-edit[data-edit-for="<key>"]` and populates it; we
   // give it exactly that element inside the drawer body so the
   // existing template + edit logic works untouched. The `.is-open`
   // class on the wrapper makes the editor CSS display: block.
-  drawerBody.innerHTML = confidenceHtml + flagsHtml + issuesHtml +
+  // The `#drawerContext` div is a placeholder we fill after
+  // renderEditPanel completes (it pulls the full HCP context).
+  drawerBody.innerHTML = periodFitHtml + confidenceHtml + flagsHtml + issuesHtml +
+    '<div id="drawerContext"></div>' +
     '<div class="job is-open" data-key="' + esc(key) + '">' +
       '<div class="job-edit" data-edit-for="' + esc(key) + '"></div>' +
-    '</div>';
-  renderEditPanel(key);
+    '</div>' +
+    '<div id="drawerFooterContext"></div>';
+  // Set a loading placeholder so the admin sees something while HCP
+  // round-trips. injectDrawerContext will replace it once the editor
+  // fetch completes (renderEditPanel stashes serverData on j).
+  $('drawerContext').innerHTML =
+    '<div class="empty" style="padding:8px;font-size:12px;color:var(--ink-mute)">Loading job context from HCP…</div>';
+  Promise.resolve(renderEditPanel(key)).then(() => {
+    if (DRAWER_STATE.openKey !== key) return; // user moved on
+    injectDrawerContext(key);
+  });
   // Also collapse any inline-expanded rows so we don't render the
   // editor twice (once in drawer, once inline).
   document.querySelectorAll('#jobsList .job.is-open').forEach(el => el.classList.remove('is-open'));
@@ -2985,6 +3246,263 @@ async function runAutoVerify() {
 }
 $('autoVerifyBtn').addEventListener('click', runAutoVerify);
 
+/* ════════════════════════════════════════════════════════════════════
+   Chunk 3 — Drawer context rendering.
+
+   Pulls the extended payload that /api/kpi/admin/job/{id} now
+   returns (line items, invoices+payments, estimates, prior jobs
+   at this customer) and renders each as a collapsible section in
+   the drawer above the editor. Plus: period-fit banner, event
+   timeline (derived from existing job fields), HCP open-link,
+   verified-by line, and the period-level summary tiles.
+   ════════════════════════════════════════════════════════════════════ */
+
+function renderPeriodFit(j) {
+  if (!j || !j.kpiDate) return '';
+  const summary = window.LAST_RECON_SUMMARY || {};
+  if (!summary.periodStart || !summary.periodEnd) return '';
+  const kd = String(j.kpiDate).slice(0, 10);
+  const ps = String(summary.periodStart).slice(0, 10);
+  const pe = String(summary.periodEnd).slice(0, 10);
+  const inPeriod = kd >= ps && kd <= pe;
+  const cls = inPeriod ? 'is-match' : 'is-mismatch';
+  const text = inPeriod
+    ? 'Service date <strong>' + esc(ymd(j.kpiDate)) + '</strong> falls inside this period.'
+    : 'Service date <strong>' + esc(ymd(j.kpiDate)) + '</strong> is outside the current period (' + esc(ps) + ' to ' + esc(pe) + '). This job will credit toward the period its service date sits in.';
+  return '<div class="period-fit ' + cls + '">' +
+    '<span>' + (inPeriod ? '✓' : '⚠') + '</span><span>' + text + '</span>' +
+  '</div>';
+}
+
+function injectDrawerContext(key) {
+  const j = window.JOBS[key];
+  if (!j) return;
+  const target = $('drawerContext');
+  const footer = $('drawerFooterContext');
+  if (!target) return;
+  const srv = j._serverData || {};
+  const ctx = srv.context || {};
+  const recon = srv.reconciliation || null;
+
+  // Build each section. Sections with no data return empty string
+  // so the drawer doesn't show empty cards.
+  const sections = [];
+  sections.push(renderEventTimeline(srv.job, ctx));
+  sections.push(renderLineItems(ctx.lineItems));
+  sections.push(renderInvoicesAndPayments(ctx.invoices));
+  sections.push(renderEstimates(ctx.estimates, srv.job));
+  sections.push(renderCustomerPriorJobs(ctx.customerJobs, srv.job));
+
+  target.innerHTML = sections.filter(Boolean).join('');
+
+  // Footer: HCP link + verified-by + activity hint
+  const footerBits = [];
+  if (srv.job && srv.job.hcpUrl) {
+    footerBits.push(
+      '<div style="margin-top:10px"><a class="hcp-link-btn" target="_blank" rel="noopener" href="' + esc(srv.job.hcpUrl) + '">↗ Open in HCP</a></div>'
+    );
+  }
+  if (recon && recon.reconciledAt) {
+    const who = esc(recon.reconciledBy || 'admin');
+    const when = new Date(recon.reconciledAt).toLocaleString('en-US', {
+      month: 'short', day: 'numeric', year: 'numeric',
+      hour: 'numeric', minute: '2-digit'
+    });
+    let line = 'Verified by <strong>' + who + '</strong> on <strong>' + esc(when) + '</strong>.';
+    if (recon.history && recon.history.length) {
+      line += ' <span style="color:var(--ink-mute)">' + recon.history.length + ' prior edit' +
+              (recon.history.length === 1 ? '' : 's') + ' on record.</span>';
+    }
+    footerBits.push('<div class="verified-by">✓ ' + line + '</div>');
+  }
+  if (footer) footer.innerHTML = footerBits.join('');
+}
+
+function renderEventTimeline(job, ctx) {
+  if (!job) return '';
+  const invoices = (ctx && ctx.invoices) || [];
+  const events = [];
+  // Scheduled (when the job was put on the calendar)
+  if (job.scheduledStart) {
+    events.push({ label: 'Scheduled', when: job.scheduledStart, done: true });
+  }
+  // Completed
+  if (job.completedAt) {
+    events.push({ label: 'Completed', when: job.completedAt, done: true });
+  } else if (job.workStatus) {
+    events.push({ label: 'Work status: ' + job.workStatus, when: null, done: false });
+  }
+  // Invoiced — use earliest invoice creation if we can derive it; we
+  // don't always have invoice created_at, so fall back to paid_at.
+  invoices.forEach(inv => {
+    if (inv.paidAt) {
+      const lbl = 'Paid' + (inv.paymentMethod ? ' (' + inv.paymentMethod + ')' : '') +
+                  (inv.amount != null ? ' — ' + fmt(inv.amount) : '');
+      events.push({ label: lbl, when: inv.paidAt, done: true });
+    } else if (inv.dueAmount && inv.dueAmount > 0) {
+      events.push({ label: 'Invoice outstanding — ' + fmt(inv.dueAmount), when: inv.dueAt, done: false });
+    }
+  });
+  if (!events.length) return '';
+  // Sort by date ascending (events without dates go to end)
+  events.sort((a, b) => {
+    if (!a.when && !b.when) return 0;
+    if (!a.when) return 1;
+    if (!b.when) return -1;
+    return new Date(a.when) - new Date(b.when);
+  });
+  const items = events.map(e => {
+    const cls = e.done ? 'is-done' : '';
+    const when = e.when
+      ? new Date(e.when).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+      : 'pending';
+    return '<li class="' + cls + '">' +
+      '<span class="ctx-evt-label">' + esc(e.label) + '</span>' +
+      '<span class="ctx-evt-when">' + esc(when) + '</span>' +
+    '</li>';
+  }).join('');
+  return '<details class="ctx-section" open>' +
+    '<summary>Event timeline<span class="ctx-subtle">' + events.length + ' event' + (events.length === 1 ? '' : 's') + '</span></summary>' +
+    '<div class="ctx-body"><ul class="ctx-timeline">' + items + '</ul></div>' +
+  '</details>';
+}
+
+function renderLineItems(lineItems) {
+  if (!Array.isArray(lineItems) || !lineItems.length) return '';
+  const total = lineItems.reduce((s, li) => s + (Number(li.amount) || 0), 0);
+  const rows = lineItems.map(li => {
+    const name = li.name || li.description || '—';
+    const qty = li.quantity != null ? li.quantity : '';
+    const unit = li.unitPrice != null ? fmt(li.unitPrice) : '';
+    const amt = li.amount != null ? fmt(li.amount) : '';
+    return '<tr>' +
+      '<td>' + esc(name) + '</td>' +
+      '<td class="num">' + esc(String(qty)) + '</td>' +
+      '<td class="num">' + esc(unit) + '</td>' +
+      '<td class="num">' + esc(amt) + '</td>' +
+    '</tr>';
+  }).join('');
+  return '<details class="ctx-section">' +
+    '<summary>Invoice line items<span class="ctx-subtle">' + lineItems.length + ' item' + (lineItems.length === 1 ? '' : 's') + ' · ' + fmt(total) + '</span></summary>' +
+    '<div class="ctx-body"><table class="ctx-lines">' +
+      '<thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Unit</th><th class="num">Amount</th></tr></thead>' +
+      '<tbody>' + rows + '</tbody>' +
+      '<tfoot><tr><td colspan="3" class="num">Total</td><td class="num">' + fmt(total) + '</td></tr></tfoot>' +
+    '</table></div>' +
+  '</details>';
+}
+
+function renderInvoicesAndPayments(invoices) {
+  if (!Array.isArray(invoices) || !invoices.length) return '';
+  const rows = invoices.map(inv => {
+    const meta = [];
+    if (inv.invoiceNumber) meta.push('#' + inv.invoiceNumber);
+    if (inv.paidAt) {
+      const when = new Date(inv.paidAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      meta.push('Paid ' + when);
+      if (inv.paymentMethod) meta.push(inv.paymentMethod);
+    } else if (inv.dueAmount && inv.dueAmount > 0) {
+      meta.push('Unpaid (' + fmt(inv.dueAmount) + ' due)');
+    }
+    return '<div class="ctx-row">' +
+      '<span class="ctx-row-label">' + esc(meta[0] || '—') + '</span>' +
+      '<span class="ctx-row-meta">' + esc(meta.slice(1).join(' · ')) + '</span>' +
+      '<span class="ctx-row-amt">' + (inv.amount != null ? fmt(inv.amount) : '—') + '</span>' +
+    '</div>';
+  }).join('');
+  return '<details class="ctx-section">' +
+    '<summary>Invoices &amp; payments<span class="ctx-subtle">' + invoices.length + '</span></summary>' +
+    '<div class="ctx-body"><div class="ctx-rows">' + rows + '</div></div>' +
+  '</details>';
+}
+
+function renderEstimates(estimates, job) {
+  if (!Array.isArray(estimates) || !estimates.length) return '';
+  const jobTotal = job ? Number(job.totalAmount || 0) : 0;
+  const rows = estimates.map(e => {
+    const meta = [];
+    if (e.estimateNumber) meta.push('#' + e.estimateNumber);
+    if (e.status) meta.push(e.status);
+    if (e.approvedAt) {
+      meta.push('Approved ' + new Date(e.approvedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+    }
+    const drift = (e.total != null && jobTotal)
+      ? (e.total === jobTotal
+          ? '<span style="color:var(--good);font-weight:700">matches invoice</span>'
+          : '<span style="color:var(--warn);font-weight:700">invoice differs by ' + fmt(Math.abs(jobTotal - e.total)) + '</span>')
+      : '';
+    return '<div class="ctx-row">' +
+      '<span class="ctx-row-label">' + esc(meta[0] || 'Estimate') + '</span>' +
+      '<span class="ctx-row-meta">' + esc(meta.slice(1).join(' · ')) + (drift ? ' · ' + drift : '') + '</span>' +
+      '<span class="ctx-row-amt">' + (e.total != null ? fmt(e.total) : '—') + '</span>' +
+    '</div>';
+  }).join('');
+  return '<details class="ctx-section">' +
+    '<summary>Estimates<span class="ctx-subtle">' + estimates.length + '</span></summary>' +
+    '<div class="ctx-body"><div class="ctx-rows">' + rows + '</div></div>' +
+  '</details>';
+}
+
+function renderCustomerPriorJobs(jobs, currentJob) {
+  if (!Array.isArray(jobs) || !jobs.length) return '';
+  const sum = jobs.reduce((s, j2) => s + (Number(j2.total) || 0), 0);
+  const rows = jobs.map(j2 => {
+    const date = j2.completedAt || j2.scheduledStart;
+    const when = date ? new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+    const meta = [j2.invoice ? '#' + j2.invoice : '', when, j2.workStatus].filter(Boolean).join(' · ');
+    return '<div class="ctx-row">' +
+      '<span class="ctx-row-label" style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(j2.description || '—') + '</span>' +
+      '<span class="ctx-row-meta">' + esc(meta) + '</span>' +
+      '<span class="ctx-row-amt">' + (j2.total != null ? fmt(j2.total) : '—') + '</span>' +
+    '</div>';
+  }).join('');
+  const customerLabel = currentJob && currentJob.customer
+    ? esc(currentJob.customer) + ' · ' + jobs.length + ' prior job' + (jobs.length === 1 ? '' : 's')
+    : jobs.length + ' prior jobs';
+  return '<details class="ctx-section">' +
+    '<summary>Prior jobs for this customer<span class="ctx-subtle">' + customerLabel + ' · ' + fmt(sum) + '</span></summary>' +
+    '<div class="ctx-body"><div class="ctx-rows">' + rows + '</div></div>' +
+  '</details>';
+}
+
+/* ────────────────────────────────────────────────────────────────────
+   Period-level reconciliation summary tiles at the top of Verify.
+   Pulls from window.LAST_RECON_SUMMARY (set by the loadJobs wrapper)
+   and sums dollars across window.JOBS for the verified-amount /
+   remaining tiles. Updates on every loadJobs + every saveAndVerify.
+   ──────────────────────────────────────────────────────────────────── */
+function updatePeriodSummary() {
+  const s = window.LAST_RECON_SUMMARY;
+  const ps = $('periodSummary');
+  if (!s) { ps.hidden = true; return; }
+  ps.hidden = false;
+  const total = s.total || 0;
+  const verified = s.reconciled || 0;
+  // Sum dollar totals across the open jobs we have in memory.
+  // window.JOBS only holds open jobs, so for $ verified we use
+  // (totalAmount - sum-of-unverified-open). Approximate but useful.
+  let amountAll = 0, amountOpen = 0, amountVerified = 0;
+  Object.values(window.JOBS || {}).forEach(j => {
+    const t = Number(j.totalAmount || 0);
+    amountAll += t;
+    if (j.status === 'reconciled') amountVerified += t;
+    else if (j.status !== 'excluded') amountOpen += t;
+  });
+  $('ps-total').textContent = total;
+  $('ps-verified').textContent = verified;
+  $('ps-amount').textContent = fmt(amountAll);
+  $('ps-amount-verified').textContent = fmt(amountVerified);
+  $('ps-amount-remaining').textContent = fmt(amountOpen);
+}
+
+// Hook updatePeriodSummary into updateProgress so it fires whenever
+// progress changes (load, verify, exclude, defer, batch).
+const _origUpdateProgress = updateProgress;
+updateProgress = function() {
+  _origUpdateProgress.apply(this, arguments);
+  updatePeriodSummary();
+};
+
 function applyFilterPills() {
   const f = DRAWER_STATE.activeFilter;
   const issueMap = window.ISSUE_BY_JOB || {};
@@ -3137,8 +3655,15 @@ window.loadJobs = async function() {
   try {
     const path = '/api/kpi/admin/period-jobs?range=' + encodeURIComponent(CURRENT_RANGE);
     const cached = readAdminCache(path);
-    if (cached && cached.data && cached.data.summary) {
-      window.LAST_RECON_SUMMARY = cached.data.summary;
+    if (cached && cached.data) {
+      // Merge summary + period bounds so renderPeriodFit and the
+      // period-summary tiles can read both off the same global.
+      const merged = Object.assign({},
+        cached.data.summary || {},
+        cached.data.period
+          ? { periodStart: cached.data.period.start, periodEnd: cached.data.period.end, periodLabel: cached.data.period.label }
+          : {});
+      window.LAST_RECON_SUMMARY = merged;
     }
   } catch (e) { /* non-fatal */ }
   // Reset the "local delta" flags — these jobs ARE in the server

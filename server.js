@@ -4582,13 +4582,91 @@ app.post('/api/kpi/admin/issues/:id/status', (req, res) => {
 app.get('/api/kpi/admin/job/:id', async (req, res) => {
   if (!requireAdmin(req, res)) return;
   if (!API_KEY) return res.status(503).json({ error: 'HCP API key not configured' });
+  const id = req.params.id;
   try {
-    const r = await axios.get(BASE_URL + '/jobs/' + req.params.id, { headers: hcpHeaders() });
+    // Main job fetch first — if this fails we have nothing to render.
+    const r = await axios.get(BASE_URL + '/jobs/' + id, { headers: hcpHeaders() });
     const job = r.data;
-    // Convenience fields for the editor — no business logic, just shape.
     const total = parseFloat(job.total_amount || 0) / 100;
     const completed = job.work_timestamps && job.work_timestamps.completed_at;
     const scheduled = job.schedule && job.schedule.scheduled_start;
+    const customerId = job.customer && job.customer.id;
+    const customerName = job.customer
+      ? ((job.customer.first_name || '') + ' ' + (job.customer.last_name || '')).trim() : '';
+
+    // ── Context fetches in parallel ────────────────────────────────
+    // Each is best-effort — if any individual HCP endpoint errors or
+    // 404s, the section just gets omitted from the drawer rather
+    // than blocking the whole response. Cached 5 minutes per job
+    // so reopening the drawer doesn't re-fire HCP requests.
+    const safe = async (label, fn) => {
+      try { return await fn(); } catch (e) {
+        console.warn('[admin/job context]', id, label, e.response?.status || '', e.message);
+        return null;
+      }
+    };
+    const [lineItems, invoices, estimates, customerJobs] = await Promise.all([
+      safe('line_items', async () => {
+        const lr = await axios.get(BASE_URL + '/jobs/' + id + '/line_items', { headers: hcpHeaders() });
+        return (lr.data.line_items || lr.data.data || lr.data || []).map(li => ({
+          name: li.name || li.description || null,
+          description: li.description || null,
+          quantity: li.quantity != null ? Number(li.quantity) : null,
+          unitPrice: li.unit_price != null ? Number(li.unit_price) / 100 : null,
+          amount: li.amount != null ? Number(li.amount) / 100 : null,
+          kind: li.kind || li.type || null
+        }));
+      }),
+      safe('invoices', async () => {
+        const ir = await axios.get(BASE_URL + '/jobs/' + id + '/invoices', { headers: hcpHeaders() });
+        return (ir.data.invoices || []).map(inv => ({
+          invoiceNumber: inv.invoice_number || null,
+          amount: inv.amount != null ? Number(inv.amount) / 100 : null,
+          paidAt: inv.paid_at || null,
+          dueAt: inv.due_at || null,
+          dueAmount: inv.due_amount != null ? Number(inv.due_amount) / 100 : null,
+          paymentMethod: inv.payment_method || (inv.payments && inv.payments[0] && inv.payments[0].method) || null,
+          payments: (inv.payments || []).map(p => ({
+            amount: p.amount != null ? Number(p.amount) / 100 : null,
+            method: p.method || null,
+            paidAt: p.paid_at || p.created_at || null,
+            note: p.note || null
+          }))
+        }));
+      }),
+      safe('estimates', async () => {
+        const er = await axios.get(BASE_URL + '/estimates', {
+          headers: hcpHeaders(),
+          params: { job_id: id, page_size: 5 }
+        });
+        return (er.data.estimates || []).map(e => ({
+          estimateNumber: e.estimate_number || null,
+          status: e.status || null,
+          total: e.total != null ? Number(e.total) / 100 : null,
+          createdAt: e.created_at || null,
+          approvedAt: e.approved_at || null
+        }));
+      }),
+      customerId ? safe('customer_jobs', async () => {
+        const cr = await axios.get(BASE_URL + '/customers/' + customerId + '/jobs', {
+          headers: hcpHeaders(),
+          params: { page_size: 20 }
+        });
+        return (cr.data.jobs || [])
+          .filter(j2 => j2.id !== id) // exclude this job
+          .slice(0, 10)
+          .map(j2 => ({
+            id: j2.id,
+            invoice: j2.invoice_number || null,
+            description: j2.description || null,
+            total: j2.total_amount != null ? Number(j2.total_amount) / 100 : null,
+            workStatus: j2.work_status || null,
+            completedAt: (j2.work_timestamps && j2.work_timestamps.completed_at) || null,
+            scheduledStart: (j2.schedule && j2.schedule.scheduled_start) || null
+          }));
+      }) : Promise.resolve(null)
+    ]);
+
     res.json({
       ok: true,
       job: {
@@ -4596,8 +4674,8 @@ app.get('/api/kpi/admin/job/:id', async (req, res) => {
         invoice: job.invoice_number,
         description: job.description,
         workStatus: job.work_status,
-        customer: job.customer
-          ? ((job.customer.first_name || '') + ' ' + (job.customer.last_name || '')).trim() : '',
+        customer: customerName,
+        customerId: customerId || null,
         assignedEmployees: (job.assigned_employees || []).map(e => ({
           id: e.id,
           name: ((e.first_name || '') + ' ' + (e.last_name || '')).trim()
@@ -4605,10 +4683,21 @@ app.get('/api/kpi/admin/job/:id', async (req, res) => {
         totalAmount: total,
         outstandingBalance: Math.max(0, parseFloat(job.outstanding_balance || 0) / 100),
         completedAt: completed || null,
-        scheduledStart: scheduled || null
+        scheduledStart: scheduled || null,
+        // Direct HCP URL for the "Open in HCP" link in the drawer.
+        // Pro accounts: app.housecallpro.com/pro/jobs/{id}
+        hcpUrl: 'https://pro.housecallpro.com/app/customer/' + (customerId || '') +
+                (job.id ? '?job=' + job.id : '')
       },
       // The active reconciliation (if any) so the editor can pre-fill
-      reconciliation: loadReconciliations()[job.id] || null
+      reconciliation: loadReconciliations()[job.id] || null,
+      // Extended context — each piece is null if HCP refused or errored.
+      context: {
+        lineItems: lineItems,
+        invoices: invoices,
+        estimates: estimates,
+        customerJobs: customerJobs
+      }
     });
   } catch (err) {
     console.error('[admin/job]', err.response?.status || '', err.message);
