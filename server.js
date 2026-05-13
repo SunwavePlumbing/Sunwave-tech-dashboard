@@ -4608,7 +4608,12 @@ app.get('/api/kpi/admin/job/:id', async (req, res) => {
     const [lineItems, invoices, estimates, customerJobs] = await Promise.all([
       safe('line_items', async () => {
         const lr = await axios.get(BASE_URL + '/jobs/' + id + '/line_items', { headers: hcpHeaders() });
-        return (lr.data.line_items || lr.data.data || lr.data || []).map(li => ({
+        // HCP's response shape varies by endpoint version. Try each
+        // common shape; final Array.isArray guard makes sure we
+        // never .map() on a non-array.
+        const raw = lr.data && (lr.data.line_items || lr.data.data || lr.data);
+        const arr = Array.isArray(raw) ? raw : [];
+        return arr.map(li => ({
           name: li.name || li.description || null,
           description: li.description || null,
           quantity: li.quantity != null ? Number(li.quantity) : null,
@@ -4685,9 +4690,13 @@ app.get('/api/kpi/admin/job/:id', async (req, res) => {
         completedAt: completed || null,
         scheduledStart: scheduled || null,
         // Direct HCP URL for the "Open in HCP" link in the drawer.
-        // Pro accounts: app.housecallpro.com/pro/jobs/{id}
-        hcpUrl: 'https://pro.housecallpro.com/app/customer/' + (customerId || '') +
-                (job.id ? '?job=' + job.id : '')
+        // HCP doesn't publish a stable shareable job-detail URL, so
+        // we link to the customer page (which lists their jobs) —
+        // omitted entirely if we don't have a customer id, so the
+        // drawer footer just hides the button.
+        hcpUrl: customerId
+          ? 'https://pro.housecallpro.com/app/customer/' + customerId
+          : null
       },
       // The active reconciliation (if any) so the editor can pre-fill
       reconciliation: loadReconciliations()[job.id] || null,

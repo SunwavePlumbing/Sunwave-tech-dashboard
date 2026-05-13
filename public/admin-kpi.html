@@ -240,13 +240,16 @@
     }
     @media (max-width: 760px) {
       .job-summary {
-        grid-template-columns: 86px minmax(0, 1fr) 74px 42px 28px;
+        grid-template-columns: 86px minmax(0, 1fr) 74px 28px;
         gap: 8px;
       }
       .job-date { display: none; }
       .job-amount { font-size: 13px; }
       .job-quick { grid-column: 2 / 4; justify-self: start; min-width: 0; }
-      .confidence-badge { min-width: 36px; padding: 2px 4px; font-size: 10px; }
+      /* Mobile: hide the inline confidence badge — the row's already
+         tight. Confidence still shows in the drawer header when the
+         row is opened, so the info isn't lost. */
+      .job-summary > .confidence-badge { display: none; }
     }
 
     /* ── Inline edit panel (expands under each row) ────────────── */
@@ -2585,6 +2588,18 @@ async function loadIssues(forceRefresh) {
     // Re-run the pill counters now that we have fresh issue data.
     if (typeof updateProgress === 'function') updateProgress();
     if (typeof applyFilterPills === 'function') applyFilterPills();
+    // If loadJobs already rendered rows before loadIssues finished,
+    // those rows are missing the "Tech-flagged issue" orange flag
+    // and need a re-render. Refresh any row whose job key is in the
+    // ISSUE_BY_JOB lookup.
+    if (typeof refreshRowInList === 'function' && window.JOBS) {
+      const issueMap = window.ISSUE_BY_JOB;
+      Object.entries(window.JOBS).forEach(([key, j]) => {
+        const k1 = j.jobId && String(j.jobId);
+        const k2 = j.invoice && String(j.invoice);
+        if ((k1 && issueMap[k1]) || (k2 && issueMap[k2])) refreshRowInList(key);
+      });
+    }
     if (reports.length === 0) {
       $('issuesList').innerHTML = '<div class="empty">No issue reports yet.</div>';
       return;
@@ -2955,17 +2970,23 @@ function openInDrawer(key) {
   document.querySelectorAll('#jobsList .job').forEach(el => el.classList.remove('is-active-drawer'));
   const listRow = document.querySelector('#jobsList .job[data-key="' + (window.cssEscape ? cssEscape(key) : key.replace(/"/g, '\\"')) + '"]');
   if (listRow) listRow.classList.add('is-active-drawer');
-  // Show drawer
+  // Show drawer. Cancel any pending hide-timer from a recent close
+  // so reopening within the animation window doesn't get clobbered.
+  if (_drawerHideTimer) { clearTimeout(_drawerHideTimer); _drawerHideTimer = null; }
   drawer.hidden = false;
   document.body.classList.add('drawer-open');
   setDrawerStatus('');
 }
 
+let _drawerHideTimer = null;
 function closeDrawer() {
   document.body.classList.remove('drawer-open');
   DRAWER_STATE.openKey = null;
-  // Hide after the slide animation
-  setTimeout(() => { drawer.hidden = true; }, 200);
+  // Hide after the slide animation. Track the timer so a quick
+  // re-open (within 200ms) can cancel it — otherwise the stale
+  // timeout would hide the freshly-opened drawer.
+  if (_drawerHideTimer) clearTimeout(_drawerHideTimer);
+  _drawerHideTimer = setTimeout(() => { drawer.hidden = true; _drawerHideTimer = null; }, 200);
   document.querySelectorAll('#jobsList .job').forEach(el => el.classList.remove('is-active-drawer'));
 }
 
@@ -3005,6 +3026,10 @@ function nextKey(fromKey) {
 }
 
 async function saveAndVerify() {
+  // Re-entry guard. Without this, a quick double-tap on the Verify
+  // button OR Enter pressed while focus is on the button would fire
+  // saveAndVerify twice → two POST requests for the same job.
+  if (drawerVerifyBtn.disabled) return;
   const key = DRAWER_STATE.openKey;
   if (!key) return;
   const j = window.JOBS[key];
@@ -3063,6 +3088,7 @@ async function deferCurrent() {
 }
 
 async function excludeCurrent() {
+  if (drawerExcludeBtn.disabled) return;
   const key = DRAWER_STATE.openKey;
   if (!key) return;
   const j = window.JOBS[key];
@@ -3264,11 +3290,20 @@ function renderPeriodFit(j) {
   const kd = String(j.kpiDate).slice(0, 10);
   const ps = String(summary.periodStart).slice(0, 10);
   const pe = String(summary.periodEnd).slice(0, 10);
-  const inPeriod = kd >= ps && kd <= pe;
+  // periodEnd is exclusive (it's the start of the NEXT period — e.g.
+  // for May we get "2026-06-01"). So in-period is kd >= start AND
+  // kd < end. The display range subtracts a day so the user sees an
+  // inclusive end date.
+  const inPeriod = kd >= ps && kd < pe;
+  const peDisplay = (() => {
+    const d = new Date(pe + 'T00:00:00');
+    d.setDate(d.getDate() - 1);
+    return d.toISOString().slice(0, 10);
+  })();
   const cls = inPeriod ? 'is-match' : 'is-mismatch';
   const text = inPeriod
     ? 'Service date <strong>' + esc(ymd(j.kpiDate)) + '</strong> falls inside this period.'
-    : 'Service date <strong>' + esc(ymd(j.kpiDate)) + '</strong> is outside the current period (' + esc(ps) + ' to ' + esc(pe) + '). This job will credit toward the period its service date sits in.';
+    : 'Service date <strong>' + esc(ymd(j.kpiDate)) + '</strong> is outside the current period (' + esc(ps) + ' to ' + esc(peDisplay) + '). This job will credit toward the period its service date sits in.';
   return '<div class="period-fit ' + cls + '">' +
     '<span>' + (inPeriod ? '✓' : '⚠') + '</span><span>' + text + '</span>' +
   '</div>';
@@ -3280,7 +3315,18 @@ function injectDrawerContext(key) {
   const target = $('drawerContext');
   const footer = $('drawerFooterContext');
   if (!target) return;
-  const srv = j._serverData || {};
+  // If renderEditPanel's fetch failed (no jobId / HCP error /
+  // 404), j._serverData was never set. Show a small note in place
+  // of the "Loading…" placeholder so the drawer doesn't look stuck.
+  if (!j._serverData) {
+    target.innerHTML =
+      '<div class="empty" style="padding:8px;font-size:12px;color:var(--ink-mute)">' +
+        'No extra HCP context available for this job.' +
+      '</div>';
+    if (footer) footer.innerHTML = '';
+    return;
+  }
+  const srv = j._serverData;
   const ctx = srv.context || {};
   const recon = srv.reconciliation || null;
 
@@ -3550,6 +3596,10 @@ function showUndoToast(action) {
 function hideUndoToast() {
   undoToast.classList.remove('is-on');
   if (undoTimer) { clearTimeout(undoTimer); undoTimer = null; }
+  // Always reset the Undo button display — auto-verify hides it for
+  // the batch summary toast, and we need it visible for the next
+  // per-action toast.
+  $('undoBtn').style.display = '';
 }
 async function undoLast() {
   const action = DRAWER_STATE.history.pop();
@@ -3599,10 +3649,13 @@ drawerScrim.addEventListener('click', closeDrawer);
 
 // ── Keyboard shortcuts ─────────────────────────────────────────
 document.addEventListener('keydown', (e) => {
-  // Don't fire shortcuts when typing in a field
+  // Don't fire shortcuts when focus is on an editable element OR a
+  // button. (Skipping buttons matters: Enter on the focused Verify
+  // button would otherwise fire BOTH my handler and the button's
+  // native click → saveAndVerify gets called twice.)
   const tag = (e.target.tagName || '').toLowerCase();
-  if (tag === 'input' || tag === 'textarea' || tag === 'select') {
-    if (e.key === 'Escape') (e.target.blur && e.target.blur());
+  if (tag === 'input' || tag === 'textarea' || tag === 'select' || tag === 'button') {
+    if (e.key === 'Escape' && e.target.blur) e.target.blur();
     return;
   }
   if (!document.body.classList.contains('drawer-open')) return;
