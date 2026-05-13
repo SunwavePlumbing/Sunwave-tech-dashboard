@@ -1318,10 +1318,10 @@
            One click runs through all of them. -->
       <div class="auto-verify-bar is-empty" id="autoVerifyBar">
         <span class="auto-verify-text">
-          <strong id="autoVerifyCount">0</strong> 100-rated cases ready to verify in one click —
-          100-rated, single tech, full credit, fully paid, matches HCP.
+          <strong id="autoVerifyCount">0</strong> cases safe to batch-verify —
+          single tech, full credit, fully paid, HCP confirms attribution.
         </span>
-        <button id="autoVerifyBtn" type="button" title="Verify every 100-rated case in batch. Each gets its own per-row undo via the standard undo toast.">✓ Auto-verify 100-rated</button>
+        <button id="autoVerifyBtn" type="button" title="Verify every safe case in batch. Each gets its own per-row undo via the standard undo toast.">✓ Auto-verify safe cases</button>
       </div>
 
       <div id="jobsList" class="jobs-list">
@@ -1717,23 +1717,22 @@ async function loadJobs(forceRefresh) {
       $('summaryBadge').textContent = (s.reconciled || 0) + ' of ' + (s.total || 0) + ' reconciled';
     }
 
-    if (openJobs.length === 0) {
-      window.JOBS = {};
-      $('jobsList').innerHTML = jobs.length
-        ? '<div class="empty empty--done">All jobs checked off for this period.</div>'
-        : '<div class="empty">No jobs in this period.</div>';
-      $('filterCount').textContent = '';
-      return;
-    }
-    // Stash the server data so the Save button can read it
+    // Stash every job (open + reconciled + excluded) so the filter
+    // pills can show all four slices. Default render hides verified
+    // and excluded — they only appear when their pill is clicked.
     window.JOBS = {};
-    openJobs.forEach(j => {
+    jobs.forEach(j => {
       const key = j.jobId || j.invoice || ('row_' + Math.random().toString(36).slice(2, 8));
       window.JOBS[key] = j;
       j._localKey = key;
       j._haystack = buildHaystack(j);
     });
-    const orderedJobs = sortJobsForAudit(openJobs);
+    if (jobs.length === 0) {
+      $('jobsList').innerHTML = '<div class="empty">No jobs in this period.</div>';
+      $('filterCount').textContent = '';
+      return;
+    }
+    const orderedJobs = sortJobsForAudit(jobs);
     $('jobsList').innerHTML = renderJobGroups(orderedJobs);
     applyFilter(); // Re-apply if there's an active query from a previous load
   } catch (err) {
@@ -1841,11 +1840,11 @@ function hasFlag(flags, kind, label) {
 
 function isAutoVerifiable(j) {
   if (!j || j.status !== 'credited') return false;
-  const flags = computeFlags(j);
-  if (computeConfidence(flags) !== 100) return false;
-  if (!hasFlag(flags, 'green', 'Fully paid')) return false;
-  if (!hasFlag(flags, 'green', 'Clean attribution')) return false;
-  if (!hasFlag(flags, 'green', 'Matches HCP')) return false;
+  // Confidence===100 already implies single tech, fully paid,
+  // no HCP mismatch, in-period, under-$5k — nothing red OR orange
+  // fired. That's a safe enough bar for a batch action; the per-row
+  // undo toast catches anything the operator decides was wrong.
+  if (computeConfidence(computeFlags(j)) !== 100) return false;
   return !!quickApprovePayload(j);
 }
 
@@ -1877,13 +1876,16 @@ function sortJobsForAudit(jobs) {
 }
 
 function renderJobGroups(jobs) {
-  const autoReady = jobs.filter(isAutoVerifiable);
+  const openJobs = jobs.filter(isOpenAuditJob);
+  const verified = jobs.filter(j => j.status === 'reconciled');
+  const excluded = jobs.filter(j => j.status === 'excluded');
+  const autoReady = openJobs.filter(isAutoVerifiable);
   const autoKeys = new Set(autoReady.map(j => j._localKey));
-  const priority = jobs.filter(j => !autoKeys.has(j._localKey) && auditPriority(j) > 0);
-  const normal = jobs.filter(j => !autoKeys.has(j._localKey) && auditPriority(j) === 0);
+  const priority = openJobs.filter(j => !autoKeys.has(j._localKey) && auditPriority(j) > 0);
+  const normal = openJobs.filter(j => !autoKeys.has(j._localKey) && auditPriority(j) === 0);
   let html = '';
   if (autoReady.length) {
-    html += '<div class="job-section">100-rated ready to verify (' + autoReady.length + ')</div>';
+    html += '<div class="job-section">Safe to batch-verify (' + autoReady.length + ')</div>';
     html += autoReady.map(renderJob).join('');
   }
   if (priority.length) {
@@ -1893,6 +1895,14 @@ function renderJobGroups(jobs) {
   if (normal.length) {
     html += '<div class="job-section">Ready to check off (' + normal.length + ')</div>';
     html += normal.map(renderJob).join('');
+  }
+  if (verified.length) {
+    html += '<div class="job-section">Verified (' + verified.length + ')</div>';
+    html += verified.map(renderJob).join('');
+  }
+  if (excluded.length) {
+    html += '<div class="job-section">Excluded (' + excluded.length + ')</div>';
+    html += excluded.map(renderJob).join('');
   }
   return html || '<div class="empty empty--done">All jobs checked off for this period.</div>';
 }
@@ -3231,8 +3241,8 @@ function updateProgress() {
     if ((k1 && issueMap[k1]) || (k2 && issueMap[k2])) withIssues++;
   });
   $('pillCount-issues').textContent = withIssues;
-  // Auto-verify bar — count jobs that pass every pre-check and
-  // could be batch-verified safely.
+  // "100-rated" pill counts open jobs whose displayed confidence
+  // badge reads 100. The auto-verify bar uses the same set.
   let autoCount = 0;
   Object.values(window.JOBS || {}).forEach(j => { if (isAutoVerifiable(j)) autoCount++; });
   $('pillCount-unverified').textContent = unverifiedDisplay;
@@ -3585,7 +3595,7 @@ function matchesActivePill(j) {
   if (!j) return false;
   const f = DRAWER_STATE.activeFilter;
   if      (f === 'unverified') return j.status !== 'reconciled' && j.status !== 'excluded';
-  else if (f === 'auto')       return isAutoVerifiable(j);
+  else if (f === 'auto')       return j.status !== 'reconciled' && j.status !== 'excluded' && computeConfidence(computeFlags(j)) === 100;
   else if (f === 'verified')   return j.status === 'reconciled';
   else if (f === 'excluded')   return j.status === 'excluded';
   else if (f === 'issues') {
