@@ -86,7 +86,6 @@ window.GREETING_POOLS = {
     'Strong morning. Numbers climbing',
     'Trucks all on a call. {Day} is humming',
     'Look at {Day} go',
-    'Solid pace. {Day} is fat already',
     'Big morning building',
     'Mid-morning, full speed',
     'Every job, a chance to do it right',
@@ -139,9 +138,8 @@ window.GREETING_POOLS = {
     'Half a {Day} done, half to win'
   ],
 
-  // 2pm — afternoon push, board getting fat
+  // 2pm — afternoon push, board filling up
   h14: [
-    "Two o'clock and {Day} is looking fat",
     'Afternoon hot. Keep rolling',
     'Numbers climbing. Trucks moving',
     "Good {Day}. Let's make it great",
