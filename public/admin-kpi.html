@@ -238,6 +238,19 @@
       text-transform: uppercase;
       color: var(--ink-mute);
     }
+    button.job-section {
+      display: block;
+      width: 100%;
+      border: 0;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    button.job-section:hover {
+      color: var(--brand);
+      background: var(--brand-pale);
+    }
     @media (max-width: 760px) {
       .job-summary {
         grid-template-columns: 86px minmax(0, 1fr) 74px 28px;
@@ -590,7 +603,7 @@
       margin-bottom: 8px;
     }
     .stickybar-row--controls { grid-template-columns: minmax(160px, 210px) auto minmax(220px, 1fr) auto; }
-    .stickybar-row--status { grid-template-columns: auto minmax(180px, 1fr) auto auto; }
+    .stickybar-row--status { grid-template-columns: auto minmax(180px, 1fr) auto; }
     .stickybar-row:last-child { margin-bottom: 0; }
     .stickybar-row select,
     .stickybar-row input[type="text"] {
@@ -1287,7 +1300,6 @@
           </span>
           <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
           <span class="stickybar-counter" id="filterCount"></span>
-          <span class="badge" id="summaryBadge">— open</span>
         </div>
       </div>
 
@@ -1477,9 +1489,9 @@ function cacheAgeLabel(at) {
 function setFreshness(label, at, forceFresh) {
   const el = $('adminFreshnessText');
   if (!el) return;
-  if (forceFresh) el.textContent = label + ' just refreshed.';
-  else if (at) el.textContent = label + ' from cache, ' + cacheAgeLabel(at) + '.';
-  else el.textContent = label + ' loaded fresh.';
+  if (forceFresh) el.textContent = label + ' refreshed from the server just now.';
+  else if (at) el.textContent = label + ' shown from local cache (' + cacheAgeLabel(at) + '). Use Refresh data for latest.';
+  else el.textContent = label + ' loaded from the server just now.';
 }
 
 /* ════════════════════════════════════════════════════════════════════
@@ -1723,7 +1735,8 @@ async function loadJobs(forceRefresh) {
   if (forceRefresh) clearAdminCache();
   $('jobsList').innerHTML = '<div class="empty">Loading…</div>';
   $('summaryAction').textContent = '';
-  $('summaryBadge').textContent = '…';
+  const summaryBadge = $('summaryBadge');
+  if (summaryBadge) summaryBadge.textContent = '…';
   try {
     const path = '/api/kpi/admin/period-jobs?range=' + encodeURIComponent(CURRENT_RANGE) + (forceRefresh ? '&refresh=1' : '');
     const data = await cachedApi(path, { force: forceRefresh, label: 'Reconciliation jobs' });
@@ -1732,12 +1745,14 @@ async function loadJobs(forceRefresh) {
     const s = data.summary || {};
 
     $('summaryAction').textContent = openJobs.length + ' open task' + (openJobs.length === 1 ? '' : 's');
-    if (s.fullyReconciled) {
-      $('summaryBadge').className = 'badge badge--good';
-      $('summaryBadge').textContent = '✓ All handled';
-    } else {
-      $('summaryBadge').className = 'badge badge--warn';
-      $('summaryBadge').textContent = openJobs.length + (openJobs.length === 1 ? ' needs review' : ' need review');
+    if (summaryBadge) {
+      if (s.fullyReconciled) {
+        summaryBadge.className = 'badge badge--good';
+        summaryBadge.textContent = '✓ All handled';
+      } else {
+        summaryBadge.className = 'badge badge--warn';
+        summaryBadge.textContent = openJobs.length + (openJobs.length === 1 ? ' needs review' : ' need review');
+      }
     }
 
     // Stash every job (open + reconciled + excluded) so the filter
@@ -1920,11 +1935,11 @@ function renderJobGroups(jobs) {
     html += normal.map(renderJob).join('');
   }
   if (verified.length) {
-    html += '<div class="job-section">Verified (' + verified.length + ')</div>';
+    html += '<button type="button" class="job-section" data-section-filter="verified">Verified (' + verified.length + ')</button>';
     html += verified.map(renderJob).join('');
   }
   if (excluded.length) {
-    html += '<div class="job-section">Excluded (' + excluded.length + ')</div>';
+    html += '<button type="button" class="job-section" data-section-filter="excluded">Excluded (' + excluded.length + ')</button>';
     html += excluded.map(renderJob).join('');
   }
   return html || '<div class="empty empty--done">All jobs checked off for this period.</div>';
@@ -2541,6 +2556,18 @@ function applyFilter() {
     const visible = inPill && match;
     r.style.display = visible ? '' : 'none';
     if (visible) shown++;
+  });
+  document.querySelectorAll('#jobsList .job-section').forEach(section => {
+    let hasVisibleRows = false;
+    let n = section.nextElementSibling;
+    while (n && !n.classList.contains('job-section')) {
+      if (n.classList.contains('job') && n.style.display !== 'none') {
+        hasVisibleRows = true;
+        break;
+      }
+      n = n.nextElementSibling;
+    }
+    section.style.display = hasVisibleRows ? '' : 'none';
   });
   if (!tokens.length) {
     $('filterCount').textContent = shown ? shown + ' jobs' : '';
@@ -3640,13 +3667,22 @@ function matchesActivePill(j) {
   return true;
 }
 
-document.querySelectorAll('#filterPills .filter-pill').forEach(p => {
-  p.addEventListener('click', () => {
-    DRAWER_STATE.activeFilter = p.dataset.filter;
-    document.querySelectorAll('#filterPills .filter-pill').forEach(x => x.classList.remove('is-active'));
-    p.classList.add('is-active');
-    applyFilterPills();
+function selectFilterPill(filter) {
+  DRAWER_STATE.activeFilter = filter || 'all';
+  document.querySelectorAll('#filterPills .filter-pill').forEach(x => {
+    x.classList.toggle('is-active', x.dataset.filter === DRAWER_STATE.activeFilter);
   });
+  applyFilterPills();
+}
+
+document.querySelectorAll('#filterPills .filter-pill').forEach(p => {
+  p.addEventListener('click', () => selectFilterPill(p.dataset.filter));
+});
+
+$('jobsList').addEventListener('click', (e) => {
+  const section = e.target.closest('[data-section-filter]');
+  if (!section) return;
+  selectFilterPill(section.dataset.sectionFilter);
 });
 
 // ── Undo toast ─────────────────────────────────────────────────
