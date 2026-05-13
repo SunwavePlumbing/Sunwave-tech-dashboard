@@ -4304,6 +4304,60 @@ app.use(express.json({ limit: '50kb' }));
 
 // ── Tech-facing endpoints ────────────────────────────────────────────────
 
+function cleanIssueSnapshot(input) {
+  let value = input;
+  if (!value) return null;
+  if (typeof value === 'string') {
+    try { value = JSON.parse(value); }
+    catch (err) { return null; }
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+
+  const str = (key, max = 220) => {
+    const raw = value[key];
+    if (raw == null) return null;
+    const out = String(raw).slice(0, max).trim();
+    return out || null;
+  };
+  const num = (key) => {
+    const n = Number(value[key]);
+    return Number.isFinite(n) ? Math.round(n * 100) / 100 : null;
+  };
+
+  const snapshot = {
+    source: str('source', 80),
+    issueType: str('issueType', 50),
+    technician: str('technician', 100),
+    period: str('period', 80),
+    invoice: str('invoice', 50),
+    jobId: str('jobId', 100),
+    customer: str('customer', 100),
+    date: str('date', 80),
+    dateLabel: str('dateLabel', 80),
+    description: str('description', 500),
+    role: str('role', 60),
+    jobTotal: num('jobTotal'),
+    theirShare: num('theirShare'),
+    creditPct: num('creditPct'),
+    outstanding: num('outstanding'),
+    capturedAt: str('capturedAt', 80)
+  };
+
+  if (Array.isArray(value.splitWith)) {
+    snapshot.splitWith = value.splitWith.slice(0, 12).map(s => ({
+      name: String((s && (s.name || s)) || '').slice(0, 100).trim(),
+      creditPct: Number.isFinite(Number(s && s.creditPct)) ? Math.round(Number(s.creditPct) * 100) / 100 : null
+    })).filter(s => s.name);
+  } else {
+    snapshot.splitWith = [];
+  }
+
+  Object.keys(snapshot).forEach(key => {
+    if (snapshot[key] == null || snapshot[key] === '') delete snapshot[key];
+  });
+  return Object.keys(snapshot).length ? snapshot : null;
+}
+
 // Submit a new issue report. No auth — anyone with the URL can submit.
 // Rate-limited softly by ignoring requests larger than 50kb (above) so a
 // single misbehaving client can't fill the volume.
@@ -4317,6 +4371,7 @@ app.post('/api/kpi/report-issue', (req, res) => {
   const customer = String(body.customer || '').slice(0, 100).trim();
   const jobId = String(body.jobId || '').slice(0, 100).trim();
   const description = String(body.description || '').slice(0, 2000).trim();
+  const snapshot = cleanIssueSnapshot(body.snapshot);
 
   if (!type || !description) {
     return res.status(400).json({ error: 'type and description are required' });
@@ -4330,6 +4385,7 @@ app.post('/api/kpi/report-issue', (req, res) => {
     customer: customer || null,
     jobId: jobId || null,
     description,
+    snapshot,
     status: 'open',
     createdAt: new Date().toISOString(),
     resolvedAt: null,

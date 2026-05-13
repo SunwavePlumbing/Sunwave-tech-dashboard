@@ -92,7 +92,7 @@ function esc(s) {
 
 // Build sidebar
 var sidebar = document.getElementById('dateSidebar');
-var commonKeys = ['mtd'];
+var commonKeys = ['mtd', 'day'];
 
 // Selects a range and updates all UI that reflects it (pill row + bottom
 // sheet). Safe to call from any source (pill tap, sheet tap, etc.).
@@ -241,9 +241,9 @@ function updateMoreBtnLabel() {
   }
 }
 
-// Keep the default range visible and tuck every other option into one
-// sheet. This keeps the technician view quiet while preserving access
-// to every historical range.
+// Keep the default range plus "Today" visible and tuck every other
+// option into one sheet. This keeps the technician view quiet while
+// preserving access to every historical range.
 commonKeys.forEach(function(key) {
   var range = dateRanges.find(function(r) { return r.key === key; });
   if (range) sidebar.appendChild(createDateBtn(range));
@@ -371,6 +371,39 @@ function openModal(tech, mode) {
     return role === 'Sold & Did' ? 'role-sold-did' : role === 'Sold' ? 'role-sold' : 'role-did';
   };
 
+  function moneyOrNull(value) {
+    var n = Number(value);
+    return isNaN(n) ? null : Math.round(n * 100) / 100;
+  }
+
+  function issueSnapshotForJob(job, type) {
+    if (!job) return null;
+    return {
+      source: 'technician_jobs_modal',
+      issueType: type || null,
+      technician: tech && tech.name ? tech.name : null,
+      period: currentData && currentData.summary ? currentData.summary.period : null,
+      invoice: job.invoice || null,
+      jobId: job.id || null,
+      customer: job.customer || null,
+      date: job.date || null,
+      dateLabel: fmtDate(job.date),
+      description: job.description || null,
+      role: job.role || null,
+      jobTotal: moneyOrNull(job.jobTotal != null ? job.jobTotal : job.amount),
+      theirShare: moneyOrNull(job.credit != null ? job.credit : job.amount),
+      creditPct: job.creditPct != null ? moneyOrNull(job.creditPct) : null,
+      outstanding: moneyOrNull(job.outstanding || 0),
+      splitWith: (job.splitWith || []).map(function(s) {
+        return {
+          name: s.name || s,
+          creditPct: s.creditPct != null ? moneyOrNull(s.creditPct) : null
+        };
+      }),
+      capturedAt: new Date().toISOString()
+    };
+  }
+
   /* Build a deep-link URL into /report-issue with the job's context
      pre-filled. The page parses these query params and seeds the form
      so the tech only has to add a sentence about what's wrong.
@@ -387,14 +420,18 @@ function openModal(tech, mode) {
     if (job.customer) params.set('customer', String(job.customer));
     if (job.id)       params.set('jobId',    String(job.id));
     if (context)      params.set('context',  context);
+    var snapshot = issueSnapshotForJob(job, type);
+    if (snapshot) params.set('snapshot', JSON.stringify(snapshot));
     return '/report-issue?' + params.toString();
   }
   // Shared aria-label + title text per type so the contextual buttons
   // tell users what they're about to flag before they click.
   var REPORT_HINT = {
+    job_issue:    'Flag this job',
     wrong_tech:   'Flag wrong tech',
     wrong_customer: 'Flag wrong customer',
-    wrong_split:  'Flag wrong split'
+    wrong_split:  'Flag wrong split',
+    wrong_unpaid: 'Flag wrong unpaid amount'
   };
   // Tiny flag SVG used as the visual cue. Inline so it inherits color.
   var FLAG_SVG = '<svg class="report-flag-ico" viewBox="0 0 12 14" width="11" height="13" aria-hidden="true">' +
@@ -412,6 +449,16 @@ function openModal(tech, mode) {
       '" target="_blank" rel="noopener" title="' + REPORT_HINT[type] +
       '" aria-label="' + REPORT_HINT[type] + '">' +
       innerHtml + FLAG_SVG +
+      '</a>';
+  }
+
+  function jobIssueLink(job) {
+    if (!job || (!job.invoice && !job.id)) return '';
+    return '<a class="job-issue-link" href="' + reportHref(job, 'job_issue',
+      'Something on this job row is wrong. The job details below were captured when I opened this report.') +
+      '" target="_blank" rel="noopener" title="Flag this job" aria-label="Flag this job">' +
+      FLAG_SVG +
+      '<span class="job-issue-text">Issue</span>' +
       '</a>';
   }
 
@@ -489,6 +536,7 @@ function openModal(tech, mode) {
       '<td>' + customerCell + '</td>' +
       '<td>' + jobTotal + unpaidNote + '</td>' +
       '<td>' + shareHtml + '</td>' +
+      '<td class="job-issue-cell">' + jobIssueLink(job) + '</td>' +
       '</tr>';
   }).join('');
   // Empty-state copy depends on mode. In unpaid mode "No jobs found"
@@ -498,7 +546,7 @@ function openModal(tech, mode) {
     ? 'All clear \u2014 no unpaid jobs in this period.'
     : 'No jobs found';
   document.getElementById('modalBody').innerHTML = rows ||
-    '<tr><td colspan="5" style="text-align:center;color:#aaa;padding:2rem">' + emptyMsg + '</td></tr>';
+    '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:2rem">' + emptyMsg + '</td></tr>';
 
   // Mobile: cards
   var cards = jobs.map(function(job) {
@@ -542,7 +590,7 @@ function openModal(tech, mode) {
     return '<div class="job-card">' +
       '<div class="job-card-top">' +
         '<span class="job-card-date">' + fmtDate(job.date) + '</span>' +
-        '<div class="job-card-right"><span class="job-card-credit">' + creditAmt + '</span>' + pctHtml + totalLine + '</div>' +
+        '<div class="job-card-right"><span class="job-card-credit">' + creditAmt + '</span>' + pctHtml + totalLine + jobIssueLink(job) + '</div>' +
       '</div>' +
       '<div class="job-card-desc">' + desc + '</div>' +
       '<div class="job-card-meta">' + customerMobile + roleBadge + autoDatedBadge + splitNote + unpaidChip + '</div>' +

@@ -399,6 +399,33 @@
       padding: 14px 18px;
       margin-bottom: 10px;
     }
+    .issue-snapshot {
+      margin: 8px 0 10px;
+      padding: 8px 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 12px;
+    }
+    .issue-snapshot summary {
+      cursor: pointer;
+      font-weight: 700;
+      color: var(--ink-soft);
+    }
+    .issue-snapshot-grid {
+      display: grid;
+      grid-template-columns: 92px minmax(0, 1fr);
+      gap: 5px 10px;
+      padding-top: 8px;
+    }
+    .issue-snapshot-key {
+      color: var(--ink-mute);
+      font-weight: 700;
+    }
+    .issue-snapshot-val {
+      color: var(--ink);
+      overflow-wrap: anywhere;
+    }
 
     /* Embedded admin tools */
     .embed-frame { width: 100%; height: 82vh; min-height: 540px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
@@ -514,6 +541,7 @@ let CURRENT_LOCKED_RANGE = localStorage.getItem('kpi-admin-locked-range') || CUR
 let ACTIVE_PANEL = 'reconcile';
 const ADMIN_CACHE_TTL_MS = 5 * 60 * 1000;
 const KPI_RANGES = [
+  { label: 'Month to Date', key: 'mtd' },
   { label: 'Today', key: 'day' },
   { label: 'Yesterday', key: 'yesterday' },
   { label: 'This Week', key: 'week' },
@@ -521,7 +549,6 @@ const KPI_RANGES = [
   { label: 'Last 7 Days', key: 'l7d' },
   { label: 'Last 14 Days', key: 'l14d' },
   { label: 'Last 30 Days', key: 'l30d' },
-  { label: 'Month to Date', key: 'mtd' },
   { label: 'Last Month', key: 'lm' },
   { label: 'Last 90 Days', key: 'l90d' },
   { label: 'This Quarter', key: 'qtd' },
@@ -1438,7 +1465,33 @@ async function loadIssues(forceRefresh) {
     const TYPE_LABEL = {
       missing: 'Missing job', wrong_tech: 'Wrong tech', wrong_split: 'Wrong split',
       wrong_customer: 'Wrong customer', wrong_seller: 'Wrong customer',
-      wrong_unpaid: 'Wrong unpaid amount', other: 'Other'
+      wrong_unpaid: 'Wrong unpaid amount', job_issue: 'Job issue', other: 'Other'
+    };
+    const snapshotMoney = (value) => {
+      const n = Number(value);
+      return Number.isFinite(n) ? fmt(n) : '';
+    };
+    const renderSnapshot = (snap) => {
+      if (!snap || typeof snap !== 'object') return '';
+      const rows = [];
+      const add = (label, value) => {
+        if (value == null || value === '') return;
+        rows.push('<div class="issue-snapshot-key">' + esc(label) + '</div><div class="issue-snapshot-val">' + esc(value) + '</div>');
+      };
+      add('Period', snap.period);
+      add('Tech', snap.technician);
+      add('Date', snap.dateLabel || isoDate(snap.date));
+      add('Description', snap.description);
+      add('Job total', snapshotMoney(snap.jobTotal));
+      add('Their share', snapshotMoney(snap.theirShare) + (snap.creditPct != null ? ' (' + esc(snap.creditPct) + '%)' : ''));
+      add('Role', snap.role);
+      if (snap.splitWith && snap.splitWith.length) {
+        add('Split', snap.splitWith.map(s => s.name + (s.creditPct != null ? ' ' + s.creditPct + '%' : '')).join(', '));
+      }
+      add('Outstanding', snap.outstanding ? snapshotMoney(snap.outstanding) : '');
+      add('Captured', snap.capturedAt ? new Date(snap.capturedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '');
+      if (!rows.length) return '';
+      return '<details class="issue-snapshot"><summary>Job snapshot</summary><div class="issue-snapshot-grid">' + rows.join('') + '</div></details>';
     };
     const renderReport = (rep) => {
       const ref = [rep.invoice && '#' + rep.invoice, rep.customer].filter(Boolean).join(' · ');
@@ -1451,6 +1504,7 @@ async function loadIssues(forceRefresh) {
         </div>
         ${ref ? '<div style="font-size:13px;color:var(--ink-soft);margin-bottom:4px">' + esc(ref) + '</div>' : ''}
         <div style="font-size:13px;padding:8px 10px;background:var(--bg);border-left:2px solid var(--border-strong);border-radius:4px;margin-bottom:8px">${esc(rep.description)}</div>
+        ${renderSnapshot(rep.snapshot)}
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           ${rep.invoice ? '<button class="btn" data-action="from-issue-inv" data-inv="' + esc(rep.invoice) + '">Open job</button>' : ''}
           ${rep.status === 'open'

@@ -220,6 +220,34 @@
       margin-top: 8px;
     }
 
+    .snapshot-preview details {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+    .snapshot-preview summary {
+      cursor: pointer;
+      color: var(--ink-soft);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .snapshot-grid {
+      display: grid;
+      grid-template-columns: 92px minmax(0, 1fr);
+      gap: 6px 10px;
+      padding-top: 10px;
+      font-size: 12px;
+    }
+    .snapshot-key {
+      color: var(--ink-mute);
+      font-weight: 700;
+    }
+    .snapshot-val {
+      color: var(--ink);
+      overflow-wrap: anywhere;
+    }
+
     /* ── Submit ──────────────────────────────────────────────────── */
     .submit-row {
       display: flex;
@@ -283,6 +311,7 @@
         <button type="button" class="chip is-active" data-type="wrong_split">Wrong split</button>
         <button type="button" class="chip" data-type="wrong_customer">Wrong customer</button>
         <button type="button" class="chip" data-type="wrong_unpaid">Wrong unpaid</button>
+        <button type="button" class="chip" data-type="job_issue">Job issue</button>
         <button type="button" class="chip" data-type="other">Something else</button>
       </div>
       <input type="hidden" id="type" name="type" value="wrong_split" required>
@@ -348,6 +377,13 @@
       <div class="tech-picker-hint">If the same person sold and did the work, pick them in both.</div>
     </div>
 
+    <div class="field snapshot-preview" id="snapshotPreview" hidden>
+      <details>
+        <summary>Job details captured with this report</summary>
+        <div class="snapshot-grid" id="snapshotGrid"></div>
+      </details>
+    </div>
+
     <div class="field">
       <label class="field-label" for="description">
         What should change?
@@ -375,6 +411,7 @@ const escapeHtml = (s) => String(s == null ? '' : s)
 // to credit the tech as Sold & Did rather than splitting two roles.
 let SELECTED_SELLERS = [];
 let SELECTED_DOERS = [];
+let ISSUE_SNAPSHOT = null;
 
 // ── Issue-type chip selection ───────────────────────────────────────
 const typeChips = $('typeChips').querySelectorAll('.chip');
@@ -420,6 +457,34 @@ function setPrefilled(field, value) {
     cell.classList.remove('cell-prefilled');
     markFieldChecked(field, false);
   }
+}
+
+function fmtSnapshotMoney(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return '';
+  return '$' + Math.round(n).toLocaleString();
+}
+
+function renderSnapshotPreview(snapshot) {
+  if (!snapshot || typeof snapshot !== 'object') return;
+  const rows = [];
+  const add = (label, value) => {
+    if (value == null || value === '') return;
+    rows.push('<div class="snapshot-key">' + escapeHtml(label) + '</div><div class="snapshot-val">' + escapeHtml(value) + '</div>');
+  };
+  add('Date', snapshot.dateLabel || snapshot.date);
+  add('Customer', snapshot.customer);
+  add('Description', snapshot.description);
+  add('Job total', fmtSnapshotMoney(snapshot.jobTotal));
+  add('Their share', fmtSnapshotMoney(snapshot.theirShare) + (snapshot.creditPct != null ? ' (' + snapshot.creditPct + '%)' : ''));
+  add('Role', snapshot.role);
+  if (snapshot.splitWith && snapshot.splitWith.length) {
+    add('Split', snapshot.splitWith.map(s => s.name + (s.creditPct != null ? ' ' + s.creditPct + '%' : '')).join(', '));
+  }
+  add('Captured', snapshot.capturedAt ? new Date(snapshot.capturedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '');
+  if (!rows.length) return;
+  $('snapshotGrid').innerHTML = rows.join('');
+  $('snapshotPreview').hidden = false;
 }
 
 // Click any "✎" pencil → flip cell back into edit mode
@@ -471,6 +536,16 @@ document.querySelectorAll('.prefilled-edit').forEach(btn => {
   if (context) {
     $('description').value = context;
     markFieldChecked('description', true);
+  }
+  const snapshot = qs.get('snapshot');
+  if (snapshot) {
+    try {
+      const parsed = JSON.parse(snapshot);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        ISSUE_SNAPSHOT = parsed;
+        renderSnapshotPreview(parsed);
+      }
+    } catch (err) {}
   }
 })();
 // Ensure picker visibility reflects whatever the initial chip is.
@@ -579,6 +654,7 @@ $('reportForm').addEventListener('submit', async (e) => {
     };
     const hiddenJobId = document.getElementById('jobId');
     if (hiddenJobId) body.jobId = hiddenJobId.value;
+    if (ISSUE_SNAPSHOT) body.snapshot = ISSUE_SNAPSHOT;
 
     const r = await fetch('/api/kpi/report-issue', {
       method: 'POST',

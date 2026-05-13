@@ -83,11 +83,11 @@
         <table>
           <thead>
             <tr>
-              <th><button type="button" class="sort-th" data-sort="name">Name</button></th>
-              <th><button type="button" class="sort-th is-active" data-sort="revenue" aria-sort="descending">Value Created</button></th>
-              <th><button type="button" class="sort-th" data-sort="ticket">Avg Ticket</button></th>
-              <th><button type="button" class="sort-th" data-sort="jobs"># Jobs</button></th>
-              <th><button type="button" class="sort-th" data-sort="unpaid">Unpaid</button></th>
+              <th><button type="button" class="sort-th" data-sort="name" aria-label="Sort by name"><span class="sort-th-label">Name</span></button></th>
+              <th><button type="button" class="sort-th is-active" data-sort="revenue" aria-sort="descending" aria-label="Sort by value created"><span class="sort-th-label sort-th-full">Value Created</span><span class="sort-th-label sort-th-short" aria-hidden="true">Value</span></button></th>
+              <th><button type="button" class="sort-th" data-sort="ticket" aria-label="Sort by average ticket"><span class="sort-th-label sort-th-full">Avg Ticket</span><span class="sort-th-label sort-th-short" aria-hidden="true">Avg</span></button></th>
+              <th><button type="button" class="sort-th" data-sort="jobs" aria-label="Sort by jobs"><span class="sort-th-label sort-th-full"># Jobs</span><span class="sort-th-label sort-th-short" aria-hidden="true">Jobs</span></button></th>
+              <th><button type="button" class="sort-th" data-sort="unpaid" aria-label="Sort by unpaid"><span class="sort-th-label">Unpaid</span></button></th>
             </tr>
           </thead>
           <tbody id="leaderboardBody">
@@ -290,6 +290,7 @@
             <th>Customer</th>
             <th>Job Total</th>
             <th>Their Share</th>
+            <th aria-label="Report issue"></th>
           </tr>
         </thead>
         <tbody id="modalBody"></tbody>
