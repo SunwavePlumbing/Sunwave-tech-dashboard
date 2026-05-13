@@ -1662,20 +1662,26 @@ app.get('/api/metrics', async (req, res) => {
       // If there is no estimate/seller data, do not guess a seller from
       // assigned tech order; split 100% across the assigned doers.
       const creditMap = {};
+      const creditPctMap = {};
       const effectiveSellers = sellers;
       const sellPool = jobRevenue / 3;
       const doPool = jobRevenue * 2 / 3;
+      const sellPctPool = 100 / 3;
+      const doPctPool = 200 / 3;
 
       if (effectiveSellers.length === 0) {
         doers.forEach(emp => {
           creditMap[emp.id] = (creditMap[emp.id] || 0) + jobRevenue / doers.length;
+          creditPctMap[emp.id] = (creditPctMap[emp.id] || 0) + 100 / doers.length;
         });
       } else {
         effectiveSellers.forEach(emp => {
           creditMap[emp.id] = (creditMap[emp.id] || 0) + sellPool / effectiveSellers.length;
+          creditPctMap[emp.id] = (creditPctMap[emp.id] || 0) + sellPctPool / effectiveSellers.length;
         });
         doers.forEach(emp => {
           creditMap[emp.id] = (creditMap[emp.id] || 0) + doPool / doers.length;
+          creditPctMap[emp.id] = (creditPctMap[emp.id] || 0) + doPctPool / doers.length;
         });
       }
 
@@ -1695,14 +1701,13 @@ app.get('/api/metrics', async (req, res) => {
         const isSeller = effectiveSellers.some(s => s.id === emp.id);
         const isDoer = doers.some(d => d.id === emp.id);
         const role = (isSeller && isDoer) ? 'Sold & Did' : isSeller ? 'Sold' : 'Did';
-        const creditPct = jobRevenue > 0 ? Math.round(credit / jobRevenue * 100) : 0;
+        const creditPct = Math.round(Number(creditPctMap[emp.id] || 0));
         const myName = ((emp.first_name || '') + ' ' + (emp.last_name || '')).trim();
         const splitWith = allInvolved
           .filter(e => e.id !== emp.id)
           .map(e => {
             const n = ((e.first_name || '') + ' ' + (e.last_name || '')).trim();
-            const c = creditMap[e.id] || 0;
-            const p = jobRevenue > 0 ? Math.round(c / jobRevenue * 100) : 0;
+            const p = Math.round(Number(creditPctMap[e.id] || 0));
             return { name: n, creditPct: p };
           })
           .filter(x => x.name);

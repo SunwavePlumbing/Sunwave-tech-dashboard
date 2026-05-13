@@ -963,7 +963,9 @@ function auditSignals(j) {
   if (assignmentCount > 1) signals.push('Shared');
   if (Number(j.outstanding || 0) > 0) signals.push('Unpaid');
   if (j.reason) signals.push('Data issue');
-  if (!j.customer || !j.description || !j.kpiDate) signals.push('Missing detail');
+  if (!j.customer) signals.push('Missing customer');
+  if (!j.description) signals.push('Missing description');
+  if (!j.kpiDate) signals.push('Missing KPI date');
   return signals;
 }
 
@@ -1018,7 +1020,11 @@ function quickApprovePayload(j) {
       creditPct: Math.max(0, Math.min(100, Number(a.creditPct) || 0))
     }))
     .filter(a => a.employeeName);
-  const pctSum = assignments.reduce((s, a) => s + a.creditPct, 0);
+  let pctSum = assignments.reduce((s, a) => s + a.creditPct, 0);
+  if (assignments.length && pctSum <= 0.5 && Number(j.totalAmount || 0) === 0) {
+    recomputePercents(assignments);
+    pctSum = assignments.reduce((s, a) => s + a.creditPct, 0);
+  }
   if (!assignments.length || Math.abs(pctSum - 100) > 0.5) return null;
   return {
     jobId: j.jobId,
