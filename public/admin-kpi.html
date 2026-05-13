@@ -1274,6 +1274,7 @@
            handled. "All" shows every job touching the period. -->
       <div class="filter-pills" id="filterPills">
         <button class="filter-pill is-active" data-filter="unverified">⏳ Unverified <span class="filter-pill-count" id="pillCount-unverified">0</span></button>
+        <button class="filter-pill" data-filter="auto">100-rated <span class="filter-pill-count" id="pillCount-auto">0</span></button>
         <button class="filter-pill" data-filter="issues">🚩 Issues <span class="filter-pill-count" id="pillCount-issues">0</span></button>
         <button class="filter-pill" data-filter="verified">✓ Verified <span class="filter-pill-count" id="pillCount-verified">0</span></button>
         <button class="filter-pill" data-filter="excluded">🚫 Excluded <span class="filter-pill-count" id="pillCount-excluded">0</span></button>
@@ -1317,10 +1318,10 @@
            One click runs through all of them. -->
       <div class="auto-verify-bar is-empty" id="autoVerifyBar">
         <span class="auto-verify-text">
-          <strong id="autoVerifyCount">0</strong> clean cases ready to verify in one click —
-          single tech, full credit, fully paid, matches HCP.
+          <strong id="autoVerifyCount">0</strong> 100-rated cases ready to verify in one click —
+          100-rated, single tech, full credit, fully paid, matches HCP.
         </span>
-        <button id="autoVerifyBtn" type="button" title="Verify every clean case in batch. Each gets its own per-row undo via the standard undo toast.">✓ Auto-verify clean cases</button>
+        <button id="autoVerifyBtn" type="button" title="Verify every 100-rated case in batch. Each gets its own per-row undo via the standard undo toast.">✓ Auto-verify 100-rated</button>
       </div>
 
       <div id="jobsList" class="jobs-list">
@@ -1834,12 +1835,17 @@ function computeConfidence(flags) {
   return Math.max(0, Math.min(100, score));
 }
 
+function hasFlag(flags, kind, label) {
+  return flags.some(f => f.kind === kind && f.label === label);
+}
+
 function isAutoVerifiable(j) {
   if (!j || j.status !== 'credited') return false;
   const flags = computeFlags(j);
-  const hasRed = flags.some(f => f.kind === 'red');
-  const hasOrange = flags.some(f => f.kind === 'orange');
-  if (hasRed || hasOrange) return false;
+  if (computeConfidence(flags) !== 100) return false;
+  if (!hasFlag(flags, 'green', 'Fully paid')) return false;
+  if (!hasFlag(flags, 'green', 'Clean attribution')) return false;
+  if (!hasFlag(flags, 'green', 'Matches HCP')) return false;
   return !!quickApprovePayload(j);
 }
 
@@ -1871,9 +1877,15 @@ function sortJobsForAudit(jobs) {
 }
 
 function renderJobGroups(jobs) {
-  const priority = jobs.filter(j => auditPriority(j) > 0);
-  const normal = jobs.filter(j => auditPriority(j) === 0);
+  const autoReady = jobs.filter(isAutoVerifiable);
+  const autoKeys = new Set(autoReady.map(j => j._localKey));
+  const priority = jobs.filter(j => !autoKeys.has(j._localKey) && auditPriority(j) > 0);
+  const normal = jobs.filter(j => !autoKeys.has(j._localKey) && auditPriority(j) === 0);
   let html = '';
+  if (autoReady.length) {
+    html += '<div class="job-section">100-rated ready to verify (' + autoReady.length + ')</div>';
+    html += autoReady.map(renderJob).join('');
+  }
   if (priority.length) {
     html += '<div class="job-section">Audit first (' + priority.length + ')</div>';
     html += priority.map(renderJob).join('');
@@ -2290,11 +2302,19 @@ document.addEventListener('click', async (e) => {
     try {
       await api('/api/kpi/admin/reconcile', { method: 'POST', body: payload });
       clearAdminCache();
-      actionEl.textContent = 'Done';
-      actionEl.classList.add('is-done');
-      const row = actionEl.closest('.job');
-      if (row) row.classList.add('is-completing');
-      setTimeout(loadJobs, 600);
+      j.status = 'reconciled';
+      j.reconciled = true;
+      j._countedInSummary = false;
+      j.assignments = payload.assignments.map(a => ({
+        name: a.employeeName,
+        role: a.role,
+        creditPct: a.creditPct,
+        credit: 0
+      }));
+      j._haystack = buildHaystack(j);
+      pushUndo({ kind: 'verify', key, label: '#' + (j.invoice || key.slice(0, 8)) });
+      refreshRowInList(key);
+      updateProgress();
     } catch (err) {
       actionEl.disabled = false;
       actionEl.textContent = 'Correct';
@@ -2475,22 +2495,25 @@ function buildHaystack(j) {
 function applyFilter() {
   const q = $('jobLookup').value.trim().toLowerCase();
   const rows = document.querySelectorAll('#jobsList .job');
-  const total = rows.length;
-  if (!q) {
-    rows.forEach(r => r.style.display = '');
-    $('filterCount').textContent = total ? total + ' jobs' : '';
-    return;
-  }
+  let pillTotal = 0;
+  let shown = 0;
   // Multi-word: split on whitespace, every token must appear.
   const tokens = q.split(/\s+/).filter(Boolean);
-  let shown = 0;
   rows.forEach(r => {
+    const j = window.JOBS && window.JOBS[r.dataset.key];
+    const inPill = typeof matchesActivePill === 'function' ? matchesActivePill(j) : true;
     const hay = r.dataset.haystack || '';
-    const match = tokens.every(t => hay.indexOf(t) !== -1);
-    r.style.display = match ? '' : 'none';
-    if (match) shown++;
+    const match = !tokens.length || tokens.every(t => hay.indexOf(t) !== -1);
+    if (inPill) pillTotal++;
+    const visible = inPill && match;
+    r.style.display = visible ? '' : 'none';
+    if (visible) shown++;
   });
-  $('filterCount').textContent = shown + ' of ' + total;
+  if (!tokens.length) {
+    $('filterCount').textContent = shown ? shown + ' jobs' : '';
+  } else {
+    $('filterCount').textContent = shown + ' of ' + pillTotal;
+  }
 }
 
 $('jobLookup').addEventListener('input', applyFilter);
@@ -3187,16 +3210,16 @@ function updateProgress() {
   const excludedDisplay = excluded + localExcludedDelta;
   const unverifiedDisplay = Math.max(0, total - verifiedDisplay - excludedDisplay);
   const done = verifiedDisplay + excludedDisplay;
+  const summaryAction = $('summaryAction');
+  if (summaryAction) {
+    summaryAction.textContent = unverifiedDisplay + ' open task' + (unverifiedDisplay === 1 ? '' : 's');
+  }
   $('progressDone').textContent = done;
   $('progressTotal').textContent = total;
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
   const fill = $('progressFill');
   fill.style.width = pct + '%';
   fill.classList.toggle('is-empty', done === 0);
-  $('pillCount-unverified').textContent = unverifiedDisplay;
-  $('pillCount-verified').textContent = verifiedDisplay;
-  $('pillCount-excluded').textContent = excludedDisplay;
-  $('pillCount-all').textContent = total;
   // Issues pill — count jobs in window.JOBS that have a matching
   // open issue report (joined client-side via the lookup loadIssues
   // built on window.ISSUE_BY_JOB).
@@ -3212,6 +3235,11 @@ function updateProgress() {
   // could be batch-verified safely.
   let autoCount = 0;
   Object.values(window.JOBS || {}).forEach(j => { if (isAutoVerifiable(j)) autoCount++; });
+  $('pillCount-unverified').textContent = unverifiedDisplay;
+  $('pillCount-auto').textContent = autoCount;
+  $('pillCount-verified').textContent = verifiedDisplay;
+  $('pillCount-excluded').textContent = excludedDisplay;
+  $('pillCount-all').textContent = total;
   const bar = $('autoVerifyBar');
   $('autoVerifyCount').textContent = autoCount;
   bar.classList.toggle('is-empty', autoCount === 0);
@@ -3550,26 +3578,23 @@ updateProgress = function() {
 };
 
 function applyFilterPills() {
-  const f = DRAWER_STATE.activeFilter;
-  const issueMap = window.ISSUE_BY_JOB || {};
-  document.querySelectorAll('#jobsList .job').forEach(row => {
-    const key = row.dataset.key;
-    const j = window.JOBS[key];
-    if (!j) return;
-    let visible = true;
-    if      (f === 'unverified') visible = j.status !== 'reconciled' && j.status !== 'excluded';
-    else if (f === 'verified')   visible = j.status === 'reconciled';
-    else if (f === 'excluded')   visible = j.status === 'excluded';
-    else if (f === 'issues') {
-      const k1 = j.jobId && String(j.jobId);
-      const k2 = j.invoice && String(j.invoice);
-      visible = !!((k1 && issueMap[k1]) || (k2 && issueMap[k2]));
-    }
-    // 'all' → visible stays true
-    row.style.display = visible ? '' : 'none';
-  });
-  // Re-run the search filter on top of the pill filter
   if (typeof applyFilter === 'function') applyFilter();
+}
+
+function matchesActivePill(j) {
+  if (!j) return false;
+  const f = DRAWER_STATE.activeFilter;
+  if      (f === 'unverified') return j.status !== 'reconciled' && j.status !== 'excluded';
+  else if (f === 'auto')       return isAutoVerifiable(j);
+  else if (f === 'verified')   return j.status === 'reconciled';
+  else if (f === 'excluded')   return j.status === 'excluded';
+  else if (f === 'issues') {
+    const issueMap = window.ISSUE_BY_JOB || {};
+    const k1 = j.jobId && String(j.jobId);
+    const k2 = j.invoice && String(j.invoice);
+    return !!((k1 && issueMap[k1]) || (k2 && issueMap[k2]));
+  }
+  return true;
 }
 
 document.querySelectorAll('#filterPills .filter-pill').forEach(p => {
