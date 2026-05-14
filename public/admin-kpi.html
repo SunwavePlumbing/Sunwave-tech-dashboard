@@ -637,6 +637,11 @@
       font-family: inherit;
       color: var(--ink);
     }
+    .stickybar-row input[type="text"]::placeholder {
+      color: var(--ink-mute);
+      opacity: 0.55;
+      font-weight: 400;
+    }
     .stickybar-row button {
       padding: 9px 13px;
       border: 1px solid var(--border);
@@ -672,6 +677,48 @@
       transition: width 0.3s ease;
     }
     .progress-fill.is-empty { background: var(--brand); }
+    /* Beefy variant — full width of the sticky bar, with the period
+       money summary centered on top of the fill. Replaces the thin
+       bar + separate inline summary line. */
+    .progress-bar.progress-bar--beefy {
+      position: relative;
+      flex: 1 1 100%;
+      max-width: none;
+      width: 100%;
+      height: 44px;
+      border-radius: 10px;
+      background: var(--good-pale);
+      border: 1px solid #C9DFCD;
+      overflow: hidden;
+    }
+    .progress-bar--beefy .progress-fill {
+      background: linear-gradient(180deg, rgba(47, 125, 73, 0.18) 0%, rgba(47, 125, 73, 0.28) 100%);
+    }
+    .progress-bar--beefy .progress-fill.is-empty { background: var(--brand-pale); }
+    .progress-bar--beefy .progress-label {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-variant-numeric: tabular-nums;
+      color: var(--ink);
+      letter-spacing: 0.01em;
+      pointer-events: none;
+      padding: 0 14px;
+    }
+    .progress-bar--beefy .progress-label strong { font-weight: 800; color: var(--ink); }
+    .progress-bar--beefy .progress-label strong#ps-amount-verified { color: var(--good); }
+    .progress-bar--beefy .progress-label strong.warn { color: var(--warn); }
+    .progress-bar--beefy .progress-label .muted { color: var(--ink-mute); font-weight: 500; }
+    @media (max-width: 600px) {
+      .progress-bar--beefy { height: auto; min-height: 44px; }
+      .progress-bar--beefy .progress-label { font-size: 12.5px; padding: 8px 12px; position: relative; }
+      .progress-bar--beefy .progress-fill { position: absolute; inset: 0; }
+    }
     @media (max-width: 760px) {
       .stickybar-row,
       .stickybar-row--controls,
@@ -1399,26 +1446,9 @@
     }
     .verified-by strong { font-weight: 800; }
 
-    /* Period-level reconciliation summary — inline strip. Replaces
-       the old 5-tile grid. One short line, same numbers. */
-    .period-summary-line {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      align-items: baseline;
-      padding: 10px 14px;
-      margin-bottom: 12px;
-      font-size: 13.5px;
-      font-variant-numeric: tabular-nums;
-      color: var(--ink);
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-    }
-    .period-summary-line strong { font-weight: 800; color: var(--ink); }
-    .period-summary-line strong#ps-amount-verified { color: var(--good); }
-    .period-summary-line strong.warn { color: var(--warn); }
-    .period-summary-line .muted { color: var(--ink-mute); font-weight: 500; }
+    /* Period money summary now lives inside the beefy progress bar
+       (see .progress-bar--beefy above). The standalone inline
+       strip is gone. */
 
     /* Auto-verify bar — sits above the job list. Visible only when
        there's at least one auto-verifiable job in the queue. */
@@ -1553,7 +1583,6 @@
     <div class="header">
       <div>
         <h1>KPI Admin</h1>
-        <div class="sub" id="subhead">Reconcile attribution</div>
       </div>
       <div class="header-nav"><a class="nav-link" href="/">&larr; Dashboard</a></div>
     </div>
@@ -1585,7 +1614,20 @@
           <button id="lookupBtn" title="Fetch a job that's not in the current period (paste job_xxx or invoice #)">Open exact</button>
         </div>
         <div class="stickybar-row stickybar-row--status">
-          <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+          <!-- Beefy progress bar with the period dollar summary
+               sitting inside it. Wide, thick, centered — replaces the
+               separate thin bar + inline summary line. -->
+          <div class="progress-bar progress-bar--beefy">
+            <div class="progress-fill" id="progressFill"></div>
+            <div class="progress-label" id="progressLabel" style="visibility:hidden">
+              <strong id="ps-amount-verified">$0</strong>
+              <span class="muted">of</span>
+              <strong id="ps-amount">$0</strong>
+              <span class="muted">verified ·</span>
+              <strong class="warn" id="ps-amount-remaining">$0</strong>
+              <span class="muted">remaining</span>
+            </div>
+          </div>
         </div>
         <!-- Hidden but still present in the DOM — updateProgress
              writes to these and other code reads filterCount. -->
@@ -1612,21 +1654,13 @@
            writes to it (loadJobs, updateProgress) keeps working. -->
       <span id="summaryAction" hidden></span>
 
-      <!-- One-line period money summary. Single inline strip in
-           place of the old 5-tile grid; carries the same dollar
-           numbers (verified-of-total · remaining) without the
-           visual weight. Tile IDs preserved for code that writes
-           the numeric counts (they live in hidden spans). -->
-      <div class="period-summary-line" id="periodSummary" hidden>
-        <strong id="ps-amount-verified">$0</strong>
-        <span class="muted">of</span>
-        <strong id="ps-amount">$0</strong>
-        <span class="muted">verified ·</span>
-        <strong class="warn" id="ps-amount-remaining">$0</strong>
-        <span class="muted">remaining</span>
-        <span id="ps-total" hidden></span>
-        <span id="ps-verified" hidden></span>
-      </div>
+      <!-- Period money summary lives inside the beefy progress bar
+           above. Hidden wrapper kept so updatePeriodSummary's hidden
+           toggle is still a no-op without errors. -->
+      <span id="periodSummary" hidden>
+        <span id="ps-total"></span>
+        <span id="ps-verified"></span>
+      </span>
 
       <!-- Auto-verify clean cases — visible only when there's at
            least one job that passed every pre-check (single tech,
@@ -4216,6 +4250,10 @@ function updatePeriodSummary() {
   $('ps-amount-remaining').textContent = fmt(amountOpen);
   // Hide the strip if there's nothing meaningful to show.
   ps.hidden = !(amountAll > 0 || total > 0);
+  // The progress-bar label (now living inside the beefy bar) shows
+  // the same dollar trio. Hide it until we actually have numbers.
+  const label = $('progressLabel');
+  if (label) label.style.visibility = (amountAll > 0 || total > 0) ? 'visible' : 'hidden';
 }
 
 // Hook updatePeriodSummary into updateProgress so it fires whenever
