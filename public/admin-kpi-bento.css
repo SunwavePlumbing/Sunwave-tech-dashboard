@@ -2890,6 +2890,78 @@ body.bento-design .drawer-editor-section .edit-section {
 body.bento-design .drawer-editor-section .edit-section:last-child {
   margin-bottom: 0;
 }
+
+/* Editor footer actions. The global `.drawer-body .edit-actions`
+   rule hides them everywhere; we re-enable them inside the editor
+   section so the admin actually has a Save button. The Close action
+   is suppressed (the drawer has its own close), and Save & Remove
+   Reconciliation get bento styling consistent with the card surface. */
+body.bento-design .drawer-body .drawer-editor-section .edit-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 20px 0 0;
+  padding: 16px 0 0;
+  border-top: 1px solid #EDE8DD;
+}
+body.bento-design .drawer-body .drawer-editor-section .edit-actions .status-msg {
+  margin-right: auto;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #7B8190;
+}
+body.bento-design .drawer-body .drawer-editor-section .edit-actions .status-msg.is-ok {
+  color: #2E7A52;
+  font-weight: 700;
+}
+body.bento-design .drawer-body .drawer-editor-section .edit-actions .status-msg.is-err {
+  color: #B5483B;
+  font-weight: 700;
+}
+/* Hide the inline Close — the drawer already has a close affordance. */
+body.bento-design .drawer-body .drawer-editor-section .edit-actions [data-action="close"] {
+  display: none;
+}
+body.bento-design .drawer-body .drawer-editor-section .edit-actions .btn {
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 12px;
+  border: 1px solid #E5DFD2;
+  background: #FEFCF6;
+  color: #373B4D;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+body.bento-design .drawer-body .drawer-editor-section .edit-actions .btn:hover {
+  border-color: #CFC8B9;
+  color: #0B2447;
+}
+body.bento-design .drawer-body .drawer-editor-section .edit-actions .btn.btn--primary {
+  background: #F38A3F;
+  border-color: #F38A3F;
+  color: #FFFFFF;
+  padding: 11px 22px;
+  box-shadow: 0 1px 2px rgba(243, 138, 63, 0.20), 0 8px 22px rgba(243, 138, 63, 0.18);
+}
+body.bento-design .drawer-body .drawer-editor-section .edit-actions .btn.btn--primary:hover {
+  background: #DA7A36;
+  border-color: #DA7A36;
+  color: #FFFFFF;
+}
+body.bento-design .drawer-body .drawer-editor-section .edit-actions .btn.btn--danger {
+  background: #FEFCF6;
+  border-color: rgba(214, 95, 79, 0.36);
+  color: #B5483B;
+}
+body.bento-design .drawer-body .drawer-editor-section .edit-actions .btn.btn--danger:hover {
+  background: rgba(214, 95, 79, 0.06);
+  border-color: #B5483B;
+  color: #B5483B;
+}
 body.bento-design .drawer-editor-section .edit-label {
   display: block;
   font-size: 10.5px;
