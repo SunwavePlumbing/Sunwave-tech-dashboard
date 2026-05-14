@@ -251,6 +251,40 @@ function invoicePaidInWindowDollars(inv, start, end) {
   return invoicePaidDollars(inv);
 }
 
+function invoicePaymentSummary(invoices, start, end) {
+  const list = Array.isArray(invoices) ? invoices : [];
+  const summary = {
+    invoiceTotal: 0,
+    collectedInPeriod: 0,
+    invoiceDue: 0,
+    latestPaidAt: null,
+    statuses: []
+  };
+
+  list.forEach(inv => {
+    summary.invoiceTotal += centsToDollars(inv && inv.amount);
+    summary.collectedInPeriod += invoicePaidInWindowDollars(inv, start, end);
+    summary.invoiceDue += Math.max(0, centsToDollars(inv && inv.due_amount));
+    if (inv && inv.paid_at && (!summary.latestPaidAt || inv.paid_at > summary.latestPaidAt)) {
+      summary.latestPaidAt = inv.paid_at;
+    }
+    const status = inv && inv.status ? String(inv.status) : '';
+    if (status && !summary.statuses.includes(status)) summary.statuses.push(status);
+  });
+
+  summary.invoiceTotal = Math.round(summary.invoiceTotal);
+  summary.collectedInPeriod = Math.round(summary.collectedInPeriod);
+  summary.invoiceDue = Math.round(summary.invoiceDue);
+  summary.paymentState = summary.collectedInPeriod > 0 && summary.invoiceDue > 0
+    ? 'partial'
+    : summary.invoiceDue > 0
+      ? 'open'
+      : summary.collectedInPeriod > 0
+        ? 'collected'
+        : null;
+  return summary;
+}
+
 function jobScheduledStart(job) {
   return job && job.schedule && job.schedule.scheduled_start ? new Date(job.schedule.scheduled_start) : null;
 }
@@ -1642,14 +1676,34 @@ app.get('/api/metrics', async (req, res) => {
         const reconAmount = (recon.totalAmount != null
           ? Number(recon.totalAmount)
           : (opts.revenue != null ? opts.revenue : parseFloat(job.total_amount || 0) / 100)) || 0;
-        const reconDate = recon.kpiDate
+        const hcpKpiDate = kpiDateForJob(job);
+        const hcpKpiDateInPeriod = hcpKpiDate && hcpKpiDate >= periodStart && hcpKpiDate < periodEnd;
+        let reconciliationDateAdjusted = false;
+        const originalReconDate = recon.kpiDate || null;
+        let reconDate = recon.kpiDate
           || opts.date
           || (job.work_timestamps && job.work_timestamps.completed_at)
           || (job.schedule && job.schedule.scheduled_start)
           || null;
+        let reconDateObj = reconDate ? new Date(reconDate) : null;
+        if ((!reconDateObj || isNaN(reconDateObj.getTime())) && hcpKpiDate) {
+          reconDate = hcpKpiDate.toISOString();
+          reconDateObj = hcpKpiDate;
+        }
+        // Reconciliations can outlive their original edit date. If the saved
+        // date is stale but HCP says this job belongs in the current period,
+        // keep the admin attribution and use the real KPI date instead of
+        // silently hiding the job from both the leaderboard and diagnostics.
+        if (reconDateObj && !isNaN(reconDateObj.getTime())
+          && (reconDateObj < periodStart || reconDateObj >= periodEnd)
+          && hcpKpiDateInPeriod) {
+          reconDate = hcpKpiDate.toISOString();
+          reconDateObj = hcpKpiDate;
+          reconciliationDateAdjusted = true;
+        }
         // Skip if reconciled job's date is outside the period.
         if (reconDate) {
-          const rd = new Date(reconDate);
+          const rd = reconDateObj || new Date(reconDate);
           if (rd < periodStart || rd >= periodEnd) {
             if (job.id) creditedJobIds.add(job.id);
             const outOfPeriodKey = creditedInvoiceKey(job);
@@ -1717,7 +1771,9 @@ app.get('/api/metrics', async (req, res) => {
             outstandingShare,
             reconciled: true,
             reconciledAt: recon.reconciledAt || null,
-            reconciledBy: recon.reconciledBy || null
+            reconciledBy: recon.reconciledBy || null,
+            reconciliationDateAdjusted,
+            reconciliationOriginalDate: reconciliationDateAdjusted ? originalReconDate : null
           });
         });
         if (job.id) creditedJobIds.add(job.id);
@@ -2239,6 +2295,28 @@ app.get('/api/metrics', async (req, res) => {
         assignedEmployees: [],
         description: null,
         reason: 'standalone_invoice_no_job'
+      });
+    });
+
+    const paymentContextByJobId = {};
+    Object.entries(invoicesByJob).forEach(([jobId, invs]) => {
+      paymentContextByJobId[jobId] = invoicePaymentSummary(invs, periodStart, periodEnd);
+    });
+
+    Object.values(techMetrics).forEach(tech => {
+      (tech.jobList || []).forEach(row => {
+        const ctx = row && row.jobId ? paymentContextByJobId[row.jobId] : null;
+        if (!ctx) return;
+        row.invoiceTotal = ctx.invoiceTotal;
+        row.collectedInPeriod = ctx.collectedInPeriod;
+        row.invoiceDue = ctx.invoiceDue;
+        row.latestPaidAt = ctx.latestPaidAt;
+        row.invoiceStatuses = ctx.statuses;
+        row.paymentState = ctx.paymentState;
+        row.partialPayment = ctx.paymentState === 'partial';
+        row.postCompletionAmountRisk = ctx.paymentState === 'partial' &&
+          row.jobTotal > ctx.collectedInPeriod + 1 &&
+          row.outstanding > 0;
       });
     });
 
@@ -5317,6 +5395,14 @@ app.get('/api/kpi/admin/period-jobs', async (req, res) => {
             date: row.date,
             jobTotal: row.jobTotal,
             outstanding: row.outstanding,
+            invoiceTotal: row.invoiceTotal,
+            collectedInPeriod: row.collectedInPeriod,
+            invoiceDue: row.invoiceDue,
+            latestPaidAt: row.latestPaidAt,
+            invoiceStatuses: row.invoiceStatuses || [],
+            paymentState: row.paymentState || null,
+            partialPayment: !!row.partialPayment,
+            postCompletionAmountRisk: !!row.postCompletionAmountRisk,
             reconciled: row.reconciled || false,
             assignments: []
           };
@@ -5352,6 +5438,14 @@ app.get('/api/kpi/admin/period-jobs', async (req, res) => {
         kpiDate: c.date,
         totalAmount: c.jobTotal,
         outstanding: c.outstanding,
+        invoiceTotal: c.invoiceTotal,
+        collectedInPeriod: c.collectedInPeriod,
+        invoiceDue: c.invoiceDue,
+        latestPaidAt: c.latestPaidAt,
+        invoiceStatuses: c.invoiceStatuses,
+        paymentState: c.paymentState,
+        partialPayment: c.partialPayment,
+        postCompletionAmountRisk: c.postCompletionAmountRisk,
         assignments: c.assignments,
         reconciled: c.reconciled,
         status: c.reconciled ? 'reconciled' : 'credited'

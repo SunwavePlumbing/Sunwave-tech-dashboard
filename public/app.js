@@ -520,6 +520,12 @@ function openModal(tech, mode) {
           reportable('Unpaid: ' + fmt(job.outstanding), job, 'wrong_unpaid',
             'This shows as ' + fmt(job.outstanding) + ' unpaid, but it\'s actually been paid (or the amount is wrong).') +
         '</div>' : '';
+    var paymentNote = job.postCompletionAmountRisk
+      ? '<div class="job-unpaid-note">' +
+          reportable('Partial payment: ' + fmt(job.collectedInPeriod || 0) + ' collected',
+            job, 'wrong_unpaid',
+            'This job has a partial payment and a later unpaid balance. Please check whether the job total was changed after the completed visit.') +
+        '</div>' : '';
     var jobTotal = job.jobTotal != null ? fmt(job.jobTotal) : fmt(job.credit);
     var shareHtml = showPercent
       ? fmt(job.credit) + '<span class="share-pct">(' + job.creditPct + '%)</span>'
@@ -534,7 +540,7 @@ function openModal(tech, mode) {
       '<td>' + fmtDate(job.date) + '</td>' +
       '<td>' + desc + roleBadge + autoDatedBadge + splitNote + '</td>' +
       '<td>' + customerCell + '</td>' +
-      '<td>' + jobTotal + unpaidNote + '</td>' +
+      '<td>' + jobTotal + unpaidNote + paymentNote + '</td>' +
       '<td>' + shareHtml + '</td>' +
       '<td class="job-issue-cell">' + jobIssueLink(job) + '</td>' +
       '</tr>';
@@ -585,6 +591,11 @@ function openModal(tech, mode) {
           job, 'wrong_unpaid',
           'This shows as ' + fmt(job.outstanding) + ' unpaid, but it\'s actually been paid (or the amount is wrong).')
       : '';
+    var paymentChip = job.postCompletionAmountRisk
+      ? reportable('<span class="job-card-unpaid">Partial ' + fmt(job.collectedInPeriod || 0) + '</span>',
+          job, 'wrong_unpaid',
+          'This job has a partial payment and a later unpaid balance. Please check whether the job total was changed after the completed visit.')
+      : '';
     var customerContextMobile = 'For this job (currently showing customer: ' + (job.customer || '?') + '), the customer info on this row doesn\'t match what I actually did.';
     var customerMobile = reportable(esc(job.customer || '\u2014'), job, 'wrong_customer', customerContextMobile);
     return '<div class="job-card">' +
@@ -593,7 +604,7 @@ function openModal(tech, mode) {
         '<div class="job-card-right"><span class="job-card-credit">' + creditAmt + '</span>' + pctHtml + totalLine + jobIssueLink(job) + '</div>' +
       '</div>' +
       '<div class="job-card-desc">' + desc + '</div>' +
-      '<div class="job-card-meta">' + customerMobile + roleBadge + autoDatedBadge + splitNote + unpaidChip + '</div>' +
+      '<div class="job-card-meta">' + customerMobile + roleBadge + autoDatedBadge + splitNote + unpaidChip + paymentChip + '</div>' +
       '</div>';
   }).join('');
   document.getElementById('modalCards').innerHTML = cards ||

@@ -2693,6 +2693,8 @@ function auditSignals(j) {
   if (total >= 5000) signals.push('High ticket');
   if (assignmentCount > 1) signals.push('Shared');
   if (Number(j.outstanding || 0) > 0) signals.push('Unpaid');
+  if (j.partialPayment) signals.push('Partial payment');
+  if (j.postCompletionAmountRisk) signals.push('Amount changed');
   if (j.reason) signals.push('Data issue');
   if (!j.customer) signals.push('Missing customer');
   if (!j.description) signals.push('Missing description');
@@ -2742,6 +2744,8 @@ function computeFlags(j) {
     flags.push({ kind: 'orange', label: 'Tech-flagged issue' });
   }
   if (outstanding > 0) flags.push({ kind: 'orange', label: 'Unpaid balance' });
+  if (j.partialPayment) flags.push({ kind: 'orange', label: 'Partial payment' });
+  if (j.postCompletionAmountRisk) flags.push({ kind: 'orange', label: 'Amount changed after payment' });
   if (assigns.length > 1) flags.push({ kind: 'orange', label: 'Split between techs' });
   if (total >= 5000) flags.push({ kind: 'orange', label: 'High ticket' });
   // HCP-attribution mismatch — assigned tech in HCP differs from
