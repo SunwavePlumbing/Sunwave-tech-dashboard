@@ -1,24 +1,34 @@
 /* ════════════════════════════════════════════════════════════════════
-   admin-kpi-bento.css — Bento-Box Soft Minimalism overlay for
-   KPI Admin / Verify.
+   admin-kpi-bento.css — Bento-Box Soft Minimalism for KPI Admin /
+   Verify. Permanently applied; <body> ships with the
+   `bento-design` class. Selectors stay scoped under that class so
+   the rules can't accidentally leak onto pages that load this
+   stylesheet without the class.
 
-   Loaded unconditionally by admin-kpi.html. Every selector is gated
-   by `body.bento-design`, so the new look is dormant until that
-   class is applied. Users flip via the "Design" button in the
-   header; the choice persists in localStorage. To remove the new
-   design entirely, delete the <link> tag and the design-toggle
-   block in admin-kpi.html — no other code references it.
+   Palette is the Sunwave system from INTERFACE_DESIGN_PHILOSOPHY_NEW.md:
+     orange  #F38A3F   accent / active state / primary actions
+     navy    #373B4D   primary text
+     deep    #0B2447   hero numbers / brand titles
+     blue    #BFE0F3   calm support wash
+     mist    #F1F3F5   canvas + inactive pill fill
+     card    #FAFBFC   elevated card surface
+     border  #DDE3EA   1px outlines + dividers
+     mute    #7B8190   subtitles / timestamps / helper text
+     green   #4BAA78   paid / correct / healthy state
+     gold    #D39A2E   review-needed warning state
+     coral   #D65F4F   unpaid / negative money state
+     wash    #FCEBE7   pale background behind coral
    ════════════════════════════════════════════════════════════════════ */
 
 /* ── Canvas ──────────────────────────────────────────────────────── */
 body.bento-design {
-  background: #F6F3EE;
+  background: #F1F3F5;
   background-image:
-    radial-gradient(ellipse 70% 50% at 0% 0%,    rgba(232, 129, 64, 0.045) 0%, transparent 60%),
-    radial-gradient(ellipse 55% 45% at 100% 28%, rgba(189, 168, 224, 0.045) 0%, transparent 60%),
-    radial-gradient(ellipse 50% 40% at 50% 100%, rgba(190, 218, 200, 0.055) 0%, transparent 60%);
+    radial-gradient(ellipse 70% 50% at 0% 0%,    rgba(243, 138, 63, 0.06)  0%, transparent 60%),
+    radial-gradient(ellipse 55% 45% at 100% 28%, rgba(191, 224, 243, 0.30) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 50% 100%, rgba(75, 170, 120, 0.05)  0%, transparent 60%);
   background-attachment: fixed;
-  color: #1B1B1E;
+  color: #373B4D;
 }
 
 /* ── Header ──────────────────────────────────────────────────────── */
@@ -31,16 +41,16 @@ body.bento-design .header h1 {
   font-size: 30px;
   font-weight: 800;
   letter-spacing: -0.02em;
-  color: #1B1B1E;
+  color: #0B2447;
   margin: 0;
 }
 body.bento-design .header-nav { display: flex; gap: 10px; align-items: center; }
 body.bento-design .header-nav .nav-link {
   padding: 10px 18px;
-  border: 1px solid rgba(0,0,0,0.06);
+  border: 1px solid #DDE3EA;
   border-radius: 999px;
-  background: rgba(255,255,255,0.78);
-  color: #4A4A50;
+  background: rgba(250, 251, 252, 0.78);
+  color: #373B4D;
   font-size: 12px;
   font-weight: 700;
   text-decoration: none;
@@ -49,8 +59,8 @@ body.bento-design .header-nav .nav-link {
   transition: all 0.18s;
 }
 body.bento-design .header-nav .nav-link:hover {
-  border-color: rgba(0,0,0,0.16);
-  color: #1B1B1E;
+  border-color: #F38A3F;
+  color: #F38A3F;
 }
 
 /* ── Tab strip — pill-in-a-pill ──────────────────────────────────── */
@@ -58,8 +68,8 @@ body.bento-design .tabs {
   display: inline-flex;
   gap: 4px;
   padding: 5px;
-  background: rgba(255,255,255,0.7);
-  border: 1px solid rgba(0,0,0,0.05);
+  background: rgba(250, 251, 252, 0.75);
+  border: 1px solid #DDE3EA;
   border-radius: 999px;
   margin: 4px 0 22px;
   backdrop-filter: blur(12px);
@@ -70,26 +80,26 @@ body.bento-design .tab {
   border-radius: 999px;
   font-weight: 700;
   font-size: 13px;
-  color: #7A7680;
+  color: #7B8190;
   background: transparent;
   letter-spacing: 0.01em;
   transition: background 0.18s, color 0.18s;
 }
-body.bento-design .tab:hover { color: #1B1B1E; }
+body.bento-design .tab:hover { color: #373B4D; }
 body.bento-design .tab.is-active {
-  background: #1B1B1E;
-  color: #F7F4EF;
+  background: #F38A3F;
+  color: #FFFFFF;
 }
 
 /* ── Sticky bar — single hero control card ──────────────────────── */
 body.bento-design .stickybar {
-  background: #FFFFFF;
-  border: 1px solid rgba(0,0,0,0.045);
+  background: #FAFBFC;
+  border: 1px solid #DDE3EA;
   border-radius: 28px;
   padding: 26px 30px;
   box-shadow:
-    0 1px 2px rgba(15, 15, 20, 0.025),
-    0 24px 60px rgba(15, 15, 20, 0.045);
+    0 1px 2px rgba(11, 36, 71, 0.025),
+    0 24px 60px rgba(11, 36, 71, 0.045);
   margin: 0 0 16px;
   backdrop-filter: none;
 }
@@ -98,34 +108,34 @@ body.bento-design .stickybar-row:last-child { margin-bottom: 0; }
 
 body.bento-design .stickybar-row select,
 body.bento-design .stickybar-row input[type="text"] {
-  background: #F4F1EC;
+  background: #F1F3F5;
   border: 1px solid transparent;
   border-radius: 14px;
   padding: 13px 16px;
   font-size: 14px;
   font-weight: 500;
-  color: #1B1B1E;
+  color: #373B4D;
   transition: background 0.16s, border-color 0.16s;
 }
 body.bento-design .stickybar-row select:hover,
 body.bento-design .stickybar-row input[type="text"]:hover {
-  background: #EDE9E2;
+  background: #E8ECF0;
 }
 body.bento-design .stickybar-row select:focus,
 body.bento-design .stickybar-row input[type="text"]:focus {
   outline: none;
-  border-color: rgba(0,0,0,0.16);
+  border-color: #F38A3F;
   background: #FFFFFF;
 }
 body.bento-design .stickybar-row input[type="text"]::placeholder {
-  color: #A8A4AC;
+  color: #A8AEB7;
   opacity: 1;
   font-weight: 400;
 }
 
 body.bento-design .stickybar-row button {
-  background: #1B1B1E;
-  color: #FAFAF7;
+  background: #373B4D;
+  color: #FAFBFC;
   border: 0;
   padding: 13px 22px;
   border-radius: 14px;
@@ -134,21 +144,21 @@ body.bento-design .stickybar-row button {
   letter-spacing: 0.02em;
 }
 body.bento-design .stickybar-row button:hover {
-  background: #2C2A30;
+  background: #0B2447;
   border-color: transparent;
-  color: #FAFAF7;
+  color: #FAFBFC;
 }
 body.bento-design .reload-icon-btn {
   width: 46px !important;
   height: 46px !important;
-  background: #F4F1EC !important;
-  color: #4A4A50 !important;
+  background: #F1F3F5 !important;
+  color: #373B4D !important;
   font-size: 19px !important;
   border-radius: 14px !important;
 }
 body.bento-design .reload-icon-btn:hover {
-  background: #EDE9E2 !important;
-  color: #1B1B1E !important;
+  background: rgba(243, 138, 63, 0.12) !important;
+  color: #F38A3F !important;
   border-color: transparent !important;
 }
 
@@ -157,44 +167,45 @@ body.bento-design .stickybar-row--status { padding-top: 0; }
 body.bento-design .progress-bar--beefy {
   height: 88px;
   border-radius: 20px;
-  background: linear-gradient(135deg, #EFF6F0 0%, #DCEDDF 100%);
-  border: 1px solid rgba(47, 125, 73, 0.10);
+  background: linear-gradient(135deg, rgba(75, 170, 120, 0.10) 0%, rgba(75, 170, 120, 0.20) 100%);
+  border: 1px solid rgba(75, 170, 120, 0.16);
   overflow: hidden;
 }
 body.bento-design .progress-bar--beefy .progress-fill {
   background: linear-gradient(135deg,
-    rgba(47, 125, 73, 0.18) 0%,
-    rgba(47, 125, 73, 0.28) 100%);
+    rgba(75, 170, 120, 0.18) 0%,
+    rgba(75, 170, 120, 0.32) 100%);
 }
 body.bento-design .progress-bar--beefy .progress-fill.is-empty {
   background: linear-gradient(135deg,
-    rgba(232, 129, 64, 0.16) 0%,
-    rgba(232, 129, 64, 0.26) 100%);
+    rgba(243, 138, 63, 0.16) 0%,
+    rgba(243, 138, 63, 0.28) 100%);
 }
 body.bento-design .progress-bar--beefy .progress-label {
   font-size: 16px;
   font-weight: 600;
   gap: 12px;
   padding: 0 24px;
-  color: #1B1B1E;
+  color: #373B4D;
   letter-spacing: -0.005em;
 }
 body.bento-design .progress-bar--beefy .progress-label strong {
   font-size: 30px;
   font-weight: 850;
   letter-spacing: -0.02em;
-  color: #1B1B1E;
+  color: #0B2447;
+  font-variant-numeric: tabular-nums;
 }
 body.bento-design .progress-bar--beefy .progress-label strong#ps-amount-verified {
-  color: #1F5D33;
+  color: #4BAA78;
 }
 body.bento-design .progress-bar--beefy .progress-label strong.warn {
-  color: #8E5F0A;
+  color: #D65F4F;
 }
 body.bento-design .progress-bar--beefy .progress-label .muted {
   font-size: 13px;
   font-weight: 600;
-  color: #7A7680;
+  color: #7B8190;
   letter-spacing: 0.02em;
 }
 
@@ -207,39 +218,41 @@ body.bento-design .filter-pill {
   padding: 11px 18px;
   border: 1px solid transparent;
   border-radius: 999px;
-  background: rgba(255,255,255,0.72);
+  background: rgba(250, 251, 252, 0.72);
   font-weight: 700;
   font-size: 12.5px;
-  color: #7A7680;
+  color: #7B8190;
   letter-spacing: 0.02em;
   backdrop-filter: blur(8px);
   transition: all 0.16s;
 }
 body.bento-design .filter-pill:hover {
-  background: rgba(255,255,255,1);
-  color: #1B1B1E;
+  background: #FAFBFC;
+  color: #373B4D;
+  border-color: #DDE3EA;
 }
 body.bento-design .filter-pill.is-active {
-  background: #1B1B1E;
-  border-color: #1B1B1E;
-  color: #F7F4EF;
+  background: #F38A3F;
+  border-color: #F38A3F;
+  color: #FFFFFF;
 }
 body.bento-design .filter-pill-count {
-  background: rgba(0,0,0,0.06);
+  background: rgba(123, 129, 144, 0.14);
   color: inherit;
   font-weight: 800;
   font-size: 10.5px;
   padding: 2px 8px;
+  font-variant-numeric: tabular-nums;
 }
 body.bento-design .filter-pill.is-active .filter-pill-count {
-  background: rgba(255,255,255,0.16);
-  color: #F7F4EF;
+  background: rgba(255, 255, 255, 0.22);
+  color: #FFFFFF;
 }
 
 /* ── Auto-verify bar — accent card ───────────────────────────────── */
 body.bento-design .auto-verify-bar {
-  background: linear-gradient(135deg, #EFF6F0 0%, #DCEDDF 100%);
-  border: 1px solid rgba(47, 125, 73, 0.16);
+  background: linear-gradient(135deg, rgba(75, 170, 120, 0.10) 0%, rgba(75, 170, 120, 0.18) 100%);
+  border: 1px solid rgba(75, 170, 120, 0.20);
   border-radius: 24px;
   padding: 22px 28px;
   margin-bottom: 16px;
@@ -247,17 +260,18 @@ body.bento-design .auto-verify-bar {
 }
 body.bento-design .auto-verify-text {
   font-size: 14px;
-  color: #1B1B1E;
+  color: #373B4D;
   font-weight: 500;
 }
 body.bento-design .auto-verify-text strong {
   font-size: 22px;
   font-weight: 850;
-  color: #1F5D33;
+  color: #4BAA78;
+  font-variant-numeric: tabular-nums;
 }
 body.bento-design .auto-verify-bar button {
-  background: #1F5D33;
-  color: white;
+  background: #4BAA78;
+  color: #FFFFFF;
   border: 0;
   border-radius: 999px;
   padding: 13px 24px;
@@ -266,34 +280,34 @@ body.bento-design .auto-verify-bar button {
   letter-spacing: 0.02em;
 }
 body.bento-design .auto-verify-bar button:hover {
-  filter: brightness(1.10);
+  filter: brightness(1.08);
 }
 
 /* ── Job list — tactile tiles ────────────────────────────────────── */
 body.bento-design .jobs-list { gap: 10px; }
 body.bento-design .job {
-  background: #FFFFFF;
-  border: 1px solid rgba(0,0,0,0.04);
+  background: #FAFBFC;
+  border: 1px solid #DDE3EA;
   border-radius: 22px;
   box-shadow:
-    0 1px 2px rgba(15, 15, 20, 0.025),
-    0 16px 38px rgba(15, 15, 20, 0.04);
+    0 1px 2px rgba(11, 36, 71, 0.025),
+    0 16px 38px rgba(11, 36, 71, 0.04);
   overflow: hidden;
   transition: border-color 0.18s, box-shadow 0.18s, transform 0.18s;
 }
 body.bento-design .job::before { display: none; }
 body.bento-design .job:hover {
-  border-color: rgba(0,0,0,0.10);
+  border-color: rgba(243, 138, 63, 0.35);
   box-shadow:
-    0 2px 4px rgba(15, 15, 20, 0.05),
-    0 24px 56px rgba(15, 15, 20, 0.075);
+    0 2px 4px rgba(11, 36, 71, 0.05),
+    0 24px 56px rgba(11, 36, 71, 0.08);
   transform: translateY(-2px);
 }
 body.bento-design .job.is-active-drawer {
-  border-color: rgba(232, 129, 64, 0.42);
+  border-color: #F38A3F;
   box-shadow:
-    0 0 0 4px rgba(232, 129, 64, 0.10),
-    0 24px 56px rgba(232, 129, 64, 0.10);
+    0 0 0 4px rgba(243, 138, 63, 0.14),
+    0 24px 56px rgba(243, 138, 63, 0.12);
 }
 
 body.bento-design .job-summary {
@@ -306,25 +320,23 @@ body.bento-design .job-status {
   padding: 7px 14px;
   font-weight: 800;
   letter-spacing: 0.18em;
-  background: rgba(0,0,0,0.04);
-  color: #1B1B1E;
   border: 0;
 }
-body.bento-design .job-status--credited    { background: rgba(232, 129, 64, 0.10); color: #B65C2C; }
-body.bento-design .job-status--reconciled  { background: rgba(47, 125, 73, 0.10);  color: #1F5D33; }
-body.bento-design .job-status--unattributed{ background: rgba(201, 130, 10, 0.10); color: #8E5F0A; }
-body.bento-design .job-status--excluded    { background: rgba(0,0,0,0.05);         color: #6B6B70; }
+body.bento-design .job-status--credited    { background: rgba(243, 138, 63, 0.12); color: #B05A22; }
+body.bento-design .job-status--reconciled  { background: rgba(75, 170, 120, 0.14); color: #2E7A52; }
+body.bento-design .job-status--unattributed{ background: rgba(211, 154, 46, 0.14); color: #8C6716; }
+body.bento-design .job-status--excluded    { background: rgba(123, 129, 144, 0.14); color: #5C6371; }
 
 body.bento-design .job-line1 { font-size: 16px; gap: 10px; }
-body.bento-design .job-line1 .inv { color: #1B1B1E; font-weight: 800; }
-body.bento-design .job-line1 .cust { color: #4A4A50; font-weight: 600; }
+body.bento-design .job-line1 .inv  { color: #0B2447; font-weight: 800; font-variant-numeric: tabular-nums; }
+body.bento-design .job-line1 .cust { color: #373B4D; font-weight: 600; }
 body.bento-design .job-line2 {
   font-size: 13px;
-  color: #8A858E;
+  color: #7B8190;
   font-weight: 500;
   margin-top: 3px;
 }
-body.bento-design .job-line2--attr { color: #4A4A50; }
+body.bento-design .job-line2--attr { color: #373B4D; }
 
 body.bento-design .job-signals { gap: 6px; margin-top: 10px; }
 body.bento-design .job-flag {
@@ -335,19 +347,19 @@ body.bento-design .job-flag {
   border-radius: 999px;
   border: 0;
 }
-body.bento-design .job-flag--green  { background: rgba(47, 125, 73, 0.10);  color: #1F5D33; }
-body.bento-design .job-flag--orange { background: rgba(201, 130, 10, 0.10); color: #8E5F0A; }
-body.bento-design .job-flag--red    { background: rgba(192, 57, 43, 0.10);  color: #8C2D26; }
+body.bento-design .job-flag--green  { background: rgba(75, 170, 120, 0.14); color: #2E7A52; }
+body.bento-design .job-flag--orange { background: rgba(211, 154, 46, 0.14); color: #8C6716; }
+body.bento-design .job-flag--red    { background: #FCEBE7;                  color: #A33F30; }
 body.bento-design .job-flag-more {
   font-size: 10px;
   font-weight: 700;
-  color: #8A858E;
+  color: #7B8190;
   padding: 5px 8px;
 }
 
 body.bento-design .job-date {
   font-size: 11px;
-  color: #8A858E;
+  color: #7B8190;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -356,15 +368,20 @@ body.bento-design .job-amount {
   font-size: 26px;
   font-weight: 850;
   letter-spacing: -0.015em;
-  color: #1B1B1E;
+  color: #0B2447;
   line-height: 1.05;
+  font-variant-numeric: tabular-nums;
 }
-body.bento-design .job-amount-sub { color: #8E5F0A; font-weight: 700; }
+body.bento-design .job-amount-sub {
+  color: #D65F4F;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
 
 body.bento-design .job-quick {
   border: 0;
-  background: rgba(0,0,0,0.04);
-  color: #1B1B1E;
+  background: #F1F3F5;
+  color: #373B4D;
   font-weight: 700;
   font-size: 12.5px;
   padding: 10px 16px;
@@ -372,8 +389,8 @@ body.bento-design .job-quick {
   letter-spacing: 0.01em;
 }
 body.bento-design .job-quick:hover {
-  background: #1B1B1E;
-  color: #FAFAF7;
+  background: #F38A3F;
+  color: #FFFFFF;
   border-color: transparent;
 }
 
@@ -385,16 +402,16 @@ body.bento-design .confidence-badge {
   padding: 9px 13px;
   box-shadow: none;
 }
-body.bento-design .confidence-badge--high { background: rgba(47, 125, 73, 0.12);  color: #1F5D33; }
-body.bento-design .confidence-badge--med  { background: rgba(201, 130, 10, 0.12); color: #8E5F0A; }
-body.bento-design .confidence-badge--low  { background: rgba(192, 57, 43, 0.12);  color: #8C2D26; }
+body.bento-design .confidence-badge--high { background: rgba(75, 170, 120, 0.14); color: #2E7A52; }
+body.bento-design .confidence-badge--med  { background: rgba(211, 154, 46, 0.14); color: #8C6716; }
+body.bento-design .confidence-badge--low  { background: #FCEBE7;                  color: #A33F30; }
 
 body.bento-design .job-chevron {
-  background: rgba(0,0,0,0.04);
+  background: #F1F3F5;
   border-radius: 999px;
   width: 30px;
   height: 30px;
-  color: #6B6B70;
+  color: #7B8190;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -405,7 +422,7 @@ body.bento-design .job-chevron {
 body.bento-design .job-section {
   font-size: 11px;
   letter-spacing: 0.16em;
-  color: #8A858E;
+  color: #7B8190;
   font-weight: 800;
   padding: 18px 6px 8px;
   margin-top: 6px;
@@ -413,38 +430,3 @@ body.bento-design .job-section {
   background: transparent;
   border: 0;
 }
-
-/* ── The toggle button itself ───────────────────────────────────── */
-.design-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 9px 14px;
-  border-radius: 999px;
-  background: rgba(255,255,255,0.85);
-  border: 1px solid rgba(0,0,0,0.08);
-  color: #6B6B70;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  cursor: pointer;
-  font-family: inherit;
-  backdrop-filter: blur(8px);
-  transition: all 0.18s;
-}
-.design-toggle:hover { color: #1B1B1E; border-color: rgba(0,0,0,0.18); }
-.design-toggle .dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-  background: #8A858E;
-  transition: background 0.18s;
-}
-body.bento-design .design-toggle .dot { background: #2F7D49; }
-body.bento-design .design-toggle {
-  background: rgba(27, 27, 30, 0.92);
-  border-color: rgba(27, 27, 30, 1);
-  color: #F7F4EF;
-}
-body.bento-design .design-toggle:hover { background: #1B1B1E; color: #FFFFFF; }
