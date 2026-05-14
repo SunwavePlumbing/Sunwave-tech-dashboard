@@ -5051,6 +5051,11 @@ app.get('/api/kpi/admin/job/:id', async (req, res) => {
       }),
       safe('invoices', async () => {
         const ir = await axios.get(BASE_URL + '/jobs/' + id + '/invoices', { headers: hcpHeaders() });
+        // Names of the techs assigned to THIS job — used to attribute
+        // every invoice + payment on this job back to who worked it.
+        const jobEmployees = (job.assigned_employees || [])
+          .map(e => personLabel(e) || e.email || e.id)
+          .filter(Boolean);
         return (ir.data.invoices || []).map(inv => ({
           invoiceNumber: inv.invoice_number || null,
           amount: inv.amount != null ? Number(inv.amount) / 100 : null,
@@ -5061,10 +5066,15 @@ app.get('/api/kpi/admin/job/:id', async (req, res) => {
           dueAt: inv.due_at || null,
           dueAmount: inv.due_amount != null ? Number(inv.due_amount) / 100 : null,
           paymentMethod: inv.payment_method || (inv.payments && inv.payments[0] && inv.payments[0].method) || null,
+          employees: jobEmployees,
           payments: (inv.payments || []).map(p => ({
             amount: p.amount != null ? Number(p.amount) / 100 : null,
             method: p.method || null,
-            paidAt: p.paid_at || p.created_at || null,
+            // HCP frequently omits paid_at and created_at on the
+            // embedded payment object even though the parent invoice
+            // has paid_at. Fall back to the invoice's paid_at so the
+            // timeline always has a date to anchor the payment on.
+            paidAt: p.paid_at || p.created_at || inv.paid_at || null,
             note: p.note || null
           }))
         }));
@@ -5136,6 +5146,7 @@ app.get('/api/kpi/admin/job/:id', async (req, res) => {
         }
         try {
           const ir = await axios.get(BASE_URL + '/jobs/' + cj.id + '/invoices', { headers: hcpHeaders() });
+          const employees = (cj.assignedEmployees || []).map(e => e.name).filter(Boolean);
           return (ir.data.invoices || []).map(inv => ({
             invoiceNumber: inv.invoice_number || null,
             amount: inv.amount != null ? Number(inv.amount) / 100 : null,
@@ -5146,10 +5157,11 @@ app.get('/api/kpi/admin/job/:id', async (req, res) => {
             dueAt: inv.due_at || null,
             dueAmount: inv.due_amount != null ? Number(inv.due_amount) / 100 : null,
             paymentMethod: inv.payment_method || (inv.payments && inv.payments[0] && inv.payments[0].method) || null,
+            employees: employees,
             payments: (inv.payments || []).map(p => ({
               amount: p.amount != null ? Number(p.amount) / 100 : null,
               method: p.method || null,
-              paidAt: p.paid_at || p.created_at || null,
+              paidAt: p.paid_at || p.created_at || inv.paid_at || null,
               note: p.note || null
             })),
             jobId: cj.id,

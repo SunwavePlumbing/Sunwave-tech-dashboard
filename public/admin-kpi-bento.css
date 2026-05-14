@@ -1811,6 +1811,10 @@ body.bento-design .ct-evt-row2 {
 }
 body.bento-design .ct-evt-when { color: #7B8190; }
 body.bento-design .ct-evt-meta { color: #9BA1AE; }
+body.bento-design .ct-evt-who {
+  color: #373B4D;
+  font-weight: 700;
+}
 body.bento-design .ct-evt-dot { color: #CFC8B9; }
 
 /* Line-items table inside ctx-section */

@@ -4769,6 +4769,7 @@ function renderCustomerMoneyTimeline(srv, ctx) {
   estimates.forEach(e => {
     const ref = e.estimateNumber ? '#' + e.estimateNumber : 'Estimate';
     const totalLbl = e.total != null ? fmt(e.total) : null;
+    const who = (e.assignedEmployees || []).map(emp => emp && emp.name).filter(Boolean).join(', ');
     if (e.createdAt) {
       events.push({
         kind: 'estimate',
@@ -4776,6 +4777,7 @@ function renderCustomerMoneyTimeline(srv, ctx) {
         label: 'Estimate created',
         ref: ref,
         amount: totalLbl,
+        who: who,
         tone: 'info'
       });
     }
@@ -4786,6 +4788,7 @@ function renderCustomerMoneyTimeline(srv, ctx) {
         label: 'Estimate approved',
         ref: ref,
         amount: totalLbl,
+        who: who,
         tone: 'good'
       });
     }
@@ -4800,6 +4803,7 @@ function renderCustomerMoneyTimeline(srv, ctx) {
         label: 'Estimate ' + (status || 'closed'),
         ref: ref,
         amount: totalLbl,
+        who: who,
         tone: 'bad'
       });
     }
@@ -4811,6 +4815,7 @@ function renderCustomerMoneyTimeline(srv, ctx) {
     const jobRef = inv.jobId === currentJobId
       ? 'this job'
       : (inv.jobInvoiceNumber ? 'job #' + inv.jobInvoiceNumber : null);
+    const who = (inv.employees || []).join(', ');
     // Issued (sent_at preferred, else invoice_date — HCP fills only one
     // depending on workflow). Skip if both are missing.
     const issuedAt = inv.sentAt || inv.invoiceDate;
@@ -4822,6 +4827,7 @@ function renderCustomerMoneyTimeline(srv, ctx) {
         ref: ref,
         amount: inv.amount != null ? fmt(inv.amount) : null,
         meta: jobRef,
+        who: who,
         tone: 'info'
       });
     }
@@ -4833,11 +4839,12 @@ function renderCustomerMoneyTimeline(srv, ctx) {
       payments.forEach(p => {
         events.push({
           kind: 'payment',
-          date: p.paidAt,
+          date: p.paidAt || inv.paidAt,
           label: 'Payment' + (p.method ? ' · ' + p.method : ''),
           ref: ref,
           amount: p.amount != null ? fmt(p.amount) : null,
           meta: jobRef,
+          who: who,
           tone: 'good'
         });
       });
@@ -4850,6 +4857,7 @@ function renderCustomerMoneyTimeline(srv, ctx) {
         amount: inv.paidAmount != null ? fmt(inv.paidAmount)
               : inv.amount != null ? fmt(inv.amount) : null,
         meta: jobRef,
+        who: who,
         tone: 'good'
       });
     }
@@ -4864,6 +4872,7 @@ function renderCustomerMoneyTimeline(srv, ctx) {
         ref: ref,
         amount: fmt(inv.dueAmount),
         meta: jobRef,
+        who: who,
         tone: 'bad'
       });
     }
@@ -4874,6 +4883,7 @@ function renderCustomerMoneyTimeline(srv, ctx) {
     const ref = j.invoice ? 'Job #' + j.invoice : 'Job';
     const totalLbl = j.total != null ? fmt(j.total) : null;
     const isCurrent = j.id === currentJobId;
+    const who = (j.assignedEmployees || []).map(emp => emp && emp.name).filter(Boolean).join(', ');
     if (j.createdAt) {
       events.push({
         kind: 'job',
@@ -4881,6 +4891,7 @@ function renderCustomerMoneyTimeline(srv, ctx) {
         label: 'Job created' + (isCurrent ? ' (this job)' : ''),
         ref: ref,
         amount: totalLbl,
+        who: who,
         tone: 'info'
       });
     }
@@ -4891,6 +4902,7 @@ function renderCustomerMoneyTimeline(srv, ctx) {
         label: 'Job completed' + (isCurrent ? ' (this job)' : ''),
         ref: ref,
         amount: totalLbl,
+        who: who,
         tone: 'good'
       });
     }
@@ -4926,6 +4938,9 @@ function renderCustomerMoneyTimeline(srv, ctx) {
     const amountHtml = e.amount
       ? '<span class="ct-evt-amt ct-evt-amt--' + e.tone + '">' + esc(e.amount) + '</span>'
       : '';
+    const whoHtml = e.who
+      ? '<span class="ct-evt-who">' + esc(e.who) + '</span>'
+      : '';
     return '<li class="ct-evt ct-evt--' + e.kind + ' ct-evt--' + e.tone + '">' +
       '<span class="ct-evt-icon" aria-hidden="true">' + ICON[e.kind] + '</span>' +
       '<div class="ct-evt-main">' +
@@ -4937,6 +4952,7 @@ function renderCustomerMoneyTimeline(srv, ctx) {
           '<span class="ct-evt-when">' + esc(dt) + '</span>' +
           (metaParts.length ? '<span class="ct-evt-dot">·</span>' : '') +
           metaHtml +
+          (e.who ? '<span class="ct-evt-dot">·</span>' + whoHtml : '') +
         '</div>' +
       '</div>' +
     '</li>';
