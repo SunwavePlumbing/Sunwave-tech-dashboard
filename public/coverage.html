@@ -970,7 +970,7 @@ function render(d) {
 
     <div class="tiles">
       <div class="tile">
-        <div class="tile-label">HCP truth</div>
+        <div class="tile-label">HCP collected</div>
         <div class="tile-value">${fmt(truth.totalPaidInPeriod)}</div>
         <div class="tile-sub">${truth.paidInvoiceCount} invoices, ${truth.uniqueJobCount} jobs</div>
       </div>
@@ -987,7 +987,7 @@ function render(d) {
       <div class="tile ${reconciliation.missing > 0 ? 'tile--bad' : 'tile--good'}">
         <div class="tile-label">Missing</div>
         <div class="tile-value">${reconciliation.missing}</div>
-        <div class="tile-sub">paid invoices not credited</div>
+        <div class="tile-sub">payment activity not credited</div>
       </div>
       <div class="tile ${reconciliation.drift > 0 ? 'tile--warn' : 'tile--good'}">
         <div class="tile-label">Amount Drift</div>
@@ -1002,7 +1002,7 @@ function render(d) {
       <div class="tile ${(reconciliation.crossPeriod || 0) > 0 ? 'tile--info' : 'tile--good'}">
         <div class="tile-label">Cross-period</div>
         <div class="tile-value">${reconciliation.crossPeriod || 0}</div>
-        <div class="tile-sub">paid here, credited to a different month</div>
+        <div class="tile-sub">collected here, credited to a different month</div>
       </div>
     </div>
 
@@ -1014,7 +1014,7 @@ function render(d) {
             <span class="row-customer">${escapeHtml(row.customer || '—')}</span>
           </div>
           <div class="row-meta">
-            ${chip('Paid ' + fmtDateTime(row.latestPaidAt), 'bad')}
+            ${chip('Payment ' + fmtDateTime(row.latestPaidAt), 'bad')}
             ${scheduledChip(row.scheduledStart)}
             ${chip(row.workStatus || 'no status', 'warn')}
             ${chip(row.assignedEmployees.length ? row.assignedEmployees.join(', ') : 'unassigned')}
@@ -1037,11 +1037,11 @@ function render(d) {
             <span class="row-customer">${escapeHtml(row.customer || '—')}</span>
           </div>
           <div class="row-meta">
-            ${chip('Paid ' + fmtDateTime(row.latestPaidAt), 'warn')}
+            ${chip('Payment ' + fmtDateTime(row.latestPaidAt), 'warn')}
             ${scheduledChip(row.scheduledStart)}
             ${chip(row.workStatus || 'no status')}
           </div>
-          <div class="row-fixit">Credited <strong>${fmt(row.credited)}</strong> vs. HCP paid <strong>${fmt(row.paidInPeriod)}</strong> &middot; delta <span class="row-amount-delta">${row.delta > 0 ? '+' : ''}${fmt(row.delta)}</span></div>
+          <div class="row-fixit">Credited <strong>${fmt(row.credited)}</strong> vs. expected KPI credit <strong>${fmt(row.expectedCredit != null ? row.expectedCredit : row.paidInPeriod)}</strong> &middot; collected <strong>${fmt(row.paidInPeriod)}</strong> &middot; delta <span class="row-amount-delta">${row.delta > 0 ? '+' : ''}${fmt(row.delta)}</span></div>
         </div>
         <div class="row-amount">${fmt(row.paidInPeriod)}</div>
       </div>
@@ -1070,7 +1070,7 @@ function render(d) {
             <span class="row-customer">${escapeHtml(row.customer || '—')}</span>
           </div>
           <div class="row-meta">
-            ${chip('Paid ' + fmtDateTime(row.latestPaidAt), 'warn')}
+            ${chip('Payment ' + fmtDateTime(row.latestPaidAt), 'warn')}
             ${chip('Service ' + (row.kpiDateYmd || '—'))}
             ${chip(row.workStatus || 'no status')}
             ${chip(row.assignedEmployees && row.assignedEmployees.length ? row.assignedEmployees.join(', ') : 'unassigned')}
@@ -1103,7 +1103,7 @@ function render(d) {
             <span class="row-customer">${escapeHtml(row.customer || '—')}</span>
           </div>
           <div class="row-meta">
-            ${chip('Paid ' + fmtDateTime(row.paidAt), 'warn')}
+            ${chip('Payment ' + fmtDateTime(row.paidAt), 'warn')}
           </div>
           <div class="row-fixit">${escapeHtml(row.reason)}</div>
         </div>
@@ -1113,7 +1113,7 @@ function render(d) {
 
     <div class="status" style="margin-top:1.5rem">
       <strong>How this works:</strong> The tool calls Housecall Pro&rsquo;s
-      <code>/invoices?paid_at_min/max</code> endpoint to enumerate every dollar paid in
+      <code>/invoices?paid_at_min/max</code> endpoint to enumerate every dollar collected in
       this period, then pulls each linked job directly by ID (<code>/jobs/{id}</code>)
       so no scheduled-start filter can hide it. Each invoice is cross-referenced against
       the dashboard&rsquo;s leaderboard cache (<code>metrics:${escapeHtml(period.range)}</code>).

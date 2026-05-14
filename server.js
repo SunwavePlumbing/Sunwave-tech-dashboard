@@ -194,7 +194,15 @@ const SELLER_LOOKBACK_MS = 14 * 24 * 60 * 60 * 1000;
 // in the simpler "completed" bucket. Treat it as completed for KPI
 // purposes, otherwise real paid work can be visible in diagnostics/audit
 // but absent from the main leaderboard fetch.
-const HCP_KPI_WORK_STATUSES = ['completed', 'complete unrated', 'complete_unrated', 'in_progress', 'scheduled'];
+const HCP_KPI_WORK_STATUSES = [
+  'completed',
+  'complete rated',
+  'complete_rated',
+  'complete unrated',
+  'complete_unrated',
+  'in_progress',
+  'scheduled'
+];
 
 function normalizeWorkStatus(value) {
   return String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
@@ -203,6 +211,44 @@ function normalizeWorkStatus(value) {
 function isKpiFetchableWorkStatus(value) {
   const normalized = normalizeWorkStatus(value);
   return HCP_KPI_WORK_STATUSES.some(status => normalizeWorkStatus(status) === normalized);
+}
+
+function centsToDollars(value) {
+  const n = Number(value || 0);
+  return Number.isFinite(n) ? n / 100 : 0;
+}
+
+function invoicePaidDollars(inv) {
+  if (!inv) return 0;
+  const payments = Array.isArray(inv.payments) ? inv.payments : [];
+  const paymentSum = payments.reduce((sum, payment) => sum + centsToDollars(payment.amount), 0);
+  if (paymentSum > 0) return paymentSum;
+
+  const total = centsToDollars(inv.amount);
+  if (inv.due_amount != null) {
+    return Math.max(0, total - Math.max(0, centsToDollars(inv.due_amount)));
+  }
+
+  return inv.paid_at ? Math.max(0, total) : 0;
+}
+
+function invoicePaidInWindowDollars(inv, start, end) {
+  if (!inv) return 0;
+  const payments = Array.isArray(inv.payments) ? inv.payments : [];
+  const paymentsInWindow = payments
+    .filter(payment => {
+      const raw = payment.paid_at || payment.created_at;
+      if (!raw) return false;
+      const paidAt = new Date(raw);
+      return paidAt >= start && paidAt < end;
+    })
+    .reduce((sum, payment) => sum + centsToDollars(payment.amount), 0);
+  if (paymentsInWindow > 0) return paymentsInWindow;
+
+  if (!inv.paid_at) return 0;
+  const paidAt = new Date(inv.paid_at);
+  if (paidAt < start || paidAt >= end) return 0;
+  return invoicePaidDollars(inv);
 }
 
 function jobScheduledStart(job) {
@@ -1557,7 +1603,7 @@ app.get('/api/metrics', async (req, res) => {
        therefore got skipped (caller can collect those as orphans).
 
        opts.revenue (dollars) — override for `job.total_amount/100`. Used
-         by the supplemental flow to pass "sum of paid invoices in this
+         by the supplemental flow to pass "sum collected from invoices in this
          period" for jobs whose `total_amount` is unreliable (e.g. split
          across multiple invoices, or where the job is still in_progress
          in HCP because of a residual customer credit).
@@ -2044,7 +2090,7 @@ app.get('/api/metrics', async (req, res) => {
 
       const invs = invoicesByJob[job.id] || [];
       const paidInPeriod = invs.reduce((s, inv) =>
-        s + parseFloat(inv.amount || 0) / 100, 0);
+        s + invoicePaidInWindowDollars(inv, periodStart, periodEnd), 0);
       if (paidInPeriod <= 0) return;
 
       const latestPaidAt = invs.map(i => i.paid_at).filter(Boolean).sort().pop() || null;
@@ -2111,7 +2157,7 @@ app.get('/api/metrics', async (req, res) => {
       const job = gapJobs.find(j => j && j.id === jobId);
       if (paidInvoiceAlreadyCredited(job, invs)) continue;
       const paidInPeriod = invs.reduce((s, inv) =>
-        s + parseFloat(inv.amount || 0) / 100, 0);
+        s + invoicePaidInWindowDollars(inv, periodStart, periodEnd), 0);
       if (paidInPeriod <= 0) continue;
       const latestPaidAt = invs.map(i => i.paid_at).filter(Boolean).sort().pop() || null;
       const invNumbers = invs.map(i => i.invoice_number).filter(Boolean);
@@ -2179,7 +2225,7 @@ app.get('/api/metrics', async (req, res) => {
 
     // Also push standalone invoices (no job_id) so even those appear.
     standaloneInvoices.forEach(inv => {
-      const paidAmount = parseFloat(inv.amount || 0) / 100;
+      const paidAmount = invoicePaidInWindowDollars(inv, periodStart, periodEnd);
       if (paidAmount <= 0) return;
       unattributed.push({
         jobId: null,
@@ -3389,6 +3435,7 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
       status: inv.status || null,
       amount: roundedDollars(inv.amount),
       dueAmount: roundedDollars(inv.due_amount),
+      paidAmount: Math.round(invoicePaidDollars(inv)),
       paidAt: inv.paid_at || null,
       dueAt: inv.due_at || null,
       createdAt: inv.created_at || null,
@@ -3645,8 +3692,7 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
     const kpiDate = kpiDateForJob(job);
     const assigned = job.assigned_employees || [];
     const paidInPeriod = matchedInvoices
-      .filter(inv => inv.paid_at && new Date(inv.paid_at) >= start && new Date(inv.paid_at) < end)
-      .reduce((sum, inv) => sum + dollars(inv.amount), 0);
+      .reduce((sum, inv) => sum + invoicePaidInWindowDollars(inv, start, end), 0);
     const completedInPeriod = !!(kpiDate && kpiDate >= start && kpiDate < end);
     const stExcluded = isPostCutoverSTArtifact(job);
 
@@ -3723,7 +3769,7 @@ app.get('/api/diagnostics/kpi', async (req, res) => {
       filters: { q, invoice: invoiceNeedle, jobId, invoiceId, limit, dashboardRange },
       interpretation: [
         'counted_by_completed_job: dashboard should count this from /jobs completed_at.',
-        'could_be_covered_by_paid_invoice_pass: dashboard may count this from paid invoices if the job was not already completed/credited.',
+        'could_be_covered_by_paid_invoice_pass: dashboard may count this from collected invoice payments if the job was not already completed/credited.',
         'likely_skipped: HCP fields suggest the dashboard rules may skip it.',
         'dashboardComparison.not_found_in_dashboard: checked the actual dashboard job rows and did not find a match.'
       ],
@@ -4307,11 +4353,17 @@ app.get('/api/diagnostics/coverage', async (req, res) => {
       jobIds.forEach(jobId => {
         const invs = invoicesByJob[jobId];
         const job = jobsById[jobId];
-        const paidInPeriod = invs.reduce((s, inv) => s + parseFloat(inv.amount || 0) / 100, 0);
+        const paidInPeriod = invs.reduce((s, inv) => s + invoicePaidInWindowDollars(inv, periodStart, periodEnd), 0);
         const totalPaidRounded = Math.round(paidInPeriod);
         const invoiceNumbers = invs.map(i => i.invoice_number).filter(Boolean);
         const invoiceRoots = [...new Set(invoiceNumbers.map(ROOT))];
         const latestPaidAt = invs.map(i => i.paid_at).filter(Boolean).sort().pop() || null;
+        const jobKpiDate = job ? kpiDateForJob(job) : null;
+        const jobInCurrentPeriod = jobKpiDate && jobKpiDate >= periodStart && jobKpiDate < periodEnd;
+        const expectedCredit = job && jobInCurrentPeriod && (job.assigned_employees || []).length > 0
+          ? centsToDollars(job.total_amount)
+          : paidInPeriod;
+        const expectedCreditRounded = Math.round(expectedCredit);
         const customer = job && job.customer
           ? ((job.customer.first_name || '') + ' ' + (job.customer.last_name || '')).trim()
           : (invs[0].customer ? ((invs[0].customer.first_name || '') + ' ' + (invs[0].customer.last_name || '')).trim() : '');
@@ -4337,6 +4389,7 @@ app.get('/api/diagnostics/coverage', async (req, res) => {
           invoiceNumbers,
           customer,
           paidInPeriod: totalPaidRounded,
+          expectedCredit: expectedCreditRounded,
           credited: creditFoundRounded,
           latestPaidAt,
           workStatus: job ? job.work_status : null,
@@ -4361,8 +4414,6 @@ app.get('/api/diagnostics/coverage', async (req, res) => {
         // actually done in a different period, the job correctly
         // credits there, NOT here — surface that as its own bucket
         // instead of crying "missing".
-        const jobKpiDate = job ? kpiDateForJob(job) : null;
-        const jobInCurrentPeriod = jobKpiDate && jobKpiDate >= periodStart && jobKpiDate < periodEnd;
         if (creditFoundRounded === 0 && jobKpiDate && !jobInCurrentPeriod) {
           const monthLabel = jobKpiDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'America/New_York' });
           const direction = jobKpiDate < periodStart ? 'prior' : 'future';
@@ -4385,8 +4436,8 @@ app.get('/api/diagnostics/coverage', async (req, res) => {
           // i.job_id === ...) in the gap-pass simulation) plus the
           // computed paid total. Passing invs[0] alone breaks .find.
           missing.push({ ...row, reasons: whyMissing(job, invs, paidInPeriod) });
-        } else if (Math.abs(creditFoundRounded - totalPaidRounded) > 1) {
-          drift.push({ ...row, delta: creditFoundRounded - totalPaidRounded });
+        } else if (Math.abs(creditFoundRounded - expectedCreditRounded) > 1) {
+          drift.push({ ...row, delta: creditFoundRounded - expectedCreditRounded });
         } else {
           matched.push(row);
         }
@@ -4394,7 +4445,7 @@ app.get('/api/diagnostics/coverage', async (req, res) => {
 
       // ── Reconciliation totals ──────────────────────────────────────
       const truthTotalPaid = Math.round(allPaidInvoices.reduce((s, inv) =>
-        s + parseFloat(inv.amount || 0) / 100, 0));
+        s + invoicePaidInWindowDollars(inv, periodStart, periodEnd), 0));
       const dashboardTotalRevenue = dashboardData && dashboardData.summary
         ? dashboardData.summary.totalRevenue : null;
 
@@ -4433,7 +4484,7 @@ app.get('/api/diagnostics/coverage', async (req, res) => {
           crossPeriod,
           standaloneInvoices: orphanInvoices.map(inv => ({
             invoiceNumber: inv.invoice_number || null,
-            amount: Math.round(parseFloat(inv.amount || 0) / 100),
+            amount: Math.round(invoicePaidInWindowDollars(inv, periodStart, periodEnd)),
             paidAt: inv.paid_at,
             customer: inv.customer
               ? ((inv.customer.first_name || '') + ' ' + (inv.customer.last_name || '')).trim()
@@ -4925,6 +4976,7 @@ app.get('/api/kpi/admin/job/:id', async (req, res) => {
         return (ir.data.invoices || []).map(inv => ({
           invoiceNumber: inv.invoice_number || null,
           amount: inv.amount != null ? Number(inv.amount) / 100 : null,
+          paidAmount: invoicePaidDollars(inv),
           paidAt: inv.paid_at || null,
           dueAt: inv.due_at || null,
           dueAmount: inv.due_amount != null ? Number(inv.due_amount) / 100 : null,

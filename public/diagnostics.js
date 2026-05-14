@@ -87,6 +87,7 @@
         '<td>' + esc(inv.invoiceNumber || inv.id || '-') + '</td>' +
         '<td>' + esc(inv.status || '-') + '</td>' +
         '<td>' + money(inv.amount) + '</td>' +
+        '<td>' + money(inv.paidAmount) + '</td>' +
         '<td>' + money(inv.dueAmount) + '</td>' +
         '<td>' + esc(inv.paymentMethod || (inv.paymentMethods || []).join(', ') || '-') + '</td>' +
         '<td>' + date(inv.paidAt) + '</td>' +
@@ -123,7 +124,7 @@
               '<tr><th>Completed At</th><td>' + date(job.completedAt) + '</td></tr>' +
               '<tr><th>Scheduled Start</th><td>' + date(job.scheduledStart) + '</td></tr>' +
               '<tr><th>Outstanding</th><td>' + money(job.outstandingBalance) + '</td></tr>' +
-              '<tr><th>Paid In Period</th><td>' + money(job.diagnostic.paidInPeriod) + '</td></tr>' +
+              '<tr><th>Collected In Period</th><td>' + money(job.diagnostic.paidInPeriod) + '</td></tr>' +
               '<tr><th>Estimate ID</th><td>' + esc(job.originalEstimateId || '-') + '</td></tr>' +
               '<tr><th>Estimate #</th><td>' + esc(estimate && (estimate.estimateNumber || estimate.id) || '-') + '</td></tr>' +
               '<tr><th>Estimate Status</th><td>' + esc(estimate && estimate.workStatus || '-') + '</td></tr>' +
@@ -131,8 +132,8 @@
           '</table>' +
           '<div class="label" style="margin-top:12px">Matched Invoices</div>' +
           '<table>' +
-            '<thead><tr><th>Invoice</th><th>Status</th><th>Amount</th><th>Due</th><th>Method</th><th>Paid</th></tr></thead>' +
-            '<tbody>' + (invoices || '<tr><td colspan="6">No matched invoices found in the selected search.</td></tr>') + '</tbody>' +
+            '<thead><tr><th>Invoice</th><th>Status</th><th>Total</th><th>Collected</th><th>Due</th><th>Method</th><th>Paid</th></tr></thead>' +
+            '<tbody>' + (invoices || '<tr><td colspan="7">No matched invoices found in the selected search.</td></tr>') + '</tbody>' +
           '</table>' +
         '</div>' +
       '</div>' +
@@ -220,7 +221,7 @@
       lines.push(reportLine('Skip Reasons', (job.diagnostic.skipReasons || []).join(', ') || 'None'));
       lines.push(reportLine('Job Total', money(job.jobTotal)));
       lines.push(reportLine('Outstanding', money(job.outstandingBalance)));
-      lines.push(reportLine('Paid In Period', money(job.diagnostic.paidInPeriod)));
+      lines.push(reportLine('Collected In Period', money(job.diagnostic.paidInPeriod)));
       lines.push(reportLine('Work Status', job.workStatus));
       lines.push(reportLine('KPI Date', job.kpiDate));
       lines.push(reportLine('Completed At', job.completedAt));
@@ -257,7 +258,7 @@
       if ((job.invoices || []).length) {
         lines.push('Matched HCP Invoices:');
         job.invoices.forEach(function(inv) {
-          lines.push('  - ' + (inv.invoiceNumber || inv.id || '-') + ' | status ' + (inv.status || '-') + ' | amount ' + money(inv.amount) + ' | due ' + money(inv.dueAmount) + ' | paid ' + (inv.paidAt || '-'));
+          lines.push('  - ' + (inv.invoiceNumber || inv.id || '-') + ' | status ' + (inv.status || '-') + ' | total ' + money(inv.amount) + ' | collected ' + money(inv.paidAmount) + ' | due ' + money(inv.dueAmount) + ' | paid ' + (inv.paidAt || '-'));
         });
       }
     });
@@ -266,7 +267,7 @@
       lines.push('');
       lines.push('Invoices Without Job IDs (' + unattached.length + ')');
       unattached.forEach(function(inv) {
-        lines.push('- ' + (inv.invoiceNumber || inv.id || '-') + ' | status ' + (inv.status || '-') + ' | amount ' + money(inv.amount) + ' | due ' + money(inv.dueAmount) + ' | paid ' + (inv.paidAt || '-'));
+        lines.push('- ' + (inv.invoiceNumber || inv.id || '-') + ' | status ' + (inv.status || '-') + ' | total ' + money(inv.amount) + ' | collected ' + money(inv.paidAmount) + ' | due ' + money(inv.dueAmount) + ' | paid ' + (inv.paidAt || '-'));
       });
     }
 
@@ -294,12 +295,13 @@
     return '<section class="panel">' +
       '<h2>Invoices Without Job IDs</h2>' +
       '<table>' +
-        '<thead><tr><th>Invoice</th><th>Status</th><th>Amount</th><th>Due</th><th>Method</th><th>Paid</th></tr></thead>' +
+        '<thead><tr><th>Invoice</th><th>Status</th><th>Total</th><th>Collected</th><th>Due</th><th>Method</th><th>Paid</th></tr></thead>' +
         '<tbody>' + invoices.map(function(inv) {
           return '<tr>' +
             '<td>' + esc(inv.invoiceNumber || inv.id || '-') + '</td>' +
             '<td>' + esc(inv.status || '-') + '</td>' +
             '<td>' + money(inv.amount) + '</td>' +
+            '<td>' + money(inv.paidAmount) + '</td>' +
             '<td>' + money(inv.dueAmount) + '</td>' +
             '<td>' + esc(inv.paymentMethod || (inv.paymentMethods || []).join(', ') || '-') + '</td>' +
             '<td>' + date(inv.paidAt) + '</td>' +
