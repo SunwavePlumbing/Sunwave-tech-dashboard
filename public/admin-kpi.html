@@ -2073,25 +2073,12 @@ async function cachedApi(path, options) {
   return data;
 }
 
-$('adminRefreshBtn').addEventListener('click', () => {
-  clearAdminCache();
-  // ACTIVE_PANEL is now either 'reconcile' or 'diagnostics'. Inside
-  // 'diagnostics' we also have ACTIVE_DIAG_SUBTAB (audit / issues /
-  // locked / pipeline) — refresh whichever sub-view is active.
-  if (ACTIVE_PANEL === 'diagnostics') {
-    if      (ACTIVE_DIAG_SUBTAB === 'issues')   loadIssues(true);
-    else if (ACTIVE_DIAG_SUBTAB === 'locked')   loadLocked(true);
-    else if (ACTIVE_DIAG_SUBTAB === 'audit') {
-      loadEmbed('coverageFrame', '/coverage?embed=1&refresh=1', { force: true });
-      setFreshness('Paid jobs audit', null, true);
-    } else if (ACTIVE_DIAG_SUBTAB === 'pipeline') {
-      loadEmbed('diagnosticsFrame', '/diagnostics', { force: true });
-      setFreshness('Pipeline diagnostics', null, true);
-    }
-  } else {
-    loadJobs(true);
-  }
-});
+// The page-level "Refresh data" button was replaced by the per-panel
+// reload icon. On Verify, the small ⟳ next to the period selector
+// handles refresh; on Diagnostics, switching sub-tabs reloads each
+// view. So no global refresh binding is needed here. (Element gone
+// — calling .addEventListener on null would throw and silently break
+// every script that ran after it, including the tab handlers below.)
 
 // ── Tab switching ───────────────────────────────────────────────────
 // Two super-tabs now: Verify (data-panel="reconcile" — we kept the
