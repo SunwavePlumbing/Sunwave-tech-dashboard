@@ -725,7 +725,11 @@
       align-items: center;
       margin-bottom: 8px;
     }
-    .stickybar-row--controls { grid-template-columns: minmax(160px, 210px) auto minmax(220px, 1fr) minmax(170px, 220px) auto; }
+    /* Cols: period · reload · search · tech-filter · Search btn.
+       Search input gets a tighter min/max so it doesn't sprawl
+       across the whole row; the tech filter takes the remaining
+       1fr space alongside it. */
+    .stickybar-row--controls { grid-template-columns: minmax(160px, 210px) auto minmax(180px, 280px) minmax(170px, 1fr) auto; }
     .stickybar-row--status { grid-template-columns: 1fr; padding: 4px 0 0; }
     .reload-icon-btn {
       width: 38px;
@@ -1739,11 +1743,11 @@
         <div class="stickybar-row stickybar-row--controls">
           <select id="periodSel" data-kpi-range-select aria-label="Period"></select>
           <button id="reloadBtn" class="reload-icon-btn" title="Refresh data — pull the latest from the server" aria-label="Refresh data">⟳</button>
-          <input type="text" id="jobLookup" placeholder="Search customer, invoice, $, tech, date, status…">
+          <input type="text" id="jobLookup" placeholder="Search customer, invoice, $, tech, date…">
           <select id="techFilter" class="tech-filter" aria-label="Filter by technician" title="Filter rows by assigned or credited technician">
             <option value="">All techs</option>
           </select>
-          <button id="lookupBtn" title="Fetch a job that's not in the current period (paste job_xxx or invoice #)">Open exact</button>
+          <button id="lookupBtn" title="Fetch a job that's not in the current period (paste job_xxx or invoice #)">Search</button>
         </div>
         <div class="stickybar-row stickybar-row--status">
           <!-- Beefy progress bar with the period dollar summary
