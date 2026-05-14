@@ -4796,8 +4796,17 @@ app.get('/api/kpi/admin/job/:id', async (req, res) => {
         .filter(v => v != null);
       const total = moneyFromCents(firstPresent(e.total_amount, e.total, e.amount, e.grand_total))
         ?? (optionTotals.length ? optionTotals.reduce((s, v) => s + v, 0) : null);
+      // Pass through job_id and customer_id so the drawer-render
+      // code can safety-filter to only show estimates that
+      // actually belong to this job or customer (defense against
+      // the upstream /estimates endpoint sometimes ignoring its
+      // job_id query param and returning unrelated estimates).
+      const eJobId = e.job_id || (e.job && e.job.id) || null;
+      const eCustomerId = e.customer_id || (e.customer && e.customer.id) || null;
       return {
         id: e.id || e.uuid || null,
+        jobId: eJobId,
+        customerId: eCustomerId,
         estimateNumber: e.estimate_number || e.number || null,
         status: e.status || e.approval_status || null,
         workStatus: e.work_status || null,
@@ -4891,11 +4900,31 @@ app.get('/api/kpi/admin/job/:id', async (req, res) => {
         }));
       }),
       safe('estimates', async () => {
+        // HCP's /estimates?job_id=X filter is unreliable — in
+        // practice it sometimes ignores the job_id param and
+        // returns the most recent 5 estimates across the whole
+        // account (giving the drawer five unrelated estimates
+        // for five different customers). The /estimates?customer_id=X
+        // filter IS reliable (proven by fetchRelatedEstimates code
+        // elsewhere in this file), so fetch the customer's
+        // estimates and then safety-filter on the way out.
+        if (!customerId) return [];
         const er = await axios.get(BASE_URL + '/estimates', {
           headers: hcpHeaders(),
-          params: { job_id: id, page_size: 5 }
+          params: { customer_id: customerId, page_size: 25 }
         });
-        return (er.data.estimates || []).map(summarizeEstimateForDrawer);
+        const raw = er.data && (er.data.estimates || []);
+        return (Array.isArray(raw) ? raw : [])
+          .filter(e => {
+            const eCustId = e.customer_id || (e.customer && e.customer.id) || null;
+            const eJobId  = e.job_id      || (e.job && e.job.id)         || null;
+            // Defense in depth — only keep estimates that actually
+            // reference this customer or this specific job.
+            return (eCustId && String(eCustId) === String(customerId)) ||
+                   (eJobId && String(eJobId) === String(id));
+          })
+          .map(summarizeEstimateForDrawer)
+          .slice(0, 10);
       }),
       customerId ? safe('customer_jobs', async () => {
         const cr = await axios.get(BASE_URL + '/customers/' + customerId + '/jobs', {
