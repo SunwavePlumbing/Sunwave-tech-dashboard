@@ -1818,7 +1818,7 @@
       <div class="diag-subtabs">
         <button class="diag-subtab is-active" data-diag="audit" title="Verifies every paid invoice in HCP appears credited on the leaderboard">Paid jobs audit</button>
         <button class="diag-subtab" data-diag="issues">Open issues <span class="tab-count" id="issueCount">0</span></button>
-        <button class="diag-subtab" data-diag="pipeline">Pipeline diagnostics</button>
+        <button class="diag-subtab" data-diag="pipeline">Deep search</button>
       </div>
       <div class="diag-content">
         <div class="diag-view is-active" id="diag-audit">
@@ -1827,8 +1827,61 @@
         <div class="diag-view" id="diag-issues" hidden>
           <div id="issuesList"></div>
         </div>
-        <div class="diag-view" id="diag-pipeline" hidden>
-          <iframe class="embed-frame" id="diagnosticsFrame" title="Pipeline diagnostics"></iframe>
+        <div class="diag-view deep-search" id="diag-pipeline" hidden>
+          <section class="ds-panel">
+            <form id="diagForm" class="ds-grid">
+              <div class="ds-span-2">
+                <label for="password">Diagnostics Password</label>
+                <input id="password" name="password" type="password" autocomplete="off" placeholder="Required on Railway">
+              </div>
+              <div>
+                <label for="start">Start</label>
+                <input id="start" name="start" type="date">
+              </div>
+              <div>
+                <label for="end">End</label>
+                <input id="end" name="end" type="date">
+              </div>
+              <div>
+                <label for="invoice">Invoice #</label>
+                <input id="invoice" name="invoice" placeholder="326">
+              </div>
+              <div>
+                <label for="q">Search</label>
+                <input id="q" name="q" placeholder="Patrick, customer, finance">
+              </div>
+              <div class="ds-span-2">
+                <label for="jobId">Job ID</label>
+                <input id="jobId" name="job_id" placeholder="Optional exact HCP job id">
+              </div>
+              <div class="ds-span-2">
+                <label for="invoiceId">Invoice ID</label>
+                <input id="invoiceId" name="invoice_id" placeholder="Optional exact HCP invoice uuid">
+              </div>
+              <div>
+                <label for="limit">Limit</label>
+                <select id="limit" name="limit">
+                  <option>40</option>
+                  <option selected>80</option>
+                  <option>120</option>
+                  <option>200</option>
+                </select>
+              </div>
+              <div>
+                <button type="submit" class="ds-btn">Run Diagnostics</button>
+              </div>
+              <div>
+                <button type="button" class="ds-btn ds-btn--secondary" id="lastMonth">Last Month</button>
+              </div>
+            </form>
+            <div class="ds-hint">Use the private diagnostics password. It is not the HCP API key.</div>
+          </section>
+
+          <div id="status" class="ds-status"></div>
+          <div class="ds-actions">
+            <button type="button" class="ds-btn ds-btn--secondary" id="copyReport" disabled>Copy Plain Text Report</button>
+          </div>
+          <div id="results"></div>
         </div>
       </div>
     </div>
@@ -2256,7 +2309,7 @@ const PANEL_TITLES = {
 const DIAG_TITLES = {
   audit: 'Paid jobs audit',
   issues: 'Issue reports',
-  pipeline: 'Pipeline diagnostics'
+  pipeline: 'Deep search'
 };
 function setSubhead(panel) {
   const el = $('subhead');
@@ -2296,7 +2349,6 @@ function activateDiagSubtab(name) {
   setSubhead('diagnostics');
   if (name === 'issues')   loadIssues();
   if (name === 'audit')    loadEmbed('coverageFrame', '/coverage?embed=1');
-  if (name === 'pipeline') loadEmbed('diagnosticsFrame', '/diagnostics?embed=1');
 }
 document.querySelectorAll('.diag-subtab').forEach(b => {
   b.addEventListener('click', () => activateDiagSubtab(b.dataset.diag));
@@ -2323,9 +2375,6 @@ window.addEventListener('message', (e) => {
   if (typeof height !== 'number' || height <= 0) return;
   if (type === 'sunwave-coverage-height') {
     const f = $('coverageFrame');
-    if (f) f.style.height = height + 'px';
-  } else if (type === 'sunwave-diagnostics-height') {
-    const f = $('diagnosticsFrame');
     if (f) f.style.height = height + 'px';
   }
 });
@@ -4721,6 +4770,7 @@ window.loadJobs = async function() {
   return ret;
 };
 </script>
+<script src="/diagnostics.js"></script>
 
 </body>
 </html>
