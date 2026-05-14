@@ -119,6 +119,7 @@
     .audit-hero {
       position: relative;
       overflow: hidden;
+      isolation: isolate;
       display: grid;
       grid-template-columns: minmax(0, 1.3fr) minmax(300px, 0.7fr);
       gap: 32px;
@@ -136,6 +137,10 @@
       position: absolute;
       inset: 0;
       pointer-events: none;
+      /* Inherit the parent's rounded radius so the radial glow
+         overlay clips to the card's actual shape instead of
+         painting as a hard rectangle behind it. */
+      border-radius: inherit;
       background:
         radial-gradient(circle at 100% 0%, rgba(243, 138, 63, 0.10), transparent 32%),
         radial-gradient(circle at 0% 100%, rgba(191, 224, 243, 0.18), transparent 40%);
@@ -293,6 +298,7 @@
     .tile {
       position: relative;
       overflow: hidden;
+      isolation: isolate;
       min-height: 160px;
       display: flex;
       flex-direction: column;
@@ -430,6 +436,7 @@
       border-radius: 24px;
       margin-bottom: 16px;
       overflow: hidden;
+      isolation: isolate;
       box-shadow: var(--shadow-card);
       animation: cardIn 420ms var(--ease-out) both;
     }
@@ -733,9 +740,16 @@
       color: var(--ink-deep);
       font-variant-numeric: tabular-nums;
     }
+    /* Opacity-only fade-in. The previous translateY(10px) promoted
+       every animated card to its own compositor layer, and Chrome/
+       Safari render those layers with pixel-aligned rectangular
+       outlines that don't perfectly clip to the rounded corners —
+       producing faint "ghost boxes" around every card. Dropping
+       the transform keeps the cards on the standard render layer
+       so the rounded clipping is honored. */
     @keyframes cardIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to   { opacity: 1; transform: translateY(0); }
+      from { opacity: 0; }
+      to   { opacity: 1; }
     }
 
     @media (max-width: 900px) {
