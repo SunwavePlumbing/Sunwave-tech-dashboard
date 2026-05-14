@@ -23,6 +23,8 @@
       --warn-pale: #FFF1E8;
       --bad: #C0392B;
       --bad-pale: #FBECE9;
+      --info: #3B6BBF;
+      --info-pale: #ECF1FA;
     }
     * { box-sizing: border-box; }
     body {
@@ -603,7 +605,26 @@
       margin-bottom: 8px;
     }
     .stickybar-row--controls { grid-template-columns: minmax(160px, 210px) auto minmax(220px, 1fr) auto; }
-    .stickybar-row--status { grid-template-columns: auto minmax(180px, 1fr) auto; }
+    .stickybar-row--status { grid-template-columns: 1fr; padding: 4px 0 0; }
+    .reload-icon-btn {
+      width: 38px;
+      height: 38px;
+      padding: 0 !important;
+      display: inline-flex !important;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px !important;
+      font-weight: 600 !important;
+      line-height: 1;
+    }
+    .reload-icon-btn:hover { color: var(--brand) !important; border-color: var(--brand) !important; }
+    .reload-icon-btn.is-refreshing {
+      animation: reload-spin 0.6s linear infinite;
+      pointer-events: none;
+      color: var(--brand) !important;
+      border-color: var(--brand) !important;
+    }
+    @keyframes reload-spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
     .stickybar-row:last-child { margin-bottom: 0; }
     .stickybar-row select,
     .stickybar-row input[type="text"] {
@@ -801,19 +822,31 @@
       padding: 18px 20px 20px;
     }
     .drawer-footer {
-      padding: 14px 18px;
+      padding: 14px 18px 16px;
       border-top: 1px solid var(--border);
       background: var(--card);
-      display: grid;
-      grid-template-columns: minmax(180px, 1fr) auto minmax(180px, 1fr);
-      gap: 10px;
+      display: flex;
+      flex-direction: column;
       align-items: center;
+      gap: 10px;
+    }
+    .drawer-footer-top {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      width: 100%;
+      justify-content: center;
+      position: relative;
+    }
+    .drawer-footer .status-msg {
+      position: absolute;
+      left: 0;
+      font-size: 12px;
+      color: var(--ink-mute);
     }
     .drawer-stepper {
-      display: grid;
-      grid-template-columns: 36px minmax(92px, auto) 36px;
+      display: flex;
       align-items: center;
-      justify-content: center;
       gap: 8px;
     }
     .drawer-position {
@@ -823,52 +856,64 @@
       text-align: center;
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
+      min-width: 70px;
     }
     .drawer-footer-actions {
       display: flex;
-      gap: 10px;
+      gap: 12px;
       align-items: center;
-      justify-content: flex-end;
+      justify-content: center;
+      width: 100%;
       flex-wrap: wrap;
-    }
-    .drawer-footer .status-msg {
-      min-width: 0;
-      justify-self: start;
     }
     .btn--verify {
       background: var(--good);
       color: white;
       border-color: var(--good);
       font-weight: 800;
-      padding: 11px 22px;
-      font-size: 14px;
-      box-shadow: 0 1px 3px rgba(47, 125, 73, 0.28);
+      padding: 13px 28px;
+      font-size: 15px;
+      box-shadow: 0 2px 6px rgba(47, 125, 73, 0.32);
       letter-spacing: 0.01em;
+      order: 2;
+      min-width: 240px;
     }
     .btn--verify:hover { filter: brightness(1.07); color: white; border-color: var(--good); }
     .btn--verify[disabled] { opacity: 0.55; cursor: progress; }
-    .btn--defer {
-      color: var(--warn);
-      border-color: var(--warn);
-      background: var(--warn-pale);
-      font-weight: 700;
-    }
-    .btn--defer:hover { color: var(--warn); border-color: var(--warn); filter: brightness(0.98); }
     .btn--exclude {
       color: var(--ink-mute);
       background: var(--card);
       border-color: var(--border);
       font-weight: 600;
+      padding: 10px 16px;
+      font-size: 13px;
+      order: 1;
     }
     .btn--exclude:hover { color: var(--bad); border-color: var(--bad); }
+    .btn--defer {
+      color: var(--info);
+      border-color: var(--info);
+      background: var(--info-pale);
+      font-weight: 700;
+      padding: 10px 16px;
+      font-size: 13px;
+      order: 3;
+    }
+    .btn--defer:hover { color: white; background: var(--info); border-color: var(--info); }
     .drawer-shortcut-hint {
       display: inline-flex;
-      gap: 4px;
+      gap: 8px;
       align-items: center;
-      margin-left: 8px;
+      justify-content: center;
       font-size: 11px;
       color: var(--ink-mute);
       letter-spacing: 0.04em;
+      flex-wrap: wrap;
+    }
+    .drawer-shortcut-hint span {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
     }
     .drawer-shortcut-hint kbd {
       display: inline-block;
@@ -888,15 +933,12 @@
         border-radius: 12px;
       }
       body.drawer-open .drawer { transform: translate(-50%, -50%) scale(1); }
-      .drawer-footer {
-        grid-template-columns: 1fr;
-      }
-      .drawer-footer-actions {
-        justify-content: stretch;
-      }
-      .drawer-footer-actions .btn {
-        flex: 1 1 auto;
-      }
+      .drawer-footer .status-msg { position: static; text-align: center; }
+      .drawer-footer-actions { flex-direction: column-reverse; gap: 8px; }
+      .drawer-footer-actions .btn { width: 100%; min-width: 0; }
+      .btn--verify { order: 0; }
+      .btn--exclude { order: 2; }
+      .btn--defer { order: 1; }
       .drawer-shortcut-hint { display: none; }
     }
 
@@ -1357,37 +1399,26 @@
     }
     .verified-by strong { font-weight: 800; }
 
-    /* Period-level reconciliation summary tile at the top of Verify */
-    .period-summary {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 10px;
-      padding: 14px 16px;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      margin-bottom: 12px;
-    }
-    .period-summary-tile {
+    /* Period-level reconciliation summary — inline strip. Replaces
+       the old 5-tile grid. One short line, same numbers. */
+    .period-summary-line {
       display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-    .period-summary-tile .label {
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--ink-mute);
-    }
-    .period-summary-tile .val {
-      font-size: 20px;
-      font-weight: 800;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: baseline;
+      padding: 10px 14px;
+      margin-bottom: 12px;
+      font-size: 13.5px;
       font-variant-numeric: tabular-nums;
       color: var(--ink);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
     }
-    .period-summary-tile .val.is-good { color: var(--good); }
-    .period-summary-tile .val.is-warn { color: var(--warn); }
+    .period-summary-line strong { font-weight: 800; color: var(--ink); }
+    .period-summary-line strong#ps-amount-verified { color: var(--good); }
+    .period-summary-line strong.warn { color: var(--warn); }
+    .period-summary-line .muted { color: var(--ink-mute); font-weight: 500; }
 
     /* Auto-verify bar — sits above the job list. Visible only when
        there's at least one auto-verifiable job in the queue. */
@@ -1536,10 +1567,10 @@
       <button class="tab" data-panel="reconcile">Verify</button>
       <button class="tab" data-panel="diagnostics">Diagnostics</button>
     </div>
-    <div class="admin-freshness">
-      <span id="adminFreshnessText">Fresh data will load when you open a tab.</span>
-      <button type="button" id="adminRefreshBtn">Refresh data</button>
-    </div>
+    <!-- Freshness state is preserved (it's still wired for cached
+         banners on other panels), but the visible row was collapsed
+         into the small refresh button next to the period selector. -->
+    <span id="adminFreshnessText" hidden></span>
 
     <!-- ─────────────────── RECONCILE TAB ─────────────────── -->
     <div id="panel-reconcile" class="panel is-active">
@@ -1549,17 +1580,18 @@
       <div class="stickybar">
         <div class="stickybar-row stickybar-row--controls">
           <select id="periodSel" data-kpi-range-select aria-label="Period"></select>
-          <button id="reloadBtn">Reload</button>
+          <button id="reloadBtn" class="reload-icon-btn" title="Refresh data — pull the latest from the server" aria-label="Refresh data">⟳</button>
           <input type="text" id="jobLookup" placeholder="Search customer, invoice, $, tech, date, status…">
           <button id="lookupBtn" title="Fetch a job that's not in the current period (paste job_xxx or invoice #)">Open exact</button>
         </div>
         <div class="stickybar-row stickybar-row--status">
-          <span class="stickybar-counter">
-            <strong id="progressDone">0</strong> of <strong id="progressTotal">0</strong> handled
-          </span>
           <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-          <span class="stickybar-counter" id="filterCount"></span>
         </div>
+        <!-- Hidden but still present in the DOM — updateProgress
+             writes to these and other code reads filterCount. -->
+        <span id="progressDone" hidden></span>
+        <span id="progressTotal" hidden></span>
+        <span id="filterCount" hidden></span>
       </div>
 
       <!-- Filter pills — quick narrowing without losing the queue.
@@ -1575,35 +1607,25 @@
         <button class="filter-pill" data-filter="all">All <span class="filter-pill-count" id="pillCount-all">0</span></button>
       </div>
 
-      <div class="summary" style="margin: -2px 0 10px; font-size: 12px; color: var(--ink-mute)">
-        <span id="summaryAction">— need action</span>
-      </div>
+      <!-- "N open tasks" line removed — the active pill already
+           shows the count. Element kept hidden so any code path that
+           writes to it (loadJobs, updateProgress) keeps working. -->
+      <span id="summaryAction" hidden></span>
 
-      <!-- Period-level reconciliation summary. Tiles for total jobs,
-           verified count, period $ total, period $ verified-so-far,
-           remaining $. Populates from window.LAST_RECON_SUMMARY +
-           a sum across window.JOBS. -->
-      <div class="period-summary" id="periodSummary" hidden>
-        <div class="period-summary-tile">
-          <span class="label">Total jobs</span>
-          <span class="val" id="ps-total">—</span>
-        </div>
-        <div class="period-summary-tile">
-          <span class="label">Verified</span>
-          <span class="val is-good" id="ps-verified">—</span>
-        </div>
-        <div class="period-summary-tile">
-          <span class="label">Period $ total</span>
-          <span class="val" id="ps-amount">—</span>
-        </div>
-        <div class="period-summary-tile">
-          <span class="label">$ verified</span>
-          <span class="val is-good" id="ps-amount-verified">—</span>
-        </div>
-        <div class="period-summary-tile">
-          <span class="label">$ remaining</span>
-          <span class="val is-warn" id="ps-amount-remaining">—</span>
-        </div>
+      <!-- One-line period money summary. Single inline strip in
+           place of the old 5-tile grid; carries the same dollar
+           numbers (verified-of-total · remaining) without the
+           visual weight. Tile IDs preserved for code that writes
+           the numeric counts (they live in hidden spans). -->
+      <div class="period-summary-line" id="periodSummary" hidden>
+        <strong id="ps-amount-verified">$0</strong>
+        <span class="muted">of</span>
+        <strong id="ps-amount">$0</strong>
+        <span class="muted">verified ·</span>
+        <strong class="warn" id="ps-amount-remaining">$0</strong>
+        <span class="muted">remaining</span>
+        <span id="ps-total" hidden></span>
+        <span id="ps-verified" hidden></span>
       </div>
 
       <!-- Auto-verify clean cases — visible only when there's at
@@ -1988,7 +2010,12 @@ $('periodSel').addEventListener('change', () => {
   localStorage.setItem('kpi-admin-range', CURRENT_RANGE);
   loadJobs();
 });
-$('reloadBtn').addEventListener('click', () => loadJobs(true));
+$('reloadBtn').addEventListener('click', async () => {
+  const btn = $('reloadBtn');
+  btn.classList.add('is-refreshing');
+  try { await loadJobs(true); }
+  finally { btn.classList.remove('is-refreshing'); }
+});
 
 async function loadJobs(forceRefresh) {
   if (forceRefresh) clearAdminCache();
@@ -2541,23 +2568,13 @@ document.addEventListener('click', async (e) => {
   const key = actionEl.dataset.key;
 
   if (action === 'toggle') {
+    // Inline-expand was replaced by the drawer. Any click on the row
+    // body (anywhere except the Correct/quick buttons) opens the
+    // drawer — single, predictable target.
     const job = actionEl.closest('.job');
     if (!job) return;
-    const wasOpen = job.classList.contains('is-open');
-    // Close any other open rows (one expanded at a time keeps things tidy)
-    document.querySelectorAll('.job.is-open').forEach(j => { if (j !== job) j.classList.remove('is-open'); });
-    if (wasOpen) {
-      job.classList.remove('is-open');
-    } else {
-      job.classList.add('is-open');
-      const k = job.dataset.key;
-      // Lazy-load the editor on first expand
-      const panel = job.querySelector('.job-edit');
-      if (panel && !panel.dataset.loaded) {
-        panel.dataset.loaded = '1';
-        await renderEditPanel(k);
-      }
-    }
+    const k = job.dataset.key;
+    if (k && typeof openInDrawer === 'function') openInDrawer(k);
     return;
   }
 
@@ -3143,19 +3160,25 @@ document.addEventListener('click', (e) => {
   </div>
   <div class="drawer-body" id="drawerBody"></div>
   <div class="drawer-footer">
-    <span class="status-msg" id="drawerStatus"></span>
-    <div class="drawer-stepper" aria-label="Card navigation">
-      <button class="drawer-nav-btn" id="drawerPrevBtn" title="Previous card (K)" aria-label="Previous card">←</button>
-      <span class="drawer-position" id="drawerPosition">— of —</span>
-      <button class="drawer-nav-btn" id="drawerNextBtn" title="Next card (J)" aria-label="Next card">→</button>
+    <div class="drawer-footer-top">
+      <span class="status-msg" id="drawerStatus"></span>
+      <div class="drawer-stepper" aria-label="Card navigation">
+        <button class="drawer-nav-btn" id="drawerPrevBtn" title="Previous card (K)" aria-label="Previous card">←</button>
+        <span class="drawer-position" id="drawerPosition">— of —</span>
+        <button class="drawer-nav-btn" id="drawerNextBtn" title="Next card (J)" aria-label="Next card">→</button>
+      </div>
     </div>
     <div class="drawer-footer-actions">
       <button class="btn btn--exclude" id="drawerExcludeBtn" title="Exclude this job from the leaderboard (X)">Exclude</button>
-      <button class="btn btn--defer" id="drawerDeferBtn" title="Move to bottom of queue, come back later (D)">Defer</button>
       <button class="btn btn--verify" id="drawerVerifyBtn" title="Save the current attribution, lock it, move to the next unverified job (Y or Enter)">✓ Verified — looks right</button>
-      <span class="drawer-shortcut-hint">
-        <kbd>Y</kbd>verify <kbd>D</kbd>defer <kbd>X</kbd>exclude <kbd>J</kbd>/<kbd>K</kbd>nav <kbd>Esc</kbd>close
-      </span>
+      <button class="btn btn--defer" id="drawerDeferBtn" title="Move to the bottom of the queue so you can come back later (D)">Come back to later</button>
+    </div>
+    <div class="drawer-shortcut-hint">
+      <span><kbd>Y</kbd> verify</span>
+      <span><kbd>D</kbd> later</span>
+      <span><kbd>X</kbd> exclude</span>
+      <span><kbd>J</kbd>/<kbd>K</kbd> nav</span>
+      <span><kbd>Esc</kbd> close</span>
     </div>
   </div>
 </div>
@@ -4191,6 +4214,8 @@ function updatePeriodSummary() {
   $('ps-amount').textContent = fmt(amountAll);
   $('ps-amount-verified').textContent = fmt(amountVerified);
   $('ps-amount-remaining').textContent = fmt(amountOpen);
+  // Hide the strip if there's nothing meaningful to show.
+  ps.hidden = !(amountAll > 0 || total > 0);
 }
 
 // Hook updatePeriodSummary into updateProgress so it fires whenever
@@ -4342,20 +4367,8 @@ document.addEventListener('keydown', (e) => {
 // on the row. We add a higher-priority capture-phase listener that
 // catches the click first, opens the drawer, and stops the
 // propagation so the inline-expand never fires.
-document.addEventListener('click', (e) => {
-  const summary = e.target.closest('.job-summary');
-  if (!summary) return;
-  // Skip if click was on an action button or input — those have
-  // their own handlers in the existing code.
-  if (e.target.closest('button, input, select, textarea, a, [data-action]:not([data-action="toggle"])')) return;
-  const row = summary.closest('.job');
-  if (!row) return;
-  const key = row.dataset.key;
-  if (!key) return;
-  e.stopPropagation();
-  e.preventDefault();
-  openInDrawer(key);
-}, true); // capture phase
+// Row click → drawer is now handled by the single delegated handler
+// above (action === 'toggle'). Nothing additional needed here.
 
 // Hook into loadJobs() — after the original finishes, capture the
 // server's reconciliation summary (read from the sessionStorage
