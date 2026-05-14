@@ -3236,6 +3236,7 @@ function openInDrawer(key) {
   // The `#drawerContext` div is a placeholder we fill after
   // renderEditPanel completes (it pulls the full HCP context).
   drawerBody.innerHTML = periodFitHtml + confidenceHtml + flagsHtml + issuesHtml +
+    '<div id="drawerInstantContext">' + renderJobOverview(drawerOverviewJobFromRow(j)) + '</div>' +
     '<div id="drawerContext"></div>' +
     '<div class="job is-open" data-key="' + esc(key) + '">' +
       '<div class="job-edit" data-edit-for="' + esc(key) + '"></div>' +
@@ -3245,7 +3246,7 @@ function openInDrawer(key) {
   // round-trips. injectDrawerContext will replace it once the editor
   // fetch completes (renderEditPanel stashes serverData on j).
   $('drawerContext').innerHTML =
-    '<div class="empty" style="padding:8px;font-size:12px;color:var(--ink-mute)">Loading job context from HCP…</div>';
+    '<div class="empty" style="padding:8px;font-size:12px;color:var(--ink-mute)">Loading deeper HCP context… Basic job details are shown above.</div>';
   Promise.resolve(renderEditPanel(key)).then(() => {
     if (DRAWER_STATE.openKey !== key) return; // user moved on
     injectDrawerContext(key);
@@ -3784,6 +3785,8 @@ function injectDrawerContext(key) {
   const srv = j._serverData;
   const ctx = srv.context || {};
   const recon = srv.reconciliation || null;
+  const instant = $('drawerInstantContext');
+  if (instant) instant.innerHTML = '';
 
   // Build each section. Sections with no data return empty string
   // so the drawer doesn't show empty cards.
@@ -3823,6 +3826,24 @@ function injectDrawerContext(key) {
     footerBits.push('<div class="verified-by">✓ ' + line + '</div>');
   }
   if (footer) footer.innerHTML = footerBits.join('');
+}
+
+function drawerOverviewJobFromRow(j) {
+  if (!j) return null;
+  const assigned = (j.hcpAssignedEmployees && j.hcpAssignedEmployees.length)
+    ? j.hcpAssignedEmployees
+    : (j.assignments || []).map(a => a && (a.name || a.employeeName)).filter(Boolean);
+  return {
+    invoice: j.invoice,
+    description: j.description,
+    workStatus: j.status,
+    customer: j.customer,
+    assignedEmployees: assigned,
+    totalAmount: j.totalAmount,
+    outstandingBalance: j.outstanding,
+    completedAt: j.kpiDate,
+    scheduledStart: null
+  };
 }
 
 function renderJobOverview(job) {
