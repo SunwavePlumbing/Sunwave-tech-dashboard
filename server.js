@@ -4997,13 +4997,29 @@ app.get('/api/kpi/admin/job/:id', async (req, res) => {
     const normalizeLineItems = (items) => {
       const out = [];
       (items || []).forEach(li => {
+        const kind = li.kind || li.type || null;
+        // HCP returns discount line items with a positive amount even
+        // though they should subtract from the job total. Flip the sign
+        // for any kind that reads as a discount so the dashboard math
+        // (line items vs. job total) reconciles, and the drawer renders
+        // the row as a negative-tone discount. Defensive: only flip if
+        // the value is currently positive, so an explicitly-negative
+        // discount from HCP (rare) isn't double-negated.
+        const isDiscount = /discount/i.test(String(kind || ''));
+        let unitPrice = moneyFromCents(li.unit_price);
+        let amount = moneyFromCents(firstPresent(li.amount, li.total_amount));
+        if (isDiscount) {
+          if (unitPrice != null && unitPrice > 0) unitPrice = -unitPrice;
+          if (amount != null && amount > 0) amount = -amount;
+        }
         const normalized = {
           name: li.name || li.description || null,
           description: li.description || null,
           quantity: li.quantity != null ? Number(li.quantity) : null,
-          unitPrice: moneyFromCents(li.unit_price),
-          amount: moneyFromCents(firstPresent(li.amount, li.total_amount)),
-          kind: li.kind || li.type || null
+          unitPrice: unitPrice,
+          amount: amount,
+          kind: kind,
+          isDiscount: isDiscount
         };
         const comparable = [
           normalized.quantity ?? '',

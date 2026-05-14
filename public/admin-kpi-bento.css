@@ -1835,6 +1835,27 @@ body.bento-design .ctx-lines tfoot td {
   font-weight: 800;
   border-top: 2px solid #E5DFD2;
 }
+/* Discount line items — sign-flipped server-side, rendered with a
+   muted strikethrough-style row + a small "Discount" pill so the
+   admin sees at a glance that this row subtracts from the total. */
+body.bento-design .ctx-lines .ctx-line--discount td {
+  color: #B5483B;
+  background: rgba(214, 95, 79, 0.04);
+}
+body.bento-design .ctx-line-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #B5483B;
+  background: rgba(214, 95, 79, 0.10);
+  border: 1px solid rgba(214, 95, 79, 0.32);
+  border-radius: 999px;
+  vertical-align: 2px;
+}
 
 /* Generic ctx-row chips inside sections (payments, estimates, prior) */
 body.bento-design .ctx-row {

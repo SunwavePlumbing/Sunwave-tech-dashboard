@@ -4977,10 +4977,18 @@ function renderLineItems(lineItems, job) {
   const rows = lineItems.map(li => {
     const name = li.name || li.description || '—';
     const qty = li.quantity != null ? li.quantity : '';
-    const unit = li.unitPrice != null ? fmt(li.unitPrice) : '';
-    const amt = li.amount != null ? fmt(li.amount) : '';
-    return '<tr>' +
-      '<td>' + esc(name) + '</td>' +
+    const isDiscount = !!li.isDiscount;
+    const cls = isDiscount ? ' class="ctx-line--discount"' : '';
+    const fmtSigned = (v) => v == null
+      ? ''
+      : (v < 0 ? '−' + fmt(Math.abs(v)) : fmt(v));
+    const unit = fmtSigned(li.unitPrice);
+    const amt = fmtSigned(li.amount);
+    const nameLabel = isDiscount
+      ? esc(name) + ' <span class="ctx-line-badge">Discount</span>'
+      : esc(name);
+    return '<tr' + cls + '>' +
+      '<td>' + nameLabel + '</td>' +
       '<td class="num">' + esc(String(qty)) + '</td>' +
       '<td class="num">' + esc(unit) + '</td>' +
       '<td class="num">' + esc(amt) + '</td>' +
