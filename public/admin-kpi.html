@@ -3067,28 +3067,8 @@ async function renderEditPanel(key) {
   panel.innerHTML = `
     ${reasonBlock}
     <div class="edit-section">
-      <span class="edit-label">HCP Context (read-only)</span>
-      <details class="hcp-context-wrap">
-        <summary>Show HCP context</summary>
-        <dl class="hcp-context">
-          <div>
-            <dt>Description</dt><dd>${esc(job.description || '—')}</dd>
-            <dt>HCP status</dt><dd>${esc(job.workStatus || '—')}</dd>
-            <dt>HCP assigned</dt><dd>${job.assignedEmployees.length ? job.assignedEmployees.map(e => esc(e.name)).join(', ') : '<em>none</em>'}</dd>
-          </div>
-          <div>
-            <dt>HCP total</dt><dd>${fmt(job.totalAmount)}</dd>
-            <dt>Outstanding (HCP)</dt><dd>${fmt(job.outstandingBalance)}</dd>
-            <dt>Completed</dt><dd>${isoDate(job.completedAt) || '—'}</dd>
-            <dt>Scheduled</dt><dd>${isoDate(job.scheduledStart) || '—'}</dd>
-          </div>
-        </dl>
-      </details>
-    </div>
-
-    <div class="edit-section">
-      <span class="edit-label">Attribution (who gets credit, and how much)</span>
-      <p style="font-size:12px;color:var(--ink-mute);margin:0 0 10px;line-height:1.5">
+      <span class="edit-label">Attribution</span>
+      <p class="edit-hint">
         Percentages auto-apply Sunwave's split: <strong>1/3 for selling</strong>, <strong>2/3 split among doers</strong>.
         Pick "Sold &amp; Did" if the same tech sold and worked it. Manually edit the % to override.
       </p>
@@ -3104,48 +3084,24 @@ async function renderEditPanel(key) {
       <span class="edit-label">Money &amp; timing</span>
       <div class="money-date money-date--3">
         <div class="field">
-          <label class="edit-label" style="margin-bottom:4px">HCP total ($)</label>
+          <label class="edit-label edit-label--field">HCP total ($)</label>
           <input type="number" step="0.01" data-field="totalAmount" data-key="${esc(key)}" value="${Number(j.edit.totalAmount).toFixed(2)}">
         </div>
         <div class="field">
-          <label class="edit-label" style="margin-bottom:4px">Outstanding ($)</label>
+          <label class="edit-label edit-label--field">Outstanding ($)</label>
           <input type="number" step="0.01" min="0" data-field="outstandingBalance" data-key="${esc(key)}" placeholder="leave blank to use HCP" value="${j.edit.outstandingBalance != null ? Number(j.edit.outstandingBalance).toFixed(2) : ''}">
         </div>
         <div class="field">
-          <label class="edit-label" style="margin-bottom:4px">Work date</label>
+          <label class="edit-label edit-label--field">Work date</label>
           <input type="date" data-field="kpiDate" data-key="${esc(key)}" value="${esc(j.edit.kpiDate)}">
         </div>
       </div>
     </div>
 
     <div class="edit-section">
-      <span class="edit-label">Notes (admin-only)</span>
+      <span class="edit-label">Notes</span>
       <div class="field">
         <textarea data-field="notes" data-key="${esc(key)}" placeholder="e.g. Patrick + Trevor split this water heater 60/40 because Patrick led the install.">${esc(j.edit.notes)}</textarea>
-      </div>
-    </div>
-
-    <div class="edit-section">
-      <div class="toggle toggle--paid">
-        <input type="checkbox" id="paidChk-${esc(key)}" data-field="markedPaid" data-key="${esc(key)}" ${j.edit.markedPaid ? 'checked' : ''}>
-        <label for="paidChk-${esc(key)}">
-          <strong>Mark as paid</strong>
-          <small>Forces the outstanding balance to $0 for this job. Use when the customer paid in cash or by another channel HCP hasn't synced yet.</small>
-        </label>
-      </div>
-      <div class="toggle toggle--exclude" style="margin-top:6px">
-        <input type="checkbox" id="excludeChk-${esc(key)}" data-field="excluded" data-key="${esc(key)}" ${j.edit.excluded ? 'checked' : ''}>
-        <label for="excludeChk-${esc(key)}">
-          <strong>Exclude from dashboard entirely</strong>
-          <small>The job won't appear on the leaderboard or in the unattributed list. For duplicates, voided invoices, or work that shouldn't count.</small>
-        </label>
-      </div>
-      <div class="toggle toggle--lock" style="margin-top:6px">
-        <input type="checkbox" id="lockChk-${esc(key)}" data-field="locked" data-key="${esc(key)}" ${j.edit.locked ? 'checked' : ''}>
-        <label for="lockChk-${esc(key)}">
-          <strong>Lock this reconciliation</strong>
-          <small>The auto-pipeline can never overwrite locked records on future refreshes.</small>
-        </label>
       </div>
     </div>
 

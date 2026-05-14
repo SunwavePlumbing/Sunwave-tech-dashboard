@@ -2610,32 +2610,97 @@ body.bento-design .job-deferred-tag {
   font-size: 10px;
 }
 
-/* ── Editor section header (right under JOB DETAILS) ────────────
-   The drawer reuses the inline-edit template, which expects to
-   live inside a .job row. We're hosting it in a dedicated section
-   <header> now so the admin can find the edit controls without
-   scrolling past every context section. */
+/* ── Editor section under JOB DETAILS (Sunwave Bento card) ──────
+   The drawer reuses the inline-edit template. We host it in its
+   own bento card with a small uppercase section label (same
+   treatment as ctx-section summaries), generous internal padding,
+   and zero dashed/hard lines. The card sits on the same surface
+   tier as JOB DETAILS above and the context sections below — one
+   cohesive stack. */
 body.bento-design .drawer-editor-section {
   margin-bottom: 14px;
 }
 body.bento-design .drawer-editor-head {
   display: flex;
   align-items: baseline;
-  gap: 12px;
-  padding: 0 4px 10px;
+  gap: 14px;
+  padding: 18px 22px 6px;
+  margin: 0;
   border-bottom: 0;
 }
 body.bento-design .drawer-editor-title {
-  font-size: 11px;
-  font-weight: 850;
+  font-size: 10.5px;
+  font-weight: 800;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: #373B4D;
+  color: #7B8190;
 }
 body.bento-design .drawer-editor-sub {
-  font-size: 11.5px;
-  color: #7B8190;
+  font-size: 12px;
+  color: #A8AEB7;
   font-weight: 500;
+}
+/* The .job.is-open wrapper is the bento card itself now. Extra
+   class on the selector to beat the .drawer-body .job strip rule
+   defined later in this file (specificity 0,4,1 vs 0,3,1). */
+body.bento-design .drawer-body .drawer-editor-section .job.is-open {
+  background: #FEFCF6;
+  border: 1px solid #E5DFD2;
+  border-radius: 22px;
+  box-shadow:
+    0 1px 2px rgba(11, 36, 71, 0.025),
+    0 16px 40px rgba(11, 36, 71, 0.045);
+  overflow: hidden;
+  isolation: isolate;
+  padding: 0;
+  margin: 0;
+}
+body.bento-design .drawer-body .drawer-editor-section .job.is-open::before {
+  display: none;
+}
+/* The inner .job-edit holds the form. Bento padding, no dashed
+   border-top from the legacy stylesheet. */
+body.bento-design .drawer-body .drawer-editor-section .job-edit {
+  background: transparent;
+  border: 0;
+  border-top: 0;
+  padding: 18px 24px 22px;
+}
+body.bento-design .drawer-body .drawer-editor-section .job-edit:empty {
+  display: none;
+}
+/* Section divisions inside the editor — whitespace only, no
+   lines. Each .edit-section gets a generous bottom gap. */
+body.bento-design .drawer-editor-section .edit-section {
+  margin-bottom: 22px;
+}
+body.bento-design .drawer-editor-section .edit-section:last-child {
+  margin-bottom: 0;
+}
+body.bento-design .drawer-editor-section .edit-label {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #7B8190;
+  margin-bottom: 12px;
+}
+body.bento-design .drawer-editor-section .edit-label--field {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  margin-bottom: 6px;
+}
+body.bento-design .drawer-editor-section .edit-hint {
+  font-size: 12.5px;
+  color: #7B8190;
+  margin: 0 0 12px;
+  line-height: 1.55;
+  font-weight: 500;
+}
+body.bento-design .drawer-editor-section .edit-hint strong {
+  color: #373B4D;
+  font-weight: 700;
 }
 
 /* Money & timing — 3-column layout now that Outstanding has been

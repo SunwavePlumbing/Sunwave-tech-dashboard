@@ -4370,7 +4370,7 @@ app.get('/api/diagnostics/coverage', async (req, res) => {
           return {
             verdict: 'primary_should_have_credited',
             blocker: "This job has everything it needs to show up on the leaderboard (a scheduled date, a completed date, and an assigned tech), but it still isn't there. The dashboard probably hit a temporary error when it tried to load this job.",
-            fix: "Click the Refresh button at the top of the dashboard. That usually clears it up. If the job still doesn't appear after a refresh, message Connor.",
+            fix: "Click the Refresh button at the top of the dashboard. That usually clears it up. If the job still doesn't appear after a refresh, message Levi.",
             details
           };
         }
@@ -4384,7 +4384,7 @@ app.get('/api/diagnostics/coverage', async (req, res) => {
           return {
             verdict: 'gap_pass_should_have_credited',
             blocker: "This job was scheduled outside the normal window, so the dashboard would have used its backup lookup to find it — but that didn't work this time. Most likely the dashboard hit a temporary error.",
-            fix: "Click the Refresh button at the top of the dashboard. If the job still doesn't appear after a refresh, message Connor.",
+            fix: "Click the Refresh button at the top of the dashboard. If the job still doesn't appear after a refresh, message Levi.",
             details
           };
         }
