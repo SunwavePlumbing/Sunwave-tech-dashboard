@@ -1793,6 +1793,60 @@ app.get('/api/metrics', async (req, res) => {
       return true;
     }
 
+    function creditAssignedFallback(job, revenue, date) {
+      const doers = uniqueEmployees(job && job.assigned_employees || []);
+      const jobRevenue = Number(revenue) || 0;
+      if (!job || doers.length === 0 || jobRevenue <= 0) return false;
+
+      const customer = jobCustomerName(job);
+      const jobOutstandingGross = Math.max(0, parseFloat(job.outstanding_balance || 0) / 100);
+      const jobDate = date
+        || (kpiDateForJob(job) && kpiDateForJob(job).toISOString())
+        || (job.schedule && job.schedule.scheduled_start)
+        || null;
+      const credit = jobRevenue / doers.length;
+      const creditPct = Math.round(100 / doers.length);
+      const allInvolvedNames = doers
+        .map(e => ((e.first_name || '') + ' ' + (e.last_name || '')).trim())
+        .filter(Boolean);
+
+      doers.forEach(emp => {
+        ensureTech(emp);
+        const myName = ((emp.first_name || '') + ' ' + (emp.last_name || '')).trim();
+        const splitWith = allInvolvedNames
+          .filter(n => n && n !== myName)
+          .map(n => ({ name: n, creditPct }));
+        const outstandingShare = jobRevenue > 0 ? jobOutstandingGross / doers.length : 0;
+        techMetrics[emp.id].revenue += credit;
+        techMetrics[emp.id].jobs += 1;
+        techMetrics[emp.id].unpaid += outstandingShare;
+        if (jobOutstandingGross > 0) techMetrics[emp.id].unpaidJobs += 1;
+        techMetrics[emp.id].jobList.push({
+          jobId: job.id || null,
+          invoice: job.invoice_number || null,
+          description: job.description || null,
+          customer,
+          date: jobDate,
+          jobTotal: jobRevenue,
+          credit,
+          creditPct,
+          role: 'Did',
+          splitWith,
+          sellerSource: 'assigned_employee_fallback',
+          sellerConfidence: 'fallback',
+          outstanding: jobOutstandingGross,
+          outstandingShare,
+          autoDatedComplete: isAutoDatedByCompletionLag(job),
+          autoCompletionKind: autoCompletionKind(job)
+        });
+      });
+
+      if (job.id) creditedJobIds.add(job.id);
+      const invoiceKey = creditedInvoiceKey(job);
+      if (invoiceKey) creditedInvoiceKeys.add(invoiceKey);
+      return true;
+    }
+
     completedJobs.forEach(job => creditJob(job));
 
     /* ── Coverage gap pass ───────────────────────────────────────
@@ -1989,6 +2043,9 @@ app.get('/api/metrics', async (req, res) => {
         if (credited) {
           gapStats.gapCreditedCount++;
           gapStats.gapCreditedDollars += paidInPeriod;
+        } else if (creditAssignedFallback(job, paidInPeriod, gapKpiDate ? gapKpiDate.toISOString() : latestPaidAt)) {
+          gapStats.gapCreditedCount++;
+          gapStats.gapCreditedDollars += paidInPeriod;
         } else {
           // No assigned_employees and no salvageable split sibling.
           // Push to orphans (back-compat) AND unattributed (new path).
@@ -2042,6 +2099,13 @@ app.get('/api/metrics', async (req, res) => {
       const customerFromInv = invs[0].customer
         ? ((invs[0].customer.first_name || '') + ' ' + (invs[0].customer.last_name || '')).trim()
         : '';
+      const safetyKpiDate = job ? kpiDateForJob(job) : null;
+      const safetyKpiDateIso = safetyKpiDate && !isNaN(safetyKpiDate.getTime()) ? safetyKpiDate.toISOString() : null;
+      if (job && (job.assigned_employees || []).length > 0
+          && (!safetyKpiDate || (safetyKpiDate >= periodStart && safetyKpiDate < periodEnd))
+          && creditAssignedFallback(job, paidInPeriod, safetyKpiDateIso || latestPaidAt)) {
+        continue;
+      }
 
       // Determine why this landed here so the UI can show a useful
       // reason chip without the tech/admin having to guess.
@@ -2050,8 +2114,8 @@ app.get('/api/metrics', async (req, res) => {
       // scheduled_start if auto-dated). When the reason is
       // "completed_in_different_period", this is the field the UI
       // shows so the user knows where the job was *actually* credited.
-      const kdRaw = job ? kpiDateForJob(job) : null;
-      const kpiDateIso = kdRaw && !isNaN(kdRaw.getTime()) ? kdRaw.toISOString() : null;
+      const kdRaw = safetyKpiDate;
+      const kpiDateIso = safetyKpiDateIso;
 
       // Skip rows that aren't actually uncredited. A job paid in this
       // period but whose service date is in another period IS already
