@@ -190,7 +190,20 @@ function estimateIdForJob(job) {
 
 const KPI_BACKDATE_THRESHOLD_MS = 3 * 24 * 60 * 60 * 1000;
 const SELLER_LOOKBACK_MS = 14 * 24 * 60 * 60 * 1000;
-const HCP_KPI_WORK_STATUSES = ['completed', 'in_progress', 'scheduled'];
+// HCP can return finished jobs as "complete unrated" before they land
+// in the simpler "completed" bucket. Treat it as completed for KPI
+// purposes, otherwise real paid work can be visible in diagnostics/audit
+// but absent from the main leaderboard fetch.
+const HCP_KPI_WORK_STATUSES = ['completed', 'complete unrated', 'complete_unrated', 'in_progress', 'scheduled'];
+
+function normalizeWorkStatus(value) {
+  return String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+}
+
+function isKpiFetchableWorkStatus(value) {
+  const normalized = normalizeWorkStatus(value);
+  return HCP_KPI_WORK_STATUSES.some(status => normalizeWorkStatus(status) === normalized);
+}
 
 function jobScheduledStart(job) {
   return job && job.schedule && job.schedule.scheduled_start ? new Date(job.schedule.scheduled_start) : null;
@@ -509,7 +522,8 @@ Array.from(_cache.keys()).forEach(k => {
   // deploys. Employee-list caches are included so the tech-filter
   // rules (active-tech threshold, name dedup) take effect on the
   // first request after deploy rather than waiting out the 4-hour TTL.
-  if (k.startsWith('metrics:') || k.startsWith('marketing') || k === 'qbo-marketing'
+  if (k.startsWith('metrics:') || k.startsWith('coverage:') || k.startsWith('raw-jobs-short:')
+      || k === 'raw-short' || k.startsWith('marketing') || k === 'qbo-marketing'
       || k === 'public-employees' || k === 'admin-employees' || k === 'active-tech-ids') {
     _cache.delete(k); _bustedMetrics++;
   }
@@ -4220,6 +4234,7 @@ app.get('/api/diagnostics/coverage', async (req, res) => {
         // &scheduled_start_min/max ?
         const primaryQueryWouldFind = (() => {
           if (!scheduled) return false;
+          if (!isKpiFetchableWorkStatus(status)) return false;
           const sd = new Date(scheduled);
           const days = (Date.now() - sd.getTime()) / (1000 * 60 * 60 * 24);
           if (days > 270) return false;
@@ -5116,10 +5131,25 @@ app.post('/api/kpi/admin/reconcile', (req, res) => {
 
   const recs = loadReconciliations();
   const existing = recs[jobId] || {};
+
+  // outstandingBalance override. Three states:
+  //   undefined         → keep existing value (treat as untouched)
+  //   null / ''         → admin explicitly cleared the override
+  //   number (incl. 0)  → admin override; use this instead of HCP's
+  let outstandingBalance;
+  if (body.outstandingBalance === undefined) {
+    outstandingBalance = existing.outstandingBalance != null ? existing.outstandingBalance : null;
+  } else if (body.outstandingBalance === null || body.outstandingBalance === '') {
+    outstandingBalance = null;
+  } else {
+    const n = Number(body.outstandingBalance);
+    outstandingBalance = Number.isFinite(n) ? Math.max(0, n) : null;
+  }
   recs[jobId] = {
     jobId,
     assignments: norm,
     totalAmount: body.totalAmount != null ? Number(body.totalAmount) : (existing.totalAmount != null ? existing.totalAmount : null),
+    outstandingBalance: outstandingBalance,
     kpiDate: body.kpiDate || existing.kpiDate || null,
     notes: String(body.notes || '').slice(0, 1000),
     locked: body.locked !== false, // default true

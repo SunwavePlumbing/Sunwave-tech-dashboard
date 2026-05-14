@@ -2987,6 +2987,9 @@ async function renderEditPanel(key) {
           ? job.assignedEmployees.map((e, i) => ({ employeeName: e.name, role: i === 0 ? 'Sold & Did' : 'Did', creditPct: 0 }))
           : []),
     totalAmount: recon && recon.totalAmount != null ? recon.totalAmount : job.totalAmount,
+    // Outstanding override — null means "use HCP's value". An
+    // explicit number (including 0) overrides HCP for this job.
+    outstandingBalance: recon && recon.outstandingBalance != null ? recon.outstandingBalance : null,
     kpiDate: isoDate(recon && recon.kpiDate ? recon.kpiDate : (job.completedAt || job.scheduledStart)),
     notes: (recon && recon.notes) || '',
     locked: recon ? recon.locked !== false : true,
@@ -3080,13 +3083,17 @@ async function renderEditPanel(key) {
 
     <div class="edit-section">
       <span class="edit-label">Money &amp; timing</span>
-      <div class="money-date">
+      <div class="money-date money-date--3">
         <div class="field">
-          <label class="edit-label" style="margin-bottom:4px">Effective total ($)</label>
+          <label class="edit-label" style="margin-bottom:4px">HCP total ($)</label>
           <input type="number" step="0.01" data-field="totalAmount" data-key="${esc(key)}" value="${Number(j.edit.totalAmount).toFixed(2)}">
         </div>
         <div class="field">
-          <label class="edit-label" style="margin-bottom:4px">KPI date (period this counts toward)</label>
+          <label class="edit-label" style="margin-bottom:4px">Outstanding ($)</label>
+          <input type="number" step="0.01" min="0" data-field="outstandingBalance" data-key="${esc(key)}" placeholder="leave blank to use HCP" value="${j.edit.outstandingBalance != null ? Number(j.edit.outstandingBalance).toFixed(2) : ''}">
+        </div>
+        <div class="field">
+          <label class="edit-label" style="margin-bottom:4px">Work date</label>
           <input type="date" data-field="kpiDate" data-key="${esc(key)}" value="${esc(j.edit.kpiDate)}">
         </div>
       </div>
@@ -3300,6 +3307,11 @@ document.addEventListener('change', (e) => {
     renderAssignments(key);
   } else if (field === 'totalAmount') {
     j.edit.totalAmount = parseFloat(t.value) || 0;
+  } else if (field === 'outstandingBalance') {
+    // Empty input = no override (fall back to HCP's value);
+    // any number (including 0) = explicit admin override.
+    const v = String(t.value || '').trim();
+    j.edit.outstandingBalance = v === '' ? null : (parseFloat(v) || 0);
   } else if (field === 'kpiDate') {
     j.edit.kpiDate = t.value;
   } else if (field === 'notes') {
@@ -3322,6 +3334,10 @@ document.addEventListener('blur', (e) => {
   if (!j || !j.edit) return;
   if (field === 'notes') j.edit.notes = t.value;
   if (field === 'totalAmount') j.edit.totalAmount = parseFloat(t.value) || 0;
+  if (field === 'outstandingBalance') {
+    const v = String(t.value || '').trim();
+    j.edit.outstandingBalance = v === '' ? null : (parseFloat(v) || 0);
+  }
   if (field === 'kpiDate') j.edit.kpiDate = t.value;
 }, true);
 
@@ -3359,6 +3375,7 @@ async function saveJob(key) {
         jobId,
         assignments: cleanAssignments,
         totalAmount: j.edit.totalAmount,
+        outstandingBalance: j.edit.outstandingBalance,
         kpiDate: j.edit.kpiDate,
         notes: j.edit.notes,
         locked: j.edit.locked,
@@ -3923,12 +3940,24 @@ function openInDrawer(key) {
   // class on the wrapper makes the editor CSS display: block.
   // The `#drawerContext` div is a placeholder we fill after
   // renderEditPanel completes (it pulls the full HCP context).
+  // Order matters here. The editor used to live at the bottom of the
+  // drawer body, after every context section, where the admin would
+  // never find it. Now it sits right under the JOB DETAILS tiles so
+  // the read-only summary and the editable form are visually adjacent
+  // — the admin scrolls naturally from "what does HCP say" into
+  // "fix what HCP got wrong".
   drawerBody.innerHTML = summaryHtml + issuesHtml +
     '<div id="drawerInstantContext">' + renderJobOverview(drawerOverviewJobFromRow(j)) + '</div>' +
+    '<section class="drawer-editor-section" aria-labelledby="drawerEditorTitle">' +
+      '<header class="drawer-editor-head">' +
+        '<span id="drawerEditorTitle" class="drawer-editor-title">Edit job</span>' +
+        '<span class="drawer-editor-sub">Techs, work date, totals, paid status</span>' +
+      '</header>' +
+      '<div class="job is-open" data-key="' + esc(key) + '">' +
+        '<div class="job-edit" data-edit-for="' + esc(key) + '"></div>' +
+      '</div>' +
+    '</section>' +
     '<div id="drawerContext"></div>' +
-    '<div class="job is-open" data-key="' + esc(key) + '">' +
-      '<div class="job-edit" data-edit-for="' + esc(key) + '"></div>' +
-    '</div>' +
     '<div id="drawerFooterContext"></div>';
   // Set a loading placeholder so the admin sees something while HCP
   // round-trips. injectDrawerContext will replace it once the editor
@@ -4125,6 +4154,8 @@ function buildReconcilePayload(j) {
       creditPct: Number(a.creditPct) || 0
     })),
     totalAmount: Number(e.totalAmount) || 0,
+    // null = no override (use HCP). A number (including 0) overrides.
+    outstandingBalance: e.outstandingBalance != null ? Number(e.outstandingBalance) : null,
     kpiDate: e.kpiDate || null,
     notes: e.notes || '',
     locked: true,

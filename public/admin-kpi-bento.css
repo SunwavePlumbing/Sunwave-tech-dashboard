@@ -2593,6 +2593,45 @@ body.bento-design .job-deferred-tag {
   font-size: 10px;
 }
 
+/* ── Editor section header (right under JOB DETAILS) ────────────
+   The drawer reuses the inline-edit template, which expects to
+   live inside a .job row. We're hosting it in a dedicated section
+   <header> now so the admin can find the edit controls without
+   scrolling past every context section. */
+body.bento-design .drawer-editor-section {
+  margin-bottom: 14px;
+}
+body.bento-design .drawer-editor-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 0 4px 10px;
+  border-bottom: 0;
+}
+body.bento-design .drawer-editor-title {
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #373B4D;
+}
+body.bento-design .drawer-editor-sub {
+  font-size: 11.5px;
+  color: #7B8190;
+  font-weight: 500;
+}
+
+/* Money & timing — 3-column layout now that Outstanding has been
+   added alongside HCP total + Work date. */
+body.bento-design .money-date.money-date--3 {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+@media (max-width: 700px) {
+  body.bento-design .money-date.money-date--3 {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ── Strip row-card chrome from the editor wrapper inside drawer ──
    The drawer reuses the inline-edit template, which expects to live
    inside a `.job` row. The JS therefore emits `<div class="job
