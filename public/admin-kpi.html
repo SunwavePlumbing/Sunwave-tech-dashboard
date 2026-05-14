@@ -4658,13 +4658,14 @@ function injectDrawerContext(key) {
   if (instant) instant.innerHTML = '';
 
   // Build each section. Sections with no data return empty string
-  // so the drawer doesn't show empty cards.
+  // so the drawer doesn't show empty cards. The single "Money timeline"
+  // consolidates what used to be three separate sections (per-job
+  // event timeline, invoices & payments, estimates) into one
+  // customer-wide chronological feed.
   const sections = [];
   sections.push(renderJobOverview(srv.job));
-  sections.push(renderEventTimeline(srv.job, ctx));
+  sections.push(renderCustomerMoneyTimeline(srv, ctx));
   sections.push(renderLineItems(ctx.lineItems, srv.job));
-  sections.push(renderInvoicesAndPayments(ctx.invoices));
-  sections.push(renderEstimates(ctx.estimates, srv.job));
   sections.push(renderCustomerPriorJobs(ctx.customerJobs, srv.job));
 
   target.innerHTML = sections.filter(Boolean).join('');
@@ -4749,60 +4750,201 @@ function renderJobOverview(job) {
   '</details>';
 }
 
-function renderEventTimeline(job, ctx) {
-  if (!job) return '';
-  const invoices = (ctx && ctx.invoices) || [];
+// Unified, customer-scoped money timeline. Consolidates estimates,
+// invoices, payments, and job lifecycle events (created/completed)
+// across every job this customer has ever had — not just the one the
+// admin opened the drawer on. Pure chronological, newest first.
+// Each event carries an icon + label + amount (where applicable) +
+// the job/estimate number it belongs to so the admin can scan the
+// whole financial history of the customer in one column.
+function renderCustomerMoneyTimeline(srv, ctx) {
   const events = [];
-  // Scheduled (when the job was put on the calendar)
-  if (job.scheduledStart) {
-    events.push({ label: 'Scheduled', when: job.scheduledStart, done: true });
-  }
-  // Completed
-  if (job.completedAt) {
-    events.push({ label: 'Completed', when: job.completedAt, done: true });
-  } else if (job.workStatus) {
-    events.push({ label: 'Work status: ' + job.workStatus, when: null, done: false });
-  }
-  // Invoiced — use earliest invoice creation if we can derive it; we
-  // don't always have invoice created_at, so fall back to paid_at.
-  invoices.forEach(inv => {
-    if (inv.paidAt) {
-      const paidAmount = inv.paidAmount != null ? Number(inv.paidAmount) : null;
-      const invoiceTotal = inv.amount != null ? Number(inv.amount) : null;
-      const dueAmount = inv.dueAmount != null ? Number(inv.dueAmount) : 0;
-      const paidLabel = paidAmount != null ? paidAmount : invoiceTotal;
-      const lbl = (dueAmount > 0 ? 'Payment recorded' : 'Paid') +
-                  (inv.paymentMethod ? ' (' + inv.paymentMethod + ')' : '') +
-                  (paidLabel != null ? ' — ' + fmt(paidLabel) : '');
-      events.push({ label: lbl, when: inv.paidAt, done: true });
-      if (dueAmount > 0) {
-        events.push({ label: 'Invoice still outstanding — ' + fmt(dueAmount), when: inv.dueAt || inv.paidAt, done: false });
-      }
-    } else if (inv.dueAmount && inv.dueAmount > 0) {
-      events.push({ label: 'Invoice outstanding — ' + fmt(inv.dueAmount), when: inv.dueAt, done: false });
+  const job = srv && srv.job;
+  const currentJobId = job && job.id;
+  const estimates = (ctx && ctx.estimates) || [];
+  const customerInvoices = (ctx && ctx.customerInvoices) || (ctx && ctx.invoices) || [];
+  const customerJobs = (ctx && ctx.customerJobs) || [];
+
+  // ── Estimate events ─────────────────────────────────────────────
+  estimates.forEach(e => {
+    const ref = e.estimateNumber ? '#' + e.estimateNumber : 'Estimate';
+    const totalLbl = e.total != null ? fmt(e.total) : null;
+    if (e.createdAt) {
+      events.push({
+        kind: 'estimate',
+        date: e.createdAt,
+        label: 'Estimate created',
+        ref: ref,
+        amount: totalLbl,
+        tone: 'info'
+      });
+    }
+    if (e.approvedAt) {
+      events.push({
+        kind: 'estimate',
+        date: e.approvedAt,
+        label: 'Estimate approved',
+        ref: ref,
+        amount: totalLbl,
+        tone: 'good'
+      });
+    }
+    // Treat current status as a terminal event when it's a non-default
+    // resolution and we don't have a dedicated date for it.
+    const status = String(e.status || '').toLowerCase();
+    const terminal = /(declined|lost|expired|cancel)/.test(status);
+    if (terminal && !e.approvedAt) {
+      events.push({
+        kind: 'estimate',
+        date: e.updatedAt || e.createdAt,
+        label: 'Estimate ' + (status || 'closed'),
+        ref: ref,
+        amount: totalLbl,
+        tone: 'bad'
+      });
     }
   });
-  if (!events.length) return '';
-  // Sort by date ascending (events without dates go to end)
-  events.sort((a, b) => {
-    if (!a.when && !b.when) return 0;
-    if (!a.when) return 1;
-    if (!b.when) return -1;
-    return new Date(a.when) - new Date(b.when);
+
+  // ── Customer-wide invoice + payment events ──────────────────────
+  customerInvoices.forEach(inv => {
+    const ref = inv.invoiceNumber ? 'Invoice #' + inv.invoiceNumber : 'Invoice';
+    const jobRef = inv.jobId === currentJobId
+      ? 'this job'
+      : (inv.jobInvoiceNumber ? 'job #' + inv.jobInvoiceNumber : null);
+    // Issued (sent_at preferred, else invoice_date — HCP fills only one
+    // depending on workflow). Skip if both are missing.
+    const issuedAt = inv.sentAt || inv.invoiceDate;
+    if (issuedAt) {
+      events.push({
+        kind: 'invoice',
+        date: issuedAt,
+        label: 'Invoice issued',
+        ref: ref,
+        amount: inv.amount != null ? fmt(inv.amount) : null,
+        meta: jobRef,
+        tone: 'info'
+      });
+    }
+    // Each individual payment becomes its own event so split payments
+    // (deposit + balance) are visible. Fall back to a synthetic "Paid"
+    // event when the invoice has paid_at but no itemized payments[].
+    const payments = Array.isArray(inv.payments) ? inv.payments.filter(p => p.paidAt || p.amount != null) : [];
+    if (payments.length) {
+      payments.forEach(p => {
+        events.push({
+          kind: 'payment',
+          date: p.paidAt,
+          label: 'Payment' + (p.method ? ' · ' + p.method : ''),
+          ref: ref,
+          amount: p.amount != null ? fmt(p.amount) : null,
+          meta: jobRef,
+          tone: 'good'
+        });
+      });
+    } else if (inv.paidAt) {
+      events.push({
+        kind: 'payment',
+        date: inv.paidAt,
+        label: 'Payment' + (inv.paymentMethod ? ' · ' + inv.paymentMethod : ''),
+        ref: ref,
+        amount: inv.paidAmount != null ? fmt(inv.paidAmount)
+              : inv.amount != null ? fmt(inv.amount) : null,
+        meta: jobRef,
+        tone: 'good'
+      });
+    }
+    // Outstanding balance as a "still due" marker dated by due_at if
+    // present, otherwise by sent/issued so it lands on the timeline
+    // near the issue event.
+    if (inv.dueAmount && inv.dueAmount > 0) {
+      events.push({
+        kind: 'outstanding',
+        date: inv.dueAt || issuedAt || inv.paidAt,
+        label: 'Outstanding balance',
+        ref: ref,
+        amount: fmt(inv.dueAmount),
+        meta: jobRef,
+        tone: 'bad'
+      });
+    }
   });
+
+  // ── Customer job lifecycle events ───────────────────────────────
+  customerJobs.forEach(j => {
+    const ref = j.invoice ? 'Job #' + j.invoice : 'Job';
+    const totalLbl = j.total != null ? fmt(j.total) : null;
+    const isCurrent = j.id === currentJobId;
+    if (j.createdAt) {
+      events.push({
+        kind: 'job',
+        date: j.createdAt,
+        label: 'Job created' + (isCurrent ? ' (this job)' : ''),
+        ref: ref,
+        amount: totalLbl,
+        tone: 'info'
+      });
+    }
+    if (j.completedAt) {
+      events.push({
+        kind: 'job',
+        date: j.completedAt,
+        label: 'Job completed' + (isCurrent ? ' (this job)' : ''),
+        ref: ref,
+        amount: totalLbl,
+        tone: 'good'
+      });
+    }
+  });
+
+  if (!events.length) {
+    return '<details class="ctx-section" open>' +
+      '<summary>Money timeline<span class="ctx-subtle">0 events</span></summary>' +
+      '<div class="ctx-body"><div class="ctx-empty">No estimate, invoice, or payment activity for this customer in HCP.</div></div>' +
+    '</details>';
+  }
+
+  // Newest first — most recent money activity is what an admin cares
+  // about when investigating a discrepancy.
+  events.sort((a, b) => {
+    if (!a.date && !b.date) return 0;
+    if (!a.date) return 1;
+    if (!b.date) return -1;
+    return new Date(b.date) - new Date(a.date);
+  });
+
+  const ICON = { estimate: '✎', invoice: '⌗', payment: '$', outstanding: '!', job: '◆' };
   const items = events.map(e => {
-    const cls = e.done ? 'is-done' : '';
-    const when = e.when
-      ? new Date(e.when).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
-      : 'pending';
-    return '<li class="' + cls + '">' +
-      '<span class="ctx-evt-label">' + esc(e.label) + '</span>' +
-      '<span class="ctx-evt-when">' + esc(when) + '</span>' +
+    const dt = e.date
+      ? new Date(e.date).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+      : 'No date';
+    const metaParts = [];
+    if (e.ref) metaParts.push(esc(e.ref));
+    if (e.meta) metaParts.push(esc(e.meta));
+    const metaHtml = metaParts.length
+      ? '<span class="ct-evt-meta">' + metaParts.join(' · ') + '</span>'
+      : '';
+    const amountHtml = e.amount
+      ? '<span class="ct-evt-amt ct-evt-amt--' + e.tone + '">' + esc(e.amount) + '</span>'
+      : '';
+    return '<li class="ct-evt ct-evt--' + e.kind + ' ct-evt--' + e.tone + '">' +
+      '<span class="ct-evt-icon" aria-hidden="true">' + ICON[e.kind] + '</span>' +
+      '<div class="ct-evt-main">' +
+        '<div class="ct-evt-row1">' +
+          '<span class="ct-evt-label">' + esc(e.label) + '</span>' +
+          amountHtml +
+        '</div>' +
+        '<div class="ct-evt-row2">' +
+          '<span class="ct-evt-when">' + esc(dt) + '</span>' +
+          (metaParts.length ? '<span class="ct-evt-dot">·</span>' : '') +
+          metaHtml +
+        '</div>' +
+      '</div>' +
     '</li>';
   }).join('');
+
   return '<details class="ctx-section" open>' +
-    '<summary>Event timeline<span class="ctx-subtle">' + events.length + ' event' + (events.length === 1 ? '' : 's') + '</span></summary>' +
-    '<div class="ctx-body"><ul class="ctx-timeline">' + items + '</ul></div>' +
+    '<summary>Money timeline<span class="ctx-subtle">' + events.length + ' event' + (events.length === 1 ? '' : 's') + ' across this customer</span></summary>' +
+    '<div class="ctx-body"><ul class="ct-timeline">' + items + '</ul></div>' +
   '</details>';
 }
 
@@ -4840,180 +4982,6 @@ function renderLineItems(lineItems, job) {
       '<tbody>' + rows + '</tbody>' +
       '<tfoot><tr><td colspan="3" class="num">Total</td><td class="num">' + fmt(total) + '</td></tr></tfoot>' +
     '</table></div>' +
-  '</details>';
-}
-
-function renderInvoicesAndPayments(invoices) {
-  if (!Array.isArray(invoices) || !invoices.length) return '';
-  const rows = invoices.map(inv => {
-    const meta = [];
-    if (inv.invoiceNumber) meta.push('#' + inv.invoiceNumber);
-    const paidAmount = inv.paidAmount != null ? Number(inv.paidAmount) : null;
-    const invoiceTotal = inv.amount != null ? Number(inv.amount) : null;
-    const dueAmount = inv.dueAmount != null ? Number(inv.dueAmount) : 0;
-    if (inv.paidAt) {
-      const when = new Date(inv.paidAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-      meta.push((dueAmount > 0 ? 'Payment ' : 'Paid ') + when);
-      if (paidAmount != null) meta.push('collected ' + fmt(paidAmount));
-      if (dueAmount > 0) meta.push(fmt(dueAmount) + ' due');
-      if (inv.paymentMethod) meta.push(inv.paymentMethod);
-    } else if (inv.dueAmount && inv.dueAmount > 0) {
-      meta.push('Unpaid (' + fmt(inv.dueAmount) + ' due)');
-    }
-    const amountLabel = invoiceTotal != null ? fmt(invoiceTotal) + ' total' : '—';
-    return '<div class="ctx-row">' +
-      '<span class="ctx-row-label">' + esc(meta[0] || '—') + '</span>' +
-      '<span class="ctx-row-meta">' + esc(meta.slice(1).join(' · ')) + '</span>' +
-      '<span class="ctx-row-amt">' + esc(amountLabel) + '</span>' +
-    '</div>';
-  }).join('');
-  return '<details class="ctx-section">' +
-    '<summary>Invoices &amp; payments<span class="ctx-subtle">' + invoices.length + '</span></summary>' +
-    '<div class="ctx-body"><div class="ctx-rows">' + rows + '</div></div>' +
-  '</details>';
-}
-
-// Relative-time helper for the estimate timeline. Returns short
-// human strings like "today", "yesterday", "5 days ago", "3 weeks
-// ago", "2 months ago". Past 90 days, falls back to a month label.
-function relativeWhen(dateLike) {
-  if (!dateLike) return '';
-  const then = new Date(dateLike);
-  if (isNaN(then)) return '';
-  const now = new Date();
-  // Normalize to local day boundaries so "yesterday" is robust to
-  // time-of-day differences within the past 24h.
-  const a = new Date(then.getFullYear(), then.getMonth(), then.getDate());
-  const b = new Date(now.getFullYear(),  now.getMonth(),  now.getDate());
-  const days = Math.round((b - a) / 86400000);
-  if (days === 0) return 'today';
-  if (days === 1) return 'yesterday';
-  if (days > 0 && days <= 13) return days + ' days ago';
-  if (days > 0 && days <= 60) {
-    const wk = Math.round(days / 7);
-    return wk + (wk === 1 ? ' week ago' : ' weeks ago');
-  }
-  if (days > 0 && days <= 540) {
-    const mo = Math.round(days / 30);
-    return mo + (mo === 1 ? ' month ago' : ' months ago');
-  }
-  if (days > 540) {
-    const yr = Math.round(days / 365);
-    return yr + (yr === 1 ? ' year ago' : ' years ago');
-  }
-  // Future date
-  if (days === -1) return 'tomorrow';
-  if (days < 0 && days >= -13) return 'in ' + (-days) + ' days';
-  if (days < 0 && days >= -60) {
-    const wk = Math.round(-days / 7);
-    return 'in ' + wk + (wk === 1 ? ' week' : ' weeks');
-  }
-  return new Date(dateLike).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-}
-
-// Pick the most informative date to anchor an estimate on the
-// timeline: when it was approved if applicable, else scheduled,
-// else created. Approval is the strongest signal because it's
-// when the customer actually accepted, but most estimates surface
-// scheduledStart or createdAt instead.
-function pickEstimateDate(e) {
-  return e.approvedAt || e.scheduledStart || e.createdAt || null;
-}
-
-// Map raw HCP estimate status strings onto Sunwave pill tones.
-function estimateStatusTone(status) {
-  const s = String(status || '').toLowerCase();
-  if (/(approved|signed|accepted|won)/.test(s)) return 'good';
-  if (/(scheduled|in.?progress|active)/.test(s))  return 'info';
-  if (/(needs.scheduling|pending|submitted|draft|sent)/.test(s)) return 'warn';
-  if (/(declined|lost|expired|cancel)/.test(s))   return 'bad';
-  return 'mute';
-}
-
-function renderEstimates(estimates, job) {
-  // Render an explicit empty-state section even when this
-  // customer has no prior estimates, so the admin can see at a
-  // glance that we DID check and there genuinely are none —
-  // instead of having the section silently disappear and leaving
-  // the admin wondering whether the lookup ran at all.
-  if (!Array.isArray(estimates) || !estimates.length) {
-    return '<details class="ctx-section">' +
-      '<summary>Estimates<span class="ctx-subtle">0</span></summary>' +
-      '<div class="ctx-body"><div class="ctx-empty">No estimates on file for this customer.</div></div>' +
-    '</details>';
-  }
-  const jobTotal = job ? Number(job.totalAmount || 0) : 0;
-  // Newest first — the admin almost always cares about the latest
-  // estimate (the one that turned into the job) before older drafts.
-  const sorted = estimates.slice().sort((a, b) => {
-    const da = pickEstimateDate(a), db = pickEstimateDate(b);
-    if (!da && !db) return 0;
-    if (!da) return 1;
-    if (!db) return -1;
-    return new Date(db) - new Date(da);
-  });
-
-  const items = sorted.map((e, idx) => {
-    const date = pickEstimateDate(e);
-    const dateShort = date
-      ? new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      : 'No date';
-    const ago = date ? relativeWhen(date) : '';
-    const statusTone = estimateStatusTone(e.status || e.workStatus);
-    const statusText = e.status || e.workStatus || '';
-
-    // Sellers — primary signal admins look for. Surface them
-    // prominently rather than buried in meta.
-    const sellers = (e.assignedEmployees || [])
-      .map(emp => emp && (emp.name || emp.id))
-      .filter(Boolean)
-      .join(', ');
-
-    // Drift vs. the job's invoice total — colored chip.
-    let driftChip = '';
-    if (e.total != null && jobTotal) {
-      if (Math.abs(e.total - jobTotal) < 0.005) {
-        driftChip = '<span class="est-chip est-chip--good">matches invoice</span>';
-      } else {
-        const delta = fmt(Math.abs(jobTotal - e.total));
-        driftChip = '<span class="est-chip est-chip--warn">invoice differs by ' + delta + '</span>';
-      }
-    }
-
-    // Options — keep as a short secondary line, only the names +
-    // statuses (drop redundant totals since the headline shows total).
-    const optionText = (e.options || [])
-      .filter(opt => opt && (opt.name || opt.status))
-      .map(opt => [opt.name, opt.status].filter(Boolean).join(' · '))
-      .join(' • ');
-
-    // Estimate number — small, top-right of detail, deliberately
-    // de-emphasized since the admin cares about date + amount.
-    const numLabel = e.estimateNumber ? '#' + e.estimateNumber : '';
-
-    const isLast = idx === sorted.length - 1;
-    return '<li class="est-item' + (isLast ? ' est-item--last' : '') + '">' +
-      '<div class="est-rail"><span class="est-dot"></span></div>' +
-      '<div class="est-when">' +
-        '<span class="est-date">' + esc(dateShort) + '</span>' +
-        (ago ? '<span class="est-ago">' + esc(ago) + '</span>' : '') +
-      '</div>' +
-      '<div class="est-detail">' +
-        '<div class="est-headline">' +
-          '<span class="est-amount">' + (e.total != null ? fmt(e.total) : '—') + '</span>' +
-          (statusText ? '<span class="est-status est-status--' + statusTone + '">' + esc(statusText) + '</span>' : '') +
-          (numLabel ? '<span class="est-num">' + esc(numLabel) + '</span>' : '') +
-        '</div>' +
-        (sellers ? '<div class="est-sellers">' + esc(sellers) + '</div>' : '') +
-        (optionText ? '<div class="est-options">' + esc(optionText) + '</div>' : '') +
-        (driftChip ? '<div class="est-drift">' + driftChip + '</div>' : '') +
-      '</div>' +
-    '</li>';
-  }).join('');
-
-  return '<details class="ctx-section">' +
-    '<summary>Estimates<span class="ctx-subtle">' + estimates.length + '</span></summary>' +
-    '<div class="ctx-body"><ol class="est-timeline">' + items + '</ol></div>' +
   '</details>';
 }
 

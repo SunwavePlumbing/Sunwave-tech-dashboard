@@ -5056,6 +5056,8 @@ app.get('/api/kpi/admin/job/:id', async (req, res) => {
           amount: inv.amount != null ? Number(inv.amount) / 100 : null,
           paidAmount: invoicePaidDollars(inv),
           paidAt: inv.paid_at || null,
+          sentAt: inv.sent_at || null,
+          invoiceDate: inv.invoice_date || null,
           dueAt: inv.due_at || null,
           dueAmount: inv.due_amount != null ? Number(inv.due_amount) / 100 : null,
           paymentMethod: inv.payment_method || (inv.payments && inv.payments[0] && inv.payments[0].method) || null,
@@ -5111,6 +5113,56 @@ app.get('/api/kpi/admin/job/:id', async (req, res) => {
       }) : Promise.resolve(null)
     ]);
 
+    // Fan out invoice fetches across the customer's prior jobs so the
+    // drawer's money timeline shows every invoice + payment for the
+    // whole customer, not just this one job. Capped at 20 jobs so a
+    // chronic customer with 60 prior visits doesn't trigger 60
+    // simultaneous HCP requests on every drawer open. Each invoice is
+    // tagged with its parent jobId / invoice number / description so
+    // the client can route events back to the job they belong to.
+    let customerInvoices = null;
+    if (Array.isArray(customerJobs) && customerJobs.length) {
+      const targetJobs = customerJobs.slice(0, 20);
+      const fetched = await Promise.all(targetJobs.map(async (cj) => {
+        // The current job's invoices were already fetched above —
+        // reuse them rather than re-hitting HCP.
+        if (cj.id === id) {
+          return (invoices || []).map(inv => ({
+            ...inv,
+            jobId: id,
+            jobInvoiceNumber: job.invoice_number || null,
+            jobDescription: job.description || null
+          }));
+        }
+        try {
+          const ir = await axios.get(BASE_URL + '/jobs/' + cj.id + '/invoices', { headers: hcpHeaders() });
+          return (ir.data.invoices || []).map(inv => ({
+            invoiceNumber: inv.invoice_number || null,
+            amount: inv.amount != null ? Number(inv.amount) / 100 : null,
+            paidAmount: invoicePaidDollars(inv),
+            paidAt: inv.paid_at || null,
+            sentAt: inv.sent_at || null,
+            invoiceDate: inv.invoice_date || null,
+            dueAt: inv.due_at || null,
+            dueAmount: inv.due_amount != null ? Number(inv.due_amount) / 100 : null,
+            paymentMethod: inv.payment_method || (inv.payments && inv.payments[0] && inv.payments[0].method) || null,
+            payments: (inv.payments || []).map(p => ({
+              amount: p.amount != null ? Number(p.amount) / 100 : null,
+              method: p.method || null,
+              paidAt: p.paid_at || p.created_at || null,
+              note: p.note || null
+            })),
+            jobId: cj.id,
+            jobInvoiceNumber: cj.invoice || null,
+            jobDescription: cj.description || null
+          }));
+        } catch (e) {
+          return [];
+        }
+      }));
+      customerInvoices = fetched.flat();
+    }
+
     res.json({
       ok: true,
       job: {
@@ -5144,7 +5196,8 @@ app.get('/api/kpi/admin/job/:id', async (req, res) => {
         lineItems: lineItems,
         invoices: invoices,
         estimates: estimates,
-        customerJobs: customerJobs
+        customerJobs: customerJobs,
+        customerInvoices: customerInvoices
       }
     });
   } catch (err) {

@@ -1721,6 +1721,98 @@ body.bento-design .ctx-timeline .ctx-evt-when {
   font-variant-numeric: tabular-nums;
 }
 
+/* ── Money timeline (customer-wide unified feed) ──────────────────
+   Distinct from the older .ctx-timeline (which the event-timeline
+   section still uses). Each row has an icon column, a main column
+   with label + amount on row 1, when + meta on row 2, and a soft
+   connector line between rows. Newest-first chronological order. */
+body.bento-design .ct-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+body.bento-design .ct-evt {
+  position: relative;
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  gap: 14px;
+  padding: 12px 0 14px;
+  border-bottom: 1px dashed #EDE8DD;
+}
+body.bento-design .ct-evt:last-child { border-bottom: 0; padding-bottom: 0; }
+body.bento-design .ct-evt-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 800;
+  background: #F5F1E9;
+  color: #7B8190;
+  border: 1px solid #E5DFD2;
+}
+body.bento-design .ct-evt--good .ct-evt-icon {
+  background: rgba(75, 170, 120, 0.12);
+  color: #2E7A52;
+  border-color: rgba(75, 170, 120, 0.32);
+}
+body.bento-design .ct-evt--bad .ct-evt-icon {
+  background: rgba(214, 95, 79, 0.10);
+  color: #B5483B;
+  border-color: rgba(214, 95, 79, 0.30);
+}
+body.bento-design .ct-evt--info .ct-evt-icon {
+  background: rgba(243, 138, 63, 0.08);
+  color: #C46A2C;
+  border-color: rgba(243, 138, 63, 0.30);
+}
+body.bento-design .ct-evt-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+body.bento-design .ct-evt-row1 {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+body.bento-design .ct-evt-label {
+  color: #0B2447;
+  font-size: 13.5px;
+  font-weight: 800;
+  letter-spacing: -0.005em;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+body.bento-design .ct-evt-amt {
+  font-size: 13.5px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+body.bento-design .ct-evt-amt--good { color: #2E7A52; }
+body.bento-design .ct-evt-amt--bad  { color: #B5483B; }
+body.bento-design .ct-evt-amt--info { color: #C46A2C; }
+body.bento-design .ct-evt-amt--mute { color: #7B8190; }
+body.bento-design .ct-evt-row2 {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: #7B8190;
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+body.bento-design .ct-evt-when { color: #7B8190; }
+body.bento-design .ct-evt-meta { color: #9BA1AE; }
+body.bento-design .ct-evt-dot { color: #CFC8B9; }
+
 /* Line-items table inside ctx-section */
 body.bento-design .ctx-lines th {
   color: #7B8190;
