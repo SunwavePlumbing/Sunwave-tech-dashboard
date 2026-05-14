@@ -1348,7 +1348,13 @@ app.get('/api/metrics', async (req, res) => {
 
     function uniqueEmployees(employees) {
       const seen = new Set();
-      return (employees || []).filter(emp => {
+      return (employees || []).map(emp => {
+        if (!emp) return null;
+        if (emp.id) return emp;
+        const name = employeeName(emp) || emp.name || emp.display_name || emp.email || '';
+        const key = normalizePersonName(name);
+        return (key && employeeByName[key]) || (name ? employeeFromName(name) : null);
+      }).filter(emp => {
         if (!emp || !emp.id || seen.has(emp.id)) return false;
         seen.add(emp.id);
         return true;
