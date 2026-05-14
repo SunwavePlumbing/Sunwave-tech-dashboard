@@ -2946,7 +2946,18 @@ function renderJob(j) {
 // first expand so a list of 100 jobs doesn't render 100 forms up front.
 async function renderEditPanel(key) {
   const j = window.JOBS[key];
-  const panel = document.querySelector('.job-edit[data-edit-for="' + cssEscape(key) + '"]');
+  // The list AND the drawer each render their own
+  // `.job-edit[data-edit-for=X]`. A plain document.querySelector
+  // returns the FIRST match in DOM order — which is the list row,
+  // not the drawer — so the editor would silently populate the
+  // wrong (collapsed, invisible) element and the drawer would
+  // stay blank. Prefer the drawer's panel when the drawer is open
+  // for this key; fall back to the list panel for the legacy
+  // inline-expand flow.
+  const drawerPanel = (typeof DRAWER_STATE !== 'undefined' && DRAWER_STATE.openKey === key)
+    ? document.querySelector('#drawer .job-edit[data-edit-for="' + cssEscape(key) + '"]')
+    : null;
+  const panel = drawerPanel || document.querySelector('.job-edit[data-edit-for="' + cssEscape(key) + '"]');
   if (!j || !panel) return;
   panel.innerHTML = '<div class="empty" style="padding:8px">Loading HCP details…</div>';
 
@@ -3145,10 +3156,20 @@ async function renderEditPanel(key) {
   renderAssignments(key);
 }
 
+// When the drawer is open with `key`, scope element lookups to the
+// drawer so a lingering inline-expanded list row (or a not-yet-cleaned
+// previous editor render) can't pull our updates into the wrong DOM.
+function editorScopedQuery(selector, key) {
+  const drawer = (typeof DRAWER_STATE !== 'undefined' && DRAWER_STATE.openKey === key)
+    ? document.querySelector('#drawer ' + selector)
+    : null;
+  return drawer || document.querySelector(selector);
+}
+
 function renderAssignments(key) {
   const j = window.JOBS[key];
   if (!j || !j.edit) return;
-  const wrap = document.querySelector('.assign-table[data-assignments-for="' + cssEscape(key) + '"]');
+  const wrap = editorScopedQuery('.assign-table[data-assignments-for="' + cssEscape(key) + '"]', key);
   if (!wrap) return;
   wrap.innerHTML = j.edit.assignments.map((a, i) => `
     <div class="assign-row">
@@ -3169,7 +3190,7 @@ function renderAssignments(key) {
 
 function refreshPctStatus(key) {
   const j = window.JOBS[key];
-  const el = document.querySelector('.pct-status[data-pct-for="' + cssEscape(key) + '"]');
+  const el = editorScopedQuery('.pct-status[data-pct-for="' + cssEscape(key) + '"]', key);
   if (!j || !j.edit || !el) return;
   const sum = j.edit.assignments.reduce((s, a) => s + (Number(a.creditPct) || 0), 0);
   if (Math.abs(sum - 100) < 0.5) {
@@ -3396,7 +3417,7 @@ async function saveJob(key) {
   }
 }
 function setRowStatus(key, msg, tone) {
-  const el = document.querySelector('.status-msg[data-status-for="' + cssEscape(key) + '"]');
+  const el = editorScopedQuery('.status-msg[data-status-for="' + cssEscape(key) + '"]', key);
   if (!el) return;
   el.textContent = msg;
   el.className = 'status-msg' + (tone === 'ok' ? ' is-ok' : tone === 'err' ? ' is-err' : '');
@@ -4687,9 +4708,17 @@ function renderEventTimeline(job, ctx) {
   // don't always have invoice created_at, so fall back to paid_at.
   invoices.forEach(inv => {
     if (inv.paidAt) {
-      const lbl = 'Paid' + (inv.paymentMethod ? ' (' + inv.paymentMethod + ')' : '') +
-                  (inv.amount != null ? ' — ' + fmt(inv.amount) : '');
+      const paidAmount = inv.paidAmount != null ? Number(inv.paidAmount) : null;
+      const invoiceTotal = inv.amount != null ? Number(inv.amount) : null;
+      const dueAmount = inv.dueAmount != null ? Number(inv.dueAmount) : 0;
+      const paidLabel = paidAmount != null ? paidAmount : invoiceTotal;
+      const lbl = (dueAmount > 0 ? 'Payment recorded' : 'Paid') +
+                  (inv.paymentMethod ? ' (' + inv.paymentMethod + ')' : '') +
+                  (paidLabel != null ? ' — ' + fmt(paidLabel) : '');
       events.push({ label: lbl, when: inv.paidAt, done: true });
+      if (dueAmount > 0) {
+        events.push({ label: 'Invoice still outstanding — ' + fmt(dueAmount), when: inv.dueAt || inv.paidAt, done: false });
+      }
     } else if (inv.dueAmount && inv.dueAmount > 0) {
       events.push({ label: 'Invoice outstanding — ' + fmt(inv.dueAmount), when: inv.dueAt, done: false });
     }
@@ -4760,17 +4789,23 @@ function renderInvoicesAndPayments(invoices) {
   const rows = invoices.map(inv => {
     const meta = [];
     if (inv.invoiceNumber) meta.push('#' + inv.invoiceNumber);
+    const paidAmount = inv.paidAmount != null ? Number(inv.paidAmount) : null;
+    const invoiceTotal = inv.amount != null ? Number(inv.amount) : null;
+    const dueAmount = inv.dueAmount != null ? Number(inv.dueAmount) : 0;
     if (inv.paidAt) {
       const when = new Date(inv.paidAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-      meta.push('Paid ' + when);
+      meta.push((dueAmount > 0 ? 'Payment ' : 'Paid ') + when);
+      if (paidAmount != null) meta.push('collected ' + fmt(paidAmount));
+      if (dueAmount > 0) meta.push(fmt(dueAmount) + ' due');
       if (inv.paymentMethod) meta.push(inv.paymentMethod);
     } else if (inv.dueAmount && inv.dueAmount > 0) {
       meta.push('Unpaid (' + fmt(inv.dueAmount) + ' due)');
     }
+    const amountLabel = invoiceTotal != null ? fmt(invoiceTotal) + ' total' : '—';
     return '<div class="ctx-row">' +
       '<span class="ctx-row-label">' + esc(meta[0] || '—') + '</span>' +
       '<span class="ctx-row-meta">' + esc(meta.slice(1).join(' · ')) + '</span>' +
-      '<span class="ctx-row-amt">' + (inv.amount != null ? fmt(inv.amount) : '—') + '</span>' +
+      '<span class="ctx-row-amt">' + esc(amountLabel) + '</span>' +
     '</div>';
   }).join('');
   return '<details class="ctx-section">' +
