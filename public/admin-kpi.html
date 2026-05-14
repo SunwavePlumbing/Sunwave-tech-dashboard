@@ -2248,10 +2248,6 @@ async function loadEmployees() {
   try {
     const data = await cachedApi('/api/kpi/admin/employees', { label: 'Employee list' });
     window.EMPLOYEES = (data.employees || []).slice();
-    // Update any datalists that may already be in the DOM
-    document.querySelectorAll('datalist#techsList').forEach(dl => {
-      dl.innerHTML = window.EMPLOYEES.map(e => '<option value="' + esc(e.name) + '">').join('');
-    });
     populateTechFilter();
   } catch (err) {
     console.warn('Could not load employees:', err.message);
@@ -3103,9 +3099,6 @@ async function renderEditPanel(key) {
       </p>
       <div class="assign-table" data-assignments-for="${esc(key)}"></div>
       <button type="button" class="add-tech-btn" data-action="add-tech" data-key="${esc(key)}">+ Add tech</button>
-      <datalist id="techsList-${esc(key)}">
-        ${(window.EMPLOYEES || []).map(e => '<option value="' + esc(e.name) + '">').join('')}
-      </datalist>
       <div class="pct-status" data-pct-for="${esc(key)}"></div>
     </div>
 
@@ -3162,7 +3155,7 @@ function renderAssignments(key) {
   if (!wrap) return;
   wrap.innerHTML = j.edit.assignments.map((a, i) => `
     <div class="assign-row">
-      <input type="text" list="techsList-${esc(key)}" placeholder="Type or pick a tech…" value="${esc(a.employeeName || '')}"
+      <input type="text" placeholder="Pick a tech…" value="${esc(a.employeeName || '')}"
         data-action="assign-name" data-key="${esc(key)}" data-i="${i}" autocomplete="off">
       <select data-action="assign-role" data-key="${esc(key)}" data-i="${i}">
         <option value="Did" ${a.role === 'Did' ? 'selected' : ''}>Did</option>
@@ -3174,7 +3167,166 @@ function renderAssignments(key) {
       <button type="button" class="remove" data-action="remove-tech" data-key="${esc(key)}" data-i="${i}" title="Remove">×</button>
     </div>
   `).join('');
+  // Replace each plain "Pick a tech" input with a combobox picker
+  // styled like the top-of-page tech filter (glassy menu, type-ahead
+  // filter, click-to-pick). Each row gets its own picker instance.
+  wrap.querySelectorAll('input[data-action="assign-name"]').forEach(attachTechComboPicker);
   refreshPctStatus(key);
+}
+
+// Wrap a tech-name <input> with a glassy combo picker that mirrors
+// the top-of-jobs tech filter. The underlying input remains the
+// authoritative value source — its data-action="assign-name" handler
+// still fires on input/change events, so the rest of the editor logic
+// (recomputePercents, validation, save payload) needs zero changes.
+function attachTechComboPicker(inputEl) {
+  if (!inputEl || inputEl.dataset.comboPicker === '1') return;
+  inputEl.dataset.comboPicker = '1';
+
+  const parent = inputEl.parentNode;
+  const wrap = document.createElement('div');
+  wrap.className = 'period-picker tech-picker tech-combo';
+  parent.insertBefore(wrap, inputEl);
+  wrap.appendChild(inputEl);
+  inputEl.tabIndex = -1;
+  inputEl.style.position = 'absolute';
+  inputEl.style.opacity = '0';
+  inputEl.style.pointerEvents = 'none';
+  inputEl.style.width = '0';
+  inputEl.style.height = '0';
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'period-picker-btn';
+  btn.setAttribute('aria-haspopup', 'listbox');
+  btn.setAttribute('aria-expanded', 'false');
+  btn.innerHTML = '<span class="label"></span><span class="chev">▾</span>';
+  wrap.appendChild(btn);
+
+  const menu = document.createElement('div');
+  menu.className = 'period-picker-menu tech-combo-menu';
+  menu.setAttribute('role', 'listbox');
+  const searchWrap = document.createElement('div');
+  searchWrap.className = 'tech-combo-search';
+  const search = document.createElement('input');
+  search.type = 'text';
+  search.className = 'tech-combo-search-input';
+  search.placeholder = 'Type to search or add…';
+  search.autocomplete = 'off';
+  search.spellcheck = false;
+  searchWrap.appendChild(search);
+  menu.appendChild(searchWrap);
+  const list = document.createElement('div');
+  list.className = 'tech-combo-list';
+  menu.appendChild(list);
+  wrap.appendChild(menu);
+
+  function getTechNames() {
+    // Reuse the top tech filter's hidden <select> as the canonical
+    // list — it's already populated from the live HCP employee data
+    // by populateTechFilter().
+    const tf = document.getElementById('techFilter');
+    if (!tf) return [];
+    return Array.from(tf.options).slice(1).map(o => o.value).filter(Boolean);
+  }
+  function updateLabel() {
+    const labelEl = btn.querySelector('.label');
+    if (inputEl.value) {
+      labelEl.textContent = inputEl.value;
+      labelEl.classList.remove('is-placeholder');
+    } else {
+      labelEl.textContent = 'Pick a tech…';
+      labelEl.classList.add('is-placeholder');
+    }
+  }
+  function renderList() {
+    const q = search.value.trim().toLowerCase();
+    const names = getTechNames();
+    const filtered = q
+      ? names.filter(n => n.toLowerCase().includes(q))
+      : names;
+    const parts = filtered.map(n =>
+      '<button type="button" class="period-picker-item" data-value="' +
+      esc(n) + '" role="option">' + esc(n) + '</button>'
+    );
+    // Offer a "Use typed name" item when the search doesn't match any
+    // existing tech exactly — supports adding helpers who aren't yet
+    // in the HCP roster without forcing the admin out of the menu.
+    if (q && !names.some(n => n.toLowerCase() === q)) {
+      parts.push(
+        '<button type="button" class="period-picker-item tech-combo-custom" data-value="' +
+        esc(search.value.trim()) + '" role="option">＋ Use “' +
+        esc(search.value.trim()) + '”</button>'
+      );
+    }
+    if (!parts.length) {
+      parts.push('<div class="period-picker-section">No matches — type a name to add</div>');
+    }
+    list.innerHTML = parts.join('');
+    // Highlight current value
+    list.querySelectorAll('.period-picker-item').forEach(it => {
+      it.classList.toggle('is-selected',
+        it.dataset.value && it.dataset.value === inputEl.value);
+    });
+  }
+  function open() {
+    wrap.classList.add('is-open');
+    btn.setAttribute('aria-expanded', 'true');
+    search.value = '';
+    renderList();
+    setTimeout(() => search.focus(), 10);
+    document.addEventListener('click', onDocClick, true);
+  }
+  function close() {
+    wrap.classList.remove('is-open');
+    btn.setAttribute('aria-expanded', 'false');
+    document.removeEventListener('click', onDocClick, true);
+  }
+  function onDocClick(e) {
+    if (!wrap.contains(e.target)) close();
+  }
+  function pickValue(value) {
+    inputEl.value = value;
+    inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+    inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+    updateLabel();
+    close();
+  }
+
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (wrap.classList.contains('is-open')) close();
+    else open();
+  });
+  search.addEventListener('input', renderList);
+  search.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); close(); btn.focus(); return; }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      // Pick first available item — either the first matching tech
+      // or the "Use typed name" custom entry.
+      const first = list.querySelector('.period-picker-item');
+      if (first && first.dataset.value) pickValue(first.dataset.value);
+      return;
+    }
+    const items = Array.from(list.querySelectorAll('.period-picker-item'));
+    if (!items.length) return;
+    let focusedEl = list.querySelector('.period-picker-item.is-focused');
+    let idx = items.indexOf(focusedEl);
+    if (e.key === 'ArrowDown') { e.preventDefault(); idx = idx < 0 ? 0 : (idx + 1) % items.length; }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); idx = idx < 0 ? items.length - 1 : (idx - 1 + items.length) % items.length; }
+    else { return; }
+    items.forEach(x => x.classList.remove('is-focused'));
+    items[idx].classList.add('is-focused');
+    items[idx].scrollIntoView({ block: 'nearest' });
+  });
+  list.addEventListener('click', (e) => {
+    const item = e.target.closest('.period-picker-item');
+    if (!item || !item.dataset.value) return;
+    pickValue(item.dataset.value);
+  });
+
+  updateLabel();
 }
 
 function refreshPctStatus(key) {
@@ -3876,7 +4028,8 @@ const DRAWER_STATE = {
   deferred: new Set(),   // job keys defered to bottom (this session)
   activeFilter: 'unverified',
   contextTimer: null,
-  returnFocus: null
+  returnFocus: null,
+  sessionVerifyCount: 0  // controls the empty-queue toast tone
 };
 
 // Make existing helpers available — re-declare with var-style refs
@@ -4161,12 +4314,22 @@ async function saveAndVerify() {
     pushUndo({ kind: 'verify', key, label: '#' + (j.invoice || key.slice(0, 8)) });
     refreshRowInList(key);
     updateProgress();
+    DRAWER_STATE.sessionVerifyCount = (DRAWER_STATE.sessionVerifyCount || 0) + 1;
     // Advance to next
     const nxt = nextUnverifiedKey(key);
     if (nxt) {
       openInDrawer(nxt);
     } else {
-      setDrawerStatus('All unverified jobs handled. 🎉', 'ok');
+      // Tone the toast to what actually happened. Celebrating a single
+      // verification is overkill; reserve the confetti for clearing
+      // a multi-job queue.
+      const count = DRAWER_STATE.sessionVerifyCount;
+      const msg = count >= 3
+        ? 'All unverified jobs handled. 🎉'
+        : count === 2
+          ? 'Both jobs verified. Queue clear.'
+          : 'Verified. Nothing else to review in this period.';
+      setDrawerStatus(msg, 'ok');
       // Leave drawer open showing the result
     }
   } catch (err) {

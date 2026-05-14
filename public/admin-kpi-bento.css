@@ -1817,6 +1817,119 @@ body.bento-design .ct-evt-who {
 }
 body.bento-design .ct-evt-dot { color: #CFC8B9; }
 
+/* ── Tech combo picker (Edit Job → Attribution rows) ──────────────
+   Reuses the .period-picker shell from the top-of-jobs filter, but
+   adds a search input at the top of the menu so the admin can
+   filter by typing — and a "Use typed name" fallback for techs not
+   yet in the HCP roster. Compact button so it fits inside the
+   assign-row grid alongside the role select and percent input. */
+body.bento-design .period-picker.tech-combo {
+  min-width: 0;
+}
+body.bento-design .period-picker.tech-combo .period-picker-btn {
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  background: #FEFCF6;
+  border: 1px solid #E5DFD2;
+  border-radius: 10px;
+  letter-spacing: 0;
+}
+body.bento-design .period-picker.tech-combo .period-picker-btn:hover {
+  background: #FAF5E8;
+  border-color: #CFC8B9;
+}
+body.bento-design .period-picker.tech-combo.is-open .period-picker-btn {
+  background: #FFFFFF;
+  border-color: #F38A3F;
+  box-shadow: 0 0 0 3px rgba(243, 138, 63, 0.14);
+}
+body.bento-design .period-picker.tech-combo .period-picker-btn .label.is-placeholder {
+  color: #A8AEB7;
+  font-weight: 500;
+}
+body.bento-design .period-picker.tech-combo .period-picker-btn .chev {
+  font-size: 10px;
+}
+body.bento-design .period-picker-menu.tech-combo-menu {
+  min-width: 280px;
+  max-height: 360px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+body.bento-design .tech-combo-search {
+  padding: 10px 10px 6px;
+  border-bottom: 1px solid rgba(229, 223, 210, 0.6);
+  background: rgba(255, 255, 255, 0.45);
+  border-top-left-radius: 22px;
+  border-top-right-radius: 22px;
+}
+body.bento-design .tech-combo-search-input {
+  width: 100%;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  color: #0B2447;
+  background: #FFFFFF;
+  border: 1px solid #E5DFD2;
+  border-radius: 10px;
+}
+body.bento-design .tech-combo-search-input:focus {
+  outline: none;
+  border-color: #F38A3F;
+  box-shadow: 0 0 0 3px rgba(243, 138, 63, 0.16);
+}
+body.bento-design .tech-combo-search-input::placeholder { color: #A8AEB7; }
+body.bento-design .tech-combo-list {
+  padding: 6px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+body.bento-design .tech-combo-list .period-picker-item {
+  text-align: left;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 9px 12px;
+  font-size: 13.5px;
+  font-weight: 600;
+  font-family: inherit;
+  color: #373B4D;
+  border-radius: 10px;
+  cursor: pointer;
+  display: block;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+body.bento-design .tech-combo-list .period-picker-item:hover,
+body.bento-design .tech-combo-list .period-picker-item.is-focused {
+  background: rgba(243, 138, 63, 0.10);
+  color: #0B2447;
+}
+body.bento-design .tech-combo-list .period-picker-item.is-selected {
+  background: rgba(243, 138, 63, 0.18);
+  color: #C46A2C;
+  font-weight: 800;
+}
+body.bento-design .tech-combo-list .period-picker-item.tech-combo-custom {
+  color: #C46A2C;
+  font-style: normal;
+}
+body.bento-design .tech-combo-list .period-picker-item.tech-combo-custom:hover {
+  background: rgba(243, 138, 63, 0.14);
+}
+body.bento-design .tech-combo-list .period-picker-section {
+  padding: 14px 12px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #9BA1AE;
+  text-align: center;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 /* Line-items table inside ctx-section */
 body.bento-design .ctx-lines th {
   color: #7B8190;
