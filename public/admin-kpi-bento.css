@@ -29,6 +29,29 @@ body.bento-design {
     radial-gradient(ellipse 50% 40% at 50% 100%, rgba(75, 170, 120, 0.05)  0%, transparent 60%);
   background-attachment: fixed;
   color: #373B4D;
+
+  /* Retint every legacy CSS variable defined in admin-kpi.html so
+     any class (or inline style="var(--…)") still pointing at the
+     warm-beige original palette automatically resolves to the
+     Sunwave system. This is the single biggest leverage point for
+     keeping older inline-styled bits coherent with Bento. */
+  --bg:            #F1F3F5;
+  --card:          #FAFBFC;
+  --border:        #DDE3EA;
+  --border-strong: #C5CBD3;
+  --ink:           #373B4D;
+  --ink-soft:      #4A5169;
+  --ink-mute:      #7B8190;
+  --brand:         #F38A3F;
+  --brand-pale:    rgba(243, 138, 63, 0.12);
+  --good:          #4BAA78;
+  --good-pale:     rgba(75, 170, 120, 0.14);
+  --warn:          #D39A2E;
+  --warn-pale:     rgba(211, 154, 46, 0.16);
+  --bad:           #D65F4F;
+  --bad-pale:      #FCEBE7;
+  --info:          #1F4E73;
+  --info-pale:     #BFE0F3;
 }
 
 /* ── Header ──────────────────────────────────────────────────────── */
@@ -1167,4 +1190,1181 @@ body.bento-design .deep-search pre {
   body.bento-design .deep-search .candidate-body { grid-template-columns: 1fr; }
   body.bento-design .deep-search .ds-span-2 { grid-column: auto; }
   body.bento-design .deep-search .ds-panel { border-radius: 20px; padding: 22px; }
+}
+
+/* ────────────────────────────────────────────────────────────────
+   Drawer (job-detail modal) — Bento redesign
+   Larger radius, ambient shadow, soft palette, hero confidence,
+   pill statuses, oceans of whitespace, z-pattern anchoring.
+   ──────────────────────────────────────────────────────────────── */
+body.bento-design .drawer-scrim {
+  background: rgba(11, 36, 71, 0.34);
+  backdrop-filter: blur(8px) saturate(120%);
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
+}
+body.bento-design .drawer {
+  width: min(940px, calc(100vw - 48px));
+  max-height: calc(100vh - 56px);
+  background: #FAFBFC;
+  border: 1px solid rgba(221, 227, 234, 0.9);
+  border-radius: 28px;
+  box-shadow:
+    0 1px 2px rgba(11, 36, 71, 0.03),
+    0 40px 100px rgba(11, 36, 71, 0.16),
+    0 8px 24px rgba(11, 36, 71, 0.06);
+  overflow: hidden;
+}
+
+/* Header — title left, close right; rich title with strong $ amount */
+body.bento-design .drawer-head {
+  padding: 24px 28px 20px;
+  background: #FAFBFC;
+  border-bottom: 1px solid #DDE3EA;
+  align-items: flex-start;
+}
+body.bento-design .drawer-head-main { padding-top: 2px; }
+body.bento-design .drawer-head-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: #0B2447;
+  letter-spacing: -0.012em;
+  gap: 10px;
+  align-items: baseline;
+  line-height: 1.15;
+}
+body.bento-design .drawer-head-title .invoice {
+  color: #0B2447;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+}
+body.bento-design .drawer-head-title .customer {
+  color: #373B4D;
+  font-weight: 700;
+}
+body.bento-design .drawer-head-title .amount {
+  color: #7B8190;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+body.bento-design .drawer-head-title .amount::before {
+  content: "·";
+  color: #C5CBD3;
+  margin-right: 8px;
+  font-weight: 400;
+}
+body.bento-design .drawer-head-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: #7B8190;
+}
+body.bento-design .drawer-head-meta .meta-date {
+  font-variant-numeric: tabular-nums;
+}
+body.bento-design .drawer-head-meta .meta-pill,
+body.bento-design .drawer-job-overview .meta-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 11px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border: 0;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+body.bento-design .meta-pill--good { background: rgba(75, 170, 120, 0.16); color: #2E7A52; }
+body.bento-design .meta-pill--bad  { background: #FCEBE7;                  color: #A33F30; }
+body.bento-design .meta-pill--info { background: #BFE0F3;                  color: #1F4E73; }
+body.bento-design .meta-pill--warn { background: rgba(211, 154, 46, 0.18); color: #8C6716; }
+body.bento-design .meta-pill--mute { background: rgba(123, 129, 144, 0.14); color: #5C6371; }
+
+/* Header nav buttons — clean circles */
+body.bento-design .drawer-nav {
+  gap: 8px;
+  align-items: center;
+  margin-top: 2px;
+}
+body.bento-design .drawer-nav-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  border: 1px solid #DDE3EA;
+  background: #FFFFFF;
+  color: #373B4D;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba(11, 36, 71, 0.02);
+  transition:
+    border-color 160ms cubic-bezier(.16, 1, .3, 1),
+    color 160ms cubic-bezier(.16, 1, .3, 1),
+    background 160ms cubic-bezier(.16, 1, .3, 1),
+    transform 160ms cubic-bezier(.16, 1, .3, 1);
+}
+body.bento-design .drawer-nav-btn:hover {
+  border-color: #F38A3F;
+  color: #F38A3F;
+  transform: translateY(-1px);
+}
+body.bento-design .drawer-nav-btn.close-btn {
+  width: 38px;
+  font-size: 16px;
+}
+
+/* Body — wide breathing room */
+body.bento-design .drawer-body {
+  padding: 24px 28px 28px;
+  background: #FAFBFC;
+}
+
+/* Period-fit banner — soft wash card, not a strip */
+body.bento-design .period-fit {
+  padding: 14px 18px;
+  border-radius: 18px;
+  margin-bottom: 14px;
+  font-size: 13px;
+  font-weight: 600;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid transparent;
+}
+body.bento-design .period-fit.is-match {
+  background: rgba(75, 170, 120, 0.10);
+  color: #2E7A52;
+  border-color: rgba(75, 170, 120, 0.22);
+}
+body.bento-design .period-fit.is-mismatch {
+  background: rgba(211, 154, 46, 0.12);
+  color: #8C6716;
+  border-color: rgba(211, 154, 46, 0.28);
+}
+body.bento-design .period-fit strong { color: inherit; font-weight: 800; }
+
+/* Confidence card — promote to hero: massive number on left, copy right */
+body.bento-design .drawer-confidence-line {
+  padding: 22px 24px;
+  border-radius: 22px;
+  background: #FFFFFF;
+  border: 1px solid #DDE3EA;
+  box-shadow:
+    0 1px 2px rgba(11, 36, 71, 0.025),
+    0 18px 44px rgba(11, 36, 71, 0.05);
+  margin-bottom: 16px;
+  gap: 18px;
+  align-items: center;
+  font-size: 14px;
+  color: #373B4D;
+  font-weight: 500;
+  line-height: 1.5;
+}
+body.bento-design .drawer-confidence-line strong {
+  color: #0B2447;
+  font-weight: 800;
+}
+body.bento-design .drawer-confidence-line .confidence-badge {
+  min-width: 88px;
+  height: 88px;
+  border-radius: 24px;
+  font-size: 36px;
+  font-weight: 850;
+  letter-spacing: -0.03em;
+  border: 0;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+body.bento-design .drawer-confidence-line .confidence-badge--high {
+  background: rgba(75, 170, 120, 0.14);
+  color: #2E7A52;
+}
+body.bento-design .drawer-confidence-line .confidence-badge--med {
+  background: rgba(211, 154, 46, 0.18);
+  color: #8C6716;
+}
+body.bento-design .drawer-confidence-line .confidence-badge--low {
+  background: #FCEBE7;
+  color: #A33F30;
+}
+
+/* Flag rows — pill-bar feel with rounded edges, soft wash */
+body.bento-design .drawer-flags {
+  margin-bottom: 18px;
+  gap: 8px;
+}
+body.bento-design .drawer-flag-row {
+  padding: 12px 18px;
+  border-radius: 16px;
+  font-size: 13.5px;
+  font-weight: 600;
+  gap: 12px;
+}
+body.bento-design .drawer-flag-row.is-green {
+  background: rgba(75, 170, 120, 0.10);
+  color: #2E7A52;
+}
+body.bento-design .drawer-flag-row.is-orange {
+  background: rgba(211, 154, 46, 0.12);
+  color: #8C6716;
+}
+body.bento-design .drawer-flag-row.is-red {
+  background: #FCEBE7;
+  color: #A33F30;
+}
+body.bento-design .drawer-flag-row .dot {
+  width: 9px;
+  height: 9px;
+}
+
+/* Context section cards — bento, soft border, ambient shadow */
+body.bento-design .ctx-section {
+  margin-bottom: 14px;
+  background: #FFFFFF;
+  border: 1px solid #DDE3EA;
+  border-radius: 22px;
+  box-shadow:
+    0 1px 2px rgba(11, 36, 71, 0.025),
+    0 16px 40px rgba(11, 36, 71, 0.045);
+  overflow: hidden;
+}
+body.bento-design .ctx-section > summary {
+  padding: 18px 22px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: #7B8190;
+}
+body.bento-design .ctx-section > summary:hover {
+  background: rgba(243, 138, 63, 0.04);
+}
+body.bento-design .ctx-section > summary::before { color: #A8AEB7; }
+body.bento-design .ctx-section[open] > summary::before { color: #F38A3F; }
+body.bento-design .ctx-section > summary .ctx-subtle {
+  font-size: 12px;
+  color: #7B8190;
+  font-weight: 500;
+}
+body.bento-design .ctx-body {
+  padding: 4px 22px 22px;
+  font-size: 13.5px;
+  color: #373B4D;
+}
+
+/* Job-overview tile grid — uniform soft tiles */
+body.bento-design .drawer-job-overview {
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+body.bento-design .drawer-overview-item {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #F1F3F5;
+  border: 1px solid transparent;
+  transition: border-color 160ms cubic-bezier(.16, 1, .3, 1);
+}
+body.bento-design .drawer-overview-item:hover {
+  border-color: rgba(243, 138, 63, 0.30);
+}
+body.bento-design .drawer-overview-label {
+  margin-bottom: 8px;
+  color: #7B8190;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+body.bento-design .drawer-overview-value {
+  color: #0B2447;
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Event timeline — bigger nodes, soft connector */
+body.bento-design .ctx-timeline li {
+  padding-left: 26px;
+  padding-bottom: 16px;
+  font-size: 13.5px;
+}
+body.bento-design .ctx-timeline li::before {
+  width: 11px;
+  height: 11px;
+  left: 4px;
+  top: 5px;
+  border: 2px solid #FFFFFF;
+  box-shadow: 0 0 0 1px #DDE3EA;
+}
+body.bento-design .ctx-timeline li.is-done::before {
+  background: #4BAA78;
+  box-shadow: 0 0 0 1px rgba(75, 170, 120, 0.32);
+}
+body.bento-design .ctx-timeline li:not(:last-child)::after {
+  left: 9px;
+  top: 18px;
+  background: #DDE3EA;
+}
+body.bento-design .ctx-timeline .ctx-evt-label {
+  color: #0B2447;
+  font-weight: 800;
+}
+body.bento-design .ctx-timeline .ctx-evt-when {
+  color: #7B8190;
+  font-size: 12.5px;
+  font-weight: 500;
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Line-items table inside ctx-section */
+body.bento-design .ctx-lines th {
+  color: #7B8190;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+body.bento-design .ctx-lines th,
+body.bento-design .ctx-lines td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #DDE3EA;
+}
+body.bento-design .ctx-lines td { color: #373B4D; font-weight: 500; }
+body.bento-design .ctx-lines tfoot td {
+  color: #0B2447;
+  font-weight: 800;
+  border-top: 2px solid #DDE3EA;
+}
+
+/* Generic ctx-row chips inside sections (payments, estimates, prior) */
+body.bento-design .ctx-row {
+  background: #F1F3F5;
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-size: 13px;
+}
+body.bento-design .ctx-row.is-current {
+  background: rgba(75, 170, 120, 0.10);
+  box-shadow: inset 4px 0 0 #4BAA78;
+}
+body.bento-design .ctx-row .ctx-row-label { color: #0B2447; font-weight: 800; }
+body.bento-design .ctx-row .ctx-row-meta  { color: #7B8190; }
+body.bento-design .ctx-row .ctx-row-amt   { color: #0B2447; font-weight: 800; }
+
+/* Footer — soft bar, fully-rounded pill buttons in z-pattern */
+body.bento-design .drawer-footer {
+  padding: 18px 28px 22px;
+  border-top: 1px solid #DDE3EA;
+  background: #FAFBFC;
+  gap: 12px;
+}
+body.bento-design .drawer-position {
+  font-size: 13px;
+  font-weight: 700;
+  color: #7B8190;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+body.bento-design .drawer-footer-actions {
+  gap: 14px;
+}
+body.bento-design .drawer-footer-actions .btn {
+  border-radius: 999px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  transition:
+    transform 160ms cubic-bezier(.16, 1, .3, 1),
+    box-shadow 160ms cubic-bezier(.16, 1, .3, 1),
+    filter 160ms;
+}
+body.bento-design .btn--verify {
+  background: #4BAA78;
+  border-color: #4BAA78;
+  color: #FFFFFF;
+  padding: 14px 32px;
+  font-size: 15px;
+  min-width: 260px;
+  box-shadow: 0 12px 28px rgba(75, 170, 120, 0.30);
+}
+body.bento-design .btn--verify:hover {
+  filter: brightness(1.06);
+  background: #4BAA78;
+  border-color: #4BAA78;
+  transform: translateY(-1px);
+  box-shadow: 0 16px 36px rgba(75, 170, 120, 0.38);
+}
+body.bento-design .btn--exclude {
+  background: #FFFFFF;
+  border: 1px solid #DDE3EA;
+  color: #7B8190;
+  padding: 12px 22px;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: none;
+}
+body.bento-design .btn--exclude:hover {
+  color: #A33F30;
+  border-color: #D65F4F;
+  background: #FCEBE7;
+}
+body.bento-design .btn--defer {
+  background: #BFE0F3;
+  border: 1px solid rgba(31, 78, 115, 0.22);
+  color: #1F4E73;
+  padding: 12px 22px;
+  font-size: 13px;
+  font-weight: 800;
+  box-shadow: none;
+}
+body.bento-design .btn--defer:hover {
+  background: #A6D2EB;
+  border-color: #1F4E73;
+  color: #1F4E73;
+  transform: translateY(-1px);
+}
+
+/* Keyboard-shortcut hint — muted row of tiny pills */
+body.bento-design .drawer-shortcut-hint {
+  font-size: 11px;
+  color: #A8AEB7;
+  letter-spacing: 0.06em;
+  gap: 10px;
+}
+body.bento-design .drawer-shortcut-hint kbd {
+  padding: 2px 7px;
+  border: 1px solid #DDE3EA;
+  border-bottom-width: 1px;
+  border-radius: 6px;
+  background: #FFFFFF;
+  color: #7B8190;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* HCP link button + verified-by — match Sunwave system */
+body.bento-design .hcp-link-btn {
+  padding: 10px 16px;
+  border-radius: 999px;
+  border-color: #DDE3EA;
+  color: #373B4D;
+  font-weight: 700;
+}
+body.bento-design .hcp-link-btn:hover {
+  border-color: #F38A3F;
+  color: #F38A3F;
+}
+body.bento-design .verified-by {
+  margin-top: 14px;
+  padding: 12px 18px;
+  border-radius: 14px;
+  background: rgba(75, 170, 120, 0.10);
+  color: #2E7A52;
+  font-size: 13px;
+  font-weight: 700;
+  border: 1px solid rgba(75, 170, 120, 0.22);
+}
+
+/* Inline issue cards inside the drawer */
+body.bento-design .drawer-issue-card {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #FFFFFF;
+  border: 1px solid #DDE3EA;
+}
+body.bento-design .drawer-issue-type {
+  color: #0B2447;
+  font-weight: 800;
+  font-size: 13.5px;
+}
+body.bento-design .drawer-issue-meta { color: #7B8190; font-size: 11.5px; }
+body.bento-design .drawer-issue-desc { color: #373B4D; font-size: 13px; }
+body.bento-design .drawer-issue-grid { border-top-color: #DDE3EA; }
+body.bento-design .drawer-issue-key { color: #7B8190; }
+body.bento-design .drawer-issue-val { color: #0B2447; font-weight: 600; }
+
+@media (max-width: 700px) {
+  body.bento-design .drawer {
+    width: calc(100vw - 16px);
+    max-height: calc(100vh - 16px);
+    border-radius: 22px;
+  }
+  body.bento-design .drawer-head      { padding: 18px 20px 16px; }
+  body.bento-design .drawer-body      { padding: 18px 20px 22px; }
+  body.bento-design .drawer-footer    { padding: 16px 20px 18px; }
+  body.bento-design .drawer-head-title { font-size: 18px; }
+  body.bento-design .drawer-confidence-line {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 20px;
+  }
+  body.bento-design .drawer-confidence-line .confidence-badge {
+    min-width: 72px;
+    height: 72px;
+    font-size: 30px;
+    border-radius: 20px;
+  }
+  body.bento-design .btn--verify { min-width: 0; width: 100%; }
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   Deep audit — pass 2
+   Catches surfaces that still rendered with the warm-beige original
+   palette or hardcoded warm-orange `rgba(232, 129, 64, …)` colors
+   despite the variable retint above, plus the few surfaces that had
+   never been Bento-styled at all (auth gate, undo toast, confirm
+   modal, drawer form controls, job-status pill variants).
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ── Auth gate — pill button + soft Sunwave card ─────────────────── */
+body.bento-design .gate {
+  max-width: 420px;
+  margin: 5rem auto;
+  padding: 32px;
+  background: #FAFBFC;
+  border: 0;
+  border-radius: 24px;
+  box-shadow:
+    0 1px 2px rgba(11, 36, 71, 0.025),
+    0 24px 60px rgba(11, 36, 71, 0.05);
+}
+body.bento-design .gate label {
+  color: #7B8190;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+body.bento-design .gate input {
+  background: #F1F3F5;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-weight: 500;
+  color: #373B4D;
+  min-height: 46px;
+  transition: border-color 180ms cubic-bezier(.16, 1, .3, 1), background 180ms cubic-bezier(.16, 1, .3, 1), box-shadow 180ms cubic-bezier(.16, 1, .3, 1);
+}
+body.bento-design .gate input:focus {
+  outline: none;
+  background: #FFFFFF;
+  border-color: #F38A3F;
+  box-shadow: 0 0 0 4px rgba(243, 138, 63, 0.16);
+}
+body.bento-design .gate button {
+  background: #F38A3F;
+  color: #FFFFFF;
+  border-radius: 999px;
+  padding: 13px;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  box-shadow: 0 12px 28px rgba(243, 138, 63, 0.26);
+  transition: transform 180ms cubic-bezier(.16, 1, .3, 1), box-shadow 180ms cubic-bezier(.16, 1, .3, 1), filter 160ms;
+}
+body.bento-design .gate button:hover {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+  box-shadow: 0 16px 36px rgba(243, 138, 63, 0.34);
+}
+
+/* ── Job row card — drop the warm-beige gradient + brown shadows ── */
+body.bento-design .job {
+  background: #FAFBFC;
+  border: 1px solid #DDE3EA;
+  border-radius: 22px;
+  box-shadow:
+    0 1px 2px rgba(11, 36, 71, 0.025),
+    0 12px 32px rgba(11, 36, 71, 0.04);
+  overflow: hidden;
+}
+body.bento-design .job::before {
+  width: 4px;
+  background: #F38A3F;
+  opacity: 0.55;
+}
+body.bento-design .job--reconciled::before    { background: #4BAA78; }
+body.bento-design .job--excluded::before      { background: #7B8190; }
+body.bento-design .job--unattributed::before  { background: #D39A2E; }
+body.bento-design .job--credited::before      { background: #F38A3F; }
+body.bento-design .job:hover {
+  border-color: rgba(243, 138, 63, 0.30);
+  box-shadow:
+    0 2px 4px rgba(11, 36, 71, 0.04),
+    0 24px 56px rgba(11, 36, 71, 0.085);
+  transform: translateY(-2px);
+}
+body.bento-design .job:last-child { border-bottom: 1px solid #DDE3EA; }
+body.bento-design .job-summary { padding: 20px 22px 20px 26px; }
+body.bento-design .job-summary:hover {
+  background: rgba(241, 243, 245, 0.55);
+}
+body.bento-design .job.is-open {
+  border-color: rgba(243, 138, 63, 0.40);
+  box-shadow:
+    0 2px 6px rgba(11, 36, 71, 0.05),
+    0 32px 72px rgba(11, 36, 71, 0.10);
+}
+body.bento-design .job.is-open .job-summary {
+  background: rgba(243, 138, 63, 0.045);
+}
+body.bento-design .job.is-completing {
+  background: rgba(75, 170, 120, 0.08);
+}
+
+/* Status pills on each row — pure pill, no border */
+body.bento-design .job-status {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  padding: 7px 13px;
+  border: 0;
+  font-weight: 800;
+  min-width: 104px;
+}
+body.bento-design .job-status--reconciled {
+  background: rgba(75, 170, 120, 0.14);
+  color: #2E7A52;
+}
+body.bento-design .job-status--credited {
+  background: rgba(243, 138, 63, 0.14);
+  color: #B05A22;
+}
+body.bento-design .job-status--unattributed {
+  background: rgba(211, 154, 46, 0.18);
+  color: #8C6716;
+}
+body.bento-design .job-status--excluded {
+  background: rgba(123, 129, 144, 0.14);
+  color: #5C6371;
+}
+
+/* Inline row signal chips (the small UPPERCASE tags under the title) */
+body.bento-design .job-signal {
+  background: #F1F3F5;
+  border: 0;
+  color: #5C6371;
+  padding: 3px 9px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.10em;
+  border-radius: 999px;
+}
+
+/* Amount text + sub-line */
+body.bento-design .job-amount      { color: #0B2447; }
+body.bento-design .job-amount-sub  { color: #D39A2E; font-weight: 800; }
+body.bento-design .job-date        { color: #7B8190; }
+
+/* Quick-action button on the row (the checkbox-style "Mark done") */
+body.bento-design .job-quick {
+  border: 1px solid #DDE3EA;
+  background: #FFFFFF;
+  color: #373B4D;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 12.5px;
+  padding: 9px 16px;
+  box-shadow: 0 1px 2px rgba(11, 36, 71, 0.02);
+}
+body.bento-design .job-quick:hover {
+  border-color: #F38A3F;
+  color: #F38A3F;
+  box-shadow: 0 6px 16px rgba(243, 138, 63, 0.18);
+  transform: translateY(-1px);
+}
+body.bento-design .job-quick.is-done {
+  border-color: rgba(75, 170, 120, 0.40);
+  color: #2E7A52;
+  background: rgba(75, 170, 120, 0.10);
+  box-shadow: none;
+}
+
+/* Chevron — orange on hover/open, with soft wash */
+body.bento-design .job-chevron {
+  color: #7B8190;
+  border-radius: 999px;
+  width: 32px;
+  height: 32px;
+}
+body.bento-design .job-summary:hover .job-chevron {
+  background: rgba(243, 138, 63, 0.10);
+  color: #F38A3F;
+}
+body.bento-design .job.is-open .job-chevron {
+  color: #F38A3F;
+  background: rgba(243, 138, 63, 0.14);
+}
+
+/* Job section headers (Audit first / Ready to check off / etc.) */
+body.bento-design .job-section {
+  color: #7B8190;
+  font-size: 10.5px;
+  letter-spacing: 0.18em;
+  font-weight: 800;
+  margin: 18px 4px 4px;
+}
+body.bento-design button.job-section {
+  border-bottom: 0;
+  background: transparent;
+}
+body.bento-design button.job-section:hover {
+  color: #F38A3F;
+  background: rgba(243, 138, 63, 0.05);
+  border-radius: 8px;
+}
+
+/* ── Drawer-internal editor form (the inline-expanded panel) ────── */
+/* Inputs + textareas */
+body.bento-design .field input,
+body.bento-design .field textarea,
+body.bento-design .field select,
+body.bento-design .assign-row input,
+body.bento-design .assign-row select {
+  width: 100%;
+  padding: 11px 14px;
+  font-size: 13px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: #F1F3F5;
+  color: #373B4D;
+  font-family: inherit;
+  font-weight: 500;
+  min-height: 44px;
+  transition:
+    border-color 180ms cubic-bezier(.16, 1, .3, 1),
+    background 180ms cubic-bezier(.16, 1, .3, 1),
+    box-shadow 180ms cubic-bezier(.16, 1, .3, 1);
+}
+body.bento-design .field input:hover,
+body.bento-design .field textarea:hover,
+body.bento-design .field select:hover,
+body.bento-design .assign-row input:hover,
+body.bento-design .assign-row select:hover {
+  background: #E8ECF0;
+}
+body.bento-design .field input:focus,
+body.bento-design .field textarea:focus,
+body.bento-design .field select:focus,
+body.bento-design .assign-row input:focus,
+body.bento-design .assign-row select:focus {
+  outline: none;
+  border-color: #F38A3F;
+  background: #FFFFFF;
+  box-shadow: 0 0 0 4px rgba(243, 138, 63, 0.16);
+}
+
+/* Assignment row remove button */
+body.bento-design .assign-row .remove {
+  border: 1px solid #DDE3EA;
+  background: #FFFFFF;
+  color: #D65F4F;
+  border-radius: 999px;
+  width: 34px;
+  height: 34px;
+  transition: border-color 160ms, background 160ms, color 160ms;
+}
+body.bento-design .assign-row .remove:hover {
+  border-color: #D65F4F;
+  background: #FCEBE7;
+  color: #A33F30;
+}
+
+/* "Add tech" dashed pill */
+body.bento-design .add-tech-btn {
+  background: transparent;
+  color: #7B8190;
+  border: 1px dashed #C5CBD3;
+  border-radius: 999px;
+  padding: 9px 16px;
+  font-size: 12.5px;
+  font-weight: 700;
+  transition: border-color 160ms, color 160ms, background 160ms;
+}
+body.bento-design .add-tech-btn:hover {
+  border-color: #F38A3F;
+  color: #F38A3F;
+  background: rgba(243, 138, 63, 0.05);
+}
+
+/* Toggle rows (paid / exclude / lock) — soft pill cards */
+body.bento-design .toggle {
+  border-radius: 16px;
+  padding: 14px 18px;
+  font-size: 13.5px;
+  font-weight: 600;
+  border: 0;
+}
+body.bento-design .toggle--paid {
+  background: rgba(75, 170, 120, 0.10);
+  color: #2E7A52;
+}
+body.bento-design .toggle--exclude {
+  background: #FCEBE7;
+  color: #A33F30;
+}
+body.bento-design .toggle--lock {
+  background: rgba(211, 154, 46, 0.14);
+  color: #8C6716;
+}
+body.bento-design .toggle label small {
+  color: inherit;
+  opacity: 0.78;
+  font-size: 11.5px;
+  font-weight: 500;
+  margin-top: 4px;
+}
+
+/* Edit-panel section labels */
+body.bento-design .edit-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #7B8190;
+}
+
+/* Generic editor buttons (.btn / .btn--primary / .btn--danger).
+   The drawer-footer variants already overridden above; these are
+   used for inline editor actions and issue-card actions. */
+body.bento-design .btn {
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 700;
+  border: 1px solid #DDE3EA;
+  background: #FFFFFF;
+  color: #373B4D;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    border-color 160ms cubic-bezier(.16, 1, .3, 1),
+    color 160ms cubic-bezier(.16, 1, .3, 1),
+    background 160ms cubic-bezier(.16, 1, .3, 1),
+    transform 160ms cubic-bezier(.16, 1, .3, 1),
+    box-shadow 160ms cubic-bezier(.16, 1, .3, 1);
+}
+body.bento-design .btn:hover {
+  border-color: #F38A3F;
+  color: #F38A3F;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(11, 36, 71, 0.06);
+}
+body.bento-design .btn--primary {
+  background: #F38A3F;
+  color: #FFFFFF;
+  border-color: #F38A3F;
+  font-weight: 800;
+  padding: 12px 24px;
+  box-shadow: 0 12px 28px rgba(243, 138, 63, 0.26);
+}
+body.bento-design .btn--primary:hover {
+  filter: brightness(1.06);
+  color: #FFFFFF;
+  border-color: #F38A3F;
+  box-shadow: 0 16px 36px rgba(243, 138, 63, 0.34);
+}
+body.bento-design .btn--danger {
+  color: #A33F30;
+  border-color: #DDE3EA;
+}
+body.bento-design .btn--danger:hover {
+  color: #A33F30;
+  border-color: #D65F4F;
+  background: #FCEBE7;
+}
+
+/* Status messages in editor footer (.status-msg.is-ok / .is-err) */
+body.bento-design .status-msg {
+  color: #7B8190;
+  font-size: 12px;
+  font-weight: 600;
+}
+body.bento-design .status-msg.is-ok  { color: #2E7A52; font-weight: 700; }
+body.bento-design .status-msg.is-err { color: #A33F30; font-weight: 700; }
+
+/* Pct-status — conditional color text in attribution editor */
+body.bento-design .pct-status        { color: #7B8190; }
+body.bento-design .pct-status.is-bad { color: #A33F30; font-weight: 700; }
+body.bento-design .pct-status.is-good { color: #2E7A52; font-weight: 700; }
+
+/* ── Confirm modal — full Bento treatment ──────────────────────── */
+body.bento-design .confirm-backdrop {
+  background: rgba(11, 36, 71, 0.34);
+  backdrop-filter: blur(8px) saturate(120%);
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
+}
+body.bento-design .confirm-card {
+  background: #FAFBFC;
+  border: 1px solid rgba(221, 227, 234, 0.9);
+  border-radius: 26px;
+  box-shadow:
+    0 1px 2px rgba(11, 36, 71, 0.03),
+    0 40px 100px rgba(11, 36, 71, 0.16),
+    0 8px 24px rgba(11, 36, 71, 0.06);
+  max-width: 460px;
+}
+body.bento-design .confirm-head {
+  padding: 26px 28px 14px;
+  gap: 14px;
+}
+body.bento-design .confirm-icon {
+  width: 44px;
+  height: 44px;
+  background: rgba(75, 170, 120, 0.14);
+  color: #2E7A52;
+  font-size: 22px;
+  border-radius: 999px;
+}
+body.bento-design .confirm-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: #0B2447;
+  letter-spacing: -0.01em;
+}
+body.bento-design .confirm-body {
+  padding: 4px 28px 4px 86px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: #4A5169;
+  font-weight: 500;
+}
+body.bento-design .confirm-body strong { color: #0B2447; font-weight: 800; }
+body.bento-design .confirm-actions {
+  padding: 22px 28px 24px;
+  gap: 10px;
+}
+body.bento-design .confirm-btn {
+  padding: 12px 22px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+  border: 1px solid transparent;
+  transition: background 160ms, filter 160ms, transform 160ms, border-color 160ms, box-shadow 160ms;
+}
+body.bento-design .confirm-btn--cancel {
+  background: #FFFFFF;
+  color: #7B8190;
+  border-color: #DDE3EA;
+}
+body.bento-design .confirm-btn--cancel:hover {
+  color: #373B4D;
+  border-color: #C5CBD3;
+  background: #F1F3F5;
+}
+body.bento-design .confirm-btn--ok {
+  background: #4BAA78;
+  color: #FFFFFF;
+  border-color: #4BAA78;
+  box-shadow: 0 12px 28px rgba(75, 170, 120, 0.28);
+}
+body.bento-design .confirm-btn--ok:hover {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+  box-shadow: 0 16px 36px rgba(75, 170, 120, 0.36);
+}
+body.bento-design .confirm-btn:focus-visible {
+  outline: 3px solid rgba(243, 138, 63, 0.34);
+  outline-offset: 2px;
+}
+
+/* ── Undo toast — Sunwave pill instead of dark slab ──────────── */
+body.bento-design .undo-toast {
+  background: #0B2447;
+  color: #FFFFFF;
+  padding: 12px 14px 12px 22px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  box-shadow:
+    0 1px 2px rgba(11, 36, 71, 0.04),
+    0 24px 60px rgba(11, 36, 71, 0.30);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  gap: 12px;
+}
+body.bento-design .undo-toast button {
+  background: rgba(243, 138, 63, 0.18);
+  color: #F38A3F;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  transition: background 160ms;
+}
+body.bento-design .undo-toast button:hover {
+  background: rgba(243, 138, 63, 0.30);
+}
+body.bento-design .undo-toast .undo-close {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  font-weight: 400;
+  font-size: 18px;
+  padding: 2px 8px;
+}
+body.bento-design .undo-toast .undo-close:hover {
+  background: rgba(255, 255, 255, 0.10);
+  color: #FFFFFF;
+}
+
+/* ── Item-card (issue queue inside Diagnostics > Open issues) ──── */
+/* The renderReport() JS emits inline style="background:var(--bg);
+   border-left:2px solid var(--border-strong)" — the variable retint
+   at the top of this file already redirects those to Sunwave tokens,
+   so the description quote bar now uses mist + soft-border-strong.
+   Explicit polish here on the card itself: */
+body.bento-design .item-card {
+  border-radius: 22px;
+  padding: 22px 24px;
+  background: #FAFBFC;
+  border: 1px solid #DDE3EA;
+  box-shadow:
+    0 1px 2px rgba(11, 36, 71, 0.025),
+    0 14px 36px rgba(11, 36, 71, 0.045);
+  margin-bottom: 14px;
+}
+
+/* Badge variants used inside issue cards */
+body.bento-design .badge {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 0;
+}
+body.bento-design .badge--good {
+  background: rgba(75, 170, 120, 0.14);
+  color: #2E7A52;
+}
+body.bento-design .badge--warn {
+  background: rgba(211, 154, 46, 0.18);
+  color: #8C6716;
+}
+
+/* ── Catch-all soft borders for older block-level controls ─────── */
+body.bento-design .controls {
+  background: #FAFBFC;
+  border: 1px solid #DDE3EA;
+  border-radius: 22px;
+  padding: 18px 20px;
+  box-shadow: 0 1px 2px rgba(11, 36, 71, 0.025);
+}
+body.bento-design .controls label {
+  color: #7B8190;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+body.bento-design .controls select,
+body.bento-design .controls input[type="text"] {
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: #F1F3F5;
+  padding: 10px 14px;
+  font-weight: 500;
+  color: #373B4D;
+}
+body.bento-design .controls select:focus,
+body.bento-design .controls input[type="text"]:focus {
+  border-color: #F38A3F;
+  background: #FFFFFF;
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(243, 138, 63, 0.16);
+}
+body.bento-design .controls button {
+  border-radius: 999px;
+  border: 1px solid #DDE3EA;
+  background: #FFFFFF;
+  color: #373B4D;
+  padding: 10px 18px;
+  font-weight: 700;
+}
+body.bento-design .controls button:hover {
+  border-color: #F38A3F;
+  color: #F38A3F;
+}
+
+/* ── Tabs — main-nav row above the filter pills ────────────────── */
+body.bento-design .tab-count {
+  background: rgba(243, 138, 63, 0.14);
+  color: #B05A22;
+  font-weight: 800;
+  font-size: 10.5px;
+  padding: 2px 9px;
+}
+
+/* ── Verified-by line + freshness label ─────────────────────────── */
+body.bento-design .admin-freshness {
+  color: #7B8190;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+/* ── Loading + empty states — neutral Sunwave gray ─────────────── */
+body.bento-design .empty {
+  color: #7B8190;
+  font-weight: 500;
+}
+
+/* ── Deferred-job tag pill (shown on rows pushed to the bottom) ── */
+body.bento-design .job-deferred-tag {
+  background: rgba(211, 154, 46, 0.16);
+  color: #8C6716;
+  font-weight: 800;
+  letter-spacing: 0.10em;
+  padding: 3px 10px;
+  font-size: 10px;
+}
+
+/* ── "Why this is unattributed" callout inside the editor ──────── */
+body.bento-design .why-card {
+  background: rgba(211, 154, 46, 0.10);
+  border: 0;
+  border-left: 4px solid #D39A2E;
+  border-radius: 16px;
+  padding: 16px 20px;
+}
+body.bento-design .why-title {
+  color: #8C6716;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+body.bento-design .why-detail {
+  color: #4A5169;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+/* Empty / done state inside the queue */
+body.bento-design .empty--done {
+  background: rgba(75, 170, 120, 0.10);
+  color: #2E7A52;
+  border-radius: 20px;
+  padding: 32px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+/* Admin freshness button (last-refresh chip) */
+body.bento-design .admin-freshness button {
+  border: 1px solid #DDE3EA;
+  background: #FFFFFF;
+  color: #7B8190;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 11.5px;
+  font-weight: 700;
+  transition: border-color 160ms, color 160ms;
+}
+body.bento-design .admin-freshness button:hover {
+  border-color: #F38A3F;
+  color: #F38A3F;
 }

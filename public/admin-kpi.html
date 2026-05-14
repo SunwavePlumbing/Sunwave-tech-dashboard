@@ -3606,8 +3606,15 @@ function openInDrawer(key) {
   drawerHeadTitle.innerHTML =
     '<span class="invoice">' + inv + '</span>' +
     '<span class="customer">' + cust + '</span>' +
-    '<span style="color:var(--ink-mute); font-weight:600">· ' + total + '</span>';
-  drawerHeadMeta.textContent = dateStr + ' · ' + (j.status || 'unknown');
+    '<span class="amount">' + total + '</span>';
+  const statusRaw = (j.status || 'unknown');
+  const statusKind = statusRaw === 'credited' ? 'good'
+                   : statusRaw === 'unpaid'   ? 'bad'
+                   : statusRaw === 'excluded' ? 'mute'
+                   : 'info';
+  drawerHeadMeta.innerHTML =
+    '<span class="meta-date">' + esc(dateStr) + '</span>' +
+    '<span class="meta-pill meta-pill--' + statusKind + '">' + esc(statusRaw) + '</span>';
   // Show the pre-check flag list + confidence score at the top of
   // the drawer so the admin sees the auto-evaluation before they
   // touch the editor. Drives confidence in the call.
@@ -4294,23 +4301,28 @@ function renderJobOverview(job) {
   if (!job) return '';
   const date = job.completedAt || job.scheduledStart;
   const techs = listNames(job.assignedEmployees);
+  const statusVal = job.workStatus || 'No HCP status';
+  const statusKind = /complete|paid|credited|approved/i.test(statusVal) ? 'good'
+                   : /unpaid|outstanding|failed/i.test(statusVal) ? 'bad'
+                   : /unrated|review|pending|scheduled/i.test(statusVal) ? 'info'
+                   : 'mute';
   const rows = [
-    ['Technician(s)', techs || 'None listed in HCP'],
-    ['Work date', shortDate(date) || 'No date listed'],
-    ['Customer', job.customer || 'No customer listed'],
-    ['Job', job.description || 'No job description'],
-    ['Invoice', job.invoice ? '#' + job.invoice : 'No invoice number'],
-    ['Status', job.workStatus || 'No HCP status'],
-    ['HCP total', fmt(job.totalAmount || 0)],
-    ['Outstanding', fmt(job.outstandingBalance || 0)]
-  ].map(([label, value]) =>
+    ['Technician(s)', esc(techs || 'None listed in HCP')],
+    ['Work date',     esc(shortDate(date) || 'No date listed')],
+    ['Customer',      esc(job.customer || 'No customer listed')],
+    ['Job',           esc(job.description || 'No job description')],
+    ['Invoice',       esc(job.invoice ? '#' + job.invoice : 'No invoice number')],
+    ['Status',        '<span class="meta-pill meta-pill--' + statusKind + '">' + esc(statusVal) + '</span>'],
+    ['HCP total',     esc(fmt(job.totalAmount || 0))],
+    ['Outstanding',   esc(fmt(job.outstandingBalance || 0))]
+  ].map(([label, valueHtml]) =>
     '<div class="drawer-overview-item">' +
       '<span class="drawer-overview-label">' + esc(label) + '</span>' +
-      '<span class="drawer-overview-value">' + esc(value) + '</span>' +
+      '<span class="drawer-overview-value">' + valueHtml + '</span>' +
     '</div>'
   ).join('');
   return '<details class="ctx-section" open>' +
-    '<summary>Job details<span class="ctx-subtle">' + esc(techs || 'No technician listed') + '</span></summary>' +
+    '<summary>Job details</summary>' +
     '<div class="ctx-body"><div class="drawer-job-overview">' + rows + '</div></div>' +
   '</details>';
 }

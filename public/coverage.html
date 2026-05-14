@@ -281,7 +281,7 @@
       flex-direction: column;
       justify-content: space-between;
       background: var(--card);
-      border: 1px solid var(--border);
+      border: 1px solid transparent;
       border-radius: 24px;
       padding: 24px;
       box-shadow: var(--shadow-card);
@@ -290,7 +290,7 @@
     }
     .tile:hover {
       transform: translateY(-3px);
-      border-color: rgba(243, 138, 63, 0.30);
+      border-color: rgba(243, 138, 63, 0.22);
       box-shadow: var(--shadow-card-hover);
     }
     /* Hero tile (HCP truth) — bigger, with a Sunwave-orange wash */
@@ -300,7 +300,6 @@
       background:
         radial-gradient(circle at 92% 4%, var(--orange-tint), transparent 60%),
         var(--card);
-      border-color: rgba(243, 138, 63, 0.18);
     }
     .tile:nth-child(1) .tile-value {
       font-size: clamp(42px, 6vw, 72px);
@@ -335,17 +334,14 @@
     }
     .tile--good {
       background: linear-gradient(135deg, rgba(75, 170, 120, 0.06), rgba(75, 170, 120, 0.14));
-      border-color: rgba(75, 170, 120, 0.20);
     }
     .tile--good .tile-value { color: var(--green-deep); }
     .tile--warn {
       background: linear-gradient(135deg, rgba(211, 154, 46, 0.06), rgba(211, 154, 46, 0.16));
-      border-color: rgba(211, 154, 46, 0.22);
     }
     .tile--warn .tile-value { color: var(--gold-deep); }
     .tile--bad {
       background: linear-gradient(135deg, rgba(214, 95, 79, 0.06), var(--coral-wash));
-      border-color: rgba(214, 95, 79, 0.22);
     }
     .tile--bad .tile-value { color: var(--coral-deep); }
 
@@ -359,7 +355,6 @@
       display: flex;
       gap: 16px;
       align-items: flex-start;
-      border: 1px solid transparent;
       box-shadow: 0 1px 2px rgba(11, 36, 71, 0.02), 0 16px 36px rgba(11, 36, 71, 0.03);
       animation: cardIn 360ms var(--ease-out) both;
       font-weight: 500;
@@ -380,26 +375,22 @@
     .verdict--good {
       background: var(--green-wash);
       color: var(--green-deep);
-      border-color: rgba(75, 170, 120, 0.20);
     }
     .verdict--good .verdict-ico { background: var(--green); color: #FFFFFF; }
     .verdict--warn {
       background: var(--gold-wash);
       color: var(--gold-deep);
-      border-color: rgba(211, 154, 46, 0.22);
     }
     .verdict--warn .verdict-ico { background: var(--gold); color: #FFFFFF; }
     .verdict--bad {
       background: var(--coral-wash);
       color: var(--coral-deep);
-      border-color: rgba(214, 95, 79, 0.22);
     }
     .verdict--bad .verdict-ico { background: var(--coral); color: #FFFFFF; }
 
     /* ── Bucket sections ──────────────────────────────────────── */
     .bucket {
       background: var(--card);
-      border: 1px solid var(--border);
       border-radius: 24px;
       margin-bottom: 16px;
       overflow: hidden;
@@ -408,7 +399,6 @@
     }
     .bucket-head {
       padding: 22px 26px 18px;
-      border-bottom: 1px solid var(--border);
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -438,21 +428,19 @@
     .bucket-body { padding: 10px; }
     .row {
       min-height: 100px;
-      padding: 18px 20px;
-      border: 1px solid transparent;
+      padding: 20px 22px;
       border-radius: 18px;
       display: grid;
       grid-template-columns: 1fr auto;
       gap: 10px 24px;
-      align-items: center;
+      align-items: start;
       font-size: 13px;
-      transition: transform 200ms var(--ease-out), background 200ms var(--ease-out), border-color 200ms var(--ease-out), box-shadow 200ms var(--ease-out);
+      transition: transform 200ms var(--ease-out), background 200ms var(--ease-out), box-shadow 200ms var(--ease-out);
     }
-    .row + .row { margin-top: 4px; }
+    .row + .row { margin-top: 6px; }
     .row:hover {
       transform: translateY(-1px);
       background: var(--canvas);
-      border-color: var(--border);
       box-shadow: 0 12px 28px rgba(11, 36, 71, 0.05);
     }
     .row-main {
@@ -514,26 +502,157 @@
       font-weight: 850;
       font-variant-numeric: tabular-nums;
     }
-    .row-reasons {
+    /* ── Structured diagnosis card (replaces the old yellow block) ── */
+    .diagnosis {
       grid-column: 1 / -1;
-      font-size: 12.5px;
-      color: var(--gold-deep);
-      padding: 12px 14px;
-      border: 1px solid rgba(211, 154, 46, 0.22);
-      border-radius: 14px;
-      background: var(--gold-wash);
-      margin-top: 6px;
-      line-height: 1.55;
+      margin-top: 12px;
+      padding: 18px 20px;
+      background: #FFFFFF;
+      border-radius: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      box-shadow: 0 1px 2px rgba(11, 36, 71, 0.02);
     }
-    .row-reasons ul { margin: 0; padding-left: 18px; }
-    .row-reasons li + li { margin-top: 4px; }
+    .diagnosis-verdict {
+      align-self: flex-start;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      background: var(--coral-wash);
+      color: var(--coral-deep);
+      font-size: 10.5px;
+      font-weight: 800;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+    }
+    .diagnosis-verdict::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--coral);
+    }
+    .diagnosis-block {
+      display: grid;
+      grid-template-columns: 92px minmax(0, 1fr);
+      gap: 4px 18px;
+      align-items: start;
+    }
+    .diagnosis-label {
+      grid-column: 1;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      font-weight: 850;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      padding-top: 2px;
+    }
+    .diagnosis-label--why  { color: var(--coral-deep); }
+    .diagnosis-label--fix  { color: var(--orange-deep); }
+    .diagnosis-text {
+      grid-column: 2;
+      margin: 0;
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--ink);
+      font-weight: 500;
+    }
+    .diagnosis-text code {
+      font-size: 11.5px;
+      padding: 1px 6px;
+      background: var(--canvas);
+      border: 0;
+      border-radius: 5px;
+      color: var(--ink-deep);
+    }
+    .diagnosis-signals {
+      margin-top: 2px;
+      padding: 0;
+      background: transparent;
+      border: 0;
+    }
+    .diagnosis-signals > summary {
+      list-style: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 13px 7px 11px;
+      border-radius: 999px;
+      background: var(--canvas);
+      color: var(--ink-mute);
+      font-size: 10.5px;
+      font-weight: 800;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      transition: color 160ms var(--ease-out), background 160ms var(--ease-out);
+    }
+    .diagnosis-signals > summary::-webkit-details-marker { display: none; }
+    .diagnosis-signals > summary::before {
+      content: "▸";
+      color: var(--ink-faint);
+      font-size: 10px;
+      transition: transform 160ms var(--ease-out);
+    }
+    .diagnosis-signals[open] > summary::before { transform: rotate(90deg); color: var(--orange); }
+    .diagnosis-signals > summary:hover { color: var(--ink); background: #E8ECF0; }
+    .diagnosis-signal-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .signal {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      padding: 9px 12px;
+      background: var(--canvas);
+      border-radius: 10px;
+      min-width: 0;
+    }
+    .signal-key {
+      font-size: 9.5px;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-mute);
+      font-family: ui-monospace, 'SF Mono', 'Menlo', monospace;
+    }
+    .signal-val {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--ink-deep);
+      font-variant-numeric: tabular-nums;
+      overflow-wrap: anywhere;
+    }
+    .signal-val--true  { color: var(--green-deep); }
+    .signal-val--false { color: var(--ink-faint); font-weight: 600; }
+    .signal-val--zero  { color: var(--ink-faint); font-weight: 600; }
+
     .row-fixit {
       grid-column: 1 / -1;
       font-size: 12px;
       color: var(--ink-mute);
       font-weight: 500;
-      margin-top: 6px;
+      margin-top: 10px;
       line-height: 1.5;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 12px;
+    }
+    .row-fixit code {
+      font-size: 11.5px;
+      padding: 1px 7px;
+      background: var(--canvas);
+      border: 0;
+      border-radius: 5px;
+      color: var(--ink-deep);
     }
     .row-fixit strong { color: var(--ink-deep); font-weight: 800; }
     .empty {
@@ -546,7 +665,6 @@
     .status {
       padding: 22px 26px;
       background: var(--card);
-      border: 1px solid var(--border);
       border-radius: 24px;
       color: var(--ink);
       font-size: 14px;
@@ -557,7 +675,7 @@
       font-weight: 500;
     }
     .status strong { color: var(--ink-deep); font-weight: 800; }
-    .err { color: var(--coral-deep); background: var(--coral-wash); border-color: rgba(214, 95, 79, 0.22); }
+    .err { color: var(--coral-deep); background: var(--coral-wash); }
     a { color: var(--orange); font-weight: 700; text-decoration: none; }
     a:hover { text-decoration: underline; }
     code {
@@ -853,10 +971,11 @@ function render(d) {
             ${chip(row.workStatus || 'no status', 'warn')}
             ${chip(row.assignedEmployees.length ? row.assignedEmployees.join(', ') : 'unassigned')}
           </div>
-          <div class="row-reasons">
-            <ul>${reasonItems(row.reasons).map(r => '<li>' + escapeHtml(r) + '</li>').join('')}</ul>
+          ${renderDiagnosis(row.reasons)}
+          <div class="row-fixit">
+            <span><strong>Job</strong> <code>${escapeHtml(row.jobId)}</code></span>
+            ${row.description ? `<span>${escapeHtml(row.description)}</span>` : ''}
           </div>
-          <div class="row-fixit">Job ID: <code>${escapeHtml(row.jobId)}</code> · ${escapeHtml(row.description || '')}</div>
         </div>
         <div class="row-amount">${fmt(row.paidInPeriod)}</div>
       </div>
@@ -925,22 +1044,130 @@ function render(d) {
   $('output').innerHTML = html;
 }
 
-function reasonItems(reasons) {
-  if (Array.isArray(reasons)) return reasons.map(r => String(r));
+// Humanize a snake_case / dotted slug into a sentence-case label.
+// Used for both the verdict pill and any signal keys we want to
+// surface in a more readable form than raw API field names.
+const VERDICT_LABELS = {
+  primary_should_have_credited: 'Primary pass should have credited',
+  gap_should_have_credited:     'Gap pass should have credited',
+  credit_drift:                 'Credited at the wrong amount',
+  unassigned_no_credit:         'Unassigned — no one to credit',
+  status_not_complete:          'Job not marked complete',
+  paid_outside_period:          'Paid outside this period',
+  st_artifact:                  'Service Titan artifact (excluded)',
+  invoice_no_job:               'Standalone invoice — no linked job'
+};
+function humanize(slug) {
+  if (slug == null) return '';
+  const s = String(slug).trim();
+  if (VERDICT_LABELS[s]) return VERDICT_LABELS[s];
+  return s
+    .replace(/[_\.\-]+/g, ' ')
+    .replace(/\b([a-z])/g, (_, c) => c.toUpperCase())
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Inline-format a raw signal value into an HTML snippet for the
+// signal chip grid. ISO dates collapse to a short local string,
+// booleans become true/false with semantic color, numbers get
+// tabular formatting, everything else stays as escaped text.
+function formatSignal(val) {
+  if (val === true)  return '<span class="signal-val signal-val--true">true</span>';
+  if (val === false) return '<span class="signal-val signal-val--false">false</span>';
+  if (val == null || val === '') return '<span class="signal-val signal-val--false">—</span>';
+  if (typeof val === 'number') {
+    const cls = val === 0 ? ' signal-val--zero' : '';
+    return '<span class="signal-val' + cls + '">' + escapeHtml(String(val)) + '</span>';
+  }
+  const str = String(val);
+  // ISO date-time → "May 1 · 3:22 PM"
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(str)) {
+    const d = new Date(str);
+    if (!isNaN(d)) {
+      const dStr = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      const tStr = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+      return '<span class="signal-val">' + escapeHtml(dStr + ' · ' + tStr) + '</span>';
+    }
+  }
+  return '<span class="signal-val">' + escapeHtml(str) + '</span>';
+}
+
+// Linkify any monospace-looking tokens (api paths, file paths,
+// quoted log strings) in a freeform reason sentence so they read
+// as code without bloating the JSON contract on the server side.
+function richify(text) {
+  if (text == null) return '';
+  const esc = escapeHtml(String(text));
+  return esc
+    .replace(/(&quot;[^&]+?&quot;)/g, '<code>$1</code>')
+    .replace(/(\/[A-Za-z][\w\-\/.?=&]*)/g, '<code>$1</code>');
+}
+
+function renderDiagnosis(reasons) {
+  // Legacy/string-array fallback — wrap each line in a plain bullet.
+  if (Array.isArray(reasons)) {
+    if (!reasons.length) return '';
+    return '<div class="diagnosis">' +
+      reasons.map(r =>
+        '<div class="diagnosis-block">' +
+          '<span class="diagnosis-label">Note</span>' +
+          '<p class="diagnosis-text">' + escapeHtml(String(r)) + '</p>' +
+        '</div>'
+      ).join('') +
+    '</div>';
+  }
   if (!reasons || typeof reasons !== 'object') {
-    return [reasons ? String(reasons) : 'No reason returned.'];
+    if (!reasons) return '';
+    return '<div class="diagnosis"><p class="diagnosis-text">' + escapeHtml(String(reasons)) + '</p></div>';
   }
-  const out = [];
-  if (reasons.verdict) out.push('Verdict: ' + reasons.verdict);
-  if (reasons.blocker) out.push('Blocker: ' + reasons.blocker);
-  if (reasons.fix) out.push('Fix: ' + reasons.fix);
+
+  const parts = [];
+
+  if (reasons.verdict) {
+    parts.push(
+      '<span class="diagnosis-verdict">' + escapeHtml(humanize(reasons.verdict)) + '</span>'
+    );
+  }
+  if (reasons.blocker) {
+    parts.push(
+      '<div class="diagnosis-block">' +
+        '<span class="diagnosis-label diagnosis-label--why">Why</span>' +
+        '<p class="diagnosis-text">' + richify(reasons.blocker) + '</p>' +
+      '</div>'
+    );
+  }
+  if (reasons.fix) {
+    parts.push(
+      '<div class="diagnosis-block">' +
+        '<span class="diagnosis-label diagnosis-label--fix">Fix</span>' +
+        '<p class="diagnosis-text">' + richify(reasons.fix) + '</p>' +
+      '</div>'
+    );
+  }
+
   if (reasons.details && typeof reasons.details === 'object') {
-    const detailBits = Object.keys(reasons.details)
-      .filter(k => reasons.details[k] != null && reasons.details[k] !== '')
-      .map(k => k + ': ' + reasons.details[k]);
-    if (detailBits.length) out.push('Details: ' + detailBits.join(' · '));
+    const keys = Object.keys(reasons.details).filter(k =>
+      reasons.details[k] != null && reasons.details[k] !== ''
+    );
+    if (keys.length) {
+      const signals = keys.map(k =>
+        '<div class="signal">' +
+          '<span class="signal-key">' + escapeHtml(k) + '</span>' +
+          formatSignal(reasons.details[k]) +
+        '</div>'
+      ).join('');
+      parts.push(
+        '<details class="diagnosis-signals">' +
+          '<summary>Signal details · ' + keys.length + '</summary>' +
+          '<div class="diagnosis-signal-grid">' + signals + '</div>' +
+        '</details>'
+      );
+    }
   }
-  return out.length ? out : ['No reason returned.'];
+
+  if (!parts.length) return '';
+  return '<div class="diagnosis">' + parts.join('') + '</div>';
 }
 
 function bucketHtml(title, tone, items, rowFn) {
