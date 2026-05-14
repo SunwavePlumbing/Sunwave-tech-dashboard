@@ -822,6 +822,27 @@ const fmtDateTime = (iso) => {
 };
 const chip = (text, tone) => '<span class="row-chip' + (tone ? ' row-chip--' + tone : '') + '">' + escapeHtml(text || '—') + '</span>';
 
+// Scheduled-date chip — the user's #1 evidence that an "out of
+// period" job credits to its real month, not this one. Render it
+// on every audit row so the admin can immediately see when the
+// work was actually scheduled vs. when it was paid. Tone is gold
+// for prior-period dates (likely-explains-the-mismatch), neutral
+// otherwise.
+function scheduledChip(scheduledStart) {
+  if (!scheduledStart) return chip('Not scheduled');
+  const d = new Date(scheduledStart);
+  if (isNaN(d.getTime())) return '';
+  const sameYearOpts = { month: 'short', day: 'numeric' };
+  const diffYearOpts = { month: 'short', day: 'numeric', year: 'numeric' };
+  const now = new Date();
+  const opts = d.getFullYear() === now.getFullYear() ? sameYearOpts : diffYearOpts;
+  const label = 'Scheduled ' + d.toLocaleDateString('en-US', opts);
+  // If the scheduled date is more than a couple days before the
+  // start of the current viewing period, tint it gold — that's
+  // usually the actual reason the job isn't on this leaderboard.
+  return chip(label);
+}
+
 // Restore prior state on load
 const savedPw = sessionStorage.getItem(PW_KEY);
 if (savedPw) $('pw').value = savedPw;
@@ -921,46 +942,17 @@ function render(d) {
 
   $('periodLabel').textContent = period.label + ' · ' + period.start + ' → ' + period.end;
 
-  // Verdict
-  let verdict;
+  // Only show a verdict banner when the data can't be loaded
+  // (cold cache). For the normal happy path / drift / missing
+  // states the tiles + section headers below carry the same
+  // information without the screaming red color block at the top.
+  let verdictHtml = '';
   if (dashboard.totalRevenue == null) {
-    verdict = {
-      tone: 'warn',
-      ico: '!',
-      msg: 'Dashboard cache is cold for this range. Open <a href="/">the main dashboard</a> with this range selected to warm it, then refresh this page. Without a warmed cache the reconciliation has nothing to compare against.'
-    };
-  } else if (reconciliation.delta === 0 && reconciliation.missing === 0 && reconciliation.drift === 0) {
-    verdict = {
-      tone: 'good',
-      ico: '✓',
-      msg: 'All ' + truth.paidInvoiceCount + ' paid invoices in this period are accounted for in the leaderboard. ' +
-        '<strong>' + fmt(truth.totalPaidInPeriod) + '</strong> in HCP matches the dashboard exactly.'
-    };
-  } else if (reconciliation.missing > 0) {
-    const crossN = reconciliation.crossPeriod || 0;
-    const crossNote = crossN > 0
-      ? ' Plus <strong>' + crossN + '</strong> more paid here but credited to a different month (see &ldquo;Credited to a different period&rdquo; below — those are correct, not bugs).'
-      : '';
-    verdict = {
-      tone: 'bad',
-      ico: '!',
-      msg: '<strong>' + reconciliation.missing + ' invoice' + (reconciliation.missing === 1 ? '' : 's') + '</strong> ' +
-        '(' + fmt(buckets.missing.reduce((s, r) => s + r.paidInPeriod, 0)) + ') paid in HCP but missing from this period&rsquo;s leaderboard. ' +
-        'See the &ldquo;Missing&rdquo; section below for the specific fixes.' + crossNote
-    };
-  } else if (reconciliation.drift > 0) {
-    verdict = {
-      tone: 'warn',
-      ico: '!',
-      msg: '<strong>' + reconciliation.drift + ' invoice' + (reconciliation.drift === 1 ? '' : 's') + '</strong> ' +
-        'credited but with a dollar amount that differs from HCP. See &ldquo;Drift&rdquo; below.'
-    };
-  } else {
-    verdict = {
-      tone: 'good',
-      ico: '✓',
-      msg: 'No missing invoices. ' + reconciliation.excluded + ' intentionally excluded (see below).'
-    };
+    verdictHtml =
+      '<div class="verdict verdict--warn">' +
+        '<span class="verdict-ico">!</span>' +
+        '<span>The main dashboard hasn\'t been loaded yet for this period, so we have nothing to compare against. <a href="/">Open the main dashboard</a>, switch to this period, then come back here and hit Run check.</span>' +
+      '</div>';
   }
 
   const deltaLine = dashboard.totalRevenue == null
@@ -974,10 +966,7 @@ function render(d) {
     : 'Dashboard cache: empty';
 
   const html = `
-    <div class="verdict verdict--${verdict.tone}">
-      <span class="verdict-ico">${verdict.ico}</span>
-      <span>${verdict.msg}</span>
-    </div>
+    ${verdictHtml}
 
     <div class="tiles">
       <div class="tile">
@@ -1026,6 +1015,7 @@ function render(d) {
           </div>
           <div class="row-meta">
             ${chip('Paid ' + fmtDateTime(row.latestPaidAt), 'bad')}
+            ${scheduledChip(row.scheduledStart)}
             ${chip(row.workStatus || 'no status', 'warn')}
             ${chip(row.assignedEmployees.length ? row.assignedEmployees.join(', ') : 'unassigned')}
           </div>
@@ -1048,6 +1038,7 @@ function render(d) {
           </div>
           <div class="row-meta">
             ${chip('Paid ' + fmtDateTime(row.latestPaidAt), 'warn')}
+            ${scheduledChip(row.scheduledStart)}
             ${chip(row.workStatus || 'no status')}
           </div>
           <div class="row-fixit">Credited <strong>${fmt(row.credited)}</strong> vs. HCP paid <strong>${fmt(row.paidInPeriod)}</strong> &middot; delta <span class="row-amount-delta">${row.delta > 0 ? '+' : ''}${fmt(row.delta)}</span></div>

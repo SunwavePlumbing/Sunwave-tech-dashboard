@@ -4156,12 +4156,20 @@ app.get('/api/diagnostics/coverage', async (req, res) => {
       // explain why this specific job's dollars don't appear in the
       // leaderboard.
       function whyMissing(job, invs, paidInPeriod) {
+        // Plain-English explanations for the admin. Two rules:
+        //   1. No internal jargon: never say "primary pass", "gap
+        //      pass", "/api/metrics", "cache", "Railway logs",
+        //      "scheduled_start", "work_status", etc.
+        //   2. The fix should be something the admin can actually
+        //      do without engineering help — open HCP, fix a tech
+        //      assignment, click Refresh, etc.
+        const niceDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : null;
+
         if (!job) {
           return {
             verdict: 'job_fetch_failed',
-            blocker: 'HCP returned no data for job_id ' + (invs[0] && invs[0].job_id),
-            fix: 'Open the job in HCP — it may have been archived or deleted. ' +
-                 'If it should count, add a manual KPI override.',
+            blocker: "We couldn't find this job in Housecall Pro. It may have been archived or deleted.",
+            fix: "Open Housecall Pro and search by invoice number. If the job is really gone, no action needed.",
             details: []
           };
         }
@@ -4174,6 +4182,8 @@ app.get('/api/diagnostics/coverage', async (req, res) => {
 
         const kpiDate = kpiDateForJob(job);
         const inPeriod = kpiDate && kpiDate >= periodStart && kpiDate < periodEnd;
+        const scheduledNice = niceDate(scheduled);
+        const completedNice = niceDate(completed);
 
         // Where in the pipeline would this job have been credited?
         const details = {
@@ -4190,9 +4200,8 @@ app.get('/api/diagnostics/coverage', async (req, res) => {
         if (stHit) {
           return {
             verdict: 'st_artifact_blocked',
-            blocker: 'Job tagged as ServiceTitan migration artifact (excluded by design)',
-            fix: 'If this is real post-cutover work mistakenly tagged as ST, ' +
-                 'remove the ServiceTitan tag/lead-source from the job in HCP.',
+            blocker: "This job is tagged as a leftover from the old ServiceTitan system, so the dashboard intentionally skips it.",
+            fix: "If this is real post-cutover work that was tagged by mistake, open the job in Housecall Pro and remove the ServiceTitan lead source.",
             details
           };
         }
@@ -4200,9 +4209,8 @@ app.get('/api/diagnostics/coverage', async (req, res) => {
         if (doers.length === 0) {
           return {
             verdict: 'no_assigned_employees',
-            blocker: 'Job has no assigned technician in HCP — nobody to credit',
-            fix: 'Open the job in HCP, add the tech who did the work as an ' +
-                 'assigned employee. The next refresh will pick them up.',
+            blocker: "No technician is assigned to this job in Housecall Pro, so there's no one to credit.",
+            fix: "Open the job in Housecall Pro, add the tech who did the work as an assigned employee, then come back and hit Refresh.",
             details
           };
         }
@@ -4220,21 +4228,10 @@ app.get('/api/diagnostics/coverage', async (req, res) => {
         const primaryFilterWouldKeep = inPeriod;
 
         if (primaryQueryWouldFind && primaryFilterWouldKeep) {
-          // The primary pass should have credited this. If it didn't,
-          // something earlier in the pipeline failed — most likely the
-          // bulk /jobs query didn't return assigned_employees fully,
-          // or the gap pass aborted before reaching this job.
           return {
             verdict: 'primary_should_have_credited',
-            blocker: 'Job meets every primary-pass criterion (scheduled in window, ' +
-                     'completed in period, has assigned employees). It should appear ' +
-                     'on the leaderboard but doesn\'t. Likely cause: the coverage-gap ' +
-                     'pass aborted on an HCP error before processing this job, OR the ' +
-                     'bulk /jobs query returned this job without assigned_employees ' +
-                     'populated.',
-            fix: 'Trigger a fresh /api/metrics?range=' + range + ' fetch (clears ' +
-                 'the 2-minute cache) and check whether it appears. If not, the gap ' +
-                 'pass is the culprit — check server logs for "[/api/tech coverage-pass]" warnings.',
+            blocker: "This job has everything it needs to show up on the leaderboard (a scheduled date, a completed date, and an assigned tech), but it still isn't there. The dashboard probably hit a temporary error when it tried to load this job.",
+            fix: "Click the Refresh button at the top of the dashboard. That usually clears it up. If the job still doesn't appear after a refresh, message Connor.",
             details
           };
         }
@@ -4247,36 +4244,47 @@ app.get('/api/diagnostics/coverage', async (req, res) => {
         if (gapPassWouldCredit) {
           return {
             verdict: 'gap_pass_should_have_credited',
-            blocker: 'Primary pass excludes (no scheduled_start in window) but the ' +
-                     'gap pass should rescue this via /invoices. Since it didn\'t, ' +
-                     'the gap pass likely aborted on an HCP error before reaching ' +
-                     'this job, OR the dashboard cache is stale.',
-            fix: 'Force-refresh the dashboard for this range. Check Railway logs ' +
-                 'for "[/api/tech coverage-pass]" warnings around the cache-warm time.',
+            blocker: "This job was scheduled outside the normal window, so the dashboard would have used its backup lookup to find it — but that didn't work this time. Most likely the dashboard hit a temporary error.",
+            fix: "Click the Refresh button at the top of the dashboard. If the job still doesn't appear after a refresh, message Connor.",
             details
           };
         }
 
         // Genuinely excluded by the pipeline.
-        const reasons = [];
-        if (!primaryQueryWouldFind) {
-          if (!scheduled) reasons.push('No scheduled_start (primary /jobs query needs it)');
-          else reasons.push('scheduled_start is ' + scheduled.slice(0, 10) + ', outside 270-day fetch window');
+        if (!completed && !scheduled) {
+          return {
+            verdict: 'legitimately_excluded',
+            blocker: "This job has no scheduled date and no completed date in Housecall Pro, so the dashboard has no way to know which month it belongs to.",
+            fix: "Open the job in Housecall Pro and either mark it as completed or add a scheduled date. Then hit Refresh.",
+            details
+          };
         }
-        if (!primaryFilterWouldKeep) {
-          if (!kpiDate) reasons.push('Cannot compute KPI date (no completed_at, no usable scheduled_start)');
-          else reasons.push('KPI date ' + kpiDate.toISOString().slice(0, 10) + ' is outside the period');
+        if (!completed) {
+          return {
+            verdict: 'legitimately_excluded',
+            blocker: "This job hasn't been marked complete in Housecall Pro yet" + (scheduledNice ? ' (it was scheduled for ' + scheduledNice + ')' : '') + ", so the dashboard isn't counting it as revenue yet.",
+            fix: "Open the job in Housecall Pro and mark it as completed. Then hit Refresh.",
+            details
+          };
         }
+        if (!scheduled) {
+          return {
+            verdict: 'legitimately_excluded',
+            blocker: "This job has no scheduled date in Housecall Pro, so the dashboard can't tell which month it belongs to.",
+            fix: "Open the job in Housecall Pro and add a scheduled date. Then hit Refresh.",
+            details
+          };
+        }
+        // Has dates but they fall outside the current period — usually
+        // means the work actually happened in another month.
         return {
           verdict: 'legitimately_excluded',
-          blocker: reasons.join('; ') || 'Unknown exclusion path',
-          fix: !completed
-            ? 'Mark this job complete in HCP (add a completed_at timestamp). ' +
-              'The dashboard needs that to know when the work happened.'
-            : !scheduled
-            ? 'Add a scheduled_start to the job in HCP, OR add a manual KPI override ' +
-              'pointing this job at the correct period.'
-            : 'Add a manual KPI override or correct the job\'s dates in HCP.',
+          blocker: scheduledNice
+            ? "This job was scheduled for " + scheduledNice + " — that's outside the current period, so it credits to that month's leaderboard, not this one."
+            : "This job's dates fall outside the current period, so it credits to a different month.",
+          fix: scheduledNice
+            ? "Open the leaderboard for the month containing " + scheduledNice + " and confirm the job shows up there. No action needed if it does."
+            : "Check the leaderboards of nearby months and confirm the job shows up on the correct one.",
           details
         };
       }
