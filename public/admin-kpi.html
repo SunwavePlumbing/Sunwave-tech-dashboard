@@ -2823,6 +2823,27 @@ function sortJobsForAudit(jobs) {
   });
 }
 
+const JOBS_PER_PAGE = 10;
+// Per-section page count. 1 = first 10 visible; clicking "Show next 10"
+// increments. Reset on every reload of the period so an admin starting
+// fresh always sees the priority slice first.
+let SECTION_PAGES = {};
+
+function sectionHeader(id, label, count, baseLabel, asButton, filterAttr) {
+  const tag = asButton ? 'button' : 'div';
+  const extra = asButton ? ' type="button" data-section-filter="' + filterAttr + '"' : '';
+  return '<' + tag + ' class="job-section" data-section-id="' + id + '" data-section-label="' + baseLabel + '" data-section-total="' + count + '"' + extra + '>' +
+    baseLabel + ' (' + count + ')' +
+    '</' + tag + '>';
+}
+
+function sectionMoreButton(id) {
+  return '<button type="button" class="job-section-more" data-section-more="' + id + '" style="display:none">' +
+    '<span class="job-section-more-label">Show next 10</span>' +
+    '<span class="job-section-more-meta"></span>' +
+    '</button>';
+}
+
 function renderJobGroups(jobs) {
   const openJobs = jobs.filter(isOpenAuditJob);
   const verified = jobs.filter(j => j.status === 'reconciled');
@@ -2831,26 +2852,37 @@ function renderJobGroups(jobs) {
   const autoKeys = new Set(autoReady.map(j => j._localKey));
   const priority = openJobs.filter(j => !autoKeys.has(j._localKey) && auditPriority(j) > 0);
   const normal = openJobs.filter(j => !autoKeys.has(j._localKey) && auditPriority(j) === 0);
+  SECTION_PAGES = {};
   let html = '';
   if (autoReady.length) {
-    html += '<div class="job-section">Safe to batch-verify (' + autoReady.length + ')</div>';
+    SECTION_PAGES.autoReady = 1;
+    html += sectionHeader('autoReady', 'Safe to batch-verify', autoReady.length, 'Safe to batch-verify', false);
     html += autoReady.map(renderJob).join('');
+    html += sectionMoreButton('autoReady');
   }
   if (priority.length) {
-    html += '<div class="job-section">Audit first (' + priority.length + ')</div>';
+    SECTION_PAGES.priority = 1;
+    html += sectionHeader('priority', 'Audit first', priority.length, 'Audit first', false);
     html += priority.map(renderJob).join('');
+    html += sectionMoreButton('priority');
   }
   if (normal.length) {
-    html += '<div class="job-section">Ready to check off (' + normal.length + ')</div>';
+    SECTION_PAGES.normal = 1;
+    html += sectionHeader('normal', 'Ready to check off', normal.length, 'Ready to check off', false);
     html += normal.map(renderJob).join('');
+    html += sectionMoreButton('normal');
   }
   if (verified.length) {
-    html += '<button type="button" class="job-section" data-section-filter="verified">Verified (' + verified.length + ')</button>';
+    SECTION_PAGES.verified = 1;
+    html += sectionHeader('verified', 'Verified', verified.length, 'Verified', true, 'verified');
     html += verified.map(renderJob).join('');
+    html += sectionMoreButton('verified');
   }
   if (excluded.length) {
-    html += '<button type="button" class="job-section" data-section-filter="excluded">Excluded (' + excluded.length + ')</button>';
+    SECTION_PAGES.excluded = 1;
+    html += sectionHeader('excluded', 'Excluded', excluded.length, 'Excluded', true, 'excluded');
     html += excluded.map(renderJob).join('');
+    html += sectionMoreButton('excluded');
   }
   return html || '<div class="empty empty--done">All jobs checked off for this period.</div>';
 }
@@ -3470,19 +3502,67 @@ function applyFilter() {
     r.style.display = visible ? '' : 'none';
     if (visible) shown++;
   });
+  const pillActive = typeof DRAWER_STATE !== 'undefined'
+    && DRAWER_STATE.activeFilter
+    && DRAWER_STATE.activeFilter !== 'all';
+  const filterActive = tokens.length > 0 || !!techNameLower || !!pillActive;
   document.querySelectorAll('#jobsList .job-section').forEach(section => {
-    let hasVisibleRows = false;
+    const sectionId = section.dataset.sectionId || '';
+    const baseLabel = section.dataset.sectionLabel || section.textContent.replace(/\s*\(.*\)\s*$/, '');
+    const total = Number(section.dataset.sectionTotal || 0);
+    const page = SECTION_PAGES[sectionId] || 1;
+    const cap = filterActive ? Infinity : page * JOBS_PER_PAGE;
+    let matched = 0;
+    let visibleInSection = 0;
     let n = section.nextElementSibling;
     while (n && !n.classList.contains('job-section')) {
-      if (n.classList.contains('job') && n.style.display !== 'none') {
-        hasVisibleRows = true;
-        break;
+      if (n.classList.contains('job')) {
+        const passesFilter = n.style.display !== 'none';
+        if (passesFilter) {
+          matched++;
+          if (visibleInSection < cap) {
+            visibleInSection++;
+          } else {
+            n.style.display = 'none';
+          }
+        }
       }
       n = n.nextElementSibling;
     }
-    section.style.display = hasVisibleRows ? '' : 'none';
+    section.style.display = matched > 0 ? '' : 'none';
+    if (sectionId) {
+      let label;
+      if (filterActive) {
+        label = baseLabel + ' (' + matched + (matched !== total ? ' of ' + total : '') + ')';
+      } else if (total > JOBS_PER_PAGE && visibleInSection < total) {
+        label = baseLabel + ' (showing ' + visibleInSection + ' of ' + total + ')';
+      } else {
+        label = baseLabel + ' (' + total + ')';
+      }
+      // Preserve any prepended icon nodes (e.g. button markers) by only
+      // rewriting the trailing label text. The section header content is
+      // currently flat text, so a direct replace is safe.
+      section.textContent = label;
+    }
+    // Show / hide the "next 10" button right after the last row in this section.
+    const moreBtn = n && n.matches && n.matches('button.job-section-more[data-section-more="' + sectionId + '"]')
+      ? n
+      : document.querySelector('#jobsList button.job-section-more[data-section-more="' + sectionId + '"]');
+    if (moreBtn) {
+      const remaining = total - visibleInSection;
+      if (!filterActive && remaining > 0) {
+        moreBtn.style.display = '';
+        const next = Math.min(JOBS_PER_PAGE, remaining);
+        const labelEl = moreBtn.querySelector('.job-section-more-label');
+        const metaEl = moreBtn.querySelector('.job-section-more-meta');
+        if (labelEl) labelEl.textContent = 'Show next ' + next;
+        if (metaEl) metaEl.textContent = remaining + ' remaining';
+      } else {
+        moreBtn.style.display = 'none';
+      }
+    }
   });
-  if (!tokens.length) {
+  if (!tokens.length && !techNameLower) {
     $('filterCount').textContent = shown ? shown + ' jobs' : '';
   } else {
     $('filterCount').textContent = shown + ' of ' + pillTotal;
@@ -5036,6 +5116,15 @@ if (filterPillsEl) {
 }
 
 $('jobsList').addEventListener('click', (e) => {
+  const moreBtn = e.target.closest('button.job-section-more[data-section-more]');
+  if (moreBtn) {
+    e.preventDefault();
+    e.stopPropagation();
+    const id = moreBtn.dataset.sectionMore;
+    SECTION_PAGES[id] = (SECTION_PAGES[id] || 1) + 1;
+    applyFilter();
+    return;
+  }
   const section = e.target.closest('[data-section-filter]');
   if (!section) return;
   selectFilterPill(section.dataset.sectionFilter);
