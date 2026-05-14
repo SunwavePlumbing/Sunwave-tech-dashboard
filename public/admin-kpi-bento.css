@@ -53,6 +53,15 @@ body.bento-design {
   --info:          #1F4E73;
   --info-pale:     #BFE0F3;
 }
+body.bento-design button,
+body.bento-design [role="button"] {
+  touch-action: manipulation;
+}
+body.bento-design button:focus-visible,
+body.bento-design [role="button"]:focus-visible {
+  outline: 3px solid rgba(243, 138, 63, 0.34);
+  outline-offset: 3px;
+}
 
 /* ── Header ──────────────────────────────────────────────────────── */
 body.bento-design .header {
@@ -107,6 +116,7 @@ body.bento-design .tab {
   background: transparent;
   letter-spacing: 0.01em;
   transition: background 0.18s, color 0.18s;
+  touch-action: manipulation;
 }
 body.bento-design .tab:hover { color: #373B4D; }
 body.bento-design .tab.is-active {
@@ -412,6 +422,7 @@ body.bento-design .filter-pill {
   letter-spacing: 0.02em;
   backdrop-filter: blur(8px);
   transition: all 0.16s;
+  touch-action: manipulation;
 }
 body.bento-design .filter-pill:hover {
   background: #FAFBFC;
@@ -481,6 +492,12 @@ body.bento-design .job {
     0 16px 38px rgba(11, 36, 71, 0.04);
   overflow: hidden;
   transition: border-color 0.18s, box-shadow 0.18s, transform 0.18s;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+body.bento-design .job:focus-visible {
+  outline: 3px solid rgba(243, 138, 63, 0.34);
+  outline-offset: 4px;
 }
 body.bento-design .job::before { display: none; }
 body.bento-design .job:hover {
@@ -501,6 +518,7 @@ body.bento-design .job-summary {
   padding: 24px 28px;
   gap: 22px;
   grid-template-columns: 132px minmax(0, 1fr) minmax(116px, 154px) minmax(190px, auto);
+  min-height: 110px;
 }
 body.bento-design .job-status {
   font-size: 10px;
@@ -651,6 +669,7 @@ body.bento-design .diag-subtab {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  touch-action: manipulation;
 }
 body.bento-design .diag-subtab:hover {
   background: transparent;
@@ -1201,6 +1220,10 @@ body.bento-design .drawer-scrim {
   background: rgba(11, 36, 71, 0.34);
   backdrop-filter: blur(8px) saturate(120%);
   -webkit-backdrop-filter: blur(8px) saturate(120%);
+  pointer-events: none;
+}
+body.bento-design.drawer-open .drawer-scrim {
+  pointer-events: auto;
 }
 body.bento-design .drawer {
   width: min(940px, calc(100vw - 48px));
@@ -1213,6 +1236,13 @@ body.bento-design .drawer {
     0 40px 100px rgba(11, 36, 71, 0.16),
     0 8px 24px rgba(11, 36, 71, 0.06);
   overflow: hidden;
+  pointer-events: none;
+}
+body.bento-design.drawer-open .drawer {
+  pointer-events: auto;
+}
+body.bento-design .drawer:focus {
+  outline: none;
 }
 
 /* Header — title left, close right; rich title with strong $ amount */
@@ -1345,6 +1375,135 @@ body.bento-design .period-fit.is-mismatch {
   border-color: rgba(211, 154, 46, 0.28);
 }
 body.bento-design .period-fit strong { color: inherit; font-weight: 800; }
+
+/* ── Compact drawer summary card — replaces the old triple stack ──
+   One card holds confidence + verdict + flag chips + period chip,
+   shrinking the drawer's pre-amble from ~300px tall down to ~96px.
+   ──────────────────────────────────────────────────────────────── */
+body.bento-design .drawer-summary {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 16px;
+  align-items: center;
+  padding: 16px 18px;
+  background: #FFFFFF;
+  border: 1px solid #DDE3EA;
+  border-radius: 20px;
+  box-shadow:
+    0 1px 2px rgba(11, 36, 71, 0.025),
+    0 14px 36px rgba(11, 36, 71, 0.045);
+  margin-bottom: 14px;
+}
+body.bento-design .drawer-summary .ds-score {
+  /* Override the hero-size .confidence-badge from the drawer styles */
+  min-width: 64px;
+  height: 64px;
+  font-size: 26px;
+  border-radius: 18px;
+  font-weight: 850;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  flex-shrink: 0;
+}
+body.bento-design .drawer-summary .ds-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+body.bento-design .drawer-summary .ds-headline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+body.bento-design .drawer-summary .ds-verdict {
+  font-size: 14px;
+  font-weight: 800;
+  color: #0B2447;
+  letter-spacing: -0.005em;
+}
+body.bento-design .drawer-summary .ds-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+body.bento-design .drawer-summary .ds-flag,
+body.bento-design .drawer-summary .ds-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 11px 4px 9px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+body.bento-design .drawer-summary .ds-flag .dot,
+body.bento-design .drawer-summary .ds-chip .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+body.bento-design .drawer-summary .ds-flag--green,
+body.bento-design .drawer-summary .ds-chip--good {
+  background: rgba(75, 170, 120, 0.12);
+  color: #2E7A52;
+}
+body.bento-design .drawer-summary .ds-flag--orange,
+body.bento-design .drawer-summary .ds-chip--warn {
+  background: rgba(211, 154, 46, 0.14);
+  color: #8C6716;
+}
+body.bento-design .drawer-summary .ds-flag--red,
+body.bento-design .drawer-summary .ds-chip--bad {
+  background: #FCEBE7;
+  color: #A33F30;
+}
+
+/* Out-of-period callout — only shown when the period actually
+   mismatches. For matches we just show the "In period" chip
+   inside the summary card and skip this whole block. */
+body.bento-design .ds-note {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 16px;
+  border-radius: 16px;
+  margin-bottom: 14px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  font-weight: 500;
+}
+body.bento-design .ds-note--warn {
+  background: rgba(211, 154, 46, 0.10);
+  color: #8C6716;
+  border: 1px solid rgba(211, 154, 46, 0.24);
+}
+body.bento-design .ds-note strong { font-weight: 800; color: inherit; }
+
+@media (max-width: 700px) {
+  body.bento-design .drawer-summary {
+    grid-template-columns: 56px minmax(0, 1fr);
+    gap: 14px;
+    padding: 14px;
+  }
+  body.bento-design .drawer-summary .ds-score {
+    min-width: 56px;
+    height: 56px;
+    font-size: 22px;
+    border-radius: 16px;
+  }
+  body.bento-design .drawer-summary .ds-verdict { font-size: 13.5px; }
+}
 
 /* Confidence card — promote to hero: massive number on left, copy right */
 body.bento-design .drawer-confidence-line {
@@ -2321,6 +2480,38 @@ body.bento-design .job-deferred-tag {
   font-size: 10px;
 }
 
+/* ── Strip row-card chrome from the editor wrapper inside drawer ──
+   The drawer reuses the inline-edit template, which expects to live
+   inside a `.job` row. The JS therefore emits `<div class="job
+   is-open"><div class="job-edit"></div></div>` inside the drawer
+   body. With Bento, `.job.is-open` paints a full card (ambient
+   shadow, soft border, 4px orange left-accent bar) — and when the
+   editor is still loading or empty, that card shows up as a mystery
+   orange-outlined pill. The drawer already provides its own chrome;
+   neutralize the inner row-card so the editor renders as bare form
+   fields. */
+body.bento-design .drawer-body .job,
+body.bento-design .drawer-body .job.is-open {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+  transform: none;
+}
+body.bento-design .drawer-body .job::before,
+body.bento-design .drawer-body .job.is-open::before {
+  display: none;
+}
+body.bento-design .drawer-body .job:hover {
+  transform: none;
+  box-shadow: none;
+  background: transparent;
+}
+/* Hide empty .job-edit shells outright so a slow HCP fetch doesn't
+   flash an empty container before the form fields paint. */
+body.bento-design .drawer-body .job-edit:empty { display: none; }
+
 /* ── "Why this is unattributed" callout inside the editor ──────── */
 body.bento-design .why-card {
   background: rgba(211, 154, 46, 0.10);
@@ -2351,6 +2542,118 @@ body.bento-design .empty--done {
   padding: 32px;
   font-weight: 800;
   letter-spacing: 0.02em;
+}
+
+/* ── Skeleton loader (shown while period-jobs fetch is in flight) ──
+   Mirrors the real .job row layout so the page doesn't reflow when
+   real rows arrive. A single moving sheen sweeps across all sk
+   elements simultaneously via background-position keyframes.
+   ──────────────────────────────────────────────────────────────── */
+body.bento-design .job-skeleton {
+  position: relative;
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr) minmax(116px, 154px) 144px;
+  gap: 18px;
+  align-items: center;
+  padding: 22px 22px 22px 26px;
+  background: #FAFBFC;
+  border: 1px solid #DDE3EA;
+  border-radius: 22px;
+  margin-bottom: 10px;
+  overflow: hidden;
+  box-shadow:
+    0 1px 2px rgba(11, 36, 71, 0.025),
+    0 10px 28px rgba(11, 36, 71, 0.035);
+  animation: skeletonFadeIn 320ms cubic-bezier(.16, 1, .3, 1) both;
+}
+body.bento-design .job-skeleton::before {
+  /* Match the colored left-edge bar of real rows so the placeholder
+     reads as the same component, just unfilled. */
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, #DDE3EA, #C5CBD3);
+  opacity: 0.5;
+}
+body.bento-design .job-skeleton .sk-main {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-width: 0;
+}
+body.bento-design .job-skeleton .sk {
+  /* Three-stop gradient: base mist → highlight → base mist. The
+     moving highlight band creates the shimmer. */
+  background:
+    linear-gradient(
+      90deg,
+      #ECEFF2 0%,
+      #F5F7F9 50%,
+      #ECEFF2 100%
+    );
+  background-size: 200% 100%;
+  background-position: 100% 0;
+  border-radius: 10px;
+  animation: skeletonShimmer 1400ms ease-in-out infinite;
+}
+body.bento-design .job-skeleton .sk--pill {
+  height: 28px;
+  width: 104px;
+  border-radius: 999px;
+  justify-self: start;
+}
+body.bento-design .job-skeleton .sk--line {
+  height: 14px;
+  max-width: 480px;
+}
+body.bento-design .job-skeleton .sk--line-sm {
+  height: 10px;
+  opacity: 0.7;
+}
+body.bento-design .job-skeleton .sk--amount {
+  height: 22px;
+  width: 92px;
+  justify-self: end;
+  border-radius: 8px;
+}
+body.bento-design .job-skeleton .sk--btn {
+  height: 38px;
+  width: 132px;
+  border-radius: 999px;
+  justify-self: end;
+}
+/* Stagger the per-row shimmer phase so the sheen reads as a single
+   sweep moving down the list rather than every row pulsing in unison. */
+body.bento-design .job-skeleton:nth-child(2) .sk { animation-delay: 120ms; }
+body.bento-design .job-skeleton:nth-child(3) .sk { animation-delay: 240ms; }
+body.bento-design .job-skeleton:nth-child(4) .sk { animation-delay: 360ms; }
+body.bento-design .job-skeleton:nth-child(5) .sk { animation-delay: 480ms; }
+body.bento-design .job-skeleton:nth-child(6) .sk { animation-delay: 600ms; }
+
+@keyframes skeletonShimmer {
+  0%   { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+@keyframes skeletonFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@media (max-width: 760px) {
+  body.bento-design .job-skeleton {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 18px;
+  }
+  body.bento-design .job-skeleton .sk--pill,
+  body.bento-design .job-skeleton .sk--amount,
+  body.bento-design .job-skeleton .sk--btn { justify-self: stretch; width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.bento-design .job-skeleton,
+  body.bento-design .job-skeleton .sk { animation: none; }
 }
 
 /* Admin freshness button (last-refresh chip) */

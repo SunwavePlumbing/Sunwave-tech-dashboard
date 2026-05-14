@@ -2320,24 +2320,42 @@ function setSubhead(panel) {
   }
   el.textContent = txt;
 }
-document.querySelectorAll('.tab').forEach(t => {
-  t.addEventListener('click', () => {
-    ACTIVE_PANEL = t.dataset.panel;
-    document.querySelectorAll('.tab').forEach(x => x.classList.remove('is-active'));
-    t.classList.add('is-active');
-    document.querySelectorAll('.panel').forEach(p => p.classList.remove('is-active'));
-    $('panel-' + t.dataset.panel).classList.add('is-active');
-    setSubhead(t.dataset.panel);
-    if (t.dataset.panel === 'reconcile') loadJobs();
-    if (t.dataset.panel === 'diagnostics') {
-      // Re-fire the active sub-tab's loader so data is fresh.
-      activateDiagSubtab(ACTIVE_DIAG_SUBTAB);
-    }
+function activatePanel(panel) {
+  const tab = document.querySelector('.tab[data-panel="' + panel + '"]');
+  const panelEl = $('panel-' + panel);
+  if (!tab || !panelEl) return;
+  ACTIVE_PANEL = panel;
+  document.querySelectorAll('.tab').forEach(x => {
+    const on = x === tab;
+    x.classList.toggle('is-active', on);
+    x.setAttribute('aria-selected', on ? 'true' : 'false');
   });
-});
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('is-active'));
+  panelEl.classList.add('is-active');
+  setSubhead(panel);
+  if (panel === 'reconcile') loadJobs();
+  if (panel === 'diagnostics') {
+    // Re-fire the active sub-tab's loader so data is fresh.
+    activateDiagSubtab(ACTIVE_DIAG_SUBTAB);
+  }
+}
+
+const tabsEl = document.querySelector('.tabs');
+if (tabsEl) {
+  tabsEl.addEventListener('click', (e) => {
+    const tab = e.target.closest('.tab[data-panel]');
+    if (!tab || !tabsEl.contains(tab)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    activatePanel(tab.dataset.panel);
+  }, true);
+}
 
 // Sub-tab handling inside the Diagnostics super-tab.
 function activateDiagSubtab(name) {
+  const tab = document.querySelector('.diag-subtab[data-diag="' + name + '"]');
+  const view = $('diag-' + name);
+  if (!tab || !view) return;
   ACTIVE_DIAG_SUBTAB = name;
   document.querySelectorAll('.diag-subtab').forEach(b =>
     b.classList.toggle('is-active', b.dataset.diag === name));
@@ -2350,9 +2368,16 @@ function activateDiagSubtab(name) {
   if (name === 'issues')   loadIssues();
   if (name === 'audit')    loadEmbed('coverageFrame', '/coverage?embed=1');
 }
-document.querySelectorAll('.diag-subtab').forEach(b => {
-  b.addEventListener('click', () => activateDiagSubtab(b.dataset.diag));
-});
+const diagSubtabsEl = document.querySelector('.diag-subtabs');
+if (diagSubtabsEl) {
+  diagSubtabsEl.addEventListener('click', (e) => {
+    const tab = e.target.closest('.diag-subtab[data-diag]');
+    if (!tab || !diagSubtabsEl.contains(tab)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    activateDiagSubtab(tab.dataset.diag);
+  }, true);
+}
 function loadEmbed(frameId, src, opts) {
   opts = opts || {};
   const force = !!opts.force;
@@ -2371,13 +2396,44 @@ function loadEmbed(frameId, src, opts) {
 // content flows as part of the page with no inner scrollbar.
 window.addEventListener('message', (e) => {
   if (!e || !e.data) return;
-  const { type, height } = e.data;
+  const { type, height, deltaX, deltaY } = e.data;
+  if (type === 'sunwave-embed-wheel') {
+    if (!document.body.classList.contains('drawer-open')) {
+      window.scrollBy({
+        left: Number(deltaX) || 0,
+        top: Number(deltaY) || 0,
+        behavior: 'auto'
+      });
+    }
+    return;
+  }
   if (typeof height !== 'number' || height <= 0) return;
   if (type === 'sunwave-coverage-height') {
     const f = $('coverageFrame');
     if (f) f.style.height = height + 'px';
   }
+  if (type === 'sunwave-diagnostics-height') {
+    const f = $('diagnosticsFrame');
+    if (f) f.style.height = height + 'px';
+  }
 });
+
+function recoverAdminScrollLock() {
+  const drawerEl = $('drawer');
+  const drawerClassOn = document.body.classList.contains('drawer-open');
+  const drawerActuallyOpen = drawerEl && !drawerEl.hidden && drawerClassOn;
+  if (drawerClassOn && !drawerActuallyOpen) {
+    document.body.classList.remove('drawer-open');
+  }
+  if (!document.body.classList.contains('drawer-open')) {
+    if (document.body.style.overflow === 'hidden') document.body.style.overflow = '';
+    if (document.documentElement.style.overflow === 'hidden') document.documentElement.style.overflow = '';
+  }
+}
+['focus', 'pageshow', 'visibilitychange', 'pointerdown', 'wheel'].forEach(evt => {
+  window.addEventListener(evt, recoverAdminScrollLock, { passive: true });
+});
+setInterval(recoverAdminScrollLock, 1500);
 
 // ── Period picker + job list ────────────────────────────────────────
 $('periodSel').addEventListener('change', () => {
@@ -2394,13 +2450,21 @@ $('reloadBtn').addEventListener('click', async () => {
 
 async function loadJobs(forceRefresh) {
   if (forceRefresh) clearAdminCache();
-  $('jobsList').innerHTML = '<div class="empty">Loading…</div>';
-  $('summaryAction').textContent = '';
-  const summaryBadge = $('summaryBadge');
-  if (summaryBadge) summaryBadge.textContent = '…';
+  const path = '/api/kpi/admin/period-jobs?range=' + encodeURIComponent(CURRENT_RANGE) + (forceRefresh ? '&refresh=1' : '');
+  // Only flash a placeholder on real cache MISSES. Cache hits return
+  // synchronously after a JSON.parse — there's no point wiping the
+  // already-rendered list just to repaint identical content. This
+  // eliminates the 10ms "Loading…" flash on tab clicks.
+  const cacheHit = !forceRefresh && readAdminCache(path);
+  if (!cacheHit) {
+    $('jobsList').innerHTML = renderSkeletonRows(5);
+    $('summaryAction').textContent = '';
+    const summaryBadge = $('summaryBadge');
+    if (summaryBadge) summaryBadge.textContent = '…';
+  }
   try {
-    const path = '/api/kpi/admin/period-jobs?range=' + encodeURIComponent(CURRENT_RANGE) + (forceRefresh ? '&refresh=1' : '');
     const data = await cachedApi(path, { force: forceRefresh, label: 'Reconciliation jobs' });
+    const summaryBadge = $('summaryBadge');
     const jobs = data.jobs || [];
     const openJobs = jobs.filter(isOpenAuditJob);
     const s = data.summary || {};
@@ -2442,6 +2506,29 @@ async function loadJobs(forceRefresh) {
 
 function isOpenAuditJob(j) {
   return j && j.status !== 'reconciled' && j.status !== 'excluded';
+}
+
+// Skeleton placeholder rows shown while the period-jobs fetch is in
+// flight. Mirrors the real .job-summary grid (status pill · title +
+// subtitle · amount · action) so the layout doesn't reflow when real
+// rows replace these. Width variance on the title bars gives the
+// shimmer some rhythm so it doesn't look like a stamped pattern.
+function renderSkeletonRows(count) {
+  const widths = [78, 62, 88, 54, 72, 66, 84];
+  let html = '';
+  for (let i = 0; i < count; i++) {
+    const w = widths[i % widths.length];
+    html += '<div class="job-skeleton" aria-hidden="true">' +
+      '<div class="sk sk--pill"></div>' +
+      '<div class="sk-main">' +
+        '<div class="sk sk--line" style="width:' + w + '%"></div>' +
+        '<div class="sk sk--line sk--line-sm" style="width:' + (w - 22) + '%"></div>' +
+      '</div>' +
+      '<div class="sk sk--amount"></div>' +
+      '<div class="sk sk--btn"></div>' +
+    '</div>';
+  }
+  return html;
 }
 
 function auditSignals(j) {
@@ -2672,7 +2759,7 @@ function renderJob(j) {
        ? '<span style="color:var(--ink-mute)">HCP: ' + j.hcpAssignedEmployees.map(esc).join(', ') + '</span>'
        : '<span style="color:var(--ink-mute)">unassigned</span>');
 
-  return '<div class="job job--' + esc(j.status || 'unknown') + '" data-key="' + esc(j._localKey) + '" data-haystack="' + esc(j._haystack || '') + '">' +
+  return '<div class="job job--' + esc(j.status || 'unknown') + '" data-key="' + esc(j._localKey) + '" data-haystack="' + esc(j._haystack || '') + '" tabindex="0" role="button" aria-label="Open job ' + esc((j.invoice ? '#' + j.invoice + ' ' : '') + (j.customer || '')) + '">' +
     '<div class="job-summary" data-action="toggle">' +
       '<span class="job-status job-status--' + esc(j.status) + '">' + esc(j.status) + '</span>' +
       '<div class="job-main">' +
@@ -3438,10 +3525,7 @@ document.addEventListener('click', async (e) => {
     } catch (err) { alert(err.message); }
   }
   if (t.dataset.action === 'from-issue-inv') {
-    document.querySelectorAll('.tab').forEach(x => x.classList.remove('is-active'));
-    document.querySelectorAll('.panel').forEach(p => p.classList.remove('is-active'));
-    document.querySelector('[data-panel="reconcile"]').classList.add('is-active');
-    $('panel-reconcile').classList.add('is-active');
+    activatePanel('reconcile');
     $('jobLookup').value = t.dataset.inv;
     $('lookupBtn').click();
   }
@@ -3460,7 +3544,7 @@ document.addEventListener('click', async (e) => {
      defer/exclude/cancel. Keyboard shortcuts work while the drawer
      is open (see KBD_HANDLER in script). -->
 <div class="drawer-scrim" id="drawerScrim"></div>
-<div class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerHeadTitle" hidden>
+<div class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerHeadTitle" tabindex="-1" hidden>
   <div class="drawer-head">
     <div class="drawer-head-main">
       <div class="drawer-head-title" id="drawerHeadTitle">Job</div>
@@ -3530,7 +3614,8 @@ const DRAWER_STATE = {
   history: [],           // stack of recently-verified for undo
   deferred: new Set(),   // job keys defered to bottom (this session)
   activeFilter: 'unverified',
-  contextTimer: null
+  contextTimer: null,
+  returnFocus: null
 };
 
 // Make existing helpers available — re-declare with var-style refs
@@ -3596,6 +3681,10 @@ function showSlowContextNotice(key) {
 function openInDrawer(key) {
   const j = window.JOBS[key];
   if (!j) return;
+  const active = document.activeElement;
+  if (active && active !== document.body && !drawer.contains(active)) {
+    DRAWER_STATE.returnFocus = active;
+  }
   if (DRAWER_STATE.contextTimer) clearTimeout(DRAWER_STATE.contextTimer);
   DRAWER_STATE.openKey = key;
   // Update header
@@ -3615,30 +3704,15 @@ function openInDrawer(key) {
   drawerHeadMeta.innerHTML =
     '<span class="meta-date">' + esc(dateStr) + '</span>' +
     '<span class="meta-pill meta-pill--' + statusKind + '">' + esc(statusRaw) + '</span>';
-  // Show the pre-check flag list + confidence score at the top of
-  // the drawer so the admin sees the auto-evaluation before they
-  // touch the editor. Drives confidence in the call.
+  // Pre-check flag list + confidence score + period-fit, all
+  // collapsed into a single compact summary card. Previously these
+  // were three stacked blocks taking ~300px of vertical space at
+  // the top of every drawer — now one ~96px card carries the same
+  // information using a smaller score squircle, inline verdict
+  // text, and pill-chip flags that wrap as needed.
   const flags = computeFlags(j);
   const confidence = computeConfidence(flags);
-  const confClass = confidence >= 80 ? 'high' : confidence >= 50 ? 'med' : 'low';
-  let confidenceHtml = '<div class="drawer-confidence-line">' +
-    '<span class="confidence-badge confidence-badge--' + confClass + '">' + confidence + '</span>' +
-    '<span>Confidence — based on the flags below. <strong>' +
-      (confidence >= 80 ? 'Safe to verify as-is' : confidence >= 50 ? 'Worth a quick look' : 'Manual decision needed') +
-    '</strong></span>' +
-  '</div>';
-  let flagsHtml = '';
-  if (flags.length) {
-    const sorted = flags.slice().sort((a, b) => severity(b.kind) - severity(a.kind));
-    flagsHtml = '<div class="drawer-flags">' +
-      sorted.map(f =>
-        '<div class="drawer-flag-row is-' + f.kind + '">' +
-          '<span class="dot"></span>' +
-          '<span>' + esc(f.label) + '</span>' +
-        '</div>'
-      ).join('') +
-    '</div>';
-  }
+  const summaryHtml = renderDrawerSummary(j, flags, confidence);
 
   // If this job has tech-submitted issue reports, surface them at
   // the top of the drawer so the admin sees them before the editor.
@@ -3661,12 +3735,6 @@ function openInDrawer(key) {
         issues.map(r => renderDrawerIssueReport(r, TYPE_LABEL[r.type] || r.type)).join('') +
       '</div>';
   }
-  // Period-fit banner — explicit visual telling the admin whether
-  // this job's service date falls inside the period they're
-  // currently viewing. Helps cut "why is this March job in May?"
-  // confusion.
-  const periodFitHtml = renderPeriodFit(j);
-
   // Render the editor INTO the drawer body. renderEditPanel looks
   // for `.job-edit[data-edit-for="<key>"]` and populates it; we
   // give it exactly that element inside the drawer body so the
@@ -3674,7 +3742,7 @@ function openInDrawer(key) {
   // class on the wrapper makes the editor CSS display: block.
   // The `#drawerContext` div is a placeholder we fill after
   // renderEditPanel completes (it pulls the full HCP context).
-  drawerBody.innerHTML = periodFitHtml + confidenceHtml + flagsHtml + issuesHtml +
+  drawerBody.innerHTML = summaryHtml + issuesHtml +
     '<div id="drawerInstantContext">' + renderJobOverview(drawerOverviewJobFromRow(j)) + '</div>' +
     '<div id="drawerContext"></div>' +
     '<div class="job is-open" data-key="' + esc(key) + '">' +
@@ -3712,6 +3780,11 @@ function openInDrawer(key) {
   document.body.classList.add('drawer-open');
   updateDrawerPosition();
   setDrawerStatus('');
+  requestAnimationFrame(() => {
+    if (DRAWER_STATE.openKey === key && drawer && typeof drawer.focus === 'function') {
+      drawer.focus({ preventScroll: true });
+    }
+  });
 }
 
 let _drawerHideTimer = null;
@@ -3728,6 +3801,11 @@ function closeDrawer() {
   if (_drawerHideTimer) clearTimeout(_drawerHideTimer);
   _drawerHideTimer = setTimeout(() => { drawer.hidden = true; _drawerHideTimer = null; }, 200);
   document.querySelectorAll('#jobsList .job').forEach(el => el.classList.remove('is-active-drawer'));
+  const returnTarget = DRAWER_STATE.returnFocus;
+  DRAWER_STATE.returnFocus = null;
+  if (returnTarget && typeof returnTarget.focus === 'function' && document.contains(returnTarget)) {
+    requestAnimationFrame(() => returnTarget.focus({ preventScroll: true }));
+  }
 }
 
 function nextUnverifiedKey(fromKey) {
@@ -4190,30 +4268,78 @@ $('autoVerifyBtn').addEventListener('click', runAutoVerify);
    verified-by line, and the period-level summary tiles.
    ════════════════════════════════════════════════════════════════════ */
 
-function renderPeriodFit(j) {
-  if (!j || !j.kpiDate) return '';
+// Compute period-fit info as a plain object so the compact summary
+// card can render it inline as a small chip (and only as a full
+// callout when it's an out-of-period mismatch worth explaining).
+function getPeriodFit(j) {
+  if (!j || !j.kpiDate) return null;
   const summary = window.LAST_RECON_SUMMARY || {};
-  if (!summary.periodStart || !summary.periodEnd) return '';
+  if (!summary.periodStart || !summary.periodEnd) return null;
   const kd = String(j.kpiDate).slice(0, 10);
   const ps = String(summary.periodStart).slice(0, 10);
   const pe = String(summary.periodEnd).slice(0, 10);
-  // periodEnd is exclusive (it's the start of the NEXT period — e.g.
-  // for May we get "2026-06-01"). So in-period is kd >= start AND
-  // kd < end. The display range subtracts a day so the user sees an
-  // inclusive end date.
+  // periodEnd is exclusive (it's the start of the NEXT period). The
+  // display end subtracts a day so the user sees an inclusive range.
   const inPeriod = kd >= ps && kd < pe;
   const peDisplay = (() => {
     const d = new Date(pe + 'T00:00:00');
     d.setDate(d.getDate() - 1);
     return d.toISOString().slice(0, 10);
   })();
-  const cls = inPeriod ? 'is-match' : 'is-mismatch';
-  const text = inPeriod
-    ? 'Service date <strong>' + esc(ymd(j.kpiDate)) + '</strong> falls inside this period.'
-    : 'Service date <strong>' + esc(ymd(j.kpiDate)) + '</strong> is outside the current period (' + esc(ps) + ' to ' + esc(peDisplay) + '). This job will credit toward the period its service date sits in.';
-  return '<div class="period-fit ' + cls + '">' +
-    '<span>' + (inPeriod ? '✓' : '⚠') + '</span><span>' + text + '</span>' +
-  '</div>';
+  return {
+    inPeriod,
+    kpiYmd: ymd(j.kpiDate),
+    periodStart: ps,
+    periodEndInclusive: peDisplay
+  };
+}
+
+// Compact summary card — replaces the old three stacked blocks
+// (period-fit banner + confidence hero + flag rows). One card with:
+//   • smaller confidence squircle on the left
+//   • verdict label + optional period chip on the top row
+//   • flag chips wrapped below (each: color dot + short label)
+//   • a full-width "service date out of period" callout below if
+//     the period actually mismatches — never shown for the match
+//     case since "in period" is the silent default.
+function renderDrawerSummary(j, flags, confidence) {
+  const tier = confidence >= 80 ? 'high' : confidence >= 50 ? 'med' : 'low';
+  const verdict = confidence >= 80 ? 'Safe to verify as-is'
+                : confidence >= 50 ? 'Worth a quick look'
+                : 'Manual decision needed';
+  const pf = getPeriodFit(j);
+  const sorted = (flags || []).slice().sort((a, b) => severity(b.kind) - severity(a.kind));
+  const flagChips = sorted.map(f =>
+    '<span class="ds-flag ds-flag--' + f.kind + '">' +
+      '<span class="dot"></span>' +
+      esc(f.label) +
+    '</span>'
+  ).join('');
+  const periodChip = pf
+    ? (pf.inPeriod
+        ? '<span class="ds-chip ds-chip--good"><span class="dot"></span>In period</span>'
+        : '<span class="ds-chip ds-chip--warn"><span class="dot"></span>Out of period</span>')
+    : '';
+  const periodNote = pf && !pf.inPeriod
+    ? '<div class="ds-note ds-note--warn">' +
+        '<span>⚠</span>' +
+        '<span>Service date <strong>' + esc(pf.kpiYmd) + '</strong> is outside the current period (' +
+          esc(pf.periodStart) + ' to ' + esc(pf.periodEndInclusive) +
+        '). This job will credit toward the period its service date sits in.</span>' +
+      '</div>'
+    : '';
+  return '<div class="drawer-summary drawer-summary--' + tier + '">' +
+    '<div class="ds-score confidence-badge confidence-badge--' + tier + '">' + confidence + '</div>' +
+    '<div class="ds-body">' +
+      '<div class="ds-headline">' +
+        '<span class="ds-verdict">' + esc(verdict) + '</span>' +
+        periodChip +
+      '</div>' +
+      (flagChips
+        ? '<div class="ds-flags">' + flagChips + '</div>'
+        : '') +
+    '</div>' +
+  '</div>' + periodNote;
 }
 
 function injectDrawerContext(key) {
@@ -4579,27 +4705,21 @@ function selectFilterPill(filter) {
   DRAWER_STATE.activeFilter = filter || 'all';
   document.querySelectorAll('#filterPills .filter-pill').forEach(x => {
     x.classList.toggle('is-active', x.dataset.filter === DRAWER_STATE.activeFilter);
+    x.setAttribute('aria-pressed', x.dataset.filter === DRAWER_STATE.activeFilter ? 'true' : 'false');
   });
   applyFilterPills();
 }
 
-// Bind each pill directly AND add a delegated document-level handler.
-// The direct binding handles normal clicks. The delegated handler is a
-// safety net in case anything (CSS, sibling event listeners, browser
-// quirk) prevents the per-element click from firing on a given pill.
-document.querySelectorAll('#filterPills .filter-pill').forEach(p => {
-  p.addEventListener('click', (e) => {
+const filterPillsEl = $('filterPills');
+if (filterPillsEl) {
+  filterPillsEl.addEventListener('click', (e) => {
+    const pill = e.target.closest('.filter-pill[data-filter]');
+    if (!pill || !filterPillsEl.contains(pill)) return;
+    e.preventDefault();
     e.stopPropagation();
-    selectFilterPill(p.dataset.filter);
-  });
-});
-document.addEventListener('click', (e) => {
-  const pill = e.target.closest('#filterPills .filter-pill');
-  if (!pill) return;
-  e.stopPropagation();
-  selectFilterPill(pill.dataset.filter);
-}, true); // capture phase — fires before bubble, defeats any
-          // sibling handler that might swallow the event later.
+    selectFilterPill(pill.dataset.filter);
+  }, true);
+}
 
 $('jobsList').addEventListener('click', (e) => {
   const section = e.target.closest('[data-section-filter]');
@@ -4611,15 +4731,24 @@ $('jobsList').addEventListener('click', (e) => {
 // bento-style grid. Clicks in those gaps can miss the inner
 // `[data-action="toggle"]` target, so catch the card itself in capture
 // phase and open the drawer from any non-control point inside the row.
+const CARD_CONTROL_SELECTOR = 'button, input, select, textarea, a, label, summary, details, [role="button"]:not(.job), [contenteditable="true"]';
 $('jobsList').addEventListener('click', (e) => {
   const row = e.target.closest('#jobsList .job');
   if (!row) return;
-  if (e.target.closest('button, input, select, textarea, a')) return;
+  if (e.target.closest(CARD_CONTROL_SELECTOR)) return;
   const key = row.dataset.key;
   if (!key || typeof openInDrawer !== 'function') return;
   e.preventDefault();
   e.stopPropagation();
   openInDrawer(key);
+}, true);
+$('jobsList').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const row = e.target.closest('#jobsList .job');
+  if (!row || e.target !== row) return;
+  e.preventDefault();
+  const key = row.dataset.key;
+  if (key && typeof openInDrawer === 'function') openInDrawer(key);
 }, true);
 
 // ── Undo toast ─────────────────────────────────────────────────
@@ -4720,33 +4849,11 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ── Intercept row clicks to open drawer instead of inline expand ─
-// The existing document-delegated click handler toggles `.is-open`
-// on the row. We add a higher-priority capture-phase listener that
-// catches the click first, opens the drawer, and stops the
-// propagation so the inline-expand never fires.
-// Row-click wiring — bound directly to each .job element after every
-// render. We tried document/jobsList delegation here for weeks and it
-// kept failing for "most of the card" (Bento Box reshape changed
-// pointer paths in ways that broke `.closest()` lookups). Direct
-// binding is bulletproof: each row owns its own click listener.
+// Row opening is now handled by one capture-phase listener on
+// #jobsList above. Keep this function as a no-op because older render
+// paths still call it after replacing rows.
 function wireJobRowClicks() {
-  const rows = document.querySelectorAll('#jobsList .job');
-  rows.forEach(row => {
-    if (row.dataset.clickWired === '1') return;
-    row.dataset.clickWired = '1';
-    row.addEventListener('click', (e) => {
-      // Let the inner Correct/quick button and any form controls
-      // run their own handlers without opening the drawer.
-      if (e.target.closest('button, input, select, textarea, a')) return;
-      const key = row.dataset.key;
-      if (!key) return;
-      // Stop the click from bubbling up to the document-level
-      // [data-action="toggle"] delegated handler, which would
-      // double-fire openInDrawer (two HCP fetches per click).
-      e.stopPropagation();
-      openInDrawer(key);
-    });
-  });
+  return;
 }
 
 // Hook into loadJobs() — after the original finishes, capture the

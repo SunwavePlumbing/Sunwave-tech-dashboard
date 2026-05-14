@@ -824,6 +824,15 @@ try {
     }
     window.addEventListener('load', postSize);
     setTimeout(postSize, 50);
+    window.addEventListener('wheel', (e) => {
+      try {
+        window.parent.postMessage(
+          { type: 'sunwave-embed-wheel', deltaX: e.deltaX, deltaY: e.deltaY },
+          '*'
+        );
+        e.preventDefault();
+      } catch (err) { /* parent is on a different origin we can't reach */ }
+    }, { passive: false });
   }
   // Optional: auto-run when opened as an embedded tool and we have a password.
   if (IS_EMBED && qp) setTimeout(() => run(), 50);

@@ -493,6 +493,15 @@
         }
         window.addEventListener('load', postSize);
         setTimeout(postSize, 50);
+        window.addEventListener('wheel', (e) => {
+          try {
+            window.parent.postMessage(
+              { type: 'sunwave-embed-wheel', deltaX: e.deltaX, deltaY: e.deltaY },
+              '*'
+            );
+            e.preventDefault();
+          } catch (err) {}
+        }, { passive: false });
       } catch (e) {}
     })();
   </script>
