@@ -140,22 +140,16 @@
     .hero-copy {
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
-      gap: 32px;
-      min-height: 260px;
-    }
-    .eyebrow-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      min-height: 0;
     }
     .hero-description {
-      max-width: 600px;
+      max-width: 580px;
       color: var(--ink-mute);
       font-size: 15px;
-      line-height: 1.65;
-      margin: 18px 0 0;
+      line-height: 1.6;
+      margin: 0;
       overflow-wrap: anywhere;
       font-weight: 500;
     }
@@ -763,15 +757,8 @@
 <div class="page">
   <section class="audit-hero" aria-labelledby="auditTitle">
     <div class="hero-copy">
-      <div>
-        <div class="eyebrow-row">
-          <span class="source-pill">Diagnostics</span>
-          <span class="source-pill">Live HCP Reconciliation</span>
-        </div>
-        <h1 id="auditTitle">Paid Jobs Audit</h1>
-        <p class="hero-description">Walks every paid invoice in Housecall Pro for this period and verifies the dollars made it onto the leaderboard. Surfaces drift, missing credits, and explains exactly why each gap exists.</p>
-      </div>
-      <div class="sub" id="periodLabel">Loading&hellip;</div>
+      <h1 id="auditTitle">Paid Jobs Audit</h1>
+      <p class="hero-description">Compares every paid invoice in Housecall Pro to what shows up on the KPI dashboard. Some gaps are normal — work done one month often gets paid the next, so the totals won't always match.</p>
     </div>
 
     <div class="controls">
@@ -796,7 +783,6 @@
         <input id="pw" type="password" placeholder="diagnostics password" autocomplete="current-password">
       </div>
       <button id="runBtn">Run check</button>
-      <span class="source-pill">Source: HCP <code>/invoices</code> &middot; live</span>
     </div>
   </section>
 
@@ -947,7 +933,10 @@ async function run() {
 function render(d) {
   const { period, truth, dashboard, reconciliation, buckets } = d;
 
-  $('periodLabel').textContent = period.label + ' · ' + period.start + ' → ' + period.end;
+  // periodLabel pill was removed from the hero — keep this
+  // null-safe in case anything else still expects to write to it.
+  const periodLabelEl = $('periodLabel');
+  if (periodLabelEl) periodLabelEl.textContent = period.label + ' · ' + period.start + ' → ' + period.end;
 
   // Only show a verdict banner when the data can't be loaded
   // (cold cache). For the normal happy path / drift / missing
