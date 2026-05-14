@@ -1,3 +1,12 @@
+// Sunwave operates entirely in Eastern time. Railway containers
+// default to UTC, which made "today" calculations roll over to
+// tomorrow at 8 PM Eastern (= midnight UTC). Setting process.env.TZ
+// here — before any Date is constructed — shifts every Date method
+// in this process (getFullYear/Month/Date/Hours, etc.) into Eastern.
+// ISO conversions like toISOString() still emit UTC, which is the
+// correct universal representation for outgoing API params.
+process.env.TZ = 'America/New_York';
+
 const express = require('express');
 const axios = require('axios');
 const fs = require('fs');
@@ -4593,6 +4602,93 @@ app.get('/api/kpi/admin/job/:id', async (req, res) => {
     const customerId = job.customer && job.customer.id;
     const customerName = job.customer
       ? ((job.customer.first_name || '') + ' ' + (job.customer.last_name || '')).trim() : '';
+    const moneyFromCents = (value) => {
+      if (value == null || value === '') return null;
+      const n = Number(value);
+      return Number.isFinite(n) ? n / 100 : null;
+    };
+    const firstPresent = (...values) => values.find(v => v != null && v !== '');
+    const personLabel = (p) => ((p && p.first_name || '') + ' ' + (p && p.last_name || '')).trim();
+    const jobDateValue = (j) => (j && j.completedAt)
+      || (j && j.scheduledStart)
+      || (j && j.work_timestamps && j.work_timestamps.completed_at)
+      || (j && j.schedule && j.schedule.scheduled_start)
+      || (j && j.created_at)
+      || (j && j.createdAt)
+      || null;
+    const summarizeCustomerJob = (j2, current) => ({
+      id: j2.id,
+      invoice: j2.invoice_number || null,
+      description: j2.description || null,
+      total: moneyFromCents(j2.total_amount),
+      workStatus: j2.work_status || null,
+      completedAt: (j2.work_timestamps && j2.work_timestamps.completed_at) || null,
+      scheduledStart: (j2.schedule && j2.schedule.scheduled_start) || null,
+      createdAt: j2.created_at || null,
+      isCurrent: Boolean(current)
+    });
+    const summarizeEstimateForDrawer = (e) => {
+      const assigned = e.assigned_employees || [];
+      const optionTotals = (e.options || [])
+        .map(opt => moneyFromCents(firstPresent(opt.total_amount, opt.amount, opt.price)))
+        .filter(v => v != null);
+      const total = moneyFromCents(firstPresent(e.total_amount, e.total, e.amount, e.grand_total))
+        ?? (optionTotals.length ? optionTotals.reduce((s, v) => s + v, 0) : null);
+      return {
+        id: e.id || e.uuid || null,
+        estimateNumber: e.estimate_number || e.number || null,
+        status: e.status || e.approval_status || null,
+        workStatus: e.work_status || null,
+        description: e.description || e.name || e.summary || null,
+        total: total,
+        createdAt: e.created_at || null,
+        updatedAt: e.updated_at || null,
+        approvedAt: e.approved_at || null,
+        scheduledStart: e.schedule && (e.schedule.scheduled_start || e.schedule.start_time) || null,
+        assignedEmployees: assigned.map(emp => ({
+          id: emp.id,
+          name: personLabel(emp) || emp.email || emp.id
+        })).filter(emp => emp.name),
+        options: (e.options || []).slice(0, 4).map(opt => ({
+          name: opt.name || opt.description || null,
+          status: opt.status || opt.approval_status || null,
+          total: moneyFromCents(firstPresent(opt.total_amount, opt.amount, opt.price))
+        }))
+      };
+    };
+    const normalizeLineItems = (items) => {
+      const out = [];
+      (items || []).forEach(li => {
+        const normalized = {
+          name: li.name || li.description || null,
+          description: li.description || null,
+          quantity: li.quantity != null ? Number(li.quantity) : null,
+          unitPrice: moneyFromCents(li.unit_price),
+          amount: moneyFromCents(firstPresent(li.amount, li.total_amount)),
+          kind: li.kind || li.type || null
+        };
+        const comparable = [
+          normalized.quantity ?? '',
+          normalized.unitPrice ?? '',
+          normalized.amount ?? '',
+          (normalized.kind || '').toLowerCase()
+        ].join('|');
+        const nameKey = (normalized.name || '').trim().toLowerCase();
+        const exactKey = comparable + '|' + nameKey;
+        const exactIndex = out.findIndex(existing => existing._exactKey === exactKey);
+        if (exactIndex >= 0) return;
+        if (!nameKey) {
+          if (out.some(existing => existing._comparableKey === comparable && existing.name)) return;
+        } else {
+          const unnamedIndex = out.findIndex(existing => existing._comparableKey === comparable && !existing.name);
+          if (unnamedIndex >= 0) out.splice(unnamedIndex, 1);
+        }
+        normalized._comparableKey = comparable;
+        normalized._exactKey = exactKey;
+        out.push(normalized);
+      });
+      return out.map(({ _comparableKey, _exactKey, ...li }) => li);
+    };
 
     // ── Context fetches in parallel ────────────────────────────────
     // Each is best-effort — if any individual HCP endpoint errors or
@@ -4613,14 +4709,7 @@ app.get('/api/kpi/admin/job/:id', async (req, res) => {
         // never .map() on a non-array.
         const raw = lr.data && (lr.data.line_items || lr.data.data || lr.data);
         const arr = Array.isArray(raw) ? raw : [];
-        return arr.map(li => ({
-          name: li.name || li.description || null,
-          description: li.description || null,
-          quantity: li.quantity != null ? Number(li.quantity) : null,
-          unitPrice: li.unit_price != null ? Number(li.unit_price) / 100 : null,
-          amount: li.amount != null ? Number(li.amount) / 100 : null,
-          kind: li.kind || li.type || null
-        }));
+        return normalizeLineItems(arr);
       }),
       safe('invoices', async () => {
         const ir = await axios.get(BASE_URL + '/jobs/' + id + '/invoices', { headers: hcpHeaders() });
@@ -4644,31 +4733,22 @@ app.get('/api/kpi/admin/job/:id', async (req, res) => {
           headers: hcpHeaders(),
           params: { job_id: id, page_size: 5 }
         });
-        return (er.data.estimates || []).map(e => ({
-          estimateNumber: e.estimate_number || null,
-          status: e.status || null,
-          total: e.total != null ? Number(e.total) / 100 : null,
-          createdAt: e.created_at || null,
-          approvedAt: e.approved_at || null
-        }));
+        return (er.data.estimates || []).map(summarizeEstimateForDrawer);
       }),
       customerId ? safe('customer_jobs', async () => {
         const cr = await axios.get(BASE_URL + '/customers/' + customerId + '/jobs', {
           headers: hcpHeaders(),
-          params: { page_size: 20 }
+          params: { page_size: 50 }
         });
-        return (cr.data.jobs || [])
-          .filter(j2 => j2.id !== id) // exclude this job
-          .slice(0, 10)
-          .map(j2 => ({
-            id: j2.id,
-            invoice: j2.invoice_number || null,
-            description: j2.description || null,
-            total: j2.total_amount != null ? Number(j2.total_amount) / 100 : null,
-            workStatus: j2.work_status || null,
-            completedAt: (j2.work_timestamps && j2.work_timestamps.completed_at) || null,
-            scheduledStart: (j2.schedule && j2.schedule.scheduled_start) || null
-          }));
+        const seen = new Set();
+        const jobs = (cr.data.jobs || []).map(j2 => {
+          seen.add(j2.id);
+          return summarizeCustomerJob(j2, j2.id === id);
+        });
+        if (!seen.has(id)) jobs.push(summarizeCustomerJob(job, true));
+        return jobs
+          .sort((a, b) => new Date(jobDateValue(b) || 0) - new Date(jobDateValue(a) || 0))
+          .slice(0, 16);
       }) : Promise.resolve(null)
     ]);
 

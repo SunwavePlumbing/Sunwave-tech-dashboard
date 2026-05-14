@@ -1121,6 +1121,15 @@
     }
     .ctx-lines td.num, .ctx-lines th.num { text-align: right; font-variant-numeric: tabular-nums; }
     .ctx-lines tfoot td { font-weight: 700; border-top: 2px solid var(--border); border-bottom: 0; }
+    .ctx-note {
+      margin-bottom: 10px;
+      padding: 9px 11px;
+      border-radius: 8px;
+      background: var(--warn-pale);
+      color: var(--warn);
+      font-size: 12px;
+      line-height: 1.45;
+    }
 
     /* Payment list / estimate list / prior-job list — shared compact rows */
     .ctx-rows { display: flex; flex-direction: column; gap: 6px; }
@@ -1136,6 +1145,16 @@
     .ctx-row .ctx-row-label { font-weight: 700; color: var(--ink); }
     .ctx-row .ctx-row-meta  { color: var(--ink-mute); }
     .ctx-row .ctx-row-amt   { margin-left: auto; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .ctx-row.is-current {
+      background: var(--good-pale);
+      box-shadow: inset 3px 0 0 var(--good);
+    }
+    .ctx-row-label--truncate {
+      max-width: 280px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
 
     /* Period-fit banner — explicit visual that says which period this
        job's service date falls in vs the period the admin is viewing.
@@ -1246,6 +1265,89 @@
     }
     .auto-verify-bar button:hover { filter: brightness(1.08); }
     .auto-verify-bar button[disabled] { opacity: 0.55; cursor: progress; }
+
+    /* Styled confirm modal — replaces native confirm() for the few
+       moments where we ask the operator to confirm a batch action. */
+    .confirm-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(20, 22, 28, 0.55);
+      backdrop-filter: blur(3px);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 9999;
+      opacity: 0;
+      transition: opacity 0.16s ease-out;
+      padding: 20px;
+    }
+    .confirm-backdrop.is-on { opacity: 1; }
+    .confirm-card {
+      background: var(--card);
+      border-radius: 16px;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.28), 0 4px 12px rgba(0,0,0,0.12);
+      max-width: 440px;
+      width: 100%;
+      transform: translateY(8px) scale(0.98);
+      transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+      overflow: hidden;
+    }
+    .confirm-backdrop.is-on .confirm-card {
+      transform: translateY(0) scale(1);
+    }
+    .confirm-head {
+      display: flex; align-items: center; gap: 12px;
+      padding: 20px 24px 12px;
+    }
+    .confirm-icon {
+      width: 38px; height: 38px; border-radius: 50%;
+      background: var(--good-pale);
+      color: var(--good);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; font-weight: 800;
+      flex-shrink: 0;
+    }
+    .confirm-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--ink);
+      margin: 0;
+      line-height: 1.3;
+    }
+    .confirm-body {
+      padding: 4px 24px 4px 74px;
+      font-size: 13.5px;
+      line-height: 1.55;
+      color: var(--ink-mute);
+    }
+    .confirm-body strong { color: var(--ink); font-weight: 700; }
+    .confirm-actions {
+      display: flex; justify-content: flex-end; gap: 8px;
+      padding: 20px 24px 20px;
+      margin-top: 8px;
+    }
+    .confirm-btn {
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      font-family: inherit;
+      border: 1px solid transparent;
+      transition: background 0.12s, filter 0.12s;
+    }
+    .confirm-btn--cancel {
+      background: transparent;
+      color: var(--ink-mute);
+      border-color: var(--border);
+    }
+    .confirm-btn--cancel:hover { background: var(--bg); color: var(--ink); }
+    .confirm-btn--ok {
+      background: var(--good);
+      color: white;
+    }
+    .confirm-btn--ok:hover { filter: brightness(1.08); }
+    .confirm-btn:focus-visible {
+      outline: 2px solid var(--brand);
+      outline-offset: 2px;
+    }
   </style>
 </head>
 <body>
@@ -1892,6 +1994,9 @@ function auditPriority(j) {
   const assignmentCount = (j.assignments || []).length || (j.hcpAssignedEmployees || []).length;
   if (j.status === 'unattributed') score += 100;
   if (j.reason) score += 35;
+  // $0 total is a red flag in computeFlags — must surface in Audit
+  // first too so the groupings stay consistent with the row chips.
+  if (total <= 0 && j.status !== 'excluded') score += 30;
   if (total >= 5000) score += 25;
   else if (total >= 2500) score += 12;
   if (assignmentCount > 1) score += 20;
@@ -3316,6 +3421,58 @@ function updateProgress() {
 }
 
 /* ════════════════════════════════════════════════════════════════════
+   confirmDialog — Promise-based styled replacement for native
+   confirm(). Click backdrop / Cancel / Esc resolves false; OK or
+   Enter resolves true. Focus traps to the OK button on open.
+   ════════════════════════════════════════════════════════════════════ */
+function confirmDialog(opts) {
+  return new Promise(resolve => {
+    const o = opts || {};
+    const backdrop = document.createElement('div');
+    backdrop.className = 'confirm-backdrop';
+    backdrop.innerHTML =
+      '<div class="confirm-card" role="dialog" aria-modal="true" aria-labelledby="cd-title">' +
+        '<div class="confirm-head">' +
+          '<div class="confirm-icon">' + (o.icon || '✓') + '</div>' +
+          '<h3 class="confirm-title" id="cd-title"></h3>' +
+        '</div>' +
+        '<div class="confirm-body"></div>' +
+        '<div class="confirm-actions">' +
+          '<button type="button" class="confirm-btn confirm-btn--cancel"></button>' +
+          '<button type="button" class="confirm-btn confirm-btn--ok"></button>' +
+        '</div>' +
+      '</div>';
+    backdrop.querySelector('.confirm-title').textContent = o.title || 'Are you sure?';
+    backdrop.querySelector('.confirm-body').textContent = o.body || '';
+    const cancelBtn = backdrop.querySelector('.confirm-btn--cancel');
+    const okBtn = backdrop.querySelector('.confirm-btn--ok');
+    cancelBtn.textContent = o.cancelLabel || 'Cancel';
+    okBtn.textContent = o.okLabel || 'OK';
+
+    function close(result) {
+      document.removeEventListener('keydown', onKey);
+      backdrop.classList.remove('is-on');
+      setTimeout(() => { if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop); }, 180);
+      resolve(result);
+    }
+    function onKey(e) {
+      if (e.key === 'Escape') { e.preventDefault(); close(false); }
+      else if (e.key === 'Enter' && document.activeElement !== cancelBtn) { e.preventDefault(); close(true); }
+    }
+    backdrop.addEventListener('click', e => { if (e.target === backdrop) close(false); });
+    cancelBtn.addEventListener('click', () => close(false));
+    okBtn.addEventListener('click', () => close(true));
+    document.addEventListener('keydown', onKey);
+
+    document.body.appendChild(backdrop);
+    requestAnimationFrame(() => {
+      backdrop.classList.add('is-on');
+      okBtn.focus();
+    });
+  });
+}
+
+/* ════════════════════════════════════════════════════════════════════
    Auto-verify 100-rated cases — batch action.
 
    Walks every job that passes isAutoVerifiable(), POSTs the
@@ -3326,10 +3483,13 @@ function updateProgress() {
 async function runAutoVerify() {
   const candidates = Object.values(window.JOBS || {}).filter(isAutoVerifiable);
   if (!candidates.length) return;
-  if (!confirm('Auto-verify ' + candidates.length + ' 100-rated case' + (candidates.length === 1 ? '' : 's') +
-               '?\n\n100-rated means single tech, full credit, fully paid, and HCP confirms attribution. Per-row undo is still available via the toast that pops up for each one.')) {
-    return;
-  }
+  const ok = await confirmDialog({
+    title: 'Auto-verify ' + candidates.length + ' 100-rated case' + (candidates.length === 1 ? '' : 's') + '?',
+    body: 'These rows scored 100: single tech, full credit, fully paid, no HCP mismatch, in-period, under $5k. Per-row undo is still available via the toast that pops up for each one.',
+    okLabel: 'Verify ' + candidates.length,
+    cancelLabel: 'Cancel'
+  });
+  if (!ok) return;
   const btn = $('autoVerifyBtn');
   btn.disabled = true;
   const original = btn.textContent;
@@ -3432,7 +3592,7 @@ function injectDrawerContext(key) {
   // so the drawer doesn't show empty cards.
   const sections = [];
   sections.push(renderEventTimeline(srv.job, ctx));
-  sections.push(renderLineItems(ctx.lineItems));
+  sections.push(renderLineItems(ctx.lineItems, srv.job));
   sections.push(renderInvoicesAndPayments(ctx.invoices));
   sections.push(renderEstimates(ctx.estimates, srv.job));
   sections.push(renderCustomerPriorJobs(ctx.customerJobs, srv.job));
@@ -3511,9 +3671,16 @@ function renderEventTimeline(job, ctx) {
   '</details>';
 }
 
-function renderLineItems(lineItems) {
+function renderLineItems(lineItems, job) {
   if (!Array.isArray(lineItems) || !lineItems.length) return '';
   const total = lineItems.reduce((s, li) => s + (Number(li.amount) || 0), 0);
+  const jobTotal = job ? Number(job.totalAmount || 0) : 0;
+  const notes = [];
+  if (jobTotal <= 0 && total > 0) {
+    notes.push('KPI total for this job is $0. HCP still lists the line items below, so they are shown as context and not treated as credited revenue.');
+  } else if (Math.abs(total - jobTotal) >= 1) {
+    notes.push('Line items add to ' + fmt(total) + ', while the HCP job total is ' + fmt(jobTotal) + '. Use the job total for KPI credit.');
+  }
   const rows = lineItems.map(li => {
     const name = li.name || li.description || '—';
     const qty = li.quantity != null ? li.quantity : '';
@@ -3526,9 +3693,14 @@ function renderLineItems(lineItems) {
       '<td class="num">' + esc(amt) + '</td>' +
     '</tr>';
   }).join('');
+  const noteHtml = notes.length
+    ? '<div class="ctx-note">' + notes.map(esc).join(' ') + '</div>'
+    : '';
+  const summary = lineItems.length + ' item' + (lineItems.length === 1 ? '' : 's') +
+    ' · line items ' + fmt(total) + ' · job total ' + fmt(jobTotal);
   return '<details class="ctx-section">' +
-    '<summary>Invoice line items<span class="ctx-subtle">' + lineItems.length + ' item' + (lineItems.length === 1 ? '' : 's') + ' · ' + fmt(total) + '</span></summary>' +
-    '<div class="ctx-body"><table class="ctx-lines">' +
+    '<summary>Invoice line items<span class="ctx-subtle">' + summary + '</span></summary>' +
+    '<div class="ctx-body">' + noteHtml + '<table class="ctx-lines">' +
       '<thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Unit</th><th class="num">Amount</th></tr></thead>' +
       '<tbody>' + rows + '</tbody>' +
       '<tfoot><tr><td colspan="3" class="num">Total</td><td class="num">' + fmt(total) + '</td></tr></tfoot>' +
@@ -3565,8 +3737,16 @@ function renderEstimates(estimates, job) {
   const jobTotal = job ? Number(job.totalAmount || 0) : 0;
   const rows = estimates.map(e => {
     const meta = [];
-    if (e.estimateNumber) meta.push('#' + e.estimateNumber);
     if (e.status) meta.push(e.status);
+    if (e.workStatus && e.workStatus !== e.status) meta.push(e.workStatus);
+    if (e.assignedEmployees && e.assignedEmployees.length) {
+      meta.push('Seller: ' + e.assignedEmployees.map(emp => emp.name || emp.id).filter(Boolean).join(', '));
+    }
+    if (e.scheduledStart) {
+      meta.push('Scheduled ' + new Date(e.scheduledStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
+    } else if (e.createdAt) {
+      meta.push('Created ' + new Date(e.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
+    }
     if (e.approvedAt) {
       meta.push('Approved ' + new Date(e.approvedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
     }
@@ -3575,9 +3755,15 @@ function renderEstimates(estimates, job) {
           ? '<span style="color:var(--good);font-weight:700">matches invoice</span>'
           : '<span style="color:var(--warn);font-weight:700">invoice differs by ' + fmt(Math.abs(jobTotal - e.total)) + '</span>')
       : '';
+    const optionText = (e.options || [])
+      .filter(opt => opt && (opt.name || opt.status || opt.total != null))
+      .map(opt => [opt.name, opt.status, opt.total != null ? fmt(opt.total) : ''].filter(Boolean).join(' / '))
+      .join('; ');
+    if (optionText) meta.push('Options: ' + optionText);
+    const label = e.estimateNumber ? '#' + e.estimateNumber : (e.description || e.id || 'Estimate');
     return '<div class="ctx-row">' +
-      '<span class="ctx-row-label">' + esc(meta[0] || 'Estimate') + '</span>' +
-      '<span class="ctx-row-meta">' + esc(meta.slice(1).join(' · ')) + (drift ? ' · ' + drift : '') + '</span>' +
+      '<span class="ctx-row-label ctx-row-label--truncate">' + esc(label) + '</span>' +
+      '<span class="ctx-row-meta">' + esc(meta.join(' · ')) + (drift ? ' · ' + drift : '') + '</span>' +
       '<span class="ctx-row-amt">' + (e.total != null ? fmt(e.total) : '—') + '</span>' +
     '</div>';
   }).join('');
@@ -3591,20 +3777,21 @@ function renderCustomerPriorJobs(jobs, currentJob) {
   if (!Array.isArray(jobs) || !jobs.length) return '';
   const sum = jobs.reduce((s, j2) => s + (Number(j2.total) || 0), 0);
   const rows = jobs.map(j2 => {
-    const date = j2.completedAt || j2.scheduledStart;
+    const date = j2.completedAt || j2.scheduledStart || j2.createdAt;
     const when = date ? new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
-    const meta = [j2.invoice ? '#' + j2.invoice : '', when, j2.workStatus].filter(Boolean).join(' · ');
-    return '<div class="ctx-row">' +
-      '<span class="ctx-row-label" style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(j2.description || '—') + '</span>' +
+    const meta = [j2.isCurrent ? 'Current job' : '', j2.invoice ? '#' + j2.invoice : '', when, j2.workStatus].filter(Boolean).join(' · ');
+    return '<div class="ctx-row' + (j2.isCurrent ? ' is-current' : '') + '">' +
+      '<span class="ctx-row-label ctx-row-label--truncate">' + esc(j2.description || '—') + '</span>' +
       '<span class="ctx-row-meta">' + esc(meta) + '</span>' +
       '<span class="ctx-row-amt">' + (j2.total != null ? fmt(j2.total) : '—') + '</span>' +
     '</div>';
   }).join('');
   const customerLabel = currentJob && currentJob.customer
-    ? esc(currentJob.customer) + ' · ' + jobs.length + ' prior job' + (jobs.length === 1 ? '' : 's')
-    : jobs.length + ' prior jobs';
-  return '<details class="ctx-section">' +
-    '<summary>Prior jobs for this customer<span class="ctx-subtle">' + customerLabel + ' · ' + fmt(sum) + '</span></summary>' +
+    ? esc(currentJob.customer) + ' · ' + jobs.length + ' job' + (jobs.length === 1 ? '' : 's')
+    : jobs.length + ' jobs';
+  const openAttr = currentJob && Number(currentJob.totalAmount || 0) <= 0 ? ' open' : '';
+  return '<details class="ctx-section"' + openAttr + '>' +
+    '<summary>Customer job history<span class="ctx-subtle">' + customerLabel + ' · ' + fmt(sum) + '</span></summary>' +
     '<div class="ctx-body"><div class="ctx-rows">' + rows + '</div></div>' +
   '</details>';
 }
