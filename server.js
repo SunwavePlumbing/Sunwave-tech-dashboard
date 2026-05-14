@@ -4136,6 +4136,14 @@ app.get('/api/diagnostics/coverage', async (req, res) => {
       const drift = [];
       const missing = [];
       const excluded = [];
+      // Cross-period: paid in this period, but the WORK happened in
+      // a prior (or future) period. The dashboard correctly credits
+      // it to its actual KPI period, so it's not on this period's
+      // leaderboard — and that's right, not a bug. Surface it as a
+      // separate "Credited to a different period" bucket so the
+      // auditor can verify those dollars on the correct month's
+      // leaderboard instead of seeing them as alarming "missing".
+      const crossPeriod = [];
 
       // Walks the dashboard's actual credit pipeline for a single job
       // and returns the SPECIFIC checkpoint that would have prevented
@@ -4325,6 +4333,30 @@ app.get('/api/diagnostics/coverage', async (req, res) => {
           return;
         }
 
+        // Cross-period gate — only relevant when this period's
+        // leaderboard shows no credit for the job. If the work was
+        // actually done in a different period, the job correctly
+        // credits there, NOT here — surface that as its own bucket
+        // instead of crying "missing".
+        const jobKpiDate = job ? kpiDateForJob(job) : null;
+        const jobInCurrentPeriod = jobKpiDate && jobKpiDate >= periodStart && jobKpiDate < periodEnd;
+        if (creditFoundRounded === 0 && jobKpiDate && !jobInCurrentPeriod) {
+          const monthLabel = jobKpiDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'America/New_York' });
+          const direction = jobKpiDate < periodStart ? 'prior' : 'future';
+          crossPeriod.push({
+            ...row,
+            kpiDate: jobKpiDate.toISOString(),
+            kpiDateYmd: jobKpiDate.toISOString().slice(0, 10),
+            creditedToLabel: monthLabel,
+            direction,
+            reason: 'Service date ' + jobKpiDate.toISOString().slice(0, 10) +
+                    ' falls in ' + monthLabel + ' — the job credits to that ' +
+                    'period, not this one. Verify on ' + monthLabel +
+                    "'s leaderboard."
+          });
+          return;
+        }
+
         if (creditFoundRounded === 0) {
           // whyMissing wants the full invoices array (for .find(i =>
           // i.job_id === ...) in the gap-pass simulation) plus the
@@ -4368,12 +4400,14 @@ app.get('/api/diagnostics/coverage', async (req, res) => {
           drift: drift.length,
           missing: missing.length,
           excluded: excluded.length,
+          crossPeriod: crossPeriod.length,
           standaloneInvoices: orphanInvoices.length
         },
         buckets: {
           missing,
           drift,
           excluded,
+          crossPeriod,
           standaloneInvoices: orphanInvoices.map(inv => ({
             invoiceNumber: inv.invoice_number || null,
             amount: Math.round(parseFloat(inv.amount || 0) / 100),

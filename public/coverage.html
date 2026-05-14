@@ -269,10 +269,22 @@
     /* ── Top KPI tiles ────────────────────────────────────────── */
     .tiles {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       gap: 14px;
       margin-bottom: 18px;
     }
+    /* ── Tiles ──────────────────────────────────────────────────
+       Pure Sunwave card surface, no edge lines anywhere. The
+       semantic variants do NOT use color washes for the whole tile
+       background — washing the whole card creates a visible color
+       block that fights the canvas. Instead, color is delivered via:
+         1. The hero number's tint (deep navy / green / gold / coral)
+         2. A tiny pill-bullet by the label
+         3. An almost-imperceptible radial glow in the top corner
+       The result: tiles read as identical floating white cards
+       with subtle color accents in the typography, not painted
+       blocks of color. Matches "gentle lighting, not decorative
+       color blobs" from the design philosophy. */
     .tile {
       position: relative;
       overflow: hidden;
@@ -281,24 +293,23 @@
       flex-direction: column;
       justify-content: space-between;
       background: var(--card);
-      border: 1px solid transparent;
+      border: 0;
       border-radius: 24px;
       padding: 24px;
       box-shadow: var(--shadow-card);
       animation: cardIn 420ms var(--ease-out) both;
-      transition: transform 240ms var(--ease-out), box-shadow 240ms var(--ease-out), border-color 240ms var(--ease-out);
+      transition: transform 240ms var(--ease-out), box-shadow 240ms var(--ease-out);
     }
     .tile:hover {
-      transform: translateY(-3px);
-      border-color: rgba(243, 138, 63, 0.22);
+      transform: translateY(-2px);
       box-shadow: var(--shadow-card-hover);
     }
-    /* Hero tile (HCP truth) — bigger, with a Sunwave-orange wash */
+    /* Hero tile (HCP truth) — bigger, with a microscopic orange glow */
     .tile:nth-child(1) {
       grid-column: span 2;
       min-height: 200px;
       background:
-        radial-gradient(circle at 92% 4%, var(--orange-tint), transparent 60%),
+        radial-gradient(ellipse 60% 80% at 100% 0%, rgba(243, 138, 63, 0.06), transparent 70%),
         var(--card);
     }
     .tile:nth-child(1) .tile-value {
@@ -310,13 +321,34 @@
     .tile:nth-child(4) { animation-delay: 135ms; }
     .tile:nth-child(5) { animation-delay: 180ms; }
     .tile:nth-child(6) { animation-delay: 225ms; }
+    .tile:nth-child(7) { animation-delay: 270ms; }
     .tile-label {
       font-size: 10px;
       font-weight: 850;
       text-transform: uppercase;
       letter-spacing: 0.16em;
       color: var(--ink-mute);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
     }
+    /* Semantic dot bullet on the label — replaces the heavy color
+       wash. Tiny, but enough to convey "good / warn / bad / info"
+       at a glance without painting the whole tile. */
+    .tile--good .tile-label::before,
+    .tile--warn .tile-label::before,
+    .tile--bad .tile-label::before,
+    .tile--info .tile-label::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .tile--good .tile-label::before { background: var(--green); box-shadow: 0 0 0 3px rgba(75, 170, 120, 0.16); }
+    .tile--warn .tile-label::before { background: var(--gold);  box-shadow: 0 0 0 3px rgba(211, 154, 46, 0.18); }
+    .tile--bad  .tile-label::before { background: var(--coral); box-shadow: 0 0 0 3px rgba(214, 95, 79, 0.18); }
+    .tile--info .tile-label::before { background: #1F4E73;      box-shadow: 0 0 0 3px rgba(31, 78, 115, 0.16); }
     .tile-value {
       font-size: 36px;
       line-height: 1.0;
@@ -332,18 +364,17 @@
       margin-top: 14px;
       font-weight: 600;
     }
-    .tile--good {
-      background: linear-gradient(135deg, rgba(75, 170, 120, 0.06), rgba(75, 170, 120, 0.14));
-    }
+    /* Variants — color lives in the typography (hero number) and
+       a microscopic radial glow in the corner, never as a tile-wide
+       fill. The card stays the same `var(--card)` neutral white. */
+    .tile--good { background: radial-gradient(ellipse 50% 70% at 100% 0%, rgba(75, 170, 120, 0.05), transparent 70%), var(--card); }
     .tile--good .tile-value { color: var(--green-deep); }
-    .tile--warn {
-      background: linear-gradient(135deg, rgba(211, 154, 46, 0.06), rgba(211, 154, 46, 0.16));
-    }
+    .tile--warn { background: radial-gradient(ellipse 50% 70% at 100% 0%, rgba(211, 154, 46, 0.06), transparent 70%), var(--card); }
     .tile--warn .tile-value { color: var(--gold-deep); }
-    .tile--bad {
-      background: linear-gradient(135deg, rgba(214, 95, 79, 0.06), var(--coral-wash));
-    }
-    .tile--bad .tile-value { color: var(--coral-deep); }
+    .tile--bad  { background: radial-gradient(ellipse 50% 70% at 100% 0%, rgba(214, 95, 79, 0.06), transparent 70%), var(--card); }
+    .tile--bad  .tile-value { color: var(--coral-deep); }
+    .tile--info { background: radial-gradient(ellipse 50% 70% at 100% 0%, rgba(31, 78, 115, 0.06), transparent 70%), var(--card); }
+    .tile--info .tile-value { color: #1F4E73; }
 
     /* ── Verdict banner ───────────────────────────────────────── */
     .verdict {
@@ -535,6 +566,13 @@
       border-radius: 50%;
       background: var(--coral);
     }
+    /* Cross-period variant — calmer blue palette since it's not
+       actually a bug, just an FYI that the credit lives elsewhere. */
+    .diagnosis-verdict--info {
+      background: var(--blue-wash);
+      color: #1F4E73;
+    }
+    .diagnosis-verdict--info::before { background: #1F4E73; }
     .diagnosis-block {
       display: grid;
       grid-template-columns: 92px minmax(0, 1fr);
@@ -640,11 +678,13 @@
       font-size: 12px;
       color: var(--ink-mute);
       font-weight: 500;
-      margin-top: 10px;
+      margin-top: 4px;
+      padding: 0 4px;
       line-height: 1.5;
       display: flex;
       flex-wrap: wrap;
-      gap: 6px 12px;
+      gap: 6px 14px;
+      align-items: center;
     }
     .row-fixit code {
       font-size: 11.5px;
@@ -897,12 +937,16 @@ function render(d) {
         '<strong>' + fmt(truth.totalPaidInPeriod) + '</strong> in HCP matches the dashboard exactly.'
     };
   } else if (reconciliation.missing > 0) {
+    const crossN = reconciliation.crossPeriod || 0;
+    const crossNote = crossN > 0
+      ? ' Plus <strong>' + crossN + '</strong> more paid here but credited to a different month (see &ldquo;Credited to a different period&rdquo; below — those are correct, not bugs).'
+      : '';
     verdict = {
       tone: 'bad',
       ico: '!',
       msg: '<strong>' + reconciliation.missing + ' invoice' + (reconciliation.missing === 1 ? '' : 's') + '</strong> ' +
-        '(' + fmt(buckets.missing.reduce((s, r) => s + r.paidInPeriod, 0)) + ') paid in HCP but missing from the leaderboard. ' +
-        'See the &ldquo;Missing&rdquo; section below for the specific fixes.'
+        '(' + fmt(buckets.missing.reduce((s, r) => s + r.paidInPeriod, 0)) + ') paid in HCP but missing from this period&rsquo;s leaderboard. ' +
+        'See the &ldquo;Missing&rdquo; section below for the specific fixes.' + crossNote
     };
   } else if (reconciliation.drift > 0) {
     verdict = {
@@ -966,6 +1010,11 @@ function render(d) {
         <div class="tile-value">${reconciliation.excluded}</div>
         <div class="tile-sub">by design (ST artifacts, etc.)</div>
       </div>
+      <div class="tile ${(reconciliation.crossPeriod || 0) > 0 ? 'tile--info' : 'tile--good'}">
+        <div class="tile-label">Cross-period</div>
+        <div class="tile-value">${reconciliation.crossPeriod || 0}</div>
+        <div class="tile-sub">paid here, credited to a different month</div>
+      </div>
     </div>
 
     ${bucketHtml('Missing', 'bad', buckets.missing, (row) => `
@@ -1016,6 +1065,39 @@ function render(d) {
           </div>
           <div class="row-meta">
             ${chip(row.reason, 'good')}
+          </div>
+        </div>
+        <div class="row-amount">${fmt(row.paidInPeriod)}</div>
+      </div>
+    `)}
+
+    ${bucketHtml('Credited to a different period', 'info', buckets.crossPeriod || [], (row) => `
+      <div class="row">
+        <div>
+          <div class="row-main">
+            <span class="row-invoice">${escapeHtml(row.invoiceNumbers.join(', ') || '—')}</span>
+            <span class="row-customer">${escapeHtml(row.customer || '—')}</span>
+          </div>
+          <div class="row-meta">
+            ${chip('Paid ' + fmtDateTime(row.latestPaidAt), 'warn')}
+            ${chip('Service ' + (row.kpiDateYmd || '—'))}
+            ${chip(row.workStatus || 'no status')}
+            ${chip(row.assignedEmployees && row.assignedEmployees.length ? row.assignedEmployees.join(', ') : 'unassigned')}
+          </div>
+          <div class="diagnosis">
+            <span class="diagnosis-verdict diagnosis-verdict--info">credited to ${escapeHtml(row.creditedToLabel || 'another period')}</span>
+            <div class="diagnosis-block">
+              <span class="diagnosis-label diagnosis-label--why">Why</span>
+              <p class="diagnosis-text">This invoice was paid in the current period, but the actual service work happened in <strong>${escapeHtml(row.creditedToLabel || 'another period')}</strong>. The dashboard credits the job to its service date — so these dollars correctly appear on that month's leaderboard, not this one.</p>
+            </div>
+            <div class="diagnosis-block">
+              <span class="diagnosis-label diagnosis-label--fix">Verify</span>
+              <p class="diagnosis-text">Open <strong>${escapeHtml(row.creditedToLabel || 'that month')}</strong>'s leaderboard and confirm this invoice shows up there. No action needed if it does.</p>
+            </div>
+          </div>
+          <div class="row-fixit">
+            <span><strong>Job</strong> <code>${escapeHtml(row.jobId)}</code></span>
+            ${row.description ? `<span>${escapeHtml(row.description)}</span>` : ''}
           </div>
         </div>
         <div class="row-amount">${fmt(row.paidInPeriod)}</div>
@@ -1108,9 +1190,15 @@ function formatSignal(val) {
 function richify(text) {
   if (text == null) return '';
   const esc = escapeHtml(String(text));
-  return esc
-    .replace(/(&quot;[^&]+?&quot;)/g, '<code>$1</code>')
-    .replace(/(\/[A-Za-z][\w\-\/.?=&]*)/g, '<code>$1</code>');
+  // Single pass with alternation so we never re-match content
+  // we just injected. The previous two-pass version would match
+  // the literal "/code" inside the </code> tag emitted by the
+  // first pass, producing visible "< /code >" garbage like the
+  // user reported on the audit page.
+  return esc.replace(
+    /(&quot;[^&]+?&quot;|\/[A-Za-z][\w\-./?=&]*)/g,
+    '<code>$1</code>'
+  );
 }
 
 function renderDiagnosis(reasons) {
