@@ -1740,6 +1740,9 @@
           <select id="periodSel" data-kpi-range-select aria-label="Period"></select>
           <button id="reloadBtn" class="reload-icon-btn" title="Refresh data — pull the latest from the server" aria-label="Refresh data">⟳</button>
           <input type="text" id="jobLookup" placeholder="Search customer, invoice, $, tech, date, status…">
+          <select id="techFilter" class="tech-filter" aria-label="Filter by technician" title="Filter rows by assigned or credited technician">
+            <option value="">All techs</option>
+          </select>
           <button id="lookupBtn" title="Fetch a job that's not in the current period (paste job_xxx or invoice #)">Open exact</button>
         </div>
         <div class="stickybar-row stickybar-row--status">
@@ -2247,8 +2250,31 @@ async function loadEmployees() {
     document.querySelectorAll('datalist#techsList').forEach(dl => {
       dl.innerHTML = window.EMPLOYEES.map(e => '<option value="' + esc(e.name) + '">').join('');
     });
+    populateTechFilter();
   } catch (err) {
     console.warn('Could not load employees:', err.message);
+  }
+}
+
+// Populate the sticky-bar tech filter dropdown from window.EMPLOYEES
+// (which the server has already filtered to active assigned-employee
+// techs — i.e. people with ≥3 completed jobs in the last 90 days,
+// which naturally excludes admin/office accounts since they don't
+// get assigned to field jobs). Preserves the user's current
+// selection across refreshes.
+function populateTechFilter() {
+  const sel = $('techFilter');
+  if (!sel) return;
+  const techs = window.EMPLOYEES || [];
+  const saved = localStorage.getItem('kpi-admin-tech-filter') || '';
+  // Build options: "All techs" + alphabetical tech names
+  const opts = ['<option value="">All techs</option>']
+    .concat(techs.map(t => '<option value="' + esc(t.name) + '">' + esc(t.name) + '</option>'));
+  sel.innerHTML = opts.join('');
+  // Re-apply saved selection if that tech still exists in the list
+  if (saved && techs.some(t => t.name === saved)) {
+    sel.value = saved;
+    applyFilter();
   }
 }
 
@@ -3287,6 +3313,9 @@ function buildHaystack(j) {
 
 function applyFilter() {
   const q = $('jobLookup').value.trim().toLowerCase();
+  const techSel = $('techFilter');
+  const techName = techSel ? techSel.value.trim() : '';
+  const techNameLower = techName.toLowerCase();
   const rows = document.querySelectorAll('#jobsList .job');
   let pillTotal = 0;
   let shown = 0;
@@ -3297,8 +3326,21 @@ function applyFilter() {
     const inPill = typeof matchesActivePill === 'function' ? matchesActivePill(j) : true;
     const hay = r.dataset.haystack || '';
     const match = !tokens.length || tokens.every(t => hay.indexOf(t) !== -1);
-    if (inPill) pillTotal++;
-    const visible = inPill && match;
+    // Tech filter: when a specific tech is selected, only show jobs
+    // where that tech is in the HCP-assigned list OR in the reconciled
+    // attribution. Case-insensitive exact-name match.
+    let matchesTech = true;
+    if (techNameLower && j) {
+      const hcpHit = (j.hcpAssignedEmployees || []).some(n =>
+        n && String(n).toLowerCase() === techNameLower
+      );
+      const reconciledHit = (j.assignments || []).some(a =>
+        a && a.name && String(a.name).toLowerCase() === techNameLower
+      );
+      matchesTech = hcpHit || reconciledHit;
+    }
+    if (inPill && matchesTech) pillTotal++;
+    const visible = inPill && match && matchesTech;
     r.style.display = visible ? '' : 'none';
     if (visible) shown++;
   });
@@ -3322,6 +3364,10 @@ function applyFilter() {
 }
 
 $('jobLookup').addEventListener('input', applyFilter);
+$('techFilter').addEventListener('change', () => {
+  localStorage.setItem('kpi-admin-tech-filter', $('techFilter').value || '');
+  applyFilter();
+});
 
 $('lookupBtn').addEventListener('click', () => {
   const v = $('jobLookup').value.trim();

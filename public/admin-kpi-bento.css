@@ -166,6 +166,38 @@ body.bento-design .stickybar-row input[type="text"]::placeholder {
   font-weight: 400;
 }
 
+/* Tech filter — sticky-bar native select styled to match the
+   search input + nuked default macOS appearance with a custom
+   caret SVG. The "All techs" option keeps muted text so it reads
+   as a placeholder; a specific tech name is full-weight ink. */
+body.bento-design .stickybar-row select.tech-filter {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='none' stroke='%237B8190' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  background-color: #F1F3F5;
+  padding-right: 40px;
+  min-width: 180px;
+  max-width: 240px;
+  cursor: pointer;
+  font-weight: 600;
+}
+body.bento-design .stickybar-row select.tech-filter:hover {
+  background-color: #E8ECF0;
+}
+body.bento-design .stickybar-row select.tech-filter:focus {
+  background-color: #FFFFFF;
+}
+/* "All techs" default state — muted graphite weight so it reads
+   as the unfiltered/placeholder state, not a real selection. */
+body.bento-design .stickybar-row select.tech-filter:has(option:checked[value=""]) {
+  color: #7B8190;
+  font-weight: 500;
+}
+
 /* DIRECT-CHILD selector only — the period-picker dropdown menu is
    nested inside .period-picker (a descendant, not a direct child),
    so its <button> items aren't caught by this rule. Without the >
