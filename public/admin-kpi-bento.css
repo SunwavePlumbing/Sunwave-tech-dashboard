@@ -370,49 +370,64 @@ body.bento-design .reload-icon-btn:hover {
   border-color: transparent !important;
 }
 
-/* ── The hero progress / KPI band, sitting inside the control card ─ */
+/* ── The hero progress / KPI band, sitting inside the control card ─
+   Option B: solid quiet bar + small inline text.
+   - Full-width bar shape kept, but the green semantic fill is gone.
+   - Background is warm mist; fill is a single solid Sunwave orange
+     growing from the left as the admin verifies jobs.
+   - Text shrinks to 14px and lives inside the bar in one row.
+   ──────────────────────────────────────────────────────────────── */
 body.bento-design .stickybar-row--status { padding-top: 0; }
 body.bento-design .progress-bar--beefy {
-  height: 88px;
-  border-radius: 20px;
-  background: linear-gradient(135deg, rgba(75, 170, 120, 0.10) 0%, rgba(75, 170, 120, 0.20) 100%);
-  border: 1px solid rgba(75, 170, 120, 0.16);
+  height: 56px;
+  border-radius: 16px;
+  background: #F5F1E9;
+  border: 0;
   overflow: hidden;
+  position: relative;
 }
 body.bento-design .progress-bar--beefy .progress-fill {
-  background: linear-gradient(135deg,
-    rgba(75, 170, 120, 0.18) 0%,
-    rgba(75, 170, 120, 0.32) 100%);
+  background: #F38A3F;
+  /* Width is set inline by updateProgress() — animate smoothly so
+     newly-verified dollars flow into the orange portion. */
+  transition: width 320ms cubic-bezier(.16, 1, .3, 1);
 }
+/* Empty (no jobs to verify yet) state — keep the bar fully muted
+   so it doesn't look like the work isn't done. No coral / no
+   orange fill until there's actual progress to show. */
 body.bento-design .progress-bar--beefy .progress-fill.is-empty {
-  background: linear-gradient(135deg,
-    rgba(243, 138, 63, 0.16) 0%,
-    rgba(243, 138, 63, 0.28) 100%);
+  background: transparent;
 }
+
 body.bento-design .progress-bar--beefy .progress-label {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
-  gap: 12px;
-  padding: 0 24px;
+  gap: 8px;
+  padding: 0 18px;
   color: #373B4D;
-  letter-spacing: -0.005em;
+  letter-spacing: 0;
+  /* The label sits over both the orange fill and the mist
+     unfilled portion. Use mix-blend-mode so the text stays
+     readable on both halves without needing a backing pill. */
+  mix-blend-mode: normal;
 }
 body.bento-design .progress-bar--beefy .progress-label strong {
-  font-size: 30px;
-  font-weight: 850;
-  letter-spacing: -0.02em;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.005em;
   color: #0B2447;
   font-variant-numeric: tabular-nums;
 }
-body.bento-design .progress-bar--beefy .progress-label strong#ps-amount-verified {
-  color: #4BAA78;
-}
+/* Drop the green-text + red-text variants — all three dollar
+   numbers now read in the same deep navy so the bar reads as
+   one piece of information, not three colored callouts. */
+body.bento-design .progress-bar--beefy .progress-label strong#ps-amount-verified,
 body.bento-design .progress-bar--beefy .progress-label strong.warn {
-  color: #D65F4F;
+  color: #0B2447;
 }
 body.bento-design .progress-bar--beefy .progress-label .muted {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
   color: #7B8190;
   letter-spacing: 0.02em;
 }
