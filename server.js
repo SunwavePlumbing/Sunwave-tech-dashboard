@@ -4582,7 +4582,12 @@ app.post('/api/kpi/report-issue', (req, res) => {
 // slow start (one job per week) puts them over the bar in 3 weeks.
 //
 // Returns a Set of HCP employee IDs. Cached 4 hours.
-const ACTIVE_TECH_MIN_JOBS = 3;
+// Tightened from 3 -> 8: anyone in the admin's tech-filter
+// dropdown should be a genuine field tech. An owner or office
+// staffer who got assigned to a couple of jobs over 90 days
+// will fall under this threshold; a real field tech doing
+// multiple jobs a week will sail past it.
+const ACTIVE_TECH_MIN_JOBS = 8;
 async function getActiveTechIds() {
   try {
     const ids = await withCache('active-tech-ids', 4 * 60 * 60 * 1000, async () => {
@@ -4641,9 +4646,27 @@ async function fetchTechEmployees() {
     if (page >= (r.data.total_pages || 1)) break;
     page++;
   }
+  // Explicit role-based exclusion in case HCP exposes role data
+  // on the employee object. Empty role passes through (most HCP
+  // employee records don't carry an explicit role string).
+  const NON_TECH_ROLES = new Set([
+    'office', 'office_staff', 'office staff',
+    'admin', 'administrator',
+    'owner',
+    'dispatcher', 'dispatch',
+    'csr', 'customer_service', 'customer service',
+    'accounting', 'bookkeeper', 'billing',
+    'manager'
+  ]);
+  const isNonTechRole = (role) => {
+    if (!role) return false;
+    return NON_TECH_ROLES.has(String(role).toLowerCase().trim());
+  };
+
   const seenNames = new Set();
   return all
     .filter(e => !enforceActiveFilter || activeTechIds.has(String(e.id)))
+    .filter(e => !isNonTechRole(e.role))
     .map(e => ({
       id: e.id,
       name: ((e.first_name || '') + ' ' + (e.last_name || '')).trim(),
