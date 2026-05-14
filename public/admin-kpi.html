@@ -2905,8 +2905,8 @@ function quickApprovePayload(j) {
     assignments,
     totalAmount: j.totalAmount,
     kpiDate: isoDate(j.kpiDate),
-    notes: 'Quick-approved from KPI Admin audit list.',
-    locked: true,
+    notes: 'Verified from KPI Admin audit list.',
+    verified: true,
     markedPaid: false,
     excluded: false,
     reconciledBy: 'admin'
@@ -2938,7 +2938,7 @@ function renderJob(j) {
   const confidenceBadge = '<span class="confidence-badge confidence-badge--' + confClass + '" title="Confidence score — driven by the flag set above. Higher = safer to verify as-is.">' + confidence + '</span>';
   const quickPayload = quickApprovePayload(j);
   const quickButton = quickPayload
-    ? '<button type="button" class="job-quick" data-action="quick-approve" data-key="' + esc(j._localKey) + '">Correct</button>'
+    ? '<button type="button" class="job-quick" data-action="quick-approve" data-key="' + esc(j._localKey) + '">Verified</button>'
     : '<span></span>';
 
   const currentAttrLine = j.assignments && j.assignments.length
@@ -3041,7 +3041,6 @@ async function renderEditPanel(key) {
     outstandingBalance: recon && recon.outstandingBalance != null ? recon.outstandingBalance : null,
     kpiDate: isoDate(recon && recon.kpiDate ? recon.kpiDate : (job.completedAt || job.scheduledStart)),
     notes: (recon && recon.notes) || '',
-    locked: recon ? recon.locked !== false : true,
     markedPaid: !!(recon && recon.markedPaid),
     excluded:   !!(recon && recon.excluded),
     job: job,
@@ -3139,7 +3138,7 @@ async function renderEditPanel(key) {
       <span class="status-msg" data-status-for="${esc(key)}"></span>
       ${j.edit.isReconciled ? '<button type="button" class="btn btn--danger" data-action="unreconcile" data-key="' + esc(key) + '">Remove reconciliation</button>' : ''}
       <button type="button" class="btn" data-action="close" data-key="${esc(key)}">Close</button>
-      <button type="button" class="btn btn--primary" data-action="save" data-key="${esc(key)}">${j.edit.isReconciled ? 'Save changes' : 'Save & lock'}</button>
+      <button type="button" class="btn btn--primary" data-action="save" data-key="${esc(key)}">Save changes</button>
     </div>
   `;
 
@@ -3282,7 +3281,7 @@ document.addEventListener('click', async (e) => {
       updateProgress();
     } catch (err) {
       actionEl.disabled = false;
-      actionEl.textContent = 'Correct';
+      actionEl.textContent = 'Verified';
       actionEl.classList.remove('is-done');
       alert('Could not approve: ' + err.message);
     }
@@ -3335,8 +3334,6 @@ document.addEventListener('change', (e) => {
     j.edit.markedPaid = t.checked;
   } else if (field === 'excluded') {
     j.edit.excluded = t.checked;
-  } else if (field === 'locked') {
-    j.edit.locked = t.checked;
   }
 });
 // Catch textarea/input changes that don't fire 'change' until blur
@@ -3393,14 +3390,17 @@ async function saveJob(key) {
         outstandingBalance: j.edit.outstandingBalance,
         kpiDate: j.edit.kpiDate,
         notes: j.edit.notes,
-        locked: j.edit.locked,
+        // Intentionally omit `verified` here. The server preserves the
+        // existing verified state on an edit-only save — admin has to
+        // click the Verified button (job card or drawer footer) to
+        // promote the job to the leaderboard.
         markedPaid: j.edit.markedPaid,
         excluded: j.edit.excluded,
         reconciledBy: 'admin'
       }
     });
     clearAdminCache();
-    setRowStatus(key, 'Saved. The dashboard will pick this up on next refresh.', 'ok');
+    setRowStatus(key, 'Edits saved. Click "Verified" on the job card to publish.', 'ok');
     setTimeout(loadJobs, 800);
   } catch (err) {
     setRowStatus(key, 'Error: ' + err.message, 'err');
@@ -3829,7 +3829,7 @@ document.addEventListener('click', async (e) => {
         <kbd class="key-hint">X</kbd>
       </div>
       <div class="action-cell action-cell--center">
-        <button class="btn btn--verify" id="drawerVerifyBtn" title="Save the current attribution, lock it, move to the next unverified job (Y or Enter)">✓ Verified — looks right</button>
+        <button class="btn btn--verify" id="drawerVerifyBtn" title="Verify the current attribution and move to the next unverified job (Y or Enter)">✓ Verified — looks right</button>
         <kbd class="key-hint">Y</kbd>
       </div>
       <div class="action-cell action-cell--right">
@@ -4223,7 +4223,11 @@ async function excludeCurrent() {
 }
 
 function buildReconcilePayload(j) {
-  // Mirrors what the inline editor's Save sends to /api/kpi/admin/reconcile.
+  // Used by the drawer footer's Verify and Exclude actions — both of
+  // those represent a final-state commit, so the payload sends
+  // `verified: true`. The inline editor's Save does NOT call this
+  // function; it has its own payload that omits `verified` so the
+  // server preserves whatever state the record was in.
   const e = j.edit || {};
   return {
     jobId: j.jobId || j.edit && j.edit.job && j.edit.job.id,
@@ -4238,7 +4242,7 @@ function buildReconcilePayload(j) {
     outstandingBalance: e.outstandingBalance != null ? Number(e.outstandingBalance) : null,
     kpiDate: e.kpiDate || null,
     notes: e.notes || '',
-    locked: true,
+    verified: true,
     markedPaid: !!e.markedPaid,
     excluded: !!e.excluded,
     reconciledBy: 'admin'

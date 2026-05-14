@@ -1672,7 +1672,16 @@ app.get('/api/metrics', async (req, res) => {
           return true;
         }
 
-        if (recon && Array.isArray(recon.assignments) && recon.assignments.length > 0) {
+        // Only honor the manual reconciliation when it's verified.
+        // Unverified records hold the admin's in-progress edits but
+        // should NOT replace the auto-pipeline attribution — the job
+        // stays in the audit queue until the admin clicks Verify.
+        // Legacy records (locked:true, no verified field) are treated
+        // as verified for backward compatibility.
+        const reconIsVerified = recon
+          && (recon.verified === true
+              || (recon.verified === undefined && recon.locked === true));
+        if (recon && reconIsVerified && Array.isArray(recon.assignments) && recon.assignments.length > 0) {
         const reconAmount = (recon.totalAmount != null
           ? Number(recon.totalAmount)
           : (opts.revenue != null ? opts.revenue : parseFloat(job.total_amount || 0) / 100)) || 0;
@@ -5356,6 +5365,17 @@ app.post('/api/kpi/admin/reconcile', (req, res) => {
     const n = Number(body.outstandingBalance);
     outstandingBalance = Number.isFinite(n) ? Math.max(0, n) : null;
   }
+  // `verified` is the new semantic for what used to be `locked`.
+  //   • body.verified === true   → admin clicked Verify; mark verified
+  //   • body.verified === false  → admin explicitly unverified
+  //   • body.verified omitted    → editor save; preserve existing state
+  //                                (defaults to false for brand-new records,
+  //                                so saving edits doesn't auto-verify)
+  // Migration: legacy records carry `locked: true` and no `verified`.
+  // Treat those as verified so existing rows stay where they were.
+  const existingVerified = existing.verified === true
+    || (existing.verified === undefined && existing.locked === true);
+  const verified = body.verified === undefined ? existingVerified : body.verified === true;
   recs[jobId] = {
     jobId,
     assignments: norm,
@@ -5363,7 +5383,7 @@ app.post('/api/kpi/admin/reconcile', (req, res) => {
     outstandingBalance: outstandingBalance,
     kpiDate: body.kpiDate || existing.kpiDate || null,
     notes: String(body.notes || '').slice(0, 1000),
-    locked: body.locked !== false, // default true
+    verified,
     excluded,
     markedPaid,
     reconciledAt: new Date().toISOString(),
