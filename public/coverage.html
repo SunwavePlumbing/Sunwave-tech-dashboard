@@ -14,7 +14,7 @@
          blue    #BFE0F3  calm support wash
          mist    #F1F3F5  canvas + inactive pill fills
          card    #FAFBFC  elevated card surface
-         border  #DDE3EA  1px outlines / dividers
+         border  #E5DFD2  1px outlines / dividers
          mute    #7B8190  subtitles / timestamps
          green   #4BAA78  paid / healthy
          gold    #D39A2E  review-needed warning
@@ -26,10 +26,10 @@
          contrast) so the cards feel like they belong on the same
          surface, not stamped onto a different colored page. The
          ambient box-shadow handles the elevation. */
-      --canvas: #F0F2F4;
-      --card: #FCFDFE;
+      --canvas: #F5F1E9;
+      --card: #FEFCF6;
       --card-strong: #FFFFFF;
-      --border: #DDE3EA;
+      --border: #E5DFD2;
       --border-strong: rgba(55, 65, 81, 0.18);
       --ink: #373B4D;
       --ink-deep: #0B2447;
@@ -72,9 +72,9 @@
          solid surface color; the gradient flows underneath them.  */
       background:
         linear-gradient(180deg,
-          #F4F6F8 0%,
-          #F0F2F4 45%,
-          #EBEDF0 100%
+          #FAF7F1 0%,
+          #F5F1E9 45%,
+          #F0EBE0 100%
         );
       background-attachment: fixed;
       color: var(--ink);
@@ -211,7 +211,7 @@
       transition: border-color 180ms var(--ease-out), box-shadow 180ms var(--ease-out), background 180ms var(--ease-out);
     }
     .controls input::placeholder { color: var(--ink-faint); }
-    .controls input:hover, .controls select:hover { background: #E8ECF0; }
+    .controls input:hover, .controls select:hover { background: #EDE8DD; }
     .controls input:focus, .controls select:focus {
       border-color: var(--orange);
       background: var(--card-strong);
@@ -643,7 +643,7 @@
       transition: transform 160ms var(--ease-out);
     }
     .diagnosis-signals[open] > summary::before { transform: rotate(90deg); color: var(--orange); }
-    .diagnosis-signals > summary:hover { color: var(--ink); background: #E8ECF0; }
+    .diagnosis-signals > summary:hover { color: var(--ink); background: #EDE8DD; }
     .diagnosis-signal-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
