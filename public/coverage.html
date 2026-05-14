@@ -71,6 +71,17 @@
       padding: 0 0 4.5rem;
       overflow-x: hidden;
     }
+    /* When embedded inside the admin Diagnostics iframe, drop the
+       page's own canvas + outer padding so the content reads as a
+       seamless part of the parent page, not a window-in-a-window. */
+    body.is-embedded {
+      background: transparent;
+      background-image: none;
+      padding: 0;
+      min-height: 0;
+      overflow: hidden;
+    }
+    body.is-embedded .page { padding: 0; }
     .page {
       max-width: 1240px;
       margin: 0 auto;
@@ -98,35 +109,42 @@
       position: relative;
       overflow: hidden;
       display: grid;
-      grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
-      gap: 24px;
+      grid-template-columns: minmax(0, 1.3fr) minmax(300px, 0.7fr);
+      gap: 32px;
       align-items: stretch;
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: 28px;
       box-shadow: var(--shadow-card);
-      padding: 32px;
-      margin-bottom: 18px;
+      padding: 40px;
+      margin-bottom: 16px;
       animation: cardIn 420ms var(--ease-out) both;
     }
-    .audit-hero > * { min-width: 0; }
+    .audit-hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 100% 0%, rgba(243, 138, 63, 0.10), transparent 32%),
+        radial-gradient(circle at 0% 100%, rgba(191, 224, 243, 0.18), transparent 40%);
+    }
+    .audit-hero > * { min-width: 0; position: relative; z-index: 1; }
     .hero-copy {
-      position: relative;
-      z-index: 1;
-      min-height: 240px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      gap: 28px;
+      gap: 32px;
+      min-height: 260px;
     }
     .eyebrow-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 6px;
       align-items: center;
     }
     .hero-description {
-      max-width: 660px;
+      max-width: 600px;
       color: var(--ink-mute);
       font-size: 15px;
       line-height: 1.65;
@@ -139,7 +157,7 @@
       width: fit-content;
       max-width: 100%;
       margin-top: 0;
-      padding: 9px 14px;
+      padding: 10px 16px;
       border-radius: 999px;
       background: var(--canvas);
       color: var(--ink-deep);
@@ -150,15 +168,13 @@
       font-variant-numeric: tabular-nums;
     }
 
-    /* ── Controls bar ─────────────────────────────────────────── */
+    /* ── Controls — inside the hero, right column ────────────── */
     .controls {
-      position: relative;
-      z-index: 1;
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 14px;
       align-items: stretch;
-      justify-content: space-between;
+      justify-content: flex-start;
       background: transparent;
       border: 0;
       border-radius: 0;
@@ -656,16 +672,43 @@ if (savedRange) $('rangeSel').value = savedRange;
 
 // If embedded from KPI Admin, allow the password to be passed via query
 // params so admins don't have to re-type it inside the iframe.
+let IS_EMBED = false;
 try {
   const qs = new URLSearchParams(location.search || '');
   const qp = (qs.get('password') || qs.get('token') || '').trim();
-  const isEmbed = (qs.get('embed') === '1' || qs.get('embed') === 'true');
+  IS_EMBED = (qs.get('embed') === '1' || qs.get('embed') === 'true');
   if (qp && !$('pw').value) {
     $('pw').value = qp;
     sessionStorage.setItem(PW_KEY, qp);
   }
+  // When embedded, drop the page's canvas + outer padding so the
+  // iframe content reads as seamless with the parent. Then post the
+  // actual content height up so the parent can resize the iframe to
+  // fit — no inner scrollbar, no "window inside a window."
+  if (IS_EMBED) {
+    document.body.classList.add('is-embedded');
+    const postSize = () => {
+      const h = Math.max(
+        document.documentElement.scrollHeight,
+        document.body.scrollHeight
+      );
+      try {
+        window.parent.postMessage(
+          { type: 'sunwave-coverage-height', height: h },
+          '*'
+        );
+      } catch (e) { /* parent is on a different origin we can't reach */ }
+    };
+    // Initial + on every content change. ResizeObserver catches
+    // dynamic updates (loading state → results, expanding details, etc).
+    if ('ResizeObserver' in window) {
+      new ResizeObserver(postSize).observe(document.body);
+    }
+    window.addEventListener('load', postSize);
+    setTimeout(postSize, 50);
+  }
   // Optional: auto-run when opened as an embedded tool and we have a password.
-  if (isEmbed && qp) setTimeout(() => run(), 50);
+  if (IS_EMBED && qp) setTimeout(() => run(), 50);
 } catch (e) {}
 
 $('runBtn').addEventListener('click', run);

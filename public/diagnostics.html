@@ -49,6 +49,16 @@
       min-height: 100vh;
       line-height: 1.45;
     }
+    /* When embedded in the admin Diagnostics iframe — drop the
+       canvas + outer chrome so the content flows as part of the
+       parent page, not a window-in-a-window. */
+    body.is-embedded {
+      background: transparent;
+      background-image: none;
+      min-height: 0;
+      overflow: hidden;
+    }
+    body.is-embedded header { padding-top: 0; }
     header {
       padding: 24px 20px 0;
       border-bottom: 0;
@@ -454,6 +464,37 @@
     </div>
   </main>
 
+  <script>
+    /* When loaded inside the admin Diagnostics iframe (?embed=1),
+       drop the page chrome and post our actual content height up
+       so the parent can resize the iframe to fit — no inner
+       scrollbar, no window-in-a-window. */
+    (function () {
+      try {
+        const qs = new URLSearchParams(location.search || '');
+        const isEmbed = (qs.get('embed') === '1' || qs.get('embed') === 'true');
+        if (!isEmbed) return;
+        document.body.classList.add('is-embedded');
+        const postSize = () => {
+          const h = Math.max(
+            document.documentElement.scrollHeight,
+            document.body.scrollHeight
+          );
+          try {
+            window.parent.postMessage(
+              { type: 'sunwave-diagnostics-height', height: h },
+              '*'
+            );
+          } catch (e) {}
+        };
+        if ('ResizeObserver' in window) {
+          new ResizeObserver(postSize).observe(document.body);
+        }
+        window.addEventListener('load', postSize);
+        setTimeout(postSize, 50);
+      } catch (e) {}
+    })();
+  </script>
   <script src="/diagnostics.js"></script>
 </body>
 </html>

@@ -2296,7 +2296,7 @@ function activateDiagSubtab(name) {
   setSubhead('diagnostics');
   if (name === 'issues')   loadIssues();
   if (name === 'audit')    loadEmbed('coverageFrame', '/coverage?embed=1');
-  if (name === 'pipeline') loadEmbed('diagnosticsFrame', '/diagnostics');
+  if (name === 'pipeline') loadEmbed('diagnosticsFrame', '/diagnostics?embed=1');
 }
 document.querySelectorAll('.diag-subtab').forEach(b => {
   b.addEventListener('click', () => activateDiagSubtab(b.dataset.diag));
@@ -2312,6 +2312,23 @@ function loadEmbed(frameId, src, opts) {
   if (!force && existing && existing !== 'about:blank') return;
   f.setAttribute('src', src + (src.includes('?') ? '&' : '?') + 'password=' + encodeURIComponent(PASSWORD));
 }
+
+// Listen for height messages from the embedded Diagnostics pages.
+// Each (coverage.html, diagnostics.html) sends its real content
+// height when in ?embed=1 mode; we size the iframe to match so the
+// content flows as part of the page with no inner scrollbar.
+window.addEventListener('message', (e) => {
+  if (!e || !e.data) return;
+  const { type, height } = e.data;
+  if (typeof height !== 'number' || height <= 0) return;
+  if (type === 'sunwave-coverage-height') {
+    const f = $('coverageFrame');
+    if (f) f.style.height = height + 'px';
+  } else if (type === 'sunwave-diagnostics-height') {
+    const f = $('diagnosticsFrame');
+    if (f) f.style.height = height + 'px';
+  }
+});
 
 // ── Period picker + job list ────────────────────────────────────────
 $('periodSel').addEventListener('change', () => {
