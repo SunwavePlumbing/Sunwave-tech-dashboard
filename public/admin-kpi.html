@@ -1692,6 +1692,28 @@
       outline-offset: 2px;
     }
   </style>
+  <!-- Bento-design overlay. Dormant until <body> gets the
+       'bento-design' class. Toggle in the header (or ?design=bento
+       URL param) flips it; localStorage persists the choice.
+       Delete this link tag + the design-toggle block in the
+       header below to fully remove the new design. -->
+  <link rel="stylesheet" href="/admin-kpi-bento.css">
+  <script>
+    // Run before paint so users who chose Bento don't see a flash of
+    // the classic design. ?design=bento or ?design=classic overrides
+    // and persists. Anything else, fall back to localStorage.
+    (function () {
+      try {
+        var qs = new URLSearchParams(location.search).get('design');
+        if (qs === 'bento' || qs === 'classic') {
+          localStorage.setItem('adminKpiDesign', qs);
+        }
+        if (localStorage.getItem('adminKpiDesign') === 'bento') {
+          document.documentElement.dataset.pendingDesign = 'bento';
+        }
+      } catch (e) { /* private mode etc — fall back to classic */ }
+    })();
+  </script>
 </head>
 <body>
 
@@ -1709,7 +1731,13 @@
       <div>
         <h1>KPI Admin</h1>
       </div>
-      <div class="header-nav"><a class="nav-link" href="/">&larr; Dashboard</a></div>
+      <div class="header-nav">
+        <button type="button" class="design-toggle" id="designToggleBtn" title="Switch between the classic and the new Bento design. Choice saved on this device.">
+          <span class="dot"></span>
+          <span id="designToggleLabel">Bento</span>
+        </button>
+        <a class="nav-link" href="/">&larr; Dashboard</a>
+      </div>
     </div>
 
     <!-- Two super-tabs. "Verify" is the working queue (Reconcile +
@@ -2105,6 +2133,29 @@ function setSubhead(panel) {
   }
   el.textContent = txt;
 }
+// ── Bento design toggle ─────────────────────────────────────────────
+// Pre-paint script in <head> already stashed the choice on
+// documentElement; apply it to body and wire the button label/click.
+(function () {
+  const pending = document.documentElement.dataset.pendingDesign;
+  if (pending === 'bento') document.body.classList.add('bento-design');
+  const btn = $('designToggleBtn');
+  const label = $('designToggleLabel');
+  function syncLabel() {
+    if (!label) return;
+    label.textContent = document.body.classList.contains('bento-design') ? 'Classic' : 'Bento';
+  }
+  syncLabel();
+  if (btn) {
+    btn.addEventListener('click', () => {
+      const next = !document.body.classList.contains('bento-design');
+      document.body.classList.toggle('bento-design', next);
+      try { localStorage.setItem('adminKpiDesign', next ? 'bento' : 'classic'); } catch (e) {}
+      syncLabel();
+    });
+  }
+})();
+
 document.querySelectorAll('.tab').forEach(t => {
   t.addEventListener('click', () => {
     ACTIVE_PANEL = t.dataset.panel;
