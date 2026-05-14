@@ -1590,7 +1590,12 @@ app.get('/api/metrics', async (req, res) => {
         // Skip if reconciled job's date is outside the period.
         if (reconDate) {
           const rd = new Date(reconDate);
-          if (rd < periodStart || rd >= periodEnd) return true;
+          if (rd < periodStart || rd >= periodEnd) {
+            if (job.id) creditedJobIds.add(job.id);
+            const outOfPeriodKey = creditedInvoiceKey(job);
+            if (outOfPeriodKey) creditedInvoiceKeys.add(outOfPeriodKey);
+            return true;
+          }
         }
         const customer = jobCustomerName(job);
         // Admin-marked-as-paid forces the outstanding to zero; otherwise
