@@ -4535,8 +4535,23 @@ document.addEventListener('keydown', (e) => {
 // on the row. We add a higher-priority capture-phase listener that
 // catches the click first, opens the drawer, and stops the
 // propagation so the inline-expand never fires.
-// Row click → drawer is now handled by the single delegated handler
-// above (action === 'toggle'). Nothing additional needed here.
+// Belt-and-suspenders row-click handler. The delegated [data-action]
+// handler above already covers the .job-summary[data-action="toggle"]
+// path, but the ::before pseudo-stripe and any inline-edit footer
+// region don't carry data-action — so this scoped handler on
+// #jobsList catches every click that lands on a .job (and isn't on
+// a Correct quick-button or other actionable child) and routes it
+// straight to the drawer.
+$('jobsList').addEventListener('click', (e) => {
+  const row = e.target.closest('.job');
+  if (!row) return;
+  // Skip if the click is on something that has its own handler:
+  // Correct button, form fields inside the inline editor, etc.
+  if (e.target.closest('button, input, select, textarea, a, [data-action]:not([data-action="toggle"])')) return;
+  const key = row.dataset.key;
+  if (!key) return;
+  openInDrawer(key);
+});
 
 // Hook into loadJobs() — after the original finishes, capture the
 // server's reconciliation summary (read from the sessionStorage
