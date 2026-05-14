@@ -4469,6 +4469,21 @@ function cleanIssueSnapshot(input) {
   return Object.keys(snapshot).length ? snapshot : null;
 }
 
+function cleanIssueNameList(input) {
+  if (!Array.isArray(input)) return [];
+  const seen = new Set();
+  return input
+    .map(name => String(name || '').slice(0, 100).trim())
+    .filter(Boolean)
+    .filter(name => {
+      const key = name.toLowerCase().replace(/\s+/g, ' ');
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 12);
+}
+
 // Submit a new issue report. No auth — anyone with the URL can submit.
 // Rate-limited softly by ignoring requests larger than 50kb (above) so a
 // single misbehaving client can't fill the volume.
@@ -4483,6 +4498,8 @@ app.post('/api/kpi/report-issue', (req, res) => {
   const jobId = String(body.jobId || '').slice(0, 100).trim();
   const description = String(body.description || '').slice(0, 2000).trim();
   const snapshot = cleanIssueSnapshot(body.snapshot);
+  const reportedSellers = cleanIssueNameList(body.reportedSellers);
+  const reportedDoers = cleanIssueNameList(body.reportedDoers);
 
   if (!type || !description) {
     return res.status(400).json({ error: 'type and description are required' });
@@ -4496,6 +4513,8 @@ app.post('/api/kpi/report-issue', (req, res) => {
     customer: customer || null,
     jobId: jobId || null,
     description,
+    reportedSellers,
+    reportedDoers,
     snapshot,
     status: 'open',
     createdAt: new Date().toISOString(),
@@ -4722,6 +4741,10 @@ app.get('/api/kpi/admin/job/:id', async (req, res) => {
       completedAt: (j2.work_timestamps && j2.work_timestamps.completed_at) || null,
       scheduledStart: (j2.schedule && j2.schedule.scheduled_start) || null,
       createdAt: j2.created_at || null,
+      assignedEmployees: (j2.assigned_employees || []).map(e => ({
+        id: e.id,
+        name: personLabel(e) || e.email || e.id
+      })).filter(emp => emp.name),
       isCurrent: Boolean(current)
     });
     const summarizeEstimateForDrawer = (e) => {
@@ -4866,13 +4889,13 @@ app.get('/api/kpi/admin/job/:id', async (req, res) => {
         outstandingBalance: Math.max(0, parseFloat(job.outstanding_balance || 0) / 100),
         completedAt: completed || null,
         scheduledStart: scheduled || null,
-        // Direct HCP URL for the "Open in HCP" link in the drawer.
-        // HCP doesn't publish a stable shareable job-detail URL, so
-        // we link to the customer page (which lists their jobs) —
-        // omitted entirely if we don't have a customer id, so the
-        // drawer footer just hides the button.
-        hcpUrl: customerId
-          ? 'https://pro.housecallpro.com/app/customer/' + customerId
+        // Direct HCP URLs for the drawer footer. Prefer the job route
+        // for the primary action and keep customer as a fallback context link.
+        hcpUrl: job.id
+          ? 'https://pro.housecallpro.com/app/jobs/' + job.id
+          : null,
+        hcpCustomerUrl: customerId
+          ? 'https://pro.housecallpro.com/app/customers/' + customerId
           : null
       },
       // The active reconciliation (if any) so the editor can pre-fill

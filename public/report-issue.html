@@ -650,7 +650,9 @@ $('reportForm').addEventListener('submit', async (e) => {
       type,
       invoice: $('invoice').value.trim(),
       customer: $('customer').value.trim(),
-      description: finalDescription
+      description: finalDescription,
+      reportedSellers: SELECTED_SELLERS.slice(),
+      reportedDoers: SELECTED_DOERS.slice()
     };
     const hiddenJobId = document.getElementById('jobId');
     if (hiddenJobId) body.jobId = hiddenJobId.value;

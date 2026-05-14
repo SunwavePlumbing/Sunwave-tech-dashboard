@@ -1145,6 +1145,22 @@
     .ctx-row .ctx-row-label { font-weight: 700; color: var(--ink); }
     .ctx-row .ctx-row-meta  { color: var(--ink-mute); }
     .ctx-row .ctx-row-amt   { margin-left: auto; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .ctx-row--timeline {
+      display: grid;
+      grid-template-columns: minmax(92px, 128px) 1fr auto;
+      align-items: start;
+    }
+    .ctx-row-detail {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .ctx-row-title {
+      color: var(--ink);
+      font-weight: 650;
+      overflow-wrap: anywhere;
+    }
     .ctx-row.is-current {
       background: var(--good-pale);
       box-shadow: inset 3px 0 0 var(--good);
@@ -1187,6 +1203,95 @@
       text-decoration: none;
     }
     .hcp-link-btn:hover { border-color: var(--brand); color: var(--brand); }
+    .drawer-link-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    .drawer-job-overview {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+      gap: 8px;
+    }
+    .drawer-overview-item {
+      padding: 8px 10px;
+      border-radius: 7px;
+      background: var(--bg);
+    }
+    .drawer-overview-label {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--ink-mute);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .drawer-overview-value {
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 650;
+      line-height: 1.35;
+      overflow-wrap: anywhere;
+    }
+    .drawer-issue-card {
+      margin-top: 9px;
+      padding: 10px 11px;
+      border-radius: 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+    }
+    .drawer-issue-head {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 7px;
+    }
+    .drawer-issue-type {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--ink);
+    }
+    .drawer-issue-meta {
+      font-size: 11px;
+      color: var(--ink-mute);
+    }
+    .drawer-issue-desc {
+      font-size: 12px;
+      line-height: 1.45;
+      color: var(--ink-soft);
+      white-space: pre-line;
+    }
+    .drawer-issue-grid {
+      display: grid;
+      grid-template-columns: max-content minmax(0, 1fr);
+      gap: 4px 10px;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+    }
+    .drawer-issue-key {
+      color: var(--ink-mute);
+      font-weight: 700;
+    }
+    .drawer-issue-val {
+      color: var(--ink);
+      overflow-wrap: anywhere;
+    }
+    @media (max-width: 700px) {
+      .ctx-row--timeline {
+        grid-template-columns: 1fr auto;
+      }
+      .ctx-row--timeline .ctx-row-label {
+        grid-column: 1 / -1;
+      }
+      .drawer-issue-grid {
+        grid-template-columns: 1fr;
+      }
+    }
 
     /* Verified-by line at the bottom of the drawer body */
     .verified-by {
@@ -1955,7 +2060,7 @@ function computeFlags(j) {
   // ── GREEN — positive signals ────────────────────────────────
   if (outstanding === 0 && total > 0) flags.push({ kind: 'green', label: 'Fully paid' });
   if (assigns.length === 1 && Math.abs(pctSum - 100) < 0.5) {
-    flags.push({ kind: 'green', label: 'Clean attribution' });
+    flags.push({ kind: 'green', label: 'Single tech, 100% credit' });
   }
   if (assignNames.length && hcpNames.length && assignNames.length === hcpNames.length) {
     const allMatch = assignNames.every(n => hcpNames.indexOf(n) >= 0);
@@ -3114,13 +3219,7 @@ function openInDrawer(key) {
       '<div class="why-card" style="margin-bottom:14px">' +
         '<div class="why-title">🚩 ' + issues.length + ' tech-submitted ' +
         (issues.length === 1 ? 'issue on this job' : 'issues on this job') + '</div>' +
-        issues.map(r =>
-          '<div class="why-detail" style="margin-top:8px">' +
-            '<strong>' + esc(TYPE_LABEL[r.type] || r.type) + '</strong>' +
-            (r.reporterName ? ' · ' + esc(r.reporterName) : '') +
-            '<div style="margin-top:4px">' + esc(r.description || '') + '</div>' +
-          '</div>'
-        ).join('') +
+        issues.map(r => renderDrawerIssueReport(r, TYPE_LABEL[r.type] || r.type)).join('') +
       '</div>';
   }
   // Period-fit banner — explicit visual telling the admin whether
@@ -3350,6 +3449,104 @@ function cssSafe(s) {
   // Minimal CSS-attr-selector escape — same approach the existing
   // file uses elsewhere (admin page predates window.CSS.escape).
   return String(s).replace(/(["\\])/g, '\\$1');
+}
+
+function listNames(items) {
+  if (!Array.isArray(items)) return '';
+  return items
+    .map(item => typeof item === 'string' ? item : (item && (item.name || item.employeeName || item.id)))
+    .map(name => String(name || '').trim())
+    .filter(Boolean)
+    .join(', ');
+}
+
+function shortDate(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return String(value).slice(0, 10);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function compactDateTime(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+function issueRolesAndDescription(rep) {
+  const text = String(rep && rep.description || '');
+  let sellers = Array.isArray(rep && rep.reportedSellers) ? rep.reportedSellers.slice() : [];
+  let doers = Array.isArray(rep && rep.reportedDoers) ? rep.reportedDoers.slice() : [];
+  const kept = [];
+  text.split(/\r?\n/).forEach(line => {
+    const raw = line.trim();
+    let m = raw.match(/^Sold\s*&\s*did:\s*(.+)$/i);
+    if (m) {
+      const names = m[1].split(',').map(s => s.trim()).filter(Boolean);
+      sellers = sellers.concat(names);
+      doers = doers.concat(names);
+      return;
+    }
+    m = raw.match(/^Sold by:\s*(.+)$/i);
+    if (m) {
+      sellers = sellers.concat(m[1].split(',').map(s => s.trim()).filter(Boolean));
+      return;
+    }
+    m = raw.match(/^Did the work:\s*(.+)$/i);
+    if (m) {
+      doers = doers.concat(m[1].split(',').map(s => s.trim()).filter(Boolean));
+      return;
+    }
+    kept.push(line);
+  });
+  const uniq = arr => Array.from(new Set(arr.map(n => String(n || '').trim()).filter(Boolean)));
+  sellers = uniq(sellers);
+  doers = uniq(doers);
+  const both = sellers.filter(n => doers.includes(n));
+  return {
+    soldDid: both,
+    sellers: sellers.filter(n => !both.includes(n)),
+    doers: doers.filter(n => !both.includes(n)),
+    description: kept.join('\n').trim()
+  };
+}
+
+function renderDrawerIssueReport(rep, typeLabel) {
+  const roles = issueRolesAndDescription(rep);
+  const snap = rep.snapshot || {};
+  const rows = [];
+  const add = (label, value) => {
+    if (value == null || value === '') return;
+    rows.push('<div class="drawer-issue-key">' + esc(label) + '</div><div class="drawer-issue-val">' + esc(value) + '</div>');
+  };
+  add('Sold & did', roles.soldDid.join(', '));
+  add('Sold by', roles.sellers.join(', '));
+  add('Did work', roles.doers.join(', '));
+  add('Invoice', rep.invoice ? '#' + rep.invoice : (snap.invoice ? '#' + snap.invoice : ''));
+  add('Customer', rep.customer || snap.customer);
+  add('Job date', snap.dateLabel || shortDate(snap.date));
+  add('Job description', snap.description);
+  add('Job total', snap.jobTotal != null ? fmt(snap.jobTotal) : '');
+  add('Their share', snap.theirShare != null
+    ? fmt(snap.theirShare) + (snap.creditPct != null ? ' (' + snap.creditPct + '%)' : '')
+    : '');
+  add('Dashboard role', snap.role);
+  if (snap.splitWith && snap.splitWith.length) {
+    add('Dashboard split', snap.splitWith.map(s => s.name + (s.creditPct != null ? ' ' + s.creditPct + '%' : '')).join(', '));
+  }
+  add('Outstanding', snap.outstanding ? fmt(snap.outstanding) : '');
+  const submitted = compactDateTime(rep.createdAt);
+  return '<div class="drawer-issue-card">' +
+    '<div class="drawer-issue-head">' +
+      '<span class="drawer-issue-type">' + esc(typeLabel) + '</span>' +
+      (submitted ? '<span class="drawer-issue-meta">Submitted ' + esc(submitted) + '</span>' : '') +
+    '</div>' +
+    (roles.description
+      ? '<div class="drawer-issue-desc">' + esc(roles.description) + '</div>'
+      : '<div class="drawer-issue-desc" style="color:var(--ink-mute)">No extra note entered.</div>') +
+    (rows.length ? '<div class="drawer-issue-grid">' + rows.join('') + '</div>' : '') +
+  '</div>';
 }
 
 // ── Progress counter + filter pills ─────────────────────────────
@@ -3591,6 +3788,7 @@ function injectDrawerContext(key) {
   // Build each section. Sections with no data return empty string
   // so the drawer doesn't show empty cards.
   const sections = [];
+  sections.push(renderJobOverview(srv.job));
   sections.push(renderEventTimeline(srv.job, ctx));
   sections.push(renderLineItems(ctx.lineItems, srv.job));
   sections.push(renderInvoicesAndPayments(ctx.invoices));
@@ -3601,10 +3799,15 @@ function injectDrawerContext(key) {
 
   // Footer: HCP link + verified-by + activity hint
   const footerBits = [];
+  const links = [];
   if (srv.job && srv.job.hcpUrl) {
-    footerBits.push(
-      '<div style="margin-top:10px"><a class="hcp-link-btn" target="_blank" rel="noopener" href="' + esc(srv.job.hcpUrl) + '">↗ Open in HCP</a></div>'
-    );
+    links.push('<a class="hcp-link-btn" target="_blank" rel="noopener" href="' + esc(srv.job.hcpUrl) + '">↗ Open job in HCP</a>');
+  }
+  if (srv.job && srv.job.hcpCustomerUrl) {
+    links.push('<a class="hcp-link-btn" target="_blank" rel="noopener" href="' + esc(srv.job.hcpCustomerUrl) + '">↗ Open customer</a>');
+  }
+  if (links.length) {
+    footerBits.push('<div class="drawer-link-row">' + links.join('') + '</div>');
   }
   if (recon && recon.reconciledAt) {
     const who = esc(recon.reconciledBy || 'admin');
@@ -3620,6 +3823,31 @@ function injectDrawerContext(key) {
     footerBits.push('<div class="verified-by">✓ ' + line + '</div>');
   }
   if (footer) footer.innerHTML = footerBits.join('');
+}
+
+function renderJobOverview(job) {
+  if (!job) return '';
+  const date = job.completedAt || job.scheduledStart;
+  const techs = listNames(job.assignedEmployees);
+  const rows = [
+    ['Technician(s)', techs || 'None listed in HCP'],
+    ['Work date', shortDate(date) || 'No date listed'],
+    ['Customer', job.customer || 'No customer listed'],
+    ['Job', job.description || 'No job description'],
+    ['Invoice', job.invoice ? '#' + job.invoice : 'No invoice number'],
+    ['Status', job.workStatus || 'No HCP status'],
+    ['HCP total', fmt(job.totalAmount || 0)],
+    ['Outstanding', fmt(job.outstandingBalance || 0)]
+  ].map(([label, value]) =>
+    '<div class="drawer-overview-item">' +
+      '<span class="drawer-overview-label">' + esc(label) + '</span>' +
+      '<span class="drawer-overview-value">' + esc(value) + '</span>' +
+    '</div>'
+  ).join('');
+  return '<details class="ctx-section" open>' +
+    '<summary>Job details<span class="ctx-subtle">' + esc(techs || 'No technician listed') + '</span></summary>' +
+    '<div class="ctx-body"><div class="drawer-job-overview">' + rows + '</div></div>' +
+  '</details>';
 }
 
 function renderEventTimeline(job, ctx) {
@@ -3778,20 +4006,29 @@ function renderCustomerPriorJobs(jobs, currentJob) {
   const sum = jobs.reduce((s, j2) => s + (Number(j2.total) || 0), 0);
   const rows = jobs.map(j2 => {
     const date = j2.completedAt || j2.scheduledStart || j2.createdAt;
-    const when = date ? new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
-    const meta = [j2.isCurrent ? 'Current job' : '', j2.invoice ? '#' + j2.invoice : '', when, j2.workStatus].filter(Boolean).join(' · ');
-    return '<div class="ctx-row' + (j2.isCurrent ? ' is-current' : '') + '">' +
-      '<span class="ctx-row-label ctx-row-label--truncate">' + esc(j2.description || '—') + '</span>' +
-      '<span class="ctx-row-meta">' + esc(meta) + '</span>' +
+    const when = shortDate(date) || 'Date unknown';
+    const techs = listNames(j2.assignedEmployees);
+    const meta = [
+      j2.isCurrent ? 'Current job' : '',
+      j2.invoice ? '#' + j2.invoice : '',
+      techs ? 'Techs: ' + techs : 'No technician listed',
+      j2.workStatus
+    ].filter(Boolean).join(' · ');
+    return '<div class="ctx-row ctx-row--timeline' + (j2.isCurrent ? ' is-current' : '') + '">' +
+      '<span class="ctx-row-label">' + esc(when) + '</span>' +
+      '<span class="ctx-row-detail">' +
+        '<span class="ctx-row-title">' + esc(j2.description || 'No job description') + '</span>' +
+        '<span class="ctx-row-meta">' + esc(meta) + '</span>' +
+      '</span>' +
       '<span class="ctx-row-amt">' + (j2.total != null ? fmt(j2.total) : '—') + '</span>' +
     '</div>';
   }).join('');
   const customerLabel = currentJob && currentJob.customer
     ? esc(currentJob.customer) + ' · ' + jobs.length + ' job' + (jobs.length === 1 ? '' : 's')
     : jobs.length + ' jobs';
-  const openAttr = currentJob && Number(currentJob.totalAmount || 0) <= 0 ? ' open' : '';
+  const openAttr = ' open';
   return '<details class="ctx-section"' + openAttr + '>' +
-    '<summary>Customer job history<span class="ctx-subtle">' + customerLabel + ' · ' + fmt(sum) + '</span></summary>' +
+    '<summary>Customer job timeline<span class="ctx-subtle">' + customerLabel + ' · ' + fmt(sum) + '</span></summary>' +
     '<div class="ctx-body"><div class="ctx-rows">' + rows + '</div></div>' +
   '</details>';
 }
