@@ -158,7 +158,8 @@ async function fetchData(forceRefresh) {
   try {
     var url = '/api/metrics?range=' + encodeURIComponent(currentTimeRange);
     if (forceRefresh) url += '&refresh=1';
-    var response = await fetch(url, { signal: thisAbort.signal });
+    url += '&_=' + Date.now();
+    var response = await fetch(url, { signal: thisAbort.signal, cache: 'no-store' });
     var data = await response.json();
     // Ignore response if this fetch was superseded by a newer one
     if (thisAbort !== _fetchAbort) return;
@@ -412,6 +413,20 @@ function render() {
   }
   // Expose to the orphans modal handler.
   window._orphanJobs = unattributed;
+  if (unattributed.length === 0) {
+    var orphansBackdrop = document.getElementById('orphansBackdrop');
+    if (orphansBackdrop && orphansBackdrop.classList.contains('open') && typeof closeOrphansModal === 'function') {
+      closeOrphansModal();
+    }
+    var orphansBody = document.getElementById('orphansBody');
+    var orphansCards = document.getElementById('orphansCards');
+    var orphansFooterCount = document.getElementById('orphansFooterCount');
+    var orphansFooterTotal = document.getElementById('orphansFooterTotal');
+    if (orphansBody) orphansBody.innerHTML = '';
+    if (orphansCards) orphansCards.innerHTML = '';
+    if (orphansFooterCount) orphansFooterCount.textContent = '0 uncredited jobs';
+    if (orphansFooterTotal) orphansFooterTotal.textContent = '$0 uncredited';
+  }
 
   // Stat cards: count-up animation
   animateStatCards(summary);
