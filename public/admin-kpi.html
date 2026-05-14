@@ -626,7 +626,7 @@
       line-height: 1.5;
     }
 
-    /* Open-issues + locked-records simple lists */
+    /* Open-issues simple list */
     .item-card {
       background: var(--card);
       border: 1px solid var(--border);
@@ -1818,7 +1818,6 @@
       <div class="diag-subtabs">
         <button class="diag-subtab is-active" data-diag="audit" title="Verifies every paid invoice in HCP appears credited on the leaderboard">Paid jobs audit</button>
         <button class="diag-subtab" data-diag="issues">Open issues <span class="tab-count" id="issueCount">0</span></button>
-        <button class="diag-subtab" data-diag="locked">Locked records <span class="tab-count" id="lockedCount">0</span></button>
         <button class="diag-subtab" data-diag="pipeline">Pipeline diagnostics</button>
       </div>
       <div class="diag-content">
@@ -1827,14 +1826,6 @@
         </div>
         <div class="diag-view" id="diag-issues" hidden>
           <div id="issuesList"></div>
-        </div>
-        <div class="diag-view" id="diag-locked" hidden>
-          <div class="controls">
-            <label for="lockedRangeSel">Period</label>
-            <select id="lockedRangeSel" data-kpi-range-select></select>
-            <button id="loadLockedBtn">Load</button>
-          </div>
-          <div id="lockedList"></div>
         </div>
         <div class="diag-view" id="diag-pipeline" hidden>
           <iframe class="embed-frame" id="diagnosticsFrame" title="Pipeline diagnostics"></iframe>
@@ -1867,7 +1858,6 @@ const isoDate = (iso) => iso ? String(iso).slice(0, 10) : '';
 
 let PASSWORD = sessionStorage.getItem('kpi-admin-pw') || '';
 let CURRENT_RANGE = localStorage.getItem('kpi-admin-range') || 'mtd';
-let CURRENT_LOCKED_RANGE = localStorage.getItem('kpi-admin-locked-range') || CURRENT_RANGE || 'mtd';
 let ACTIVE_PANEL = 'reconcile';
 const ADMIN_CACHE_TTL_MS = 5 * 60 * 1000;
 const KPI_RANGES = [
@@ -1900,6 +1890,174 @@ document.querySelectorAll('[data-kpi-range-select]').forEach(sel => {
     '<option value="' + esc(r.key) + '">' + esc(r.label) + '</option>'
   ).join('');
 });
+
+/* ── Custom period picker ───────────────────────────────────────────
+   The native <select> popup is rendered by the OS and can't be
+   styled. We keep the <select> in the DOM (so existing handlers,
+   `.value` reads, and accessibility all keep working) but hide it
+   visually and render a glassy custom dropdown on top.
+
+   Sections group the long range list into "Current / Rolling /
+   Calendar" so it scans as something other than a generic menu.
+   ──────────────────────────────────────────────────────────────── */
+const PERIOD_PICKER_SECTIONS = [
+  { title: 'Current', keys: ['mtd', 'day', 'yesterday', 'wtd', 'qtd', 'ytd'] },
+  { title: 'Rolling', keys: ['l7d', 'l14d', 'l30d', 'l90d', 'l365d'] },
+  { title: 'Calendar', keys: ['week', 'lm', 'q2d', 'lq', 'ly'] }
+];
+function setupPeriodPicker() {
+  const sel = $('periodSel');
+  if (!sel || sel.dataset.pickerized === '1') return;
+  sel.dataset.pickerized = '1';
+
+  const wrap = document.createElement('div');
+  wrap.className = 'period-picker';
+  sel.parentNode.insertBefore(wrap, sel);
+  wrap.appendChild(sel);
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'period-picker-btn';
+  btn.setAttribute('aria-haspopup', 'listbox');
+  btn.setAttribute('aria-expanded', 'false');
+  btn.innerHTML = '<span class="label"></span><span class="chev">▾</span>';
+  wrap.appendChild(btn);
+
+  const menu = document.createElement('div');
+  menu.className = 'period-picker-menu';
+  menu.setAttribute('role', 'listbox');
+  wrap.appendChild(menu);
+
+  function labelFor(key) {
+    const r = KPI_RANGES.find(x => x.key === key);
+    return r ? r.label : key;
+  }
+  function updateBtnLabel() {
+    btn.querySelector('.label').textContent = labelFor(sel.value);
+  }
+  function buildMenu() {
+    const seen = new Set();
+    const parts = [];
+    PERIOD_PICKER_SECTIONS.forEach(sec => {
+      const inSec = sec.keys
+        .map(k => KPI_RANGES.find(r => r.key === k))
+        .filter(Boolean);
+      if (!inSec.length) return;
+      parts.push('<div class="period-picker-section">' + esc(sec.title) + '</div>');
+      inSec.forEach(r => {
+        seen.add(r.key);
+        parts.push(
+          '<button type="button" class="period-picker-item" data-key="' +
+          esc(r.key) + '" role="option">' + esc(r.label) + '</button>'
+        );
+      });
+    });
+    // Any range not assigned a section gets appended at the bottom
+    // so we never silently drop options when KPI_RANGES grows.
+    const leftover = KPI_RANGES.filter(r => !seen.has(r.key));
+    if (leftover.length) {
+      parts.push('<div class="period-picker-section">Other</div>');
+      leftover.forEach(r => {
+        parts.push(
+          '<button type="button" class="period-picker-item" data-key="' +
+          esc(r.key) + '" role="option">' + esc(r.label) + '</button>'
+        );
+      });
+    }
+    menu.innerHTML = parts.join('');
+    syncSelected();
+  }
+  function syncSelected() {
+    menu.querySelectorAll('.period-picker-item').forEach(it => {
+      it.classList.toggle('is-selected', it.dataset.key === sel.value);
+    });
+  }
+  function open() {
+    wrap.classList.add('is-open');
+    btn.setAttribute('aria-expanded', 'true');
+    syncSelected();
+    // Scroll the currently selected item into view so opening the
+    // menu on a deeper range doesn't hide the active one.
+    const cur = menu.querySelector('.period-picker-item.is-selected');
+    if (cur) cur.scrollIntoView({ block: 'nearest' });
+    document.addEventListener('click', onDocClick, true);
+    document.addEventListener('keydown', onKey);
+  }
+  function close() {
+    wrap.classList.remove('is-open');
+    btn.setAttribute('aria-expanded', 'false');
+    menu.querySelectorAll('.is-focused').forEach(x => x.classList.remove('is-focused'));
+    document.removeEventListener('click', onDocClick, true);
+    document.removeEventListener('keydown', onKey);
+  }
+  function onDocClick(e) {
+    if (!wrap.contains(e.target)) close();
+  }
+  function onKey(e) {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      close();
+      btn.focus();
+      return;
+    }
+    const items = Array.from(menu.querySelectorAll('.period-picker-item'));
+    if (!items.length) return;
+    let focusedEl = menu.querySelector('.period-picker-item.is-focused')
+                 || menu.querySelector('.period-picker-item.is-selected');
+    let idx = items.indexOf(focusedEl);
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      idx = idx < 0 ? 0 : (idx + 1) % items.length;
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      idx = idx < 0 ? items.length - 1 : (idx - 1 + items.length) % items.length;
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      idx = 0;
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      idx = items.length - 1;
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      if (focusedEl) { e.preventDefault(); focusedEl.click(); }
+      return;
+    } else {
+      return;
+    }
+    items.forEach(x => x.classList.remove('is-focused'));
+    items[idx].classList.add('is-focused');
+    items[idx].scrollIntoView({ block: 'nearest' });
+  }
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (wrap.classList.contains('is-open')) close();
+    else open();
+  });
+  menu.addEventListener('click', (e) => {
+    const item = e.target.closest('.period-picker-item');
+    if (!item) return;
+    sel.value = item.dataset.key;
+    // Fire 'change' on the underlying select so the existing
+    // listener (which calls loadJobs + writes to localStorage) runs.
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+    updateBtnLabel();
+    close();
+  });
+  // If anything else writes to sel.value programmatically and then
+  // dispatches change, keep our label in sync.
+  sel.addEventListener('change', updateBtnLabel);
+
+  buildMenu();
+  updateBtnLabel();
+
+  // Exposed for initApp — the boot sequence sets sel.value
+  // programmatically (no 'change' event fires), so we manually nudge
+  // the picker UI to re-read the underlying select.
+  window.refreshPeriodPicker = function () {
+    updateBtnLabel();
+    syncSelected();
+  };
+}
+setupPeriodPicker();
 
 function cacheKeyFor(path) {
   return 'kpi-admin-cache:' + path;
@@ -2007,15 +2165,16 @@ async function initApp() {
     document.querySelector('.tab[data-panel="reconcile"]').classList.add('is-active');
     $('panel-reconcile').classList.add('is-active');
     $('periodSel').value = CURRENT_RANGE;
-    $('lockedRangeSel').value = CURRENT_LOCKED_RANGE;
+    // Programmatic .value assignment doesn't fire 'change', so the
+    // custom period-picker UI wouldn't refresh on its own.
+    if (typeof refreshPeriodPicker === 'function') refreshPeriodPicker();
     // Kick off all of these in parallel — none blocks the others.
-    // loadIssues + loadLocked both populate their tab-count badges
-    // so the admin can see at-a-glance whether there's anything in
-    // those tabs without having to click each one.
+    // loadIssues populates its tab-count badge so the admin can see
+    // at-a-glance whether there's anything to handle there without
+    // having to click into the tab.
     loadEmployees();
     loadJobs();
     loadIssues();
-    loadLocked();
   } catch (err) {
     $('gate').style.display = '';
     $('app').style.display = 'none';
@@ -2097,7 +2256,6 @@ const PANEL_TITLES = {
 const DIAG_TITLES = {
   audit: 'Paid jobs audit',
   issues: 'Issue reports',
-  locked: 'Locked records',
   pipeline: 'Pipeline diagnostics'
 };
 function setSubhead(panel) {
@@ -2137,7 +2295,6 @@ function activateDiagSubtab(name) {
   });
   setSubhead('diagnostics');
   if (name === 'issues')   loadIssues();
-  if (name === 'locked')   loadLocked();
   if (name === 'audit')    loadEmbed('coverageFrame', '/coverage?embed=1');
   if (name === 'pipeline') loadEmbed('diagnosticsFrame', '/diagnostics');
 }
@@ -2210,6 +2367,7 @@ async function loadJobs(forceRefresh) {
     }
     const orderedJobs = sortJobsForAudit(jobs);
     $('jobsList').innerHTML = renderJobGroups(orderedJobs);
+    wireJobRowClicks();
     applyFilter(); // Re-apply if there's an active query from a previous load
   } catch (err) {
     $('jobsList').innerHTML = '<div class="empty">Error: ' + esc(err.message) + '</div>';
@@ -3057,6 +3215,7 @@ async function openLookedUpJob(jobId) {
     $('jobLookup').value = '';
     $('filterCount').textContent = '';
     $('jobsList').innerHTML = renderJob(synthRow);
+    wireJobRowClicks();
     // Update progress + pill counts now that window.JOBS has changed.
     if (typeof updateProgress === 'function') updateProgress();
     if (typeof applyFilterPills === 'function') applyFilterPills();
@@ -3222,80 +3381,12 @@ document.addEventListener('click', async (e) => {
   }
 });
 
-// Locked records
-$('lockedRangeSel').addEventListener('change', () => {
-  CURRENT_LOCKED_RANGE = $('lockedRangeSel').value;
-  localStorage.setItem('kpi-admin-locked-range', CURRENT_LOCKED_RANGE);
-  loadLocked();
-});
-$('loadLockedBtn').addEventListener('click', () => loadLocked(true));
-async function loadLocked(forceRefresh) {
-  try {
-    const range = $('lockedRangeSel').value || CURRENT_LOCKED_RANGE || 'mtd';
-    const data = await cachedApi('/api/kpi/admin/reconciliations?range=' + encodeURIComponent(range), {
-      force: forceRefresh,
-      label: 'Locked records'
-    });
-    const recs = data.reconciliations || [];
-    $('lockedCount').textContent = recs.length;
-    if (recs.length === 0) {
-      const periodLabel = (data.period && data.period.label) || (KPI_RANGES.find(r => r.key === range) || {}).label || 'this period';
-      $('lockedList').innerHTML = '<div class="empty">No reconciliations yet for ' + esc(periodLabel) + '.</div>';
-      return;
-    }
-
-    // Enrich each reconciliation with the underlying job details so the list
-    // reads like "who/what/when" instead of just an internal job id.
-    const jobInfoById = {};
-    await Promise.allSettled(recs.map(async (r) => {
-      const jobId = r && r.jobId;
-      if (!jobId) return;
-      try {
-        const jr = await cachedApi('/api/kpi/admin/job/' + encodeURIComponent(jobId), {
-          force: forceRefresh,
-          label: 'Locked records'
-        });
-        if (jr && jr.job) jobInfoById[jobId] = jr.job;
-      } catch (e) {
-        // Non-fatal (e.g., API key not configured locally).
-      }
-    }));
-
-    $('lockedList').innerHTML = recs.map(r => {
-      const job = jobInfoById[r.jobId] || null;
-      const names = (r.assignments || []).map(a => a.employeeName + ' ' + a.creditPct + '%').join(' · ');
-      const dateStr = r.kpiDate ? isoDate(r.kpiDate) : '—';
-      const who = (job && job.customer) ? esc(job.customer) : null;
-      const done = (job && job.completedAt) ? esc(isoDate(job.completedAt)) : null;
-      const desc = (job && job.description) ? esc(job.description) : '';
-      const title = who || (r.invoice ? ('Invoice #' + esc(String(r.invoice))) : 'Reconciled job');
-      const meta = [done && ('Done ' + done), r.totalAmount != null ? fmt(r.totalAmount) : null].filter(Boolean).join(' · ');
-      return `<div class="item-card" style="display:grid;grid-template-columns:1fr 100px 90px;gap:10px;align-items:center">
-        <div>
-          <div style="font-weight:800;font-size:13px;margin-bottom:4px">${title}</div>
-          ${desc ? '<div style="font-size:12px;color:var(--ink-mute);margin-bottom:4px">' + desc + '</div>' : ''}
-          <div style="font-size:13px;color:var(--ink-soft)">${esc(names) || '<em>excluded</em>'}${meta ? ' · ' + esc(meta) : ''}</div>
-          ${r.notes ? '<div style="font-size:12px;color:var(--ink-mute);margin-top:3px">' + esc(r.notes) + '</div>' : ''}
-        </div>
-        <div style="font-size:11px;color:var(--ink-mute);text-align:right">${esc(dateStr)}</div>
-        <button class="btn" data-action="open-locked" data-jobid="${esc(r.jobId)}">Edit</button>
-      </div>`;
-    }).join('');
-  } catch (err) {
-    console.warn('[loadLocked]', err);
-    $('lockedCount').textContent = '?';
-    $('lockedList').innerHTML = '<div class="empty">Error: ' + esc(err.message) + '</div>';
-  }
-}
-document.addEventListener('click', (e) => {
-  const t = e.target.closest('[data-action="open-locked"]');
-  if (!t) return;
-  document.querySelectorAll('.tab').forEach(x => x.classList.remove('is-active'));
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('is-active'));
-  document.querySelector('[data-panel="reconcile"]').classList.add('is-active');
-  $('panel-reconcile').classList.add('is-active');
-  openLookedUpJob(t.dataset.jobid);
-});
+// Locked records used to live here as its own Diagnostics sub-tab.
+// Removed: that view duplicated the Verify panel's "Verified" filter
+// pill, which already lists every locked reconciliation for the
+// active period and lets the admin click in to edit. Server endpoint
+// /api/kpi/admin/reconciliations remains in place but nothing in the
+// admin UI calls it now.
 </script>
 
 <!-- Drawer — clicking a job row opens the editor here instead of
@@ -4414,9 +4505,23 @@ function selectFilterPill(filter) {
   applyFilterPills();
 }
 
+// Bind each pill directly AND add a delegated document-level handler.
+// The direct binding handles normal clicks. The delegated handler is a
+// safety net in case anything (CSS, sibling event listeners, browser
+// quirk) prevents the per-element click from firing on a given pill.
 document.querySelectorAll('#filterPills .filter-pill').forEach(p => {
-  p.addEventListener('click', () => selectFilterPill(p.dataset.filter));
+  p.addEventListener('click', (e) => {
+    e.stopPropagation();
+    selectFilterPill(p.dataset.filter);
+  });
 });
+document.addEventListener('click', (e) => {
+  const pill = e.target.closest('#filterPills .filter-pill');
+  if (!pill) return;
+  e.stopPropagation();
+  selectFilterPill(pill.dataset.filter);
+}, true); // capture phase — fires before bubble, defeats any
+          // sibling handler that might swallow the event later.
 
 $('jobsList').addEventListener('click', (e) => {
   const section = e.target.closest('[data-section-filter]');
@@ -4526,23 +4631,30 @@ document.addEventListener('keydown', (e) => {
 // on the row. We add a higher-priority capture-phase listener that
 // catches the click first, opens the drawer, and stops the
 // propagation so the inline-expand never fires.
-// Belt-and-suspenders row-click handler. The delegated [data-action]
-// handler above already covers the .job-summary[data-action="toggle"]
-// path, but the ::before pseudo-stripe and any inline-edit footer
-// region don't carry data-action — so this scoped handler on
-// #jobsList catches every click that lands on a .job (and isn't on
-// a Correct quick-button or other actionable child) and routes it
-// straight to the drawer.
-$('jobsList').addEventListener('click', (e) => {
-  const row = e.target.closest('.job');
-  if (!row) return;
-  // Skip if the click is on something that has its own handler:
-  // Correct button, form fields inside the inline editor, etc.
-  if (e.target.closest('button, input, select, textarea, a, [data-action]:not([data-action="toggle"])')) return;
-  const key = row.dataset.key;
-  if (!key) return;
-  openInDrawer(key);
-});
+// Row-click wiring — bound directly to each .job element after every
+// render. We tried document/jobsList delegation here for weeks and it
+// kept failing for "most of the card" (Bento Box reshape changed
+// pointer paths in ways that broke `.closest()` lookups). Direct
+// binding is bulletproof: each row owns its own click listener.
+function wireJobRowClicks() {
+  const rows = document.querySelectorAll('#jobsList .job');
+  rows.forEach(row => {
+    if (row.dataset.clickWired === '1') return;
+    row.dataset.clickWired = '1';
+    row.addEventListener('click', (e) => {
+      // Let the inner Correct/quick button and any form controls
+      // run their own handlers without opening the drawer.
+      if (e.target.closest('button, input, select, textarea, a')) return;
+      const key = row.dataset.key;
+      if (!key) return;
+      // Stop the click from bubbling up to the document-level
+      // [data-action="toggle"] delegated handler, which would
+      // double-fire openInDrawer (two HCP fetches per click).
+      e.stopPropagation();
+      openInDrawer(key);
+    });
+  });
+}
 
 // Hook into loadJobs() — after the original finishes, capture the
 // server's reconciliation summary (read from the sessionStorage

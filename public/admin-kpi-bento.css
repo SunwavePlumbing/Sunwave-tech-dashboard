@@ -156,6 +156,140 @@ body.bento-design .reload-icon-btn {
   font-size: 19px !important;
   border-radius: 14px !important;
 }
+
+/* ── Custom period picker — replaces the native <select> popup ──── */
+body.bento-design .period-picker {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+body.bento-design .period-picker > select {
+  position: absolute !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+}
+body.bento-design .period-picker-btn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 13px 18px;
+  background: #F1F3F5;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #373B4D;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: 0.01em;
+  transition: background 0.18s, border-color 0.18s, box-shadow 0.18s;
+}
+body.bento-design .period-picker-btn:hover { background: #E8ECF0; }
+body.bento-design .period-picker.is-open .period-picker-btn {
+  background: #FFFFFF;
+  border-color: #F38A3F;
+  box-shadow: 0 0 0 4px rgba(243, 138, 63, 0.14);
+}
+body.bento-design .period-picker-btn .label {
+  flex: 1 1 auto;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+body.bento-design .period-picker-btn .chev {
+  font-size: 11px;
+  color: #7B8190;
+  transition: transform 0.18s ease;
+  line-height: 1;
+}
+body.bento-design .period-picker.is-open .period-picker-btn .chev {
+  transform: rotate(180deg);
+  color: #F38A3F;
+}
+body.bento-design .period-picker-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 280px;
+  max-height: 460px;
+  overflow-y: auto;
+  background: rgba(255, 255, 255, 0.78);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(221, 227, 234, 0.65);
+  border-radius: 22px;
+  padding: 10px;
+  box-shadow:
+    0 4px 14px rgba(11, 36, 71, 0.06),
+    0 28px 64px rgba(11, 36, 71, 0.18);
+  z-index: 50;
+  opacity: 0;
+  transform: translateY(-6px) scale(0.97);
+  transform-origin: top left;
+  pointer-events: none;
+  transition: opacity 0.16s ease, transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+body.bento-design .period-picker.is-open .period-picker-menu {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+body.bento-design .period-picker-section {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  color: #7B8190;
+  text-transform: uppercase;
+  padding: 14px 14px 6px;
+}
+body.bento-design .period-picker-section:first-child { padding-top: 6px; }
+body.bento-design .period-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px;
+  background: transparent;
+  border: 0;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #373B4D;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: 0.01em;
+  transition: background 0.12s, color 0.12s;
+}
+body.bento-design .period-picker-item:hover,
+body.bento-design .period-picker-item.is-focused {
+  background: rgba(243, 138, 63, 0.10);
+  color: #F38A3F;
+}
+body.bento-design .period-picker-item.is-selected {
+  background: #F38A3F;
+  color: #FFFFFF;
+}
+body.bento-design .period-picker-item.is-selected::before {
+  content: "✓";
+  font-weight: 800;
+  font-size: 13px;
+  width: 14px;
+  display: inline-flex;
+  justify-content: center;
+}
+body.bento-design .period-picker-item.is-selected:hover {
+  background: #F38A3F;
+  color: #FFFFFF;
+  filter: brightness(1.06);
+}
 body.bento-design .reload-icon-btn:hover {
   background: rgba(243, 138, 63, 0.12) !important;
   color: #F38A3F !important;
@@ -429,4 +563,260 @@ body.bento-design .job-section {
   text-transform: uppercase;
   background: transparent;
   border: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   DIAGNOSTICS PANEL — sub-tabs + Paid jobs audit / Open issues /
+   Pipeline diagnostics views. Same Bento language as Verify.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Sub-tab nav — pill-in-a-pill, matches the main tab strip but lower
+   key. */
+body.bento-design .diag-subtabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 5px;
+  background: rgba(250, 251, 252, 0.75);
+  border: 1px solid #DDE3EA;
+  border-radius: 999px;
+  margin: 0 0 20px;
+  backdrop-filter: blur(12px);
+  flex-wrap: wrap;
+}
+body.bento-design .diag-subtab {
+  padding: 9px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #7B8190;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.18s, color 0.18s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+body.bento-design .diag-subtab:hover {
+  background: transparent;
+  color: #373B4D;
+}
+body.bento-design .diag-subtab.is-active {
+  background: #F38A3F;
+  color: #FFFFFF;
+}
+
+/* Count pill on sub-tabs */
+body.bento-design .tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  padding: 2px 8px;
+  background: rgba(123, 129, 144, 0.16);
+  color: inherit;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 800;
+  margin-left: 0;
+  font-variant-numeric: tabular-nums;
+}
+body.bento-design .diag-subtab.is-active .tab-count {
+  background: rgba(255, 255, 255, 0.22);
+  color: #FFFFFF;
+}
+
+/* Embedded iframe (Paid jobs audit + Pipeline diagnostics) — wrap as
+   a bento card with rounded corners + ambient shadow + soft border. */
+body.bento-design .embed-frame {
+  width: 100%;
+  height: 82vh;
+  min-height: 540px;
+  border: 1px solid #DDE3EA;
+  border-radius: 24px;
+  background: #FAFBFC;
+  box-shadow:
+    0 1px 2px rgba(11, 36, 71, 0.025),
+    0 24px 60px rgba(11, 36, 71, 0.045);
+  display: block;
+}
+
+/* Open-issues list — every report becomes a tactile bento card. */
+body.bento-design .item-card {
+  background: #FAFBFC;
+  border: 1px solid #DDE3EA;
+  border-radius: 22px;
+  padding: 22px 26px;
+  margin-bottom: 12px;
+  box-shadow:
+    0 1px 2px rgba(11, 36, 71, 0.025),
+    0 16px 38px rgba(11, 36, 71, 0.04);
+  transition: border-color 0.18s, box-shadow 0.18s, transform 0.18s;
+}
+body.bento-design .item-card:hover {
+  border-color: rgba(243, 138, 63, 0.30);
+  box-shadow:
+    0 2px 4px rgba(11, 36, 71, 0.05),
+    0 24px 56px rgba(11, 36, 71, 0.075);
+  transform: translateY(-2px);
+}
+body.bento-design .item-card strong {
+  color: #0B2447;
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: -0.005em;
+}
+
+/* Status badge — generic .badge plus the warn/good/danger variants */
+body.bento-design .badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  border: 0;
+  background: rgba(123, 129, 144, 0.14);
+  color: #5C6371;
+}
+body.bento-design .badge--good {
+  background: rgba(75, 170, 120, 0.14);
+  color: #2E7A52;
+}
+body.bento-design .badge--warn {
+  background: rgba(211, 154, 46, 0.16);
+  color: #8C6716;
+}
+body.bento-design .badge--bad,
+body.bento-design .badge--danger {
+  background: #FCEBE7;
+  color: #A33F30;
+}
+
+/* Inline-styled blocks inside the issue card (description, ref,
+   timestamp). Higher-specificity overrides for the inline color
+   values without rewriting renderReport(). */
+body.bento-design .item-card > div[style*="margin-bottom:4px"]:not(.issue-snapshot-grid) {
+  font-size: 13px !important;
+  color: #373B4D !important;
+  font-weight: 600;
+}
+body.bento-design .item-card > div[style*="background:var(--bg)"] {
+  background: #F1F3F5 !important;
+  border: 1px solid #DDE3EA !important;
+  border-left: 3px solid #F38A3F !important;
+  border-radius: 10px !important;
+  padding: 12px 14px !important;
+  font-size: 13.5px !important;
+  color: #373B4D !important;
+  line-height: 1.5;
+}
+
+/* Job snapshot expandable inside an issue card */
+body.bento-design .issue-snapshot {
+  background: #F1F3F5;
+  border: 1px solid #DDE3EA;
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin: 10px 0 12px;
+  font-size: 12.5px;
+}
+body.bento-design .issue-snapshot summary {
+  font-weight: 700;
+  color: #373B4D;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  outline: none;
+}
+body.bento-design .issue-snapshot[open] summary { color: #F38A3F; }
+body.bento-design .issue-snapshot-grid {
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 8px 14px;
+  padding-top: 12px;
+}
+body.bento-design .issue-snapshot-key {
+  color: #7B8190;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+body.bento-design .issue-snapshot-val {
+  color: #373B4D;
+  font-weight: 500;
+}
+
+/* Action buttons inside item cards (.btn / .btn--danger / .btn--primary) */
+body.bento-design .item-card .btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 9px 16px;
+  border: 1px solid #DDE3EA;
+  border-radius: 999px;
+  background: #FFFFFF;
+  color: #373B4D;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: 0.01em;
+  transition: all 0.16s;
+}
+body.bento-design .item-card .btn:hover {
+  border-color: #F38A3F;
+  color: #F38A3F;
+  background: #FFFFFF;
+}
+body.bento-design .item-card .btn--danger {
+  background: transparent;
+  border-color: rgba(214, 95, 79, 0.40);
+  color: #A33F30;
+}
+body.bento-design .item-card .btn--danger:hover {
+  background: #D65F4F;
+  border-color: #D65F4F;
+  color: #FFFFFF;
+}
+body.bento-design .item-card .btn--primary,
+body.bento-design .item-card button[data-action="from-issue-inv"] {
+  background: #F38A3F;
+  border-color: #F38A3F;
+  color: #FFFFFF;
+}
+body.bento-design .item-card .btn--primary:hover,
+body.bento-design .item-card button[data-action="from-issue-inv"]:hover {
+  filter: brightness(1.08);
+  border-color: #F38A3F;
+  color: #FFFFFF;
+}
+
+/* "Handled (resolved / dismissed)" divider that appears between open
+   and handled issue cards. The renderer emits this as inline-styled
+   <div>s; override the specifics. */
+body.bento-design #issuesList > div[style*="text-transform:uppercase"] {
+  color: #7B8190 !important;
+  font-size: 11px !important;
+  letter-spacing: 0.16em !important;
+  padding: 22px 6px 8px !important;
+  font-weight: 800;
+}
+body.bento-design #issuesList > div[style*="height:1px"] {
+  background: #DDE3EA !important;
+  margin: 0 6px 14px !important;
+}
+
+/* Empty state inside diagnostics views */
+body.bento-design .diag-view .empty {
+  background: #FAFBFC;
+  border: 1px solid #DDE3EA;
+  border-radius: 22px;
+  padding: 48px 24px;
+  text-align: center;
+  color: #7B8190;
+  font-size: 14px;
+  font-weight: 500;
 }
