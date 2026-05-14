@@ -387,9 +387,10 @@ body.bento-design .progress-bar--beefy {
   position: relative;
 }
 body.bento-design .progress-bar--beefy .progress-fill {
-  background: #F38A3F;
-  /* Width is set inline by updateProgress() — animate smoothly so
-     newly-verified dollars flow into the orange portion. */
+  /* Light Sunwave green — same "approval/done" semantic the user
+     originally liked. Soft enough to sit quietly inside the warm
+     mist track, strong enough to read as progress at a glance. */
+  background: rgba(75, 170, 120, 0.32);
   transition: width 320ms cubic-bezier(.16, 1, .3, 1);
 }
 /* Empty (no jobs to verify yet) state — keep the bar fully muted
@@ -2159,9 +2160,10 @@ body.bento-design .job-quick {
   box-shadow: 0 1px 2px rgba(11, 36, 71, 0.02);
 }
 body.bento-design .job-quick:hover {
-  border-color: #F38A3F;
-  color: #F38A3F;
-  box-shadow: 0 6px 16px rgba(243, 138, 63, 0.18);
+  background: rgba(75, 170, 120, 0.10);
+  border-color: rgba(75, 170, 120, 0.50);
+  color: #2E7A52;
+  box-shadow: 0 6px 16px rgba(75, 170, 120, 0.18);
   transform: translateY(-1px);
 }
 body.bento-design .job-quick.is-done {
