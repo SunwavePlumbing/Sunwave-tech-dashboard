@@ -3886,6 +3886,18 @@ const DRAWER_STATE = {
 const drawer = $('drawer');
 const drawerScrim = $('drawerScrim');
 const drawerBody = $('drawerBody');
+// Click-to-toggle for the collapsed "Edit job" section. Delegated on the
+// drawer body so it survives every re-render of the drawer contents.
+drawerBody.addEventListener('click', (e) => {
+  const toggle = e.target.closest('[data-editor-toggle]');
+  if (!toggle || !drawerBody.contains(toggle)) return;
+  const section = toggle.closest('.drawer-editor-section');
+  if (!section) return;
+  const collapsed = section.classList.toggle('is-collapsed');
+  toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+  const body = section.querySelector('.drawer-editor-body');
+  if (body) body.hidden = collapsed;
+});
 const drawerHeadTitle = $('drawerHeadTitle');
 const drawerHeadMeta = $('drawerHeadMeta');
 const drawerVerifyBtn = $('drawerVerifyBtn');
@@ -4011,13 +4023,18 @@ function openInDrawer(key) {
   // "fix what HCP got wrong".
   drawerBody.innerHTML = summaryHtml + issuesHtml +
     '<div id="drawerInstantContext">' + renderJobOverview(drawerOverviewJobFromRow(j)) + '</div>' +
-    '<section class="drawer-editor-section" aria-labelledby="drawerEditorTitle">' +
-      '<header class="drawer-editor-head">' +
-        '<span id="drawerEditorTitle" class="drawer-editor-title">Edit job</span>' +
-        '<span class="drawer-editor-sub">Techs, work date, totals, paid status</span>' +
-      '</header>' +
-      '<div class="job is-open" data-key="' + esc(key) + '">' +
-        '<div class="job-edit" data-edit-for="' + esc(key) + '"></div>' +
+    '<section class="drawer-editor-section is-collapsed" aria-labelledby="drawerEditorTitle">' +
+      '<button type="button" class="drawer-editor-head" data-editor-toggle aria-expanded="false">' +
+        '<span class="drawer-editor-head-text">' +
+          '<span id="drawerEditorTitle" class="drawer-editor-title">Edit job</span>' +
+          '<span class="drawer-editor-sub">Techs, work date, totals, paid status</span>' +
+        '</span>' +
+        '<span class="drawer-editor-chevron" aria-hidden="true">▾</span>' +
+      '</button>' +
+      '<div class="drawer-editor-body" hidden>' +
+        '<div class="job is-open" data-key="' + esc(key) + '">' +
+          '<div class="job-edit" data-edit-for="' + esc(key) + '"></div>' +
+        '</div>' +
       '</div>' +
     '</section>' +
     '<div id="drawerContext"></div>' +
@@ -4707,19 +4724,23 @@ function renderJobOverview(job) {
                    : /unpaid|outstanding|failed/i.test(statusVal) ? 'bad'
                    : /unrated|review|pending|scheduled/i.test(statusVal) ? 'info'
                    : 'mute';
+  const fullJob = job.description || 'No job description';
+  const jobValueAttrs = job.description
+    ? ' class="drawer-overview-value drawer-overview-value--clamp" title="' + esc(fullJob) + '"'
+    : ' class="drawer-overview-value"';
   const rows = [
-    ['Technician(s)', esc(techs || 'None listed in HCP')],
-    ['Work date',     esc(shortDate(date) || 'No date listed')],
-    ['Customer',      esc(job.customer || 'No customer listed')],
-    ['Job',           esc(job.description || 'No job description')],
-    ['Invoice',       esc(job.invoice ? '#' + job.invoice : 'No invoice number')],
-    ['Status',        '<span class="meta-pill meta-pill--' + statusKind + '">' + esc(statusVal) + '</span>'],
-    ['HCP total',     esc(fmt(job.totalAmount || 0))],
-    ['Outstanding',   esc(fmt(job.outstandingBalance || 0))]
-  ].map(([label, valueHtml]) =>
+    ['Technician(s)', esc(techs || 'None listed in HCP'), ''],
+    ['Work date',     esc(shortDate(date) || 'No date listed'), ''],
+    ['Customer',      esc(job.customer || 'No customer listed'), ''],
+    ['Job',           esc(fullJob), jobValueAttrs],
+    ['Invoice',       esc(job.invoice ? '#' + job.invoice : 'No invoice number'), ''],
+    ['Status',        '<span class="meta-pill meta-pill--' + statusKind + '">' + esc(statusVal) + '</span>', ''],
+    ['HCP total',     esc(fmt(job.totalAmount || 0)), ''],
+    ['Outstanding',   esc(fmt(job.outstandingBalance || 0)), '']
+  ].map(([label, valueHtml, valueAttrs]) =>
     '<div class="drawer-overview-item">' +
       '<span class="drawer-overview-label">' + esc(label) + '</span>' +
-      '<span class="drawer-overview-value">' + valueHtml + '</span>' +
+      '<span' + (valueAttrs || ' class="drawer-overview-value"') + '>' + valueHtml + '</span>' +
     '</div>'
   ).join('');
   return '<details class="ctx-section" open>' +
