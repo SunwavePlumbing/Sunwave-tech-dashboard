@@ -2227,8 +2227,8 @@ async function renderEditPanel(key) {
       detail: 'An invoice was paid, but there\'s no service job tied to it in HCP. Standalone invoices can\'t be auto-attributed. If a tech actually did the work, add their name(s) below and save.'
     },
     pipeline_unknown: {
-      title: 'Pipeline glitch',
-      detail: 'The auto-pipeline didn\'t credit this for an unexpected reason. This is rare — likely a bug. Reconcile manually here, and let Levi know which job # this is so the underlying logic can be fixed.'
+      title: 'Needs admin reconciliation review',
+      detail: 'The paid invoice is still in the admin review queue because the automatic attribution pass did not produce a confident credit. Review the HCP details and save the correct attribution below.'
     }
   };
   const reasonInfo = j.status === 'unattributed' && j.reason ? REASON_LABELS[j.reason] : null;

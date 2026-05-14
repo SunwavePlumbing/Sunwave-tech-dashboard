@@ -650,7 +650,7 @@ function reasonLabel(row) {
     servicetitan_artifact:     'ServiceTitan migration (excluded by design)',
     job_details_unavailable:   'HCP couldn’t return job details',
     standalone_invoice_no_job: 'Standalone invoice (no service job)',
-    pipeline_unknown:          'Pipeline glitch — report to admin'
+    pipeline_unknown:          'Needs admin reconciliation review'
   };
   return fixed[r] || r;
 }

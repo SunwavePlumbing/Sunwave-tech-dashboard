@@ -1322,6 +1322,14 @@ app.get('/api/metrics', async (req, res) => {
       ? ((job.customer.first_name || '') + ' ' + (job.customer.last_name || '')).trim()
       : '';
     const normalizedCustomer = (job) => jobCustomerName(job).toLowerCase();
+    const invoiceCustomerName = (inv) => inv && inv.customer
+      ? ((inv.customer.first_name || '') + ' ' + (inv.customer.last_name || '')).trim()
+      : '';
+    const invoiceKeyFromParts = (invoice, customer) => {
+      const num = String(invoice || '').trim().toLowerCase();
+      if (!num) return null;
+      return num + '|' + String(customer || '').trim().toLowerCase();
+    };
 
     function ensureTech(emp) {
       if (!techMetrics[emp.id]) {
@@ -1351,9 +1359,22 @@ app.get('/api/metrics', async (req, res) => {
     const creditedInvoiceKeys = new Set();
 
     function creditedInvoiceKey(job) {
-      const invoice = String(job && job.invoice_number || '').trim().toLowerCase();
-      if (!invoice) return null;
-      return invoice + '|' + normalizedCustomer(job);
+      return invoiceKeyFromParts(job && job.invoice_number, normalizedCustomer(job));
+    }
+
+    function paidInvoiceAlreadyCredited(job, invs) {
+      const keys = new Set();
+      const jobCustomer = job ? normalizedCustomer(job) : '';
+      const jobKey = job ? creditedInvoiceKey(job) : null;
+      if (jobKey) keys.add(jobKey);
+      (invs || []).forEach(inv => {
+        const invoice = inv && inv.invoice_number;
+        const keyWithInvoiceCustomer = invoiceKeyFromParts(invoice, invoiceCustomerName(inv));
+        const keyWithJobCustomer = invoiceKeyFromParts(invoice, jobCustomer);
+        if (keyWithInvoiceCustomer) keys.add(keyWithInvoiceCustomer);
+        if (keyWithJobCustomer) keys.add(keyWithJobCustomer);
+      });
+      return [...keys].some(key => creditedInvoiceKeys.has(key));
     }
 
     const employeeByName = {};
@@ -2005,10 +2026,11 @@ app.get('/api/metrics', async (req, res) => {
       const reconForGap = RECONCILIATIONS[jobId];
       if (reconForGap && reconForGap.excluded) continue;
       const invs = invoicesByJob[jobId];
+      const job = gapJobs.find(j => j && j.id === jobId);
+      if (paidInvoiceAlreadyCredited(job, invs)) continue;
       const paidInPeriod = invs.reduce((s, inv) =>
         s + parseFloat(inv.amount || 0) / 100, 0);
       if (paidInPeriod <= 0) continue;
-      const job = gapJobs.find(j => j && j.id === jobId);
       const latestPaidAt = invs.map(i => i.paid_at).filter(Boolean).sort().pop() || null;
       const invNumbers = invs.map(i => i.invoice_number).filter(Boolean);
       const customerFromInv = invs[0].customer
