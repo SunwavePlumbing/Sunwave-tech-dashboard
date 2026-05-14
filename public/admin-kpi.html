@@ -4529,6 +4529,21 @@ $('jobsList').addEventListener('click', (e) => {
   selectFilterPill(section.dataset.sectionFilter);
 });
 
+// Job cards have large visual whitespace because the summary uses a
+// bento-style grid. Clicks in those gaps can miss the inner
+// `[data-action="toggle"]` target, so catch the card itself in capture
+// phase and open the drawer from any non-control point inside the row.
+$('jobsList').addEventListener('click', (e) => {
+  const row = e.target.closest('#jobsList .job');
+  if (!row) return;
+  if (e.target.closest('button, input, select, textarea, a')) return;
+  const key = row.dataset.key;
+  if (!key || typeof openInDrawer !== 'function') return;
+  e.preventDefault();
+  e.stopPropagation();
+  openInDrawer(key);
+}, true);
+
 // ── Undo toast ─────────────────────────────────────────────────
 function pushUndo(action) {
   DRAWER_STATE.history.push(action);
