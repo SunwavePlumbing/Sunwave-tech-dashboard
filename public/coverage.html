@@ -22,8 +22,12 @@
          wash    #FCEBE7  pale background behind coral
     */
     :root {
+      /* Card sits just barely above canvas (≈3 hex points of
+         contrast) so the cards feel like they belong on the same
+         surface, not stamped onto a different colored page. The
+         ambient box-shadow handles the elevation. */
       --canvas: #F1F3F5;
-      --card: #FAFBFC;
+      --card: #F6F8FA;
       --card-strong: #FFFFFF;
       --border: #DDE3EA;
       --border-strong: rgba(55, 65, 81, 0.18);
@@ -60,11 +64,14 @@
       margin: 0;
       min-height: 100vh;
       font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      /* Uniform canvas — no mesh gradients. The previous setup
+         used three pastel radial blobs (orange / blue / green) to
+         create "atmospheric depth", but they painted different
+         colored zones across the page so the same #FAFBFC card
+         appeared to mismatch the canvas behind it depending on
+         which blob it overlapped. A single flat tone eliminates
+         the mismatch entirely. */
       background: var(--canvas);
-      background-image:
-        radial-gradient(ellipse 70% 50% at  0%   0%, rgba(243, 138, 63, 0.06)  0%, transparent 60%),
-        radial-gradient(ellipse 55% 45% at 100% 28%, rgba(191, 224, 243, 0.34) 0%, transparent 60%),
-        radial-gradient(ellipse 50% 40% at 50% 100%, rgba(75, 170, 120, 0.05)  0%, transparent 60%);
       background-attachment: fixed;
       color: var(--ink);
       line-height: 1.4;

@@ -11,7 +11,7 @@
      deep    #0B2447   hero numbers / brand titles
      blue    #BFE0F3   calm support wash
      mist    #F1F3F5   canvas + inactive pill fill
-     card    #FAFBFC   elevated card surface
+     card    #F6F8FA   elevated card surface
      border  #DDE3EA   1px outlines + dividers
      mute    #7B8190   subtitles / timestamps / helper text
      green   #4BAA78   paid / correct / healthy state
@@ -22,11 +22,14 @@
 
 /* ── Canvas ──────────────────────────────────────────────────────── */
 body.bento-design {
+  /* Uniform canvas. The previous setup painted three pastel
+     radial blobs across the page for "atmospheric depth", but the
+     resulting colored zones made cards (#F6F8FA) look mismatched
+     against whichever blob they overlapped. A single flat tone
+     reads as one continuous surface so cards feel like they
+     belong on the same page. Card surface in admin-kpi-bento is
+     also pulled closer to the canvas (FAFBFC → F6F8FA below). */
   background: #F1F3F5;
-  background-image:
-    radial-gradient(ellipse 70% 50% at 0% 0%,    rgba(243, 138, 63, 0.06)  0%, transparent 60%),
-    radial-gradient(ellipse 55% 45% at 100% 28%, rgba(191, 224, 243, 0.30) 0%, transparent 60%),
-    radial-gradient(ellipse 50% 40% at 50% 100%, rgba(75, 170, 120, 0.05)  0%, transparent 60%);
   background-attachment: fixed;
   color: #373B4D;
 
@@ -36,7 +39,7 @@ body.bento-design {
      Sunwave system. This is the single biggest leverage point for
      keeping older inline-styled bits coherent with Bento. */
   --bg:            #F1F3F5;
-  --card:          #FAFBFC;
+  --card:          #F6F8FA;
   --border:        #DDE3EA;
   --border-strong: #C5CBD3;
   --ink:           #373B4D;
@@ -126,7 +129,7 @@ body.bento-design .tab.is-active {
 
 /* ── Sticky bar — single hero control card ──────────────────────── */
 body.bento-design .stickybar {
-  background: #FAFBFC;
+  background: #F6F8FA;
   border: 1px solid #DDE3EA;
   border-radius: 28px;
   padding: 26px 30px;
@@ -204,7 +207,7 @@ body.bento-design .stickybar-row select.tech-filter:has(option:checked[value=""]
    combinator the dark navy fill leaked onto every dropdown row. */
 body.bento-design .stickybar-row > button {
   background: #373B4D;
-  color: #FAFBFC;
+  color: #F6F8FA;
   border: 0;
   padding: 13px 22px;
   border-radius: 14px;
@@ -215,7 +218,7 @@ body.bento-design .stickybar-row > button {
 body.bento-design .stickybar-row > button:hover {
   background: #0B2447;
   border-color: transparent;
-  color: #FAFBFC;
+  color: #F6F8FA;
 }
 body.bento-design .reload-icon-btn {
   width: 46px !important;
@@ -457,7 +460,7 @@ body.bento-design .filter-pill {
   touch-action: manipulation;
 }
 body.bento-design .filter-pill:hover {
-  background: #FAFBFC;
+  background: #F6F8FA;
   color: #373B4D;
   border-color: #DDE3EA;
 }
@@ -516,7 +519,7 @@ body.bento-design .auto-verify-bar button:hover {
 /* ── Job list — tactile tiles ────────────────────────────────────── */
 body.bento-design .jobs-list { gap: 10px; }
 body.bento-design .job {
-  background: #FAFBFC;
+  background: #F6F8FA;
   border: 1px solid #DDE3EA;
   border-radius: 22px;
   box-shadow:
@@ -751,7 +754,7 @@ body.bento-design .embed-frame {
 
 /* Open-issues list — every report becomes a tactile bento card. */
 body.bento-design .item-card {
-  background: #FAFBFC;
+  background: #F6F8FA;
   border: 1px solid #DDE3EA;
   border-radius: 22px;
   padding: 22px 26px;
@@ -917,7 +920,7 @@ body.bento-design #issuesList > div[style*="height:1px"] {
 
 /* Empty state inside diagnostics views */
 body.bento-design .diag-view .empty {
-  background: #FAFBFC;
+  background: #F6F8FA;
   border: 1px solid #DDE3EA;
   border-radius: 22px;
   padding: 48px 24px;
@@ -935,7 +938,7 @@ body.bento-design .diag-view .empty {
    ──────────────────────────────────────────────────────────────── */
 body.bento-design .deep-search {
   --ds-canvas: #F1F3F5;
-  --ds-card: #FAFBFC;
+  --ds-card: #F6F8FA;
   --ds-border: #DDE3EA;
   --ds-ink: #373B4D;
   --ds-ink-deep: #0B2447;
@@ -1260,7 +1263,7 @@ body.bento-design.drawer-open .drawer-scrim {
 body.bento-design .drawer {
   width: min(940px, calc(100vw - 48px));
   max-height: calc(100vh - 56px);
-  background: #FAFBFC;
+  background: #F6F8FA;
   border: 1px solid rgba(221, 227, 234, 0.9);
   border-radius: 28px;
   box-shadow:
@@ -1280,7 +1283,7 @@ body.bento-design .drawer:focus {
 /* Header — title left, close right; rich title with strong $ amount */
 body.bento-design .drawer-head {
   padding: 24px 28px 20px;
-  background: #FAFBFC;
+  background: #F6F8FA;
   border-bottom: 1px solid #DDE3EA;
   align-items: flex-start;
 }
@@ -1382,7 +1385,7 @@ body.bento-design .drawer-nav-btn.close-btn {
 /* Body — wide breathing room */
 body.bento-design .drawer-body {
   padding: 24px 28px 28px;
-  background: #FAFBFC;
+  background: #F6F8FA;
 }
 
 /* Period-fit banner — soft wash card, not a strip */
@@ -1752,7 +1755,7 @@ body.bento-design .ctx-row .ctx-row-amt   { color: #0B2447; font-weight: 800; }
 body.bento-design .drawer-footer {
   padding: 18px 28px 22px;
   border-top: 1px solid #DDE3EA;
-  background: #FAFBFC;
+  background: #F6F8FA;
   gap: 18px;
 }
 body.bento-design .drawer-position {
@@ -2020,7 +2023,7 @@ body.bento-design .gate {
   max-width: 420px;
   margin: 5rem auto;
   padding: 32px;
-  background: #FAFBFC;
+  background: #F6F8FA;
   border: 0;
   border-radius: 24px;
   box-shadow:
@@ -2068,7 +2071,7 @@ body.bento-design .gate button:hover {
 
 /* ── Job row card — drop the warm-beige gradient + brown shadows ── */
 body.bento-design .job {
-  background: #FAFBFC;
+  background: #F6F8FA;
   border: 1px solid #DDE3EA;
   border-radius: 22px;
   box-shadow:
@@ -2392,7 +2395,7 @@ body.bento-design .confirm-backdrop {
   -webkit-backdrop-filter: blur(8px) saturate(120%);
 }
 body.bento-design .confirm-card {
-  background: #FAFBFC;
+  background: #F6F8FA;
   border: 1px solid rgba(221, 227, 234, 0.9);
   border-radius: 26px;
   box-shadow:
@@ -2513,7 +2516,7 @@ body.bento-design .undo-toast .undo-close:hover {
 body.bento-design .item-card {
   border-radius: 22px;
   padding: 22px 24px;
-  background: #FAFBFC;
+  background: #F6F8FA;
   border: 1px solid #DDE3EA;
   box-shadow:
     0 1px 2px rgba(11, 36, 71, 0.025),
@@ -2541,7 +2544,7 @@ body.bento-design .badge--warn {
 
 /* ── Catch-all soft borders for older block-level controls ─────── */
 body.bento-design .controls {
-  background: #FAFBFC;
+  background: #F6F8FA;
   border: 1px solid #DDE3EA;
   border-radius: 22px;
   padding: 18px 20px;
@@ -2858,7 +2861,7 @@ body.bento-design .job-skeleton {
   gap: 18px;
   align-items: center;
   padding: 22px 22px 22px 26px;
-  background: #FAFBFC;
+  background: #F6F8FA;
   border: 1px solid #DDE3EA;
   border-radius: 22px;
   margin-bottom: 10px;
