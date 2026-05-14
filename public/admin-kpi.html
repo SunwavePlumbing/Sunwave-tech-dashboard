@@ -4678,7 +4678,17 @@ function estimateStatusTone(status) {
 }
 
 function renderEstimates(estimates, job) {
-  if (!Array.isArray(estimates) || !estimates.length) return '';
+  // Render an explicit empty-state section even when this
+  // customer has no prior estimates, so the admin can see at a
+  // glance that we DID check and there genuinely are none —
+  // instead of having the section silently disappear and leaving
+  // the admin wondering whether the lookup ran at all.
+  if (!Array.isArray(estimates) || !estimates.length) {
+    return '<details class="ctx-section">' +
+      '<summary>Estimates<span class="ctx-subtle">0</span></summary>' +
+      '<div class="ctx-body"><div class="ctx-empty">No estimates on file for this customer.</div></div>' +
+    '</details>';
+  }
   const jobTotal = job ? Number(job.totalAmount || 0) : 0;
   // Newest first — the admin almost always cares about the latest
   // estimate (the one that turned into the job) before older drafts.
