@@ -164,7 +164,7 @@ body.bento-design .stickybar-row select:focus,
 body.bento-design .stickybar-row input[type="text"]:focus {
   outline: none;
   border-color: #F38A3F;
-  background: #FFFFFF;
+  background: #FEFCF6;
 }
 body.bento-design .stickybar-row input[type="text"]::placeholder {
   color: #A8AEB7;
@@ -240,7 +240,7 @@ body.bento-design .period-picker-btn {
 }
 body.bento-design .period-picker-btn:hover { background: #EDE8DD; }
 body.bento-design .period-picker.is-open .period-picker-btn {
-  background: #FFFFFF;
+  background: #FEFCF6;
   border-color: #F38A3F;
   color: #373B4D;
   box-shadow: 0 0 0 4px rgba(243, 138, 63, 0.14);
@@ -842,7 +842,7 @@ body.bento-design .item-card .btn {
   padding: 9px 16px;
   border: 1px solid #E5DFD2;
   border-radius: 999px;
-  background: #FFFFFF;
+  background: #FEFCF6;
   color: #373B4D;
   font-size: 12.5px;
   font-weight: 700;
@@ -854,7 +854,7 @@ body.bento-design .item-card .btn {
 body.bento-design .item-card .btn:hover {
   border-color: #F38A3F;
   color: #F38A3F;
-  background: #FFFFFF;
+  background: #FEFCF6;
 }
 body.bento-design .item-card .btn--danger {
   background: transparent;
@@ -980,7 +980,7 @@ body.bento-design .deep-search input:focus,
 body.bento-design .deep-search select:focus {
   outline: none;
   border-color: var(--ds-orange);
-  background: #FFFFFF;
+  background: #FEFCF6;
   box-shadow: 0 0 0 4px var(--ds-orange-wash);
 }
 body.bento-design .deep-search input::placeholder { color: var(--ds-faint); }
@@ -1010,7 +1010,7 @@ body.bento-design .deep-search .ds-btn:hover {
 }
 body.bento-design .deep-search .ds-btn:active { transform: translateY(0) scale(0.98); }
 body.bento-design .deep-search .ds-btn--secondary {
-  background: #FFFFFF;
+  background: #FEFCF6;
   color: var(--ds-ink);
   border: 1px solid var(--ds-border);
   box-shadow: none;
@@ -1337,7 +1337,7 @@ body.bento-design .drawer-nav-btn {
   height: 38px;
   border-radius: 999px;
   border: 1px solid #E5DFD2;
-  background: #FFFFFF;
+  background: #FEFCF6;
   color: #373B4D;
   font-size: 14px;
   font-weight: 700;
@@ -1397,7 +1397,7 @@ body.bento-design .drawer-summary {
   gap: 16px;
   align-items: center;
   padding: 16px 18px;
-  background: #FFFFFF;
+  background: #FEFCF6;
   border: 1px solid #E5DFD2;
   border-radius: 20px;
   box-shadow:
@@ -1520,7 +1520,7 @@ body.bento-design .ds-note strong { font-weight: 800; color: inherit; }
 body.bento-design .drawer-confidence-line {
   padding: 22px 24px;
   border-radius: 22px;
-  background: #FFFFFF;
+  background: #FEFCF6;
   border: 1px solid #E5DFD2;
   box-shadow:
     0 1px 2px rgba(11, 36, 71, 0.025),
@@ -1597,7 +1597,7 @@ body.bento-design .drawer-flag-row .dot {
 /* Context section cards — bento, soft border, ambient shadow */
 body.bento-design .ctx-section {
   margin-bottom: 14px;
-  background: #FFFFFF;
+  background: #FEFCF6;
   border: 1px solid #E5DFD2;
   border-radius: 22px;
   box-shadow:
@@ -1669,7 +1669,7 @@ body.bento-design .ctx-timeline li::before {
   height: 11px;
   left: 4px;
   top: 5px;
-  border: 2px solid #FFFFFF;
+  border: 2px solid #FEFCF6;
   box-shadow: 0 0 0 1px #E5DFD2;
 }
 body.bento-design .ctx-timeline li.is-done::before {
@@ -1770,7 +1770,7 @@ body.bento-design .key-hint {
   display: inline-block;
   padding: 2px 8px;
   border-radius: 6px;
-  background: #FFFFFF;
+  background: #FEFCF6;
   border: 1px solid #E5DFD2;
   color: #7B8190;
   font-size: 10px;
@@ -1852,7 +1852,7 @@ body.bento-design .btn.btn--verify:active {
 }
 /* Exclude — outlined gray pill, coral on hover */
 body.bento-design .btn.btn--exclude {
-  background: #FFFFFF;
+  background: #FEFCF6;
   border: 1px solid #E5DFD2;
   color: #7B8190;
   padding: 12px 22px;
@@ -1872,7 +1872,7 @@ body.bento-design .btn.btn--exclude:focus-visible {
    (gold reads as "pending / review" in the Sunwave system).
    No more light-blue fill competing with the green primary. */
 body.bento-design .btn.btn--defer {
-  background: #FFFFFF;
+  background: #FEFCF6;
   border: 1px solid #E5DFD2;
   color: #4A5169;
   padding: 12px 22px;
@@ -1902,7 +1902,7 @@ body.bento-design .drawer-shortcut-hint kbd {
   border: 1px solid #E5DFD2;
   border-bottom-width: 1px;
   border-radius: 6px;
-  background: #FFFFFF;
+  background: #FEFCF6;
   color: #7B8190;
   font-size: 10px;
   font-weight: 700;
@@ -1936,7 +1936,7 @@ body.bento-design .drawer-issue-card {
   margin-top: 12px;
   padding: 14px 16px;
   border-radius: 16px;
-  background: #FFFFFF;
+  background: #FEFCF6;
   border: 1px solid #E5DFD2;
 }
 body.bento-design .drawer-issue-type {
@@ -2024,7 +2024,7 @@ body.bento-design .gate input {
 }
 body.bento-design .gate input:focus {
   outline: none;
-  background: #FFFFFF;
+  background: #FEFCF6;
   border-color: #F38A3F;
   box-shadow: 0 0 0 4px rgba(243, 138, 63, 0.16);
 }
@@ -2135,7 +2135,7 @@ body.bento-design .job-date        { color: #7B8190; }
 /* Quick-action button on the row (the checkbox-style "Mark done") */
 body.bento-design .job-quick {
   border: 1px solid #E5DFD2;
-  background: #FFFFFF;
+  background: #FEFCF6;
   color: #373B4D;
   border-radius: 999px;
   font-weight: 700;
@@ -2226,14 +2226,14 @@ body.bento-design .assign-row input:focus,
 body.bento-design .assign-row select:focus {
   outline: none;
   border-color: #F38A3F;
-  background: #FFFFFF;
+  background: #FEFCF6;
   box-shadow: 0 0 0 4px rgba(243, 138, 63, 0.16);
 }
 
 /* Assignment row remove button */
 body.bento-design .assign-row .remove {
   border: 1px solid #E5DFD2;
-  background: #FFFFFF;
+  background: #FEFCF6;
   color: #D65F4F;
   border-radius: 999px;
   width: 34px;
@@ -2308,7 +2308,7 @@ body.bento-design .btn {
   font-size: 13px;
   font-weight: 700;
   border: 1px solid #E5DFD2;
-  background: #FFFFFF;
+  background: #FEFCF6;
   color: #373B4D;
   border-radius: 999px;
   cursor: pointer;
@@ -2419,7 +2419,7 @@ body.bento-design .confirm-btn {
   transition: background 160ms, filter 160ms, transform 160ms, border-color 160ms, box-shadow 160ms;
 }
 body.bento-design .confirm-btn--cancel {
-  background: #FFFFFF;
+  background: #FEFCF6;
   color: #7B8190;
   border-color: #E5DFD2;
 }
@@ -2544,14 +2544,14 @@ body.bento-design .controls input[type="text"] {
 body.bento-design .controls select:focus,
 body.bento-design .controls input[type="text"]:focus {
   border-color: #F38A3F;
-  background: #FFFFFF;
+  background: #FEFCF6;
   outline: none;
   box-shadow: 0 0 0 4px rgba(243, 138, 63, 0.16);
 }
 body.bento-design .controls button {
   border-radius: 999px;
   border: 1px solid #E5DFD2;
-  background: #FFFFFF;
+  background: #FEFCF6;
   color: #373B4D;
   padding: 10px 18px;
   font-weight: 700;
@@ -2979,7 +2979,7 @@ body.bento-design .job-skeleton:nth-child(6) .sk { animation-delay: 600ms; }
 /* Admin freshness button (last-refresh chip) */
 body.bento-design .admin-freshness button {
   border: 1px solid #E5DFD2;
-  background: #FFFFFF;
+  background: #FEFCF6;
   color: #7B8190;
   border-radius: 999px;
   padding: 6px 14px;
