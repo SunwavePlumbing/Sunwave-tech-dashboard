@@ -1917,7 +1917,11 @@ const isoDate = (iso) => iso ? String(iso).slice(0, 10) : '';
 let PASSWORD = sessionStorage.getItem('kpi-admin-pw') || '';
 let CURRENT_RANGE = localStorage.getItem('kpi-admin-range') || 'mtd';
 let ACTIVE_PANEL = 'reconcile';
-const ADMIN_CACHE_TTL_MS = 5 * 60 * 1000;
+// Dropped from 5 min → 60 s so HCP-side changes (customer payment,
+// invoice status flip, tech reassignment) flow through to the admin
+// queue quickly. The server-side metrics cache (2 min, stale-while-
+// revalidate) does the real protection against API hammering.
+const ADMIN_CACHE_TTL_MS = 60 * 1000;
 const KPI_RANGES = [
   { label: 'Month to Date', key: 'mtd' },
   { label: 'Today', key: 'day' },
@@ -3111,7 +3115,8 @@ async function renderEditPanel(key) {
         </div>
         <div class="field">
           <label class="edit-label edit-label--field">Outstanding ($)</label>
-          <input type="number" step="0.01" min="0" data-field="outstandingBalance" data-key="${esc(key)}" placeholder="leave blank to use HCP" value="${j.edit.outstandingBalance != null ? Number(j.edit.outstandingBalance).toFixed(2) : ''}">
+          <input type="number" step="0.01" min="0" data-field="outstandingBalance" data-key="${esc(key)}" placeholder="leave blank — follows HCP" value="${j.edit.outstandingBalance != null ? Number(j.edit.outstandingBalance).toFixed(2) : ''}">
+          <span class="edit-field-hint">Use $0 if paid in cash. HCP still wins if it shows less.</span>
         </div>
         <div class="field">
           <label class="edit-label edit-label--field">Work date</label>

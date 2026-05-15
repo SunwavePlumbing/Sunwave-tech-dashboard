@@ -1721,14 +1721,27 @@ app.get('/api/metrics', async (req, res) => {
           }
         }
         const customer = jobCustomerName(job);
-        // Admin-marked-as-paid forces the outstanding to zero; otherwise
-        // we use HCP's outstanding_balance directly. This is the escape
-        // hatch for jobs that have been paid in cash/elsewhere and not
-        // yet synced through HCP — admin can mark them paid via the
-        // reconciliation editor and the unpaid column updates.
+        // Outstanding resolution:
+        //   • Admin override (recon.outstandingBalance) lets the admin
+        //     reduce HCP's value — typically for jobs paid in
+        //     cash/check that HCP hasn't been told about. It can ONLY
+        //     reduce. If HCP later shows a smaller outstanding
+        //     (customer paid in HCP after admin verified), HCP's value
+        //     wins automatically. This was the source of the "verified
+        //     job stays unpaid after customer pays" bug — admin
+        //     override used to hide HCP's updates.
+        //   • recon.markedPaid is the legacy boolean form of the same
+        //     escape hatch and forces 0.
+        //   • Otherwise, HCP's live outstanding_balance.
+        const hcpOutstanding = Math.max(0, parseFloat(job.outstanding_balance || 0) / 100);
+        const adminOverride = recon.outstandingBalance != null
+          ? Math.max(0, Number(recon.outstandingBalance))
+          : null;
         const jobOutstandingGross = recon.markedPaid
           ? 0
-          : Math.max(0, parseFloat(job.outstanding_balance || 0) / 100);
+          : (adminOverride != null
+              ? Math.min(adminOverride, hcpOutstanding)
+              : hcpOutstanding);
         const allInvolvedNames = recon.assignments.map(a => a.employeeName).filter(Boolean);
         const totalPct = recon.assignments.reduce((s, a) => s + (Number(a.creditPct) || 0), 0) || 100;
 

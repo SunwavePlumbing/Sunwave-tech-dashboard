@@ -3089,6 +3089,14 @@ body.bento-design .drawer-editor-section .edit-label--field {
   letter-spacing: 0.14em;
   margin-bottom: 6px;
 }
+body.bento-design .drawer-editor-section .edit-field-hint {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: #9BA1AE;
+  margin-top: 4px;
+  letter-spacing: 0;
+}
 body.bento-design .drawer-editor-section .edit-hint {
   font-size: 12.5px;
   color: #7B8190;
