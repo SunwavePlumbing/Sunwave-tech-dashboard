@@ -1,0 +1,596 @@
+/* ─────────────────────────────────────────────────────────────────
+   tech-bento.css — Bento-Box Soft Minimalism overlay for the
+   technician-facing Sunwave KPI dashboard.
+
+   Everything in this file is scoped under `body.tech-bento` so the
+   entire pass can be reverted by removing that class from
+   <body class="paper-mode tech-bento"> in index.html.
+
+   The Sunwave palette tokens live at the top so they're easy to
+   tune. Mobile-first: defaults target the small phone the techs
+   actually use; min-width media queries lift the desktop layout.
+   ───────────────────────────────────────────────────────────────── */
+
+body.tech-bento {
+  --bx-canvas:   #F8F5EF;   /* page background — warm off-white */
+  --bx-card:     #FCFAF6;   /* elevated card surface */
+  --bx-card-hi:  #FFFDF9;   /* small highlight surface (rare) */
+  --bx-inset:    #F3EFE7;   /* inactive pills, inset chips, soft fills */
+  --bx-border:   #E5DED3;   /* card outlines, row dividers */
+  --bx-shadow:   rgba(55, 59, 77, 0.08);
+
+  --bx-ink:      #373B4D;   /* primary text — navy-charcoal */
+  --bx-ink-hero: #0B2447;   /* hero numbers, biggest emphasis */
+  --bx-ink-mute: #7B8190;   /* timestamps, helper text, subtitles */
+  --bx-ink-soft: #5A6172;   /* secondary body text */
+
+  --bx-brand:        #F38A3F;  /* Sunwave orange — accents only */
+  --bx-brand-pale:   rgba(243, 138, 63, 0.10);
+  --bx-brand-strong: #DA7A36;
+
+  --bx-good:   #4BAA78;
+  --bx-good-pale: rgba(75, 170, 120, 0.13);
+  --bx-bad:    #D65F4F;
+  --bx-bad-pale:  #FCEBE7;
+  --bx-warn:   #D39A2E;
+  --bx-warn-pale: rgba(211, 154, 46, 0.13);
+  --bx-info:   #BFE0F3;
+  --bx-info-pale: rgba(191, 224, 243, 0.40);
+}
+
+/* ── Canvas + global typography ───────────────────────────────── */
+body.tech-bento {
+  background: var(--bx-canvas);
+  color: var(--bx-ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+/* Suppress the risograph noise overlay from paper-mode — Bento wants
+   a clean canvas, not a grainy paper texture. */
+body.tech-bento.paper-mode::before { display: none; }
+
+body.tech-bento .main-wrapper { background: transparent; }
+body.tech-bento .content { padding: 16px 14px 60px; max-width: 1180px; margin: 0 auto; }
+
+/* ── Header (logo + location) ─────────────────────────────────── */
+body.tech-bento .header {
+  background: var(--bx-canvas);
+  border-bottom: 0;
+  padding: 18px 16px 10px;
+  text-align: center;
+}
+body.tech-bento .header-eyebrow {
+  display: inline-block;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--bx-ink-mute);
+  padding: 4px 12px;
+  background: var(--bx-inset);
+  border-radius: 999px;
+  margin-bottom: 10px;
+}
+body.tech-bento .header-main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+body.tech-bento .header-logo { width: 44px; height: 44px; }
+body.tech-bento .header-main h1,
+body.tech-bento .header h1 {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.012em;
+  color: var(--bx-ink-hero);
+  margin: 0;
+  line-height: 1.1;
+}
+body.tech-bento .header-sub { margin-top: 6px; }
+body.tech-bento .header-location {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--bx-ink-mute);
+  letter-spacing: 0;
+}
+
+/* ── Tab switcher (Technicians / Marketing / Location Leaders) ── */
+body.tech-bento .tab-nav {
+  display: flex;
+  gap: 4px;
+  width: 100%;
+  margin: 14px 0 18px;
+  padding: 5px;
+  background: var(--bx-inset);
+  border: 1px solid var(--bx-border);
+  border-radius: 999px;
+  position: relative;
+}
+body.tech-bento .tab-btn {
+  flex: 1 1 0;
+  padding: 9px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  color: var(--bx-ink-mute);
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+  position: relative;
+  z-index: 1;
+  transition: color 0.18s ease;
+}
+body.tech-bento .tab-btn.is-active,
+body.tech-bento .tab-btn.active { color: var(--bx-card); }
+body.tech-bento .tab-indicator {
+  background: var(--bx-brand);
+  border-radius: 999px;
+  box-shadow: 0 1px 2px rgba(243, 138, 63, 0.18),
+              0 6px 18px rgba(243, 138, 63, 0.22);
+}
+
+/* ── Date range sidebar ───────────────────────────────────────── */
+body.tech-bento .sidebar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+  justify-content: center;
+}
+body.tech-bento .date-btn {
+  padding: 8px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0;
+  background: var(--bx-card);
+  border: 1px solid var(--bx-border);
+  color: var(--bx-ink-soft);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+  box-shadow: 0 1px 2px rgba(55, 59, 77, 0.03);
+}
+body.tech-bento .date-btn:hover {
+  background: var(--bx-brand-pale);
+  border-color: rgba(243, 138, 63, 0.36);
+  color: var(--bx-brand-strong);
+}
+body.tech-bento .date-btn.active {
+  background: var(--bx-brand);
+  color: #FFFFFF;
+  border-color: var(--bx-brand);
+  box-shadow: 0 1px 2px rgba(243, 138, 63, 0.20),
+              0 6px 14px rgba(243, 138, 63, 0.20);
+}
+
+/* ── Hero stat cards (3-up) ───────────────────────────────────── */
+body.tech-bento .stats {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+body.tech-bento .stat-card {
+  position: relative;
+  background: var(--bx-card);
+  border: 1px solid var(--bx-border);
+  border-radius: 22px;
+  padding: 18px 20px 20px;
+  box-shadow: 0 1px 2px var(--bx-shadow), 0 12px 30px rgba(55, 59, 77, 0.04);
+  text-align: left;
+  overflow: hidden;
+  isolation: isolate;
+}
+body.tech-bento .stat-card::before {
+  /* Subtle warm wash blooming from top-right corner — gives the
+     card light "shape" without a solid color block. */
+  content: "";
+  position: absolute;
+  top: 0; right: 0;
+  width: 64%; height: 78%;
+  background: radial-gradient(ellipse at top right,
+    rgba(243, 138, 63, 0.06) 0%,
+    rgba(243, 138, 63, 0) 70%);
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+}
+body.tech-bento .stat-card > * { position: relative; z-index: 1; }
+body.tech-bento .stat-label {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--bx-ink-mute);
+  margin-bottom: 10px;
+}
+body.tech-bento .stat-value {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.022em;
+  color: var(--bx-ink-hero);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+/* The first stat ("Total Value Created") is the hero — orange accent. */
+body.tech-bento .stats .stat-card:first-child .stat-value { color: var(--bx-ink-hero); }
+body.tech-bento .stats .stat-card:first-child::before {
+  width: 70%;
+  background: radial-gradient(ellipse at top right,
+    rgba(243, 138, 63, 0.14) 0%,
+    rgba(243, 138, 63, 0) 65%);
+}
+body.tech-bento .stats .stat-card:first-child::after {
+  /* Thin orange underline under the hero number — replaces the
+     old text-decoration underline from the legacy stylesheet. */
+  content: "";
+  position: absolute;
+  left: 20px;
+  bottom: 14px;
+  width: 30px; height: 3px;
+  background: var(--bx-brand);
+  border-radius: 99px;
+  z-index: 1;
+}
+
+/* ── Greeting bar ─────────────────────────────────────────────── */
+body.tech-bento .greeting-bar {
+  background: var(--bx-card);
+  border: 1px solid var(--bx-border);
+  border-radius: 22px;
+  padding: 22px 22px 24px;
+  margin-bottom: 18px;
+  text-align: center;
+  box-shadow: 0 1px 2px var(--bx-shadow), 0 12px 30px rgba(55, 59, 77, 0.04);
+}
+body.tech-bento .greeting-headline {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.014em;
+  color: var(--bx-ink-hero);
+  line-height: 1.2;
+}
+body.tech-bento .greeting-subline {
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--bx-ink-mute);
+}
+
+/* ── Leaderboard table ────────────────────────────────────────── */
+body.tech-bento .table-wrapper {
+  background: var(--bx-card);
+  border: 1px solid var(--bx-border);
+  border-radius: 22px;
+  padding: 6px 4px 4px;
+  box-shadow: 0 1px 2px var(--bx-shadow), 0 16px 36px rgba(55, 59, 77, 0.05);
+  overflow: hidden;
+  animation: none;
+}
+body.tech-bento .table-wrapper.is-loading { animation: none; }
+body.tech-bento table { border-spacing: 0; }
+body.tech-bento thead th {
+  background: transparent;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  color: var(--bx-ink-mute);
+  text-transform: uppercase;
+  padding: 14px 10px 10px;
+  border-bottom: 1px solid var(--bx-border);
+}
+body.tech-bento .sort-th { color: inherit; }
+body.tech-bento .sort-th:hover,
+body.tech-bento .sort-th.is-active { color: var(--bx-brand); }
+body.tech-bento tbody tr {
+  background: transparent;
+  border-bottom: 1px solid var(--bx-border);
+  transition: background 0.14s ease;
+}
+body.tech-bento tbody tr:last-child { border-bottom: 0; }
+body.tech-bento tbody tr:hover {
+  background: rgba(243, 138, 63, 0.04);
+}
+body.tech-bento tbody td {
+  padding: 14px 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--bx-ink);
+  border-bottom: 0;
+  vertical-align: middle;
+}
+body.tech-bento tbody td:not(:first-child) { text-align: right; }
+body.tech-bento .row-count {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--bx-ink-hero);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.005em;
+}
+body.tech-bento .row-count.is-winner { color: var(--bx-brand-strong); }
+
+/* Tech name cell — avatar + bold name */
+body.tech-bento .tech-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+body.tech-bento .avatar {
+  width: 36px; height: 36px;
+  border-radius: 999px;
+  border: 1.5px solid var(--bx-card);
+  box-shadow: 0 0 0 1px var(--bx-border), 0 2px 6px rgba(55, 59, 77, 0.06);
+  flex: 0 0 auto;
+}
+body.tech-bento .tech-name {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--bx-ink-hero);
+  letter-spacing: -0.005em;
+}
+
+/* Role badge + unpaid pill */
+body.tech-bento .role-badge {
+  display: inline-block;
+  padding: 3px 9px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+body.tech-bento .role-badge[data-role="sold"] {
+  background: var(--bx-good-pale);
+  color: #2E7A52;
+}
+body.tech-bento .role-badge[data-role="did"] {
+  background: var(--bx-info-pale);
+  color: #2A5F84;
+}
+body.tech-bento .role-badge[data-role="both"],
+body.tech-bento .role-badge[data-role="sold-did"] {
+  background: var(--bx-brand-pale);
+  color: var(--bx-brand-strong);
+}
+body.tech-bento .job-unpaid-note {
+  display: inline-block;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 800;
+  background: var(--bx-bad-pale);
+  color: var(--bx-bad);
+  border-radius: 999px;
+  letter-spacing: 0;
+}
+
+/* Unpaid cell tone */
+body.tech-bento tbody td.unpaid-cell .row-count { color: var(--bx-bad); }
+body.tech-bento tbody td.unpaid-cell.unpaid-zero .row-count {
+  color: var(--bx-ink-mute);
+  opacity: 0.55;
+  font-weight: 700;
+}
+
+/* ── Data-warning banners ─────────────────────────────────────── */
+body.tech-bento .data-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: var(--bx-warn-pale);
+  border: 1px solid rgba(211, 154, 46, 0.30);
+  border-radius: 18px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  font-size: 13px;
+  color: var(--bx-ink-soft);
+}
+body.tech-bento .data-warning--orphans {
+  background: var(--bx-bad-pale);
+  border-color: rgba(214, 95, 79, 0.28);
+}
+body.tech-bento .data-warning-ico {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 22px; height: 22px;
+  background: var(--bx-warn);
+  color: #FFFFFF;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 12px;
+}
+body.tech-bento .data-warning--orphans .data-warning-ico { background: var(--bx-bad); }
+body.tech-bento .data-warning-text {
+  font-weight: 600;
+  line-height: 1.45;
+}
+body.tech-bento .data-warning-link {
+  font-weight: 800;
+  color: var(--bx-brand);
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ── Report-it CTA + recon badge ──────────────────────────────── */
+body.tech-bento .tech-report-cta {
+  margin: 18px 0 12px;
+  text-align: center;
+}
+body.tech-bento .tech-report-cta-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: var(--bx-card);
+  border: 1px solid var(--bx-border);
+  border-radius: 999px;
+  color: var(--bx-ink);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 1px 2px rgba(55, 59, 77, 0.04);
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+body.tech-bento .tech-report-cta-link:hover {
+  background: var(--bx-brand-pale);
+  border-color: rgba(243, 138, 63, 0.45);
+  color: var(--bx-brand-strong);
+}
+body.tech-bento .tech-report-cta-sub {
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--bx-ink-mute);
+}
+body.tech-bento .recon-badge {
+  display: inline-block;
+  padding: 6px 14px;
+  background: var(--bx-good-pale);
+  color: #2E7A52;
+  border: 1px solid rgba(75, 170, 120, 0.30);
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  margin: 8px auto;
+  text-align: center;
+}
+
+/* ── Skeleton loaders — keep functional, retint to warm ───────── */
+body.tech-bento .stat-card .skel-line,
+body.tech-bento tbody .skel-line {
+  background: linear-gradient(90deg,
+    var(--bx-inset) 0%,
+    rgba(243, 138, 63, 0.08) 50%,
+    var(--bx-inset) 100%) !important;
+  background-size: 200% 100% !important;
+  border-radius: 6px;
+}
+body.tech-bento .spinner {
+  border-color: var(--bx-inset);
+  border-top-color: var(--bx-brand);
+}
+
+/* ── Sort header short labels — mobile readability ────────────── */
+body.tech-bento .sort-th-short { display: none; }
+body.tech-bento .sort-th-full { display: inline; }
+
+/* ─────────────────────────────────────────────────────────────────
+   Desktop refinements (≥760px)
+   ───────────────────────────────────────────────────────────────── */
+@media (min-width: 760px) {
+  body.tech-bento .content { padding: 24px 24px 80px; }
+  body.tech-bento .header { padding: 28px 24px 14px; }
+  body.tech-bento .header-logo { width: 56px; height: 56px; }
+  body.tech-bento .header-main h1,
+  body.tech-bento .header h1 { font-size: 30px; }
+
+  body.tech-bento .tab-nav { max-width: 520px; margin: 18px auto 24px; }
+
+  body.tech-bento .stats {
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 14px;
+  }
+  body.tech-bento .stat-card { padding: 22px 24px 24px; }
+  body.tech-bento .stat-value { font-size: 38px; }
+
+  body.tech-bento .greeting-bar {
+    padding: 28px 26px 30px;
+    margin-bottom: 22px;
+  }
+  body.tech-bento .greeting-headline { font-size: 26px; }
+
+  body.tech-bento .table-wrapper { padding: 8px; }
+  body.tech-bento thead th { padding: 16px 18px 12px; font-size: 10.5px; }
+  body.tech-bento tbody td { padding: 16px 18px; font-size: 15px; }
+  body.tech-bento .row-count { font-size: 16.5px; }
+  body.tech-bento .tech-name { font-size: 15px; }
+  body.tech-bento .avatar { width: 40px; height: 40px; }
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Phone refinements (≤480px) — the screen most techs actually use
+   ───────────────────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  body.tech-bento .content { padding: 12px 10px 60px; }
+  body.tech-bento .header { padding: 14px 12px 6px; }
+  body.tech-bento .header-logo { width: 38px; height: 38px; }
+  body.tech-bento .header-main h1,
+  body.tech-bento .header h1 { font-size: 22px; }
+
+  body.tech-bento .tab-nav { gap: 2px; padding: 4px; }
+  body.tech-bento .tab-btn { padding: 8px 6px; font-size: 12px; }
+
+  body.tech-bento .sidebar { gap: 5px; }
+  body.tech-bento .date-btn { padding: 7px 11px; font-size: 11.5px; }
+
+  body.tech-bento .stats { gap: 8px; }
+  body.tech-bento .stat-card { padding: 14px 14px 16px; border-radius: 18px; }
+  body.tech-bento .stat-label { font-size: 9.5px; margin-bottom: 6px; }
+  body.tech-bento .stat-value { font-size: 22px; letter-spacing: -0.018em; }
+  body.tech-bento .stats .stat-card:first-child::after {
+    left: 14px; bottom: 10px; width: 22px;
+  }
+
+  body.tech-bento .greeting-bar { padding: 16px 14px 18px; border-radius: 18px; }
+  body.tech-bento .greeting-headline { font-size: 17px; line-height: 1.25; }
+  body.tech-bento .greeting-subline { font-size: 10px; }
+
+  body.tech-bento .table-wrapper { border-radius: 18px; padding: 2px; }
+  body.tech-bento thead th {
+    padding: 11px 6px 9px;
+    font-size: 9.5px;
+    letter-spacing: 0.14em;
+  }
+  body.tech-bento tbody td {
+    padding: 12px 6px;
+    font-size: 13px;
+  }
+  body.tech-bento tbody td:first-child { padding-left: 10px; }
+  body.tech-bento tbody td:last-child { padding-right: 10px; }
+  body.tech-bento .row-count { font-size: 14px; }
+  body.tech-bento .tech-name { font-size: 13.5px; }
+  body.tech-bento .tech-cell { gap: 9px; }
+  body.tech-bento .avatar {
+    width: 32px; height: 32px;
+    border-width: 1.5px;
+  }
+
+  /* On phone we hide the long header labels in favor of the short
+     versions ("Value", "Avg", "Jobs") that already exist in markup. */
+  body.tech-bento .sort-th-full { display: none; }
+  body.tech-bento .sort-th-short { display: inline; }
+
+  body.tech-bento .tech-report-cta-link {
+    padding: 9px 14px;
+    font-size: 12px;
+  }
+}
+
+/* ── Reduced motion: keep entrance animations off ─────────────── */
+@media (prefers-reduced-motion: reduce) {
+  body.tech-bento .tab-indicator,
+  body.tech-bento .date-btn,
+  body.tech-bento tbody tr,
+  body.tech-bento .stat-card,
+  body.tech-bento .greeting-bar,
+  body.tech-bento .table-wrapper {
+    transition: none !important;
+    animation: none !important;
+  }
+}
