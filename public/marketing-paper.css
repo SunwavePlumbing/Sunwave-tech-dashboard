@@ -7,7 +7,7 @@
 
    Brand palette (per user spec):
      #F38A3F  Orange   — hero / strong CTAs
-     #E88140  Orange-soft (off-color) — buttons, pills, bar fills
+     #F38A3F  Orange-soft (off-color) — buttons, pills, bar fills
      #373B4D  Black/Ink — text, titles, totals
      #BFE0F3  Light Blue — sparse accent
      #F1F3F5  (not used — too cold for paper texture)
@@ -31,9 +31,9 @@ body.paper-mode {
 
   /* Brand */
   --brand-orange:       #F38A3F;   /* full-vibrant hero */
-  --brand-orange-soft:  #E88140;   /* off-color: slightly muted/deeper — everyday UI */
-  --brand-orange-pale:  rgba(232, 129, 64, 0.12);
-  --brand-orange-tint:  rgba(232, 129, 64, 0.08);
+  --brand-orange-soft:  #F38A3F;   /* off-color: slightly muted/deeper — everyday UI */
+  --brand-orange-pale:  rgba(243, 138, 63, 0.12);
+  --brand-orange-tint:  rgba(243, 138, 63, 0.08);
 
   --brand-ink:          #373B4D;   /* titles, body, totals — brand black */
   --brand-ink-soft:     #4A4E5F;   /* slightly lighter variant */
@@ -353,7 +353,7 @@ body.paper-mode .footer {
 body.paper-mode .date-btn.active {
   background: var(--brand-orange-soft);
   color: #fff;
-  box-shadow: 0 2px 6px rgba(232, 129, 64, 0.28);
+  box-shadow: 0 2px 6px rgba(243, 138, 63, 0.28);
 }
 /* Bottom-sheet selected item */
 body.paper-mode .date-bs-item.active {
@@ -2417,7 +2417,7 @@ body.paper-mode .ufs-seg {
   user-select: none;
 }
 body.paper-mode .ufs-seg--cogs   { background: #FF5B5B; }
-body.paper-mode .ufs-seg--ovhd   { background: #FF8A1F; }
+body.paper-mode .ufs-seg--ovhd   { background: #F38A3F; }
 body.paper-mode .ufs-seg--profit { background: #2ECC71; }
 /* With overflow:visible on the bar (so segments can drop-slam on
    load), each segment needs to carry its own corner radius. First
@@ -2498,7 +2498,7 @@ body.paper-mode .ufs-seg.is-active::after {
   filter: drop-shadow(0 1px 0.5px rgba(44, 42, 40, 0.18));
 }
 body.paper-mode .ufs-seg--cogs.is-active::after   { border-top-color: #FF5B5B; }
-body.paper-mode .ufs-seg--ovhd.is-active::after   { border-top-color: #FF8A1F; }
+body.paper-mode .ufs-seg--ovhd.is-active::after   { border-top-color: #F38A3F; }
 body.paper-mode .ufs-seg--profit.is-active::after { border-top-color: #2ECC71; }
 @keyframes ufsCaretGrow {
   from { transform: translateX(-50%) scaleY(0); opacity: 0; }
@@ -2665,13 +2665,13 @@ body.paper-mode .ufs-card.is-active--cogs   .ufs-zoom--cogs::before {
   filter: drop-shadow(0 1px 2px rgba(255, 91, 91, 0.35));
 }
 body.paper-mode .ufs-card.is-active--ovhd   .ufs-zoom--ovhd {
-  border-color: rgba(255, 138, 31, 0.45);
-  box-shadow: 0 4px 14px rgba(255, 138, 31, 0.16),
-              0 1px 3px  rgba(255, 138, 31, 0.11);
+  border-color: rgba(243, 138, 63, 0.45);
+  box-shadow: 0 4px 14px rgba(243, 138, 63, 0.16),
+              0 1px 3px  rgba(243, 138, 63, 0.11);
 }
 body.paper-mode .ufs-card.is-active--ovhd   .ufs-zoom--ovhd::before {
-  background-color: #FF8A1F;
-  filter: drop-shadow(0 1px 2px rgba(255, 138, 31, 0.38));
+  background-color: #F38A3F;
+  filter: drop-shadow(0 1px 2px rgba(243, 138, 63, 0.38));
 }
 body.paper-mode .ufs-card.is-active--profit .ufs-zoom--profit {
   border-color: rgba(46, 204, 113, 0.45);
@@ -2819,7 +2819,7 @@ body.paper-mode .edu-toggle-btn.is-open {
 body.paper-mode .edu-toggle-icon {
   font-size: 14px;
   font-weight: 800;
-  color: var(--brand-orange-soft, #E88140);
+  color: var(--brand-orange-soft, #F38A3F);
   line-height: 1;
   position: relative;
   top: 1px;
@@ -2945,7 +2945,7 @@ body.paper-mode .edu-tab.is-active::after {
   right: 12px;
   bottom: 6px;
   height: 2px;
-  background: var(--brand-orange-soft, #E88140);
+  background: var(--brand-orange-soft, #F38A3F);
   border-radius: 1px;
 }
 
@@ -3047,7 +3047,7 @@ body.paper-mode .edu-slider::-webkit-slider-thumb {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: var(--brand-orange-soft, #E88140);
+  background: var(--brand-orange-soft, #F38A3F);
   border: 2px solid #FFFFFF;
   box-shadow: 0 1px 3px rgba(44, 42, 40, 0.22);
   cursor: grab;
@@ -3057,7 +3057,7 @@ body.paper-mode .edu-slider::-moz-range-thumb {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: var(--brand-orange-soft, #E88140);
+  background: var(--brand-orange-soft, #F38A3F);
   border: 2px solid #FFFFFF;
   box-shadow: 0 1px 3px rgba(44, 42, 40, 0.22);
   cursor: grab;
@@ -3221,7 +3221,7 @@ body.paper-mode .edu-seg-sub {
   opacity: 0.85;
 }
 body.paper-mode .edu-seg--cogs   { background: #FF5B5B; }
-body.paper-mode .edu-seg--ovhd   { background: #FF8A1F; }
+body.paper-mode .edu-seg--ovhd   { background: #F38A3F; }
 body.paper-mode .edu-seg--profit { background: #2ECC71; }
 /* Negative profit — paint red so the visual matches the math.
    Green + minus-sign reads as contradictory; red + minus reads as

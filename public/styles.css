@@ -30,7 +30,7 @@ body {
   font-weight: 700;
   letter-spacing: 2.2px;
   text-transform: uppercase;
-  color: #FF8A1F;
+  color: #F38A3F;
   margin-bottom: 3px;
 }
 .header-main {
@@ -125,7 +125,7 @@ body {
 }
 .date-btn { display: inline-flex; width: auto; padding: 7px 13px; font-size: 13px; border: 1px solid #e8e8e8; background: white; color: #666; cursor: pointer; border-radius: 20px; white-space: nowrap; font-weight: 500; transition: all 0.15s; }
 .date-btn:hover { background: #f0f0f0; border-color: #d0d0d0; }
-.date-btn.active { background: #FF8A1F; color: white; font-weight: 600; border-color: #FF8A1F; }
+.date-btn.active { background: #F38A3F; color: white; font-weight: 600; border-color: #F38A3F; }
 
 /* min-width: 0 is critical — without it, a grid cell won't shrink
    below its content's intrinsic width, causing horizontal overflow */
@@ -141,7 +141,7 @@ body {
    thickness scales down on mobile so it stays proportional. */
 .stats .stat-card:first-child .stat-value {
   text-decoration: underline;
-  text-decoration-color: #E88140;
+  text-decoration-color: #F38A3F;
   text-decoration-thickness: 3px;
   text-underline-offset: 6px;
 }
@@ -152,7 +152,7 @@ body {
   }
 }
 .stat-label { font-size: 11px; color: #888; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 6px; }
-.stat-value { font-size: 26px; font-weight: 700; color: #FF8A1F; }
+.stat-value { font-size: 26px; font-weight: 700; color: #F38A3F; }
 
 .kpi-freshness {
   display: flex;
@@ -682,7 +682,7 @@ thead th:not(:first-child) .sort-th { justify-content: flex-end; }
 }
 .sort-th-short { display: none; }
 .sort-th:hover,
-.sort-th.is-active { color: #FF8A1F; }
+.sort-th.is-active { color: #F38A3F; }
 .sort-th::after {
   content: '';
   flex: 0 0 auto;
@@ -750,8 +750,8 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   font-size: 12px;
   font-weight: 600;
   color: #C9591F;
-  background: rgba(232, 129, 64, 0.10);
-  border: 1px solid rgba(232, 129, 64, 0.32);
+  background: rgba(243, 138, 63, 0.10);
+  border: 1px solid rgba(243, 138, 63, 0.32);
   border-radius: 100px;
   text-decoration: none;
   letter-spacing: 0.01em;
@@ -759,8 +759,8 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
   white-space: nowrap;
 }
 .modal-report-missing:hover {
-  background: rgba(232, 129, 64, 0.18);
-  border-color: rgba(232, 129, 64, 0.6);
+  background: rgba(243, 138, 63, 0.18);
+  border-color: rgba(243, 138, 63, 0.6);
   color: #8A3300;
 }
 .modal-report-missing svg { flex-shrink: 0; }
@@ -800,7 +800,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 }
 .report-flag:hover,
 .report-flag:focus-visible {
-  background: rgba(232, 129, 64, 0.10);
+  background: rgba(243, 138, 63, 0.10);
   color: inherit;
   text-decoration: none;
   outline: none;
@@ -831,8 +831,8 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 }
 .job-issue-link:hover,
 .job-issue-link:focus-visible {
-  background: rgba(232, 129, 64, 0.15);
-  border-color: rgba(232, 129, 64, 0.52);
+  background: rgba(243, 138, 63, 0.15);
+  border-color: rgba(243, 138, 63, 0.52);
   color: #C9591F;
   outline: none;
 }
@@ -866,7 +866,7 @@ tfoot td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nu
 .modal-table tbody td:nth-child(4), .modal-table tbody td:nth-child(5) { text-align: right; font-weight: 600; color: #333; font-variant-numeric: tabular-nums; }
 .modal-footer { padding: 1rem 1.4rem; border-top: 2px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
 .modal-footer-left { font-size: 13px; color: #888; }
-.modal-footer-right { font-size: 16px; font-weight: 700; color: #FF8A1F; }
+.modal-footer-right { font-size: 16px; font-weight: 700; color: #F38A3F; }
 .role-badge {
   display: inline-flex;
   align-items: center;
@@ -1278,7 +1278,7 @@ body.exp-modal-lock {
 .recon-badge--partial {
   background: #FFF1E8;
   color: #C9591F;
-  border-color: rgba(232, 129, 64, 0.32);
+  border-color: rgba(243, 138, 63, 0.32);
 }
 
 .tech-report-cta {
@@ -1307,10 +1307,10 @@ body.exp-modal-lock {
 }
 .tech-report-cta-link:hover {
   background: #FFFDF9;
-  border-color: rgba(232, 129, 64, 0.55);
-  color: #E88140;
+  border-color: rgba(243, 138, 63, 0.55);
+  color: #F38A3F;
   transform: translateY(-1px);
-  box-shadow: 0 1px 2px rgba(55, 59, 77, 0.04), 0 6px 18px rgba(232, 129, 64, 0.16);
+  box-shadow: 0 1px 2px rgba(55, 59, 77, 0.04), 0 6px 18px rgba(243, 138, 63, 0.16);
 }
 .tech-report-cta-link:active { transform: translateY(0); }
 .tech-report-cta-sub {
@@ -1403,11 +1403,11 @@ body.exp-modal-lock {
 }
 .date-bs-item:active { background: #f1f5f9; }
 .date-bs-item-check {
-  font-size: 18px; font-weight: 700; color: #FF8A1F;
+  font-size: 18px; font-weight: 700; color: #F38A3F;
   opacity: 0;
   transition: opacity 0.12s;
 }
-.date-bs-item.active { background: #fff8ed; color: #FF8A1F; font-weight: 700; }
+.date-bs-item.active { background: #fff8ed; color: #F38A3F; font-weight: 700; }
 .date-bs-item.active .date-bs-item-check { opacity: 1; }
 /* Lock background scroll while the sheet is open */
 body.date-bs-open { overflow: hidden; touch-action: none; }
@@ -1446,10 +1446,10 @@ body.date-bs-open { overflow: hidden; touch-action: none; }
   }
   .date-btn:active { transform: scale(0.97); }
   .date-btn.active {
-    border-color: #FF8A1F;
-    background: #FF8A1F;
+    border-color: #F38A3F;
+    background: #F38A3F;
     color: #ffffff;
-    box-shadow: 0 2px 8px rgba(255, 138, 31, 0.28);
+    box-shadow: 0 2px 8px rgba(243, 138, 63, 0.28);
   }
   /* "More" pill — terminal element in the scroll row */
   .date-more-btn .date-more-icon { opacity: 0.7; transition: opacity 0.15s; }
@@ -1580,9 +1580,9 @@ body.date-bs-open { overflow: hidden; touch-action: none; }
    sliding along the rail. */
 .tab-indicator {
   position: absolute;
-  background: #FF8A1F;
+  background: #F38A3F;
   border-radius: 999px;
-  box-shadow: 0 2px 12px rgba(255,138,31,0.38);
+  box-shadow: 0 2px 12px rgba(243, 138, 63,0.38);
   pointer-events: none;
   z-index: 0;
   /* No transition on first paint; JS adds 'tab-indicator-ready' to enable it */
@@ -1629,7 +1629,7 @@ body.date-bs-open { overflow: hidden; touch-action: none; }
 @media (min-width: 600px) { .proj-cards { grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 1.5rem; } }
 .proj-card { background: white; padding: 1rem; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); text-align: center; }
 .proj-card-label { font-size: 11px; color: #888; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 6px; }
-.proj-card-value { font-size: 30px; font-weight: 700; color: #FF8A1F; line-height: 1.1; }
+.proj-card-value { font-size: 30px; font-weight: 700; color: #F38A3F; line-height: 1.1; }
 @media (min-width: 600px) { .proj-card-value { font-size: 26px; } }
 .proj-card-sub { font-size: 11px; color: #bbb; margin-top: 4px; }
 
@@ -1637,7 +1637,7 @@ body.date-bs-open { overflow: hidden; touch-action: none; }
 .progress-wrap { background: white; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 1.1rem 1.2rem; margin-bottom: 1.5rem; }
 .progress-label-row { display: flex; justify-content: space-between; font-size: 12px; color: #888; margin-bottom: 8px; font-weight: 500; }
 .progress-bar-bg { background: #f0f0f0; border-radius: 8px; height: 10px; overflow: hidden; }
-.progress-bar-fill { height: 100%; background: linear-gradient(90deg, #FF8A1F, #FF6B35); border-radius: 8px; transition: width 0.5s ease; }
+.progress-bar-fill { height: 100%; background: linear-gradient(90deg, #F38A3F, #FF6B35); border-radius: 8px; transition: width 0.5s ease; }
 
 /* Section label above chart / table */
 .section-title { font-size: 12px; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem; }
@@ -1669,7 +1669,7 @@ body.date-bs-open { overflow: hidden; touch-action: none; }
   pointer-events: none;
 }
 .bar-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; flex: 1; min-width: 0; }
-.bar { width: 85%; background: #FF8A1F; border-radius: 4px 4px 0 0; min-height: 3px; }
+.bar { width: 85%; background: #F38A3F; border-radius: 4px 4px 0 0; min-height: 3px; }
 .bar.is-current { background: #FF6B35; }
 .bar-val { font-size: 9px; color: #555; font-weight: 600; margin-bottom: 2px; line-height: 1.1; text-align: center; }
 .bar-lbl { font-size: 9px; color: #bbb; margin-top: 5px; text-align: center; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; height: 14px; }
@@ -1772,7 +1772,7 @@ body.date-bs-open { overflow: hidden; touch-action: none; }
   letter-spacing: 0.2px;
 }
 .fin-period-tab:hover { color: #64748b; }
-.fin-period-tab.active { color: #1a2d3a; border-bottom-color: #FF8A1F; }
+.fin-period-tab.active { color: #1a2d3a; border-bottom-color: #F38A3F; }
 
 /* ── Dropdown popover (desktop) ────────────────────────────────── */
 .fin-month-grabber  { display: none; }          /* shown only on mobile */
@@ -1837,7 +1837,7 @@ body.date-bs-open { overflow: hidden; touch-action: none; }
 .fin-month-item:focus-visible { background: #f3f4f6; outline: none; }
 .fin-month-item:active { background: #e5e7eb; }
 .fin-month-item.active {
-  background: rgba(255, 138, 31, 0.08);   /* pale orange fill */
+  background: rgba(243, 138, 63, 0.08);   /* pale orange fill */
   color: #1a2d3a;                        /* keep text dark + bold */
   font-weight: 700;
 }
@@ -1846,7 +1846,7 @@ body.date-bs-open { overflow: hidden; touch-action: none; }
   position: absolute;
   left: 0; top: 0; bottom: 0;
   width: 4px;
-  background: #FF8A1F;
+  background: #F38A3F;
   border-radius: 0 2px 2px 0;
 }
 /* Preset items — label + muted sub-description */
@@ -3809,7 +3809,7 @@ body.date-bs-open { overflow: hidden; touch-action: none; }
   }
 
   button:focus-visible {
-    outline: 2px solid #FF8A1F;
+    outline: 2px solid #F38A3F;
     outline-offset: 2px;
   }
 
