@@ -129,7 +129,14 @@ body.paper-mode .date-bs-sheet {
    past the rounded edge */
 body.paper-mode .proj-card,
 body.paper-mode .progress-wrap { border-radius: 12px; overflow: hidden; }
-body.paper-mode .stat-card { border-radius: 12px; }
+/* Stat cards and the leaderboard wrapper get bigger squircle corners
+   per the design philosophy doc's spatial system ("border-radius of
+   24px to 32px… aggressively rounded… physical and approachable"). */
+body.paper-mode .stat-card {
+  border-radius: 20px;
+  padding: 1.3rem 1.2rem 1.4rem;
+}
+body.paper-mode .table-wrapper { border-radius: 22px; }
 
 /* Technicians leaderboard surface — keep on the same near-white
    --paper-card tone as the rest of paper-mode (modal, stat cards,

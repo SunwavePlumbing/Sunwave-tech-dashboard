@@ -9,7 +9,12 @@ body {
   overflow-x: hidden;
   max-width: 100vw;
   width: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  /* Inter — geometric sans-serif per the design philosophy doc.
+     System stack stays in the fallback chain so the page still renders
+     correctly before Inter loads (or if it fails to). Tabular numerics
+     are enabled by default since most of this dashboard is numbers. */
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-feature-settings: 'tnum' 1, 'cv11' 1, 'ss01' 1;
   background: #f5f5f5;
   color: #333;
 }
