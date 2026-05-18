@@ -729,7 +729,7 @@
        Search input gets a tighter min/max so it doesn't sprawl
        across the whole row; the tech filter takes the remaining
        1fr space alongside it. */
-    .stickybar-row--controls { grid-template-columns: minmax(160px, 210px) auto minmax(180px, 280px) minmax(170px, 1fr) auto; }
+    .stickybar-row--controls { grid-template-columns: minmax(150px, 190px) auto minmax(150px, 1fr) minmax(150px, 200px) minmax(150px, 200px) auto; }
     .stickybar-row--status { grid-template-columns: 1fr; padding: 4px 0 0; }
     .reload-icon-btn {
       width: 38px;
@@ -1747,6 +1747,12 @@
           <select id="techFilter" class="tech-filter" aria-label="Filter by technician" title="Filter rows by assigned or credited technician">
             <option value="">All techs</option>
           </select>
+          <select id="sortSel" class="sort-filter" aria-label="Sort jobs by" title="Sort the queue">
+            <option value="date-desc" selected>Date — newest first</option>
+            <option value="date-asc">Date — oldest first</option>
+            <option value="amount-desc">$ — largest first</option>
+            <option value="amount-asc">$ — smallest first</option>
+          </select>
           <button id="lookupBtn" title="Fetch a job that's not in the current period (paste job_xxx or invoice #)">Search</button>
         </div>
         <div class="stickybar-row stickybar-row--status">
@@ -2278,6 +2284,7 @@ function populateTechFilter() {
   }
   setupTechPicker();
   if (typeof window.refreshTechPicker === 'function') window.refreshTechPicker();
+  setupSortPicker();
   if (saved && techs.some(t => t.name === saved)) applyFilter();
 }
 
@@ -2402,6 +2409,117 @@ function setupTechPicker() {
     buildMenu();
     updateBtnLabel();
   };
+}
+
+// Sort the audit queue. Persisted across page loads via localStorage
+// so the admin's preferred order sticks. Default is date-desc which
+// puts the most recent work at the top of every section.
+let CURRENT_SORT = localStorage.getItem('kpi-admin-sort') || 'date-desc';
+
+// Wrap the native #sortSel select in the same .period-picker glassy
+// popup the period + tech filters use. Static options so this is
+// simpler than setupTechPicker — no rebuild step needed.
+function setupSortPicker() {
+  const sel = $('sortSel');
+  if (!sel || sel.dataset.pickerized === '1') return;
+  sel.dataset.pickerized = '1';
+
+  // Restore persisted sort BEFORE building the menu so the right
+  // option starts selected.
+  if (CURRENT_SORT && Array.from(sel.options).some(o => o.value === CURRENT_SORT)) {
+    sel.value = CURRENT_SORT;
+  }
+
+  const wrap = document.createElement('div');
+  wrap.className = 'period-picker sort-picker';
+  sel.parentNode.insertBefore(wrap, sel);
+  wrap.appendChild(sel);
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'period-picker-btn';
+  btn.setAttribute('aria-haspopup', 'listbox');
+  btn.setAttribute('aria-expanded', 'false');
+  btn.innerHTML = '<span class="label"></span><span class="chev">▾</span>';
+  wrap.appendChild(btn);
+
+  const menu = document.createElement('div');
+  menu.className = 'period-picker-menu';
+  menu.setAttribute('role', 'listbox');
+  wrap.appendChild(menu);
+
+  function labelFor(value) {
+    const opt = Array.from(sel.options).find(o => o.value === value);
+    return opt ? opt.text : 'Sort';
+  }
+  function updateBtnLabel() {
+    btn.querySelector('.label').textContent = labelFor(sel.value);
+  }
+  function buildMenu() {
+    const parts = ['<div class="period-picker-section">Sort by</div>'];
+    Array.from(sel.options).forEach(o => {
+      parts.push(
+        '<button type="button" class="period-picker-item" data-key="' +
+        esc(o.value) + '" role="option">' + esc(o.text) + '</button>'
+      );
+    });
+    menu.innerHTML = parts.join('');
+    syncSelected();
+  }
+  function syncSelected() {
+    menu.querySelectorAll('.period-picker-item').forEach(it => {
+      it.classList.toggle('is-selected', it.dataset.key === sel.value);
+    });
+  }
+  function open() {
+    wrap.classList.add('is-open');
+    btn.setAttribute('aria-expanded', 'true');
+    syncSelected();
+    document.addEventListener('click', onDocClick, true);
+    document.addEventListener('keydown', onKey);
+  }
+  function close() {
+    wrap.classList.remove('is-open');
+    btn.setAttribute('aria-expanded', 'false');
+    document.removeEventListener('click', onDocClick, true);
+    document.removeEventListener('keydown', onKey);
+  }
+  function onDocClick(e) { if (!wrap.contains(e.target)) close(); }
+  function onKey(e) {
+    if (e.key === 'Escape') { e.preventDefault(); close(); btn.focus(); }
+  }
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (wrap.classList.contains('is-open')) close();
+    else open();
+  });
+  menu.addEventListener('click', (e) => {
+    const item = e.target.closest('.period-picker-item');
+    if (!item) return;
+    sel.value = item.dataset.key;
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+    updateBtnLabel();
+    close();
+  });
+  sel.addEventListener('change', updateBtnLabel);
+
+  buildMenu();
+  updateBtnLabel();
+}
+
+// Re-render the audit list against the currently-loaded jobs using
+// the new sort. Doesn't re-fetch from the server — we already have
+// every row in window.JOBS, so this is purely a re-sort + re-paint.
+function reapplyJobSort() {
+  if (!window.JOBS) return;
+  const jobs = Object.values(window.JOBS);
+  if (!jobs.length) return;
+  const ordered = sortJobsForAudit(jobs);
+  const list = $('jobsList');
+  if (!list) return;
+  list.innerHTML = renderJobGroups(ordered);
+  if (typeof wireJobRowClicks === 'function') wireJobRowClicks();
+  if (typeof applyFilter === 'function') applyFilter();
 }
 
 async function api(path, opts) {
@@ -2809,11 +2927,31 @@ function auditPriority(j) {
 }
 
 function sortJobsForAudit(jobs) {
+  // Primary key — admin's chosen sort (date / amount, asc / desc).
+  // Secondary keys keep the historical priority/status ordering as
+  // tiebreakers so jobs with identical dates or amounts still group
+  // in a sensible audit order. renderJobGroups() does its own
+  // sectioning on top of this, so this just sets within-section order.
+  const primaryCmp = (a, b) => {
+    if (CURRENT_SORT === 'amount-desc' || CURRENT_SORT === 'amount-asc') {
+      const va = Number(a.totalAmount || 0);
+      const vb = Number(b.totalAmount || 0);
+      if (va !== vb) return CURRENT_SORT === 'amount-asc' ? va - vb : vb - va;
+      return 0;
+    }
+    // date-* — fall through is date-desc (newest first), default
+    const da = new Date(a.kpiDate || 0).getTime();
+    const db = new Date(b.kpiDate || 0).getTime();
+    if (da !== db) return CURRENT_SORT === 'date-asc' ? da - db : db - da;
+    return 0;
+  };
+  const statusRank = { unattributed: 0, credited: 1, reconciled: 2, excluded: 3 };
   return jobs.slice().sort((a, b) => {
+    const p = primaryCmp(a, b);
+    if (p !== 0) return p;
     const pa = auditPriority(a);
     const pb = auditPriority(b);
     if (pa !== pb) return pb - pa;
-    const statusRank = { unattributed: 0, credited: 1, reconciled: 2, excluded: 3 };
     const sa = statusRank[a.status] != null ? statusRank[a.status] : 99;
     const sb = statusRank[b.status] != null ? statusRank[b.status] : 99;
     if (sa !== sb) return sa - sb;
@@ -3728,6 +3866,11 @@ $('jobLookup').addEventListener('input', applyFilter);
 $('techFilter').addEventListener('change', () => {
   localStorage.setItem('kpi-admin-tech-filter', $('techFilter').value || '');
   applyFilter();
+});
+$('sortSel').addEventListener('change', () => {
+  CURRENT_SORT = $('sortSel').value || 'date-desc';
+  localStorage.setItem('kpi-admin-sort', CURRENT_SORT);
+  reapplyJobSort();
 });
 
 $('lookupBtn').addEventListener('click', () => {
