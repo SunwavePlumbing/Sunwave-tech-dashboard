@@ -729,7 +729,7 @@
        Search input gets a tighter min/max so it doesn't sprawl
        across the whole row; the tech filter takes the remaining
        1fr space alongside it. */
-    .stickybar-row--controls { grid-template-columns: minmax(150px, 190px) auto minmax(150px, 1fr) minmax(150px, 200px) minmax(150px, 200px) auto; }
+    .stickybar-row--controls { grid-template-columns: minmax(160px, 210px) auto minmax(180px, 280px) minmax(170px, 1fr) auto; }
     .stickybar-row--status { grid-template-columns: 1fr; padding: 4px 0 0; }
     .reload-icon-btn {
       width: 38px;
@@ -887,6 +887,29 @@
       background: rgba(0, 0, 0, 0.08);
     }
     .filter-pill.is-active .filter-pill-count { background: rgba(255, 255, 255, 0.22); }
+
+    /* Sort dropdown lives at the right end of the filter-pills row.
+       `margin-left: auto` pushes it past the pills. The wrap class
+       sizes the underlying picker so its label has room to breathe
+       without crowding the pills. */
+    .filter-sort {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: auto;
+      min-width: 0;
+    }
+    .filter-sort-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-mute);
+    }
+    .filter-sort .period-picker {
+      width: auto;
+      min-width: 180px;
+    }
 
     /* Review card overlay + centered floating panel */
     body.drawer-open {
@@ -1747,12 +1770,6 @@
           <select id="techFilter" class="tech-filter" aria-label="Filter by technician" title="Filter rows by assigned or credited technician">
             <option value="">All techs</option>
           </select>
-          <select id="sortSel" class="sort-filter" aria-label="Sort jobs by" title="Sort the queue">
-            <option value="date-desc" selected>Date — newest first</option>
-            <option value="date-asc">Date — oldest first</option>
-            <option value="amount-desc">$ — largest first</option>
-            <option value="amount-asc">$ — smallest first</option>
-          </select>
           <button id="lookupBtn" title="Fetch a job that's not in the current period (paste job_xxx or invoice #)">Search</button>
         </div>
         <div class="stickybar-row stickybar-row--status">
@@ -1789,6 +1806,15 @@
         <button class="filter-pill" data-filter="verified">Verified <span class="filter-pill-count" id="pillCount-verified">0</span></button>
         <button class="filter-pill" data-filter="excluded">Excluded <span class="filter-pill-count" id="pillCount-excluded">0</span></button>
         <button class="filter-pill" data-filter="all">All <span class="filter-pill-count" id="pillCount-all">0</span></button>
+        <div class="filter-sort">
+          <span class="filter-sort-label">Sort</span>
+          <select id="sortSel" aria-label="Sort jobs by" title="Sort the queue">
+            <option value="date-desc" selected>Newest first</option>
+            <option value="date-asc">Oldest first</option>
+            <option value="amount-desc">$ — largest</option>
+            <option value="amount-asc">$ — smallest</option>
+          </select>
+        </div>
       </div>
 
       <!-- "N open tasks" line removed — the active pill already
