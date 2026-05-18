@@ -4217,20 +4217,13 @@ const drawerBody = $('drawerBody');
 // drawer body so it survives every re-render of the drawer contents.
 drawerBody.addEventListener('click', (e) => {
   const toggle = e.target.closest('[data-editor-toggle]');
-  if (toggle && drawerBody.contains(toggle)) {
-    const section = toggle.closest('.drawer-editor-section');
-    if (!section) return;
-    const collapsed = section.classList.toggle('is-collapsed');
-    toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-    const body = section.querySelector('.drawer-editor-body');
-    if (body) body.hidden = collapsed;
-    return;
-  }
-  const visBtn = e.target.closest('[data-action="toggle-visibility"]');
-  if (visBtn && drawerBody.contains(visBtn)) {
-    toggleJobVisibility(visBtn.dataset.key, visBtn);
-    return;
-  }
+  if (!toggle || !drawerBody.contains(toggle)) return;
+  const section = toggle.closest('.drawer-editor-section');
+  if (!section) return;
+  const collapsed = section.classList.toggle('is-collapsed');
+  toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+  const body = section.querySelector('.drawer-editor-body');
+  if (body) body.hidden = collapsed;
 });
 const drawerHeadTitle = $('drawerHeadTitle');
 const drawerHeadMeta = $('drawerHeadMeta');
@@ -4389,7 +4382,14 @@ function openInDrawer(key) {
       DRAWER_STATE.contextTimer = null;
     }
     injectDrawerContext(key);
+    // j.edit is fully populated now — sync the exclude button so it
+    // reflects whatever state the job was in when the drawer opened.
+    const jNow = window.JOBS[key];
+    if (jNow) updateExcludeButtonState(jNow);
   });
+  // Synchronous best-effort first paint so the button doesn't flash
+  // "Exclude" for an already-excluded job before renderEditPanel runs.
+  updateExcludeButtonState(j);
   // Also collapse any inline-expanded rows so we don't render the
   // editor twice (once in drawer, once inline).
   document.querySelectorAll('#jobsList .job.is-open').forEach(el => el.classList.remove('is-open'));
@@ -4537,21 +4537,20 @@ async function deferCurrent() {
   else { setDrawerStatus('Nothing left to verify in this period.', 'ok'); }
 }
 
-// Two-way version of the footer's Exclude button. Reads the current
-// excluded state on j.edit, flips it, persists via /reconcile, and
-// re-renders both the list row and the drawer's visibility section
-// so the toggle reflects the new state immediately. Skips the
-// drawer-advance behavior that excludeCurrent() does because the
-// admin is here precisely to LOOK at this job's state, not move on.
-async function toggleJobVisibility(key, btnEl) {
+// Toggle. If the job is currently excluded → un-exclude (restore it to
+// the unverified queue). If it's not excluded → exclude (the original
+// behavior). Lets a single footer button serve both directions without
+// adding a new control elsewhere in the drawer.
+async function excludeCurrent() {
+  if (drawerExcludeBtn.disabled) return;
+  const key = DRAWER_STATE.openKey;
+  if (!key) return;
   const j = window.JOBS[key];
   if (!j || !j.edit) return;
   const goingToExclude = !j.edit.excluded;
   if (goingToExclude && !confirm('Exclude this job from the leaderboard? It will be hidden from techs.')) return;
-  if (btnEl) {
-    btnEl.disabled = true;
-    btnEl.textContent = goingToExclude ? 'Excluding…' : 'Including…';
-  }
+  drawerExcludeBtn.disabled = true;
+  setDrawerStatus(goingToExclude ? 'Excluding…' : 'Restoring…');
   const prevExcluded = j.edit.excluded;
   const prevStatus = j.status;
   try {
@@ -4561,68 +4560,58 @@ async function toggleJobVisibility(key, btnEl) {
     if (goingToExclude) {
       j.status = 'excluded';
       j.excluded = true;
+      j._countedInSummary = false;
+      pushUndo({ kind: 'exclude', key, label: '#' + (j.invoice || key.slice(0, 8)) });
     } else {
-      // Coming back from excluded → restore to the unverified queue.
-      // The next pipeline run will recompute the real status; until
-      // then we mirror what verified=true would produce since the
-      // recon record is still in place with assignments.
+      // Un-exclude: the recon record stays in place (with assignments),
+      // but excluded is now false. Status flips back to reconciled
+      // since the recon's `verified` flag determines that — buildReconcile
+      // Payload sends verified:true on this code path so the job
+      // re-enters the verified section.
       j.status = 'reconciled';
       j.excluded = false;
+      j._countedInSummary = false;
     }
-    j._countedInSummary = false;
     refreshRowInList(key);
     updateProgress();
-    // Re-render the visibility section in place so the pill and
-    // button label update without re-fetching the drawer context.
-    const ctxRoot = $('drawerContext');
-    if (ctxRoot) {
-      const old = ctxRoot.querySelector('.ctx-section--visibility');
-      if (old) {
-        const tmp = document.createElement('div');
-        tmp.innerHTML = renderJobVisibilitySection(j, key);
-        const fresh = tmp.firstChild;
-        if (fresh) old.replaceWith(fresh);
-      }
+    updateExcludeButtonState(j);
+    if (goingToExclude) {
+      // Advance behavior preserved for the original Exclude flow —
+      // most admins exclude as part of clearing the queue.
+      const nxt = nextUnverifiedKey(key);
+      if (nxt) openInDrawer(nxt);
+      else { setDrawerStatus('Nothing left to verify.', 'ok'); }
+    } else {
+      setDrawerStatus('Restored to queue.', 'ok');
     }
-    setDrawerStatus(goingToExclude ? 'Excluded from dashboard.' : 'Included on dashboard.', 'ok');
   } catch (err) {
-    // Roll the local state back so the UI doesn't lie about what got saved.
+    // Roll local state back so the UI doesn't lie about what got saved.
     j.edit.excluded = prevExcluded;
     j.status = prevStatus;
-    setDrawerStatus('Error: ' + err.message, 'err');
-    if (btnEl) {
-      btnEl.disabled = false;
-      btnEl.textContent = goingToExclude ? 'Exclude from dashboard' : 'Include in dashboard';
-    }
-  }
-}
-
-async function excludeCurrent() {
-  if (drawerExcludeBtn.disabled) return;
-  const key = DRAWER_STATE.openKey;
-  if (!key) return;
-  const j = window.JOBS[key];
-  if (!j || !j.edit) return;
-  if (!confirm('Exclude this job from the leaderboard? It will be hidden from techs.')) return;
-  drawerExcludeBtn.disabled = true;
-  setDrawerStatus('Excluding…');
-  try {
-    j.edit.excluded = true;
-    const body = buildReconcilePayload(j);
-    await api('/api/kpi/admin/reconcile', { method: 'POST', body });
-    j.status = 'excluded';
-    j.excluded = true;
-    j._countedInSummary = false;
-    pushUndo({ kind: 'exclude', key, label: '#' + (j.invoice || key.slice(0, 8)) });
-    refreshRowInList(key);
-    updateProgress();
-    const nxt = nextUnverifiedKey(key);
-    if (nxt) openInDrawer(nxt);
-    else { setDrawerStatus('Nothing left to verify.', 'ok'); }
-  } catch (err) {
+    updateExcludeButtonState(j);
     setDrawerStatus('Error: ' + err.message, 'err');
   } finally {
     drawerExcludeBtn.disabled = false;
+  }
+}
+
+// Sync the drawer's Exclude/Excluded button to whatever state the
+// open job is in. Called when the drawer is populated and after any
+// toggle so the button always reflects ground truth.
+function updateExcludeButtonState(j) {
+  if (!drawerExcludeBtn) return;
+  const isExcluded = !!(j && (
+    (j.edit && j.edit.excluded) ||
+    (!j.edit && j.status === 'excluded')
+  ));
+  if (isExcluded) {
+    drawerExcludeBtn.classList.add('is-excluded');
+    drawerExcludeBtn.textContent = '✓ Excluded';
+    drawerExcludeBtn.title = 'This job is excluded from the leaderboard. Click to un-exclude (X)';
+  } else {
+    drawerExcludeBtn.classList.remove('is-excluded');
+    drawerExcludeBtn.textContent = 'Exclude';
+    drawerExcludeBtn.title = 'Exclude this job from the leaderboard (X)';
   }
 }
 
@@ -5075,11 +5064,6 @@ function injectDrawerContext(key) {
   sections.push(renderCustomerMoneyTimeline(srv, ctx));
   sections.push(renderLineItems(ctx.lineItems, srv.job));
   sections.push(renderCustomerPriorJobs(ctx.customerJobs, srv.job));
-  // Always last — the include/exclude toggle. Sits below every
-  // context section so the admin can find it again to flip an
-  // earlier "exclude" decision back without rummaging through
-  // footer buttons or the keyboard shortcut.
-  sections.push(renderJobVisibilitySection(j, key));
 
   target.innerHTML = sections.filter(Boolean).join('');
 
@@ -5419,40 +5403,6 @@ function renderLineItems(lineItems, job) {
       '<tbody>' + rows + '</tbody>' +
       '<tfoot><tr><td colspan="3" class="num">Total</td><td class="num">' + fmt(total) + '</td></tr></tfoot>' +
     '</table></div>' +
-  '</details>';
-}
-
-// Include / Exclude toggle. Sits at the very bottom of the drawer
-// context so an admin who excluded a job earlier can find their way
-// back to un-exclude it (the footer's Exclude button only goes one
-// direction). Reads the current state from j.edit so the section is
-// always in sync with whatever's already been saved.
-function renderJobVisibilitySection(j, key) {
-  if (!j || !j.edit) return '';
-  const excluded = !!j.edit.excluded;
-  const stateClass = excluded ? 'is-excluded' : 'is-included';
-  const stateLabel = excluded ? 'Excluded' : 'Included';
-  const stateExplain = excluded
-    ? 'This job is hidden from the leaderboard. Tech credit and dollars do not count toward any KPI.'
-    : 'This job is visible on the dashboard. Whatever attribution is saved counts toward the leaderboard.';
-  const btnLabel = excluded ? 'Include in dashboard' : 'Exclude from dashboard';
-  return '<details class="ctx-section ctx-section--visibility ' + stateClass + '" open>' +
-    '<summary>Job visibility</summary>' +
-    '<div class="ctx-body">' +
-      '<div class="visibility-card">' +
-        '<div class="visibility-state">' +
-          '<span class="visibility-pill visibility-pill--' + (excluded ? 'excluded' : 'included') + '">' +
-            (excluded ? '✕ ' : '✓ ') + esc(stateLabel) +
-          '</span>' +
-          '<p class="visibility-explain">' + esc(stateExplain) + '</p>' +
-        '</div>' +
-        '<button type="button" class="visibility-toggle-btn ' +
-          (excluded ? 'visibility-toggle-btn--include' : 'visibility-toggle-btn--exclude') +
-          '" data-action="toggle-visibility" data-key="' + esc(key) + '">' +
-          esc(btnLabel) +
-        '</button>' +
-      '</div>' +
-    '</div>' +
   '</details>';
 }
 
