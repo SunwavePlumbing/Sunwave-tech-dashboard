@@ -59,6 +59,10 @@ Optional Mailgun issue-report notifications:
 - `MAILGUN_FROM` — Sender address, such as `Sunwave KPI <alerts@yourdomain.com>`
 - `PUBLIC_BASE_URL` — Public dashboard URL, used to include an admin link in the email
 - `MAILGUN_BASE_URL` — Optional; set to `https://api.eu.mailgun.net` for an EU Mailgun domain
+- `KPI_RECONCILE_REMINDER_ENABLED` — Optional; set to `false` to disable the monthly reconciliation reminder
+- `KPI_RECONCILE_REMINDER_DAY` — Optional; day of month to start reminding, defaults to `1`
+- `KPI_RECONCILE_REMINDER_HOUR` — Optional; Eastern-time hour to send after, defaults to `9`
+- `KPI_RECONCILE_REMINDER_WINDOW_DAYS` — Optional; catch-up window if the app was offline, defaults to `7`
 
 Set this in your deployment platform (Railway, Vercel, etc.) or in `.env` for local testing.
 

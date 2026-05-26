@@ -23,6 +23,10 @@ const MAILGUN_BASE_URL = (process.env.MAILGUN_BASE_URL || 'https://api.mailgun.n
 const MAILGUN_FROM = process.env.MAILGUN_FROM || '';
 const MAILGUN_ADMIN_TO = process.env.MAILGUN_ADMIN_TO || process.env.ADMIN_EMAIL || process.env.MAILGUN_TO || '';
 const PUBLIC_BASE_URL = (process.env.PUBLIC_BASE_URL || process.env.APP_BASE_URL || '').replace(/\/+$/, '');
+const KPI_RECONCILE_REMINDER_ENABLED = String(process.env.KPI_RECONCILE_REMINDER_ENABLED || 'true').toLowerCase() !== 'false';
+const KPI_RECONCILE_REMINDER_DAY = Math.max(1, Math.min(28, Number(process.env.KPI_RECONCILE_REMINDER_DAY || 1) || 1));
+const KPI_RECONCILE_REMINDER_HOUR = Math.max(0, Math.min(23, Number(process.env.KPI_RECONCILE_REMINDER_HOUR || 9) || 9));
+const KPI_RECONCILE_REMINDER_WINDOW_DAYS = Math.max(1, Math.min(14, Number(process.env.KPI_RECONCILE_REMINDER_WINDOW_DAYS || 7) || 7));
 
 // Shared axios defaults — prevents any single slow upstream from hanging the server
 const HTTP_TIMEOUT = 25000;
@@ -369,6 +373,7 @@ const KPI_ATTRIBUTION_OVERRIDES_PATH = path.join(__dirname, 'kpi-attribution-ove
 const KPI_DATA_DIR = process.env.QBO_TOKEN_DIR || __dirname;
 const ISSUE_REPORTS_PATH    = path.join(KPI_DATA_DIR, 'kpi-issue-reports.json');
 const RECONCILIATIONS_PATH  = path.join(KPI_DATA_DIR, 'kpi-reconciliations.json');
+const REMINDER_STATE_PATH   = path.join(KPI_DATA_DIR, 'kpi-reminder-state.json');
 
 function loadIssueReports() {
   try {
@@ -410,6 +415,26 @@ function saveReconciliations(map) {
   }
 }
 
+function loadReminderState() {
+  try {
+    if (!fs.existsSync(REMINDER_STATE_PATH)) return {};
+    const parsed = JSON.parse(fs.readFileSync(REMINDER_STATE_PATH, 'utf8'));
+    return (parsed && typeof parsed === 'object') ? parsed : {};
+  } catch (err) {
+    console.warn('[reminder-state load]', err.message);
+    return {};
+  }
+}
+function saveReminderState(state) {
+  try {
+    fs.writeFileSync(REMINDER_STATE_PATH, JSON.stringify(state, null, 2), 'utf8');
+    return true;
+  } catch (err) {
+    console.warn('[reminder-state save]', err.message);
+    return false;
+  }
+}
+
 // Light id helper for issue reports
 function newReportId() {
   return 'rep_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
@@ -444,10 +469,21 @@ function moneyText(value) {
 function reportAdminUrl(report) {
   if (!PUBLIC_BASE_URL) return null;
   try {
-    const url = new URL('/admin/kpi', PUBLIC_BASE_URL + '/');
-    url.searchParams.set('diag', 'issues');
+    const url = new URL('/admin/kpi/issues', PUBLIC_BASE_URL + '/');
+    if (report && report.id) url.searchParams.set('issue', report.id);
     if (report && report.invoice) url.searchParams.set('invoice', report.invoice);
     if (report && report.jobId) url.searchParams.set('jobId', report.jobId);
+    return url.toString();
+  } catch (err) {
+    return null;
+  }
+}
+
+function adminReconcileUrl(range) {
+  if (!PUBLIC_BASE_URL) return null;
+  try {
+    const url = new URL('/admin/kpi', PUBLIC_BASE_URL + '/');
+    url.searchParams.set('range', range || 'lm');
     return url.toString();
   } catch (err) {
     return null;
@@ -522,7 +558,7 @@ function mailgunRecipients() {
     .filter(Boolean);
 }
 
-async function sendIssueReportEmail(report) {
+async function sendMailgunEmail(message) {
   const recipients = mailgunRecipients();
   if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN || !recipients.length) {
     return { sent: false, skipped: 'mailgun_not_configured' };
@@ -531,9 +567,9 @@ async function sendIssueReportEmail(report) {
   const form = new URLSearchParams();
   form.set('from', MAILGUN_FROM || ('Sunwave KPI Dashboard <postmaster@' + MAILGUN_DOMAIN + '>'));
   recipients.forEach(email => form.append('to', email));
-  form.set('subject', 'New KPI issue: ' + issueTypeLabel(report.type) + (report.invoice ? ' #' + report.invoice : ''));
-  form.set('text', issueReportEmailText(report));
-  form.set('html', issueReportEmailHtml(report));
+  form.set('subject', message.subject);
+  form.set('text', message.text);
+  if (message.html) form.set('html', message.html);
   form.set('h:Reply-To', MAILGUN_FROM || ('postmaster@' + MAILGUN_DOMAIN));
 
   await axios.post(MAILGUN_BASE_URL + '/v3/' + encodeURIComponent(MAILGUN_DOMAIN) + '/messages', form, {
@@ -542,6 +578,88 @@ async function sendIssueReportEmail(report) {
     timeout: 10000
   });
   return { sent: true };
+}
+
+async function sendIssueReportEmail(report) {
+  return sendMailgunEmail({
+    subject: 'New KPI issue: ' + issueTypeLabel(report.type) + (report.invoice ? ' #' + report.invoice : ''),
+    text: issueReportEmailText(report),
+    html: issueReportEmailHtml(report)
+  });
+}
+
+function previousMonthInfo(nowValue) {
+  const now = nowValue ? new Date(nowValue) : new Date();
+  const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const year = prev.getFullYear();
+  const month = String(prev.getMonth() + 1).padStart(2, '0');
+  return {
+    key: year + '-' + month,
+    label: prev.toLocaleString('en-US', { month: 'long', year: 'numeric' })
+  };
+}
+
+function shouldSendReconcileReminder(nowValue) {
+  const now = nowValue ? new Date(nowValue) : new Date();
+  const start = KPI_RECONCILE_REMINDER_DAY;
+  const end = Math.min(31, start + KPI_RECONCILE_REMINDER_WINDOW_DAYS - 1);
+  return now.getDate() >= start && now.getDate() <= end && now.getHours() >= KPI_RECONCILE_REMINDER_HOUR;
+}
+
+function reconcileReminderText(monthInfo, url) {
+  const lines = [
+    'Reminder: reconcile the KPI jobs for ' + monthInfo.label + '.',
+    '',
+    'Please review the Last Month queue, verify correct tech attribution, resolve any open issue reports, and clear anything that should be excluded.',
+    ''
+  ];
+  if (url) {
+    lines.push('Open the reconciliation queue:');
+    lines.push(url);
+    lines.push('');
+  }
+  lines.push('This reminder sends once per month.');
+  return lines.join('\n');
+}
+
+function reconcileReminderHtml(monthInfo, url) {
+  const button = url
+    ? '<p style="margin:20px 0;"><a href="' + htmlEscape(url) + '" style="background:#F38A3F;color:#fff;text-decoration:none;border-radius:8px;padding:11px 16px;font-weight:700;display:inline-block;">Open Last Month queue</a></p>'
+    : '';
+  return '<div style="font-family:Arial,sans-serif;color:#182032;line-height:1.45;">' +
+    '<h2 style="margin:0 0 12px;">Monthly KPI reconciliation reminder</h2>' +
+    '<p>Please reconcile the KPI jobs for <strong>' + htmlEscape(monthInfo.label) + '</strong>.</p>' +
+    '<p>Review the Last Month queue, verify tech attribution, resolve open issue reports, and clear anything that should be excluded.</p>' +
+    button +
+    '<p style="color:#5d6472;font-size:13px;">This reminder sends once per month.</p>' +
+    '</div>';
+}
+
+async function sendReconcileReminderEmail(monthInfo) {
+  const url = adminReconcileUrl('lm');
+  return sendMailgunEmail({
+    subject: 'Reminder: reconcile ' + monthInfo.label + ' KPI jobs',
+    text: reconcileReminderText(monthInfo, url),
+    html: reconcileReminderHtml(monthInfo, url)
+  });
+}
+
+async function checkReconcileReminder(nowValue) {
+  if (!KPI_RECONCILE_REMINDER_ENABLED || !shouldSendReconcileReminder(nowValue)) return;
+  const monthInfo = previousMonthInfo(nowValue);
+  const state = loadReminderState();
+  if (state.lastReconcileReminderMonth === monthInfo.key) return;
+
+  try {
+    const result = await sendReconcileReminderEmail(monthInfo);
+    if (!result.sent) return;
+    state.lastReconcileReminderMonth = monthInfo.key;
+    state.lastReconcileReminderAt = new Date().toISOString();
+    saveReminderState(state);
+    console.log('[reconcile-reminder] sent for ' + monthInfo.key);
+  } catch (err) {
+    console.warn('[reconcile-reminder mailgun]', err.response?.status || '', err.message);
+  }
 }
 
 function normalizePersonName(value) {
@@ -5835,7 +5953,7 @@ app.get(['/report-issue', '/feedback'], (req, res) => {
 });
 // /admin is the single canonical admin entry point. /admin/kpi kept as
 // a back-compat alias for any old bookmarks but resolves to the same UI.
-app.get(['/admin', '/admin/kpi'], (req, res) => {
+app.get(['/admin', '/admin/kpi', '/admin/kpi/diagnostics', '/admin/kpi/issues'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin-kpi.html'));
 });
 
@@ -5848,7 +5966,13 @@ const server = app.listen(PORT, () => {
     'QBO:' + (qboReady() ? 'ready' : qboConfigured() ? 'awaiting OAuth' : 'MISSING')
   ];
   console.log(parts.join(' | '));
+  setTimeout(() => checkReconcileReminder(), 5000).unref();
 });
+
+const reconcileReminderTimer = setInterval(() => {
+  checkReconcileReminder();
+}, 60 * 60 * 1000);
+reconcileReminderTimer.unref();
 
 function shutdown(signal) {
   console.log(signal + ' received; shutting down gracefully');

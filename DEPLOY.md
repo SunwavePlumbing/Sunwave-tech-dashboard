@@ -31,6 +31,13 @@ Add these Railway variables to send issue-report alerts through Mailgun:
 
 If your Mailgun domain is in the EU region, also set `MAILGUN_BASE_URL` to `https://api.eu.mailgun.net`.
 
+The app also sends one monthly admin reminder to reconcile the previous month's KPI jobs. By default it starts checking on the 1st at 9 AM Eastern and sends once during the first 7 days of the month. To customize it, add:
+
+- `KPI_RECONCILE_REMINDER_ENABLED`
+- `KPI_RECONCILE_REMINDER_DAY`
+- `KPI_RECONCILE_REMINDER_HOUR`
+- `KPI_RECONCILE_REMINDER_WINDOW_DAYS`
+
 ## Step 4: Get Your Live URL (30 seconds)
 - Go to "Deployments" tab
 - Click the green deployment

@@ -633,6 +633,11 @@
       border-radius: 12px;
       padding: 14px 18px;
       margin-bottom: 10px;
+      scroll-margin-top: 24px;
+    }
+    .item-card.is-url-target {
+      border-color: var(--brand);
+      box-shadow: 0 0 0 3px rgba(243, 138, 63, 0.18);
     }
     .issue-snapshot {
       margin: 8px 0 10px;
@@ -1949,6 +1954,8 @@ const isoDate = (iso) => iso ? String(iso).slice(0, 10) : '';
 let PASSWORD = sessionStorage.getItem('kpi-admin-pw') || '';
 let CURRENT_RANGE = localStorage.getItem('kpi-admin-range') || 'mtd';
 let ACTIVE_PANEL = 'reconcile';
+let ACTIVE_DIAG_SUBTAB = 'audit';
+let URL_TARGET_ISSUE_ID = '';
 // Dropped from 5 min → 60 s so HCP-side changes (customer payment,
 // invoice status flip, tech reassignment) flow through to the admin
 // queue quickly. The server-side metrics cache (2 min, stale-while-
@@ -1978,6 +1985,48 @@ window.JOBS = {};
 // Cached HCP employee list (loaded once after auth, used to populate
 // the "Add tech" datalist in every edit panel).
 window.EMPLOYEES = [];
+
+function adminRouteState() {
+  const path = window.location.pathname.replace(/\/+$/, '');
+  const params = new URLSearchParams(window.location.search);
+  const diag = params.get('diag') || params.get('tab') || '';
+  const issue = params.get('issue') || '';
+  const range = params.get('range') || '';
+  const state = { panel: 'reconcile', diag: 'audit', issue, range };
+  if (path.endsWith('/admin/kpi/issues') || diag === 'issues') {
+    state.panel = 'diagnostics';
+    state.diag = 'issues';
+    return state;
+  }
+  if (path.endsWith('/admin/kpi/diagnostics') || diag === 'audit' || diag === 'pipeline') {
+    state.panel = 'diagnostics';
+    state.diag = diag === 'pipeline' ? 'pipeline' : 'audit';
+    return state;
+  }
+  return state;
+}
+
+function adminStateUrl(panel, diag, issueId) {
+  const params = new URLSearchParams(window.location.search);
+  params.delete('diag');
+  params.delete('tab');
+  if (!issueId) params.delete('issue');
+  else params.set('issue', issueId);
+
+  let path = '/admin/kpi';
+  if (panel === 'diagnostics') {
+    path = diag === 'issues' ? '/admin/kpi/issues' : '/admin/kpi/diagnostics';
+  }
+  const query = params.toString();
+  return path + (query ? '?' + query : '');
+}
+
+function replaceAdminUrl(panel, diag, issueId) {
+  const next = adminStateUrl(panel, diag, issueId);
+  if (window.location.pathname + window.location.search !== next) {
+    window.history.replaceState({}, '', next);
+  }
+}
 
 document.querySelectorAll('[data-kpi-range-select]').forEach(sel => {
   sel.innerHTML = KPI_RANGES.map(r =>
@@ -2254,10 +2303,14 @@ $('pwInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('gate
 async function initApp() {
   try {
     await api('/api/kpi/admin/issues');
+    const route = adminRouteState();
+    URL_TARGET_ISSUE_ID = route.issue || '';
+    if (route.range && KPI_RANGES.some(r => r.key === route.range)) {
+      CURRENT_RANGE = route.range;
+      localStorage.setItem('kpi-admin-range', CURRENT_RANGE);
+    }
     $('gate').style.display = 'none';
     $('app').style.display = '';
-    document.querySelector('.tab[data-panel="reconcile"]').classList.add('is-active');
-    $('panel-reconcile').classList.add('is-active');
     $('periodSel').value = CURRENT_RANGE;
     // Programmatic .value assignment doesn't fire 'change', so the
     // custom period-picker UI wouldn't refresh on its own.
@@ -2267,8 +2320,9 @@ async function initApp() {
     // at-a-glance whether there's anything to handle there without
     // having to click into the tab.
     loadEmployees();
-    loadJobs();
-    loadIssues();
+    ACTIVE_DIAG_SUBTAB = route.diag || 'audit';
+    activatePanel(route.panel || 'reconcile');
+    if ((route.panel || 'reconcile') !== 'diagnostics') loadIssues();
   } catch (err) {
     $('gate').style.display = '';
     $('app').style.display = 'none';
@@ -2597,7 +2651,6 @@ async function cachedApi(path, options) {
 // original panel id to avoid breaking dozens of internal references)
 // and Diagnostics (data-panel="diagnostics") which contains the four
 // admin-debugging sub-views.
-let ACTIVE_DIAG_SUBTAB = 'audit';
 const PANEL_TITLES = {
   reconcile: 'Verify',
   diagnostics: 'Diagnostics'
@@ -2629,6 +2682,7 @@ function activatePanel(panel) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('is-active'));
   panelEl.classList.add('is-active');
   setSubhead(panel);
+  if (panel !== 'diagnostics') replaceAdminUrl(panel, ACTIVE_DIAG_SUBTAB, '');
   if (panel === 'reconcile') loadJobs();
   if (panel === 'diagnostics') {
     // Re-fire the active sub-tab's loader so data is fresh.
@@ -2661,6 +2715,7 @@ function activateDiagSubtab(name) {
     v.hidden = !on;
   });
   setSubhead('diagnostics');
+  replaceAdminUrl('diagnostics', name, name === 'issues' ? URL_TARGET_ISSUE_ID : '');
   if (name === 'issues')   loadIssues();
   if (name === 'audit')    loadEmbed('coverageFrame', '/coverage?embed=1');
 }
@@ -4045,7 +4100,8 @@ async function loadIssues(forceRefresh) {
     const renderReport = (rep) => {
       const ref = [rep.invoice && '#' + rep.invoice, rep.customer].filter(Boolean).join(' · ');
       const when = new Date(rep.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-      return `<div class="item-card">
+      const isTarget = URL_TARGET_ISSUE_ID && rep.id === URL_TARGET_ISSUE_ID;
+      return `<div class="item-card${isTarget ? ' is-url-target' : ''}" data-issue-id="${esc(rep.id)}">
         <div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin-bottom:4px">
           <strong>${esc(TYPE_LABEL[rep.type] || rep.type)}</strong>
           <span class="badge ${rep.status === 'open' ? 'badge--warn' : 'badge--good'}">${esc(rep.status)}</span>
@@ -4081,6 +4137,14 @@ async function loadIssues(forceRefresh) {
       html += handled.map(renderReport).join('');
     }
     $('issuesList').innerHTML = html;
+    if (URL_TARGET_ISSUE_ID) {
+      const target = $('issuesList').querySelector('[data-issue-id="' + cssEscape(URL_TARGET_ISSUE_ID) + '"]');
+      if (target) {
+        target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        URL_TARGET_ISSUE_ID = '';
+        replaceAdminUrl('diagnostics', 'issues', '');
+      }
+    }
   } catch (err) {
     console.warn('[loadIssues]', err);
     $('issueCount').textContent = '?';
