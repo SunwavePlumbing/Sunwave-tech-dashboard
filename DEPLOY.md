@@ -20,6 +20,17 @@
 - Value: `cb21888a24dd4d76a69c9c34f6fbe73d`
 - Click "Add"
 
+### Optional: Email admins when techs report KPI issues
+Add these Railway variables to send issue-report alerts through Mailgun:
+
+- `MAILGUN_API_KEY`
+- `MAILGUN_DOMAIN`
+- `MAILGUN_ADMIN_TO`
+- `MAILGUN_FROM`
+- `PUBLIC_BASE_URL`
+
+If your Mailgun domain is in the EU region, also set `MAILGUN_BASE_URL` to `https://api.eu.mailgun.net`.
+
 ## Step 4: Get Your Live URL (30 seconds)
 - Go to "Deployments" tab
 - Click the green deployment

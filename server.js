@@ -17,6 +17,12 @@ const API_KEY = process.env.HOUSECALL_PRO_API_KEY;
 const DIAGNOSTICS_PASSWORD = process.env.DIAGNOSTICS_PASSWORD || process.env.DIAGNOSTICS_TOKEN || '';
 const PORT = process.env.PORT || 3000;
 const BASE_URL = 'https://api.housecallpro.com';
+const MAILGUN_API_KEY = process.env.MAILGUN_API_KEY || '';
+const MAILGUN_DOMAIN = process.env.MAILGUN_DOMAIN || '';
+const MAILGUN_BASE_URL = (process.env.MAILGUN_BASE_URL || 'https://api.mailgun.net').replace(/\/+$/, '');
+const MAILGUN_FROM = process.env.MAILGUN_FROM || '';
+const MAILGUN_ADMIN_TO = process.env.MAILGUN_ADMIN_TO || process.env.ADMIN_EMAIL || process.env.MAILGUN_TO || '';
+const PUBLIC_BASE_URL = (process.env.PUBLIC_BASE_URL || process.env.APP_BASE_URL || '').replace(/\/+$/, '');
 
 // Shared axios defaults — prevents any single slow upstream from hanging the server
 const HTTP_TIMEOUT = 25000;
@@ -407,6 +413,135 @@ function saveReconciliations(map) {
 // Light id helper for issue reports
 function newReportId() {
   return 'rep_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
+}
+
+function htmlEscape(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function issueTypeLabel(type) {
+  return ({
+    missing_job: 'Missing job',
+    wrong_credit: 'Wrong credit',
+    wrong_unpaid: 'Wrong unpaid amount',
+    job_issue: 'Job issue',
+    other: 'Other'
+  })[type] || String(type || 'Issue report');
+}
+
+function moneyText(value) {
+  const n = Number(value);
+  return Number.isFinite(n)
+    ? '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : null;
+}
+
+function reportAdminUrl(report) {
+  if (!PUBLIC_BASE_URL) return null;
+  try {
+    const url = new URL('/admin/kpi', PUBLIC_BASE_URL + '/');
+    url.searchParams.set('diag', 'issues');
+    if (report && report.invoice) url.searchParams.set('invoice', report.invoice);
+    if (report && report.jobId) url.searchParams.set('jobId', report.jobId);
+    return url.toString();
+  } catch (err) {
+    return null;
+  }
+}
+
+function issueReportLines(report) {
+  const snapshot = report.snapshot || {};
+  const rows = [
+    ['Type', issueTypeLabel(report.type)],
+    ['Submitted', new Date(report.createdAt).toLocaleString('en-US', { timeZone: 'America/New_York' })],
+    ['Customer', report.customer || snapshot.customer],
+    ['Invoice', report.invoice || snapshot.invoice],
+    ['Job ID', report.jobId || snapshot.jobId],
+    ['Technician', snapshot.technician],
+    ['Dashboard period', snapshot.period],
+    ['Job date', snapshot.dateLabel || snapshot.date],
+    ['Job total', moneyText(snapshot.jobTotal)],
+    ['Their share', moneyText(snapshot.theirShare)],
+    ['Outstanding', moneyText(snapshot.outstanding)],
+    ['Reported sellers', (report.reportedSellers || []).join(', ')],
+    ['Reported doers', (report.reportedDoers || []).join(', ')]
+  ].filter(([, value]) => value != null && value !== '');
+
+  if (snapshot.splitWith && snapshot.splitWith.length) {
+    rows.push(['Split with', snapshot.splitWith.map(s => {
+      return s.name + (s.creditPct != null ? ' (' + s.creditPct + '%)' : '');
+    }).join(', ')]);
+  }
+
+  const adminUrl = reportAdminUrl(report);
+  if (adminUrl) rows.push(['Admin dashboard', adminUrl]);
+  return rows;
+}
+
+function issueReportEmailText(report) {
+  const lines = [
+    'A technician submitted a KPI issue report.',
+    '',
+    ...issueReportLines(report).map(([label, value]) => label + ': ' + value),
+    '',
+    'Description:',
+    report.description || '(none)'
+  ];
+  return lines.join('\n');
+}
+
+function issueReportEmailHtml(report) {
+  const rows = issueReportLines(report).map(([label, value]) => {
+    const displayValue = /^https?:\/\//.test(String(value))
+      ? '<a href="' + htmlEscape(value) + '">' + htmlEscape(value) + '</a>'
+      : htmlEscape(value);
+    return '<tr><th align="left" style="padding:6px 12px 6px 0;color:#5d6472;font-weight:600;vertical-align:top;">' +
+      htmlEscape(label) +
+      '</th><td style="padding:6px 0;color:#182032;">' + displayValue + '</td></tr>';
+  }).join('');
+
+  return '<div style="font-family:Arial,sans-serif;color:#182032;line-height:1.45;">' +
+    '<h2 style="margin:0 0 12px;">New KPI issue report</h2>' +
+    '<table style="border-collapse:collapse;margin-bottom:16px;">' + rows + '</table>' +
+    '<div style="font-weight:700;margin-bottom:6px;">Description</div>' +
+    '<pre style="white-space:pre-wrap;font-family:Arial,sans-serif;background:#f6f7f9;border:1px solid #e3e6ec;border-radius:8px;padding:12px;">' +
+    htmlEscape(report.description || '(none)') +
+    '</pre>' +
+    '</div>';
+}
+
+function mailgunRecipients() {
+  return MAILGUN_ADMIN_TO
+    .split(',')
+    .map(email => email.trim())
+    .filter(Boolean);
+}
+
+async function sendIssueReportEmail(report) {
+  const recipients = mailgunRecipients();
+  if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN || !recipients.length) {
+    return { sent: false, skipped: 'mailgun_not_configured' };
+  }
+
+  const form = new URLSearchParams();
+  form.set('from', MAILGUN_FROM || ('Sunwave KPI Dashboard <postmaster@' + MAILGUN_DOMAIN + '>'));
+  recipients.forEach(email => form.append('to', email));
+  form.set('subject', 'New KPI issue: ' + issueTypeLabel(report.type) + (report.invoice ? ' #' + report.invoice : ''));
+  form.set('text', issueReportEmailText(report));
+  form.set('html', issueReportEmailHtml(report));
+  form.set('h:Reply-To', MAILGUN_FROM || ('postmaster@' + MAILGUN_DOMAIN));
+
+  await axios.post(MAILGUN_BASE_URL + '/v3/' + encodeURIComponent(MAILGUN_DOMAIN) + '/messages', form, {
+    auth: { username: 'api', password: MAILGUN_API_KEY },
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    timeout: 10000
+  });
+  return { sent: true };
 }
 
 function normalizePersonName(value) {
@@ -4695,7 +4830,7 @@ function cleanIssueNameList(input) {
 // Submit a new issue report. No auth — anyone with the URL can submit.
 // Rate-limited softly by ignoring requests larger than 50kb (above) so a
 // single misbehaving client can't fill the volume.
-app.post('/api/kpi/report-issue', (req, res) => {
+app.post('/api/kpi/report-issue', async (req, res) => {
   const body = req.body || {};
   const type = String(body.type || '').slice(0, 50);
   // Reporter name is optional — the form no longer collects it. Kept
@@ -4736,7 +4871,16 @@ app.post('/api/kpi/report-issue', (req, res) => {
   if (!saveIssueReports(reports)) {
     return res.status(500).json({ error: 'Failed to save report' });
   }
-  res.json({ ok: true, report });
+
+  let notification = { sent: false };
+  try {
+    notification = await sendIssueReportEmail(report);
+  } catch (err) {
+    console.warn('[issue-report mailgun]', err.response?.status || '', err.message);
+    notification = { sent: false, error: 'mailgun_send_failed' };
+  }
+
+  res.json({ ok: true, report, notification });
 });
 
 // Discover who's actually a technician by looking at job assignments.

@@ -46,9 +46,19 @@ npm start
 
 ## Configuration
 
-You need one environment variable:
+Core environment variables:
 
 - `HOUSECALL_PRO_API_KEY` — Your Housecall Pro API key (read-only)
+- `DIAGNOSTICS_PASSWORD` — Password for admin and diagnostics pages
+
+Optional Mailgun issue-report notifications:
+
+- `MAILGUN_API_KEY` — Mailgun private API key
+- `MAILGUN_DOMAIN` — Sending domain configured in Mailgun
+- `MAILGUN_ADMIN_TO` — Admin email address that should receive new KPI issue reports
+- `MAILGUN_FROM` — Sender address, such as `Sunwave KPI <alerts@yourdomain.com>`
+- `PUBLIC_BASE_URL` — Public dashboard URL, used to include an admin link in the email
+- `MAILGUN_BASE_URL` — Optional; set to `https://api.eu.mailgun.net` for an EU Mailgun domain
 
 Set this in your deployment platform (Railway, Vercel, etc.) or in `.env` for local testing.
 
