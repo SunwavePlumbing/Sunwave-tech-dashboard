@@ -200,9 +200,54 @@ function buildDateSheet() {
     });
     list.appendChild(item);
   });
+
+  // "Custom range\u2026" \u2014 always at the very bottom of the sheet. Opens
+  // the two-month calendar overlay (shared with the admin KPI page,
+  // loaded from /custom-range.js). The picker emits a key of shape
+  // "custom:YYYY-MM-DD:YYYY-MM-DD" that the server already understands.
+  var customItem = document.createElement('button');
+  customItem.className = 'date-bs-item date-bs-item--custom';
+  customItem.dataset.range = 'custom';
+  customItem.innerHTML =
+    '<span class="date-bs-item-label">' +
+      '<span class="date-bs-item-title">Custom range\u2026</span>' +
+      '<span class="date-bs-item-sub">Pick any start + end date</span>' +
+    '</span>' +
+    '<span class="date-bs-item-check">\u2713</span>';
+  customItem.addEventListener('click', function() {
+    closeDateSheet();
+    if (typeof window.openCustomRangePicker !== 'function') return;
+    // Seed with the current selection if it's already a custom range;
+    // otherwise default to the last 30 days so the admin sees a
+    // sensible starting position.
+    var today = new Date();
+    var seedEnd, seedStart;
+    if (typeof currentTimeRange === 'string' && currentTimeRange.indexOf('custom:') === 0) {
+      var parts = currentTimeRange.split(':');
+      seedStart = parts[1];
+      seedEnd = parts[2];
+    } else {
+      seedEnd = (window.ymdLocal || defaultYmdLocal)(today);
+      var ago = new Date(today); ago.setDate(today.getDate() - 30);
+      seedStart = (window.ymdLocal || defaultYmdLocal)(ago);
+    }
+    window.openCustomRangePicker(seedStart, seedEnd, function(start, end) {
+      selectRange('custom:' + start + ':' + end);
+    });
+  });
+  list.appendChild(customItem);
+
   sheet.appendChild(list);
   backdrop.appendChild(sheet);
   document.body.appendChild(backdrop);
+}
+
+// Tiny fallback if /custom-range.js didn't load yet
+function defaultYmdLocal(d) {
+  var y = d.getFullYear();
+  var m = String(d.getMonth() + 1).padStart(2, '0');
+  var day = String(d.getDate()).padStart(2, '0');
+  return y + '-' + m + '-' + day;
 }
 
 function openDateSheet() {
@@ -229,8 +274,21 @@ function closeDateSheet() {
 function updateMoreBtnLabel() {
   var moreBtn = document.getElementById('dateMoreBtn');
   if (!moreBtn) return;
-  var isCommon = commonKeys.indexOf(currentTimeRange) !== -1;
   var labelEl = moreBtn.querySelector('.date-more-label');
+  var isCommon = commonKeys.indexOf(currentTimeRange) !== -1;
+  // Custom range: format the dates inline so the pill always reads
+  // "Mar 1 – Mar 31" instead of the raw "custom:..." key.
+  if (typeof currentTimeRange === 'string' && currentTimeRange.indexOf('custom:') === 0) {
+    var parts = currentTimeRange.split(':');
+    var fmt = function(s) {
+      var d = new Date(s + 'T00:00:00');
+      if (isNaN(d)) return s;
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    };
+    labelEl.textContent = fmt(parts[1]) + ' – ' + fmt(parts[2]);
+    moreBtn.classList.add('active');
+    return;
+  }
   if (isCommon) {
     labelEl.textContent = 'Other';
     moreBtn.classList.remove('active');

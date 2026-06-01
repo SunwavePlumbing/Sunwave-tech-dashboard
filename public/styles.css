@@ -1409,6 +1409,28 @@ body.exp-modal-lock {
 }
 .date-bs-item.active { background: #fff8ed; color: #F38A3F; font-weight: 700; }
 .date-bs-item.active .date-bs-item-check { opacity: 1; }
+/* Custom range row — bottom of the sheet, two-line label so the
+   admin sees what this option does. */
+.date-bs-item--custom {
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  margin-top: 6px;
+  padding-top: 14px;
+}
+.date-bs-item--custom .date-bs-item-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+}
+.date-bs-item--custom .date-bs-item-title {
+  font-weight: 700;
+  color: #373B4D;
+}
+.date-bs-item--custom .date-bs-item-sub {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #8A8680;
+}
 /* Lock background scroll while the sheet is open */
 body.date-bs-open { overflow: hidden; touch-action: none; }
 
