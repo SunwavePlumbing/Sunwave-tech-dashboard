@@ -5913,6 +5913,22 @@ app.get('/api/kpi/admin/period-jobs', async (req, res) => {
       });
     });
 
+    // $0-job auto-reconciliation. Any job with a total of $0 has no
+    // revenue to attribute and clutters the audit queue without
+    // adding KPI signal. Auto-flip those to "reconciled" so they
+    // land in the Verified section. We never override an admin's
+    // explicit decision — excluded stays excluded, and rows that
+    // already carry a saved reconciliation are left alone too.
+    out.forEach(row => {
+      if (row.status === 'excluded') return;
+      if (row.reconciled) return; // already verified by an admin
+      const total = Number(row.totalAmount || 0);
+      if (total > 0) return;
+      row.status = 'reconciled';
+      row.reconciled = true;
+      row.autoReconciled = true;
+    });
+
     // Sort by status (action-required first) then by date desc.
     const statusRank = { unattributed: 0, credited: 1, reconciled: 2, excluded: 3 };
     out.sort((a, b) => {
