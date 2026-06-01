@@ -1575,7 +1575,17 @@ app.get('/api/metrics', async (req, res) => {
 
     let allJobs, estimateSellerMap;
 
-    if (SHORT_RANGES.has(range)) {
+    // Use the shared raw cache for any range whose periodStart still
+    // falls inside the 270-day wide window. SHORT_RANGES is the preset
+    // hot-path; custom ranges (and any other range) get the same
+    // fast-path automatically when they're recent enough. Without
+    // this, a custom "last 50 days" range issues 50+ HCP page calls
+    // serially in the per-range branch — easily timing out on a
+    // hosted server.
+    const rawWindowEarliest = new Date(now);
+    rawWindowEarliest.setDate(rawWindowEarliest.getDate() - (RAW_WINDOW_DAYS + 90));
+    const fitsInRawWindow = period.periodStart >= rawWindowEarliest;
+    if (SHORT_RANGES.has(range) || fitsInRawWindow) {
       // Share the cached wide-window fetch
       const raw = await fetchRawShort();
       allJobs = raw.jobs;

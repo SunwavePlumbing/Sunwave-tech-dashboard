@@ -160,14 +160,24 @@ async function fetchData(forceRefresh) {
     if (forceRefresh) url += '&refresh=1';
     url += '&_=' + Date.now();
     var response = await fetch(url, { signal: thisAbort.signal, cache: 'no-store' });
-    var data = await response.json();
+    // Body might not be JSON if the server crashed or a proxy
+    // returned an HTML error page. Read as text first so we can
+    // surface a useful error to the user instead of swallowing it
+    // in the catch block.
+    var bodyText = await response.text();
+    var data;
+    try { data = JSON.parse(bodyText); } catch (_) { data = null; }
     // Ignore response if this fetch was superseded by a newer one
     if (thisAbort !== _fetchAbort) return;
-    if (!response.ok || data.error) {
+    if (!response.ok || !data || data.error) {
       clearTimeout(_skelTimer); _skelTimer = null;
       teardownLoadingUI();
+      var msg = (data && data.error)
+        ? data.error
+        : 'Server returned ' + response.status + (response.statusText ? ' ' + response.statusText : '') +
+          (bodyText && bodyText.length < 240 ? ' — ' + bodyText.slice(0, 240) : '');
       document.getElementById('leaderboardBody').innerHTML =
-        '<tr><td colspan="4"><div class="error-msg">Error: ' + esc(data.error || 'Unknown error') + '</div></td></tr>';
+        '<tr><td colspan="4"><div class="error-msg">Error: ' + esc(msg) + '</div></td></tr>';
       document.getElementById('leaderboardFoot').innerHTML = '';
       return;
     }
@@ -181,7 +191,7 @@ async function fetchData(forceRefresh) {
     clearTimeout(_skelTimer); _skelTimer = null;
     teardownLoadingUI();
     document.getElementById('leaderboardBody').innerHTML =
-      '<tr><td colspan="4"><div class="error-msg">Error loading data. Check API key and server logs.</div></td></tr>';
+      '<tr><td colspan="4"><div class="error-msg">Network error: ' + esc(err.message || 'unknown') + '</div></td></tr>';
   } finally {
     // Only clear the "fetching" state if THIS fetch is the currently
     // tracked one (not if we were superseded).
