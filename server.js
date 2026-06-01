@@ -88,6 +88,26 @@ function getKpiPeriod(range, nowValue) {
   const now = nowValue ? new Date(nowValue) : new Date();
   let periodStart, periodEnd, periodLabel;
 
+  // Custom date range: range string of the form "custom:YYYY-MM-DD:YYYY-MM-DD"
+  // (inclusive both ends). The end day gets pushed to end-of-day so an
+  // event timestamped at 5pm on the end date is still in range. Falls
+  // through to MTD if the dates fail to parse so a bad URL doesn't 500.
+  if (typeof range === 'string' && range.startsWith('custom:')) {
+    const parts = range.split(':');
+    const startStr = parts[1];
+    const endStr = parts[2] || parts[1];
+    const startD = startStr && new Date(startStr + 'T00:00:00');
+    const endD = endStr && new Date(endStr + 'T00:00:00');
+    if (startD && endD && !isNaN(startD) && !isNaN(endD) && startD <= endD) {
+      periodStart = startD;
+      periodEnd = new Date(endD);
+      periodEnd.setHours(23, 59, 59, 999);
+      const fmt = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      periodLabel = fmt(startD) + ' – ' + fmt(endD);
+      return { range, periodStart, periodEnd, periodLabel };
+    }
+  }
+
   switch (range) {
     case 'day':
       periodStart = getDayStart(now);

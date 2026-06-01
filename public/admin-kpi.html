@@ -2048,6 +2048,234 @@ const PERIOD_PICKER_SECTIONS = [
   { title: 'Rolling', keys: ['l7d', 'l14d', 'l30d', 'l90d', 'l365d'] },
   { title: 'Calendar', keys: ['week', 'lm', 'q2d', 'lq', 'ly'] }
 ];
+// Local-date YYYY-MM-DD formatter — avoids the off-by-one bug you get
+// from .toISOString() when the user's clock is west of UTC and the
+// HCP day is "today" locally but "yesterday" in UTC.
+function ymdLocal(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return y + '-' + m + '-' + day;
+}
+
+/* ── Custom range picker ─────────────────────────────────────────
+   A two-month calendar overlay. The admin clicks a start date,
+   then an end date — the cells between get a range-wash highlight.
+   Clicking before the current start re-opens the start anchor so
+   stepping backwards through dates just works. Apply emits the
+   selected range; Cancel and outside-click both dismiss.
+   ──────────────────────────────────────────────────────────────── */
+function openCustomRangePicker(seedStart, seedEnd, onApply) {
+  // Remove any previous instance — happens if the admin opens the
+  // calendar twice without applying.
+  document.querySelectorAll('.custom-range-backdrop').forEach(el => el.remove());
+
+  const backdrop = document.createElement('div');
+  backdrop.className = 'custom-range-backdrop';
+  const panel = document.createElement('div');
+  panel.className = 'custom-range-panel';
+  backdrop.appendChild(panel);
+
+  // State
+  let startStr = seedStart;
+  let endStr   = seedEnd;
+  // The left calendar month — defaults to the month containing the
+  // current start. The right calendar shows the following month.
+  const leftAnchor = (() => {
+    const d = startStr ? new Date(startStr + 'T00:00:00') : new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  })();
+
+  function parseYmd(s) {
+    if (!s || typeof s !== 'string') return null;
+    const d = new Date(s + 'T00:00:00');
+    return isNaN(d) ? null : d;
+  }
+  function fmtDay(s) {
+    const d = parseYmd(s);
+    if (!d) return '—';
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+  function diffDays(a, b) {
+    const A = parseYmd(a), B = parseYmd(b);
+    if (!A || !B) return 0;
+    return Math.round((B - A) / 86400000) + 1;
+  }
+
+  function render() {
+    const monthLabel = (d) => d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const rightAnchor = new Date(leftAnchor.getFullYear(), leftAnchor.getMonth() + 1, 1);
+    const dayCount = diffDays(startStr, endStr);
+    panel.innerHTML =
+      '<header class="cr-head">' +
+        '<div class="cr-head-titles">' +
+          '<span class="cr-head-eyebrow">Pick a range</span>' +
+          '<span class="cr-head-summary">' +
+            '<strong>' + esc(fmtDay(startStr)) + '</strong>' +
+            '<span class="cr-arrow" aria-hidden="true">→</span>' +
+            '<strong>' + esc(fmtDay(endStr)) + '</strong>' +
+            (dayCount > 0 ? ' <span class="cr-days">· ' + dayCount + ' day' + (dayCount === 1 ? '' : 's') + '</span>' : '') +
+          '</span>' +
+        '</div>' +
+        '<button type="button" class="cr-close" aria-label="Close" data-cr-action="cancel">✕</button>' +
+      '</header>' +
+      '<div class="cr-presets">' +
+        '<button type="button" class="cr-preset" data-cr-preset="last7">Last 7 days</button>' +
+        '<button type="button" class="cr-preset" data-cr-preset="last30">Last 30 days</button>' +
+        '<button type="button" class="cr-preset" data-cr-preset="thisMonth">This month</button>' +
+        '<button type="button" class="cr-preset" data-cr-preset="lastMonth">Last month</button>' +
+        '<button type="button" class="cr-preset" data-cr-preset="ytd">Year to date</button>' +
+      '</div>' +
+      '<div class="cr-months">' +
+        renderMonth(leftAnchor, 'left') +
+        renderMonth(rightAnchor, 'right') +
+      '</div>' +
+      '<footer class="cr-foot">' +
+        '<button type="button" class="cr-btn cr-btn--ghost" data-cr-action="cancel">Cancel</button>' +
+        '<button type="button" class="cr-btn cr-btn--apply" data-cr-action="apply" ' +
+          (startStr && endStr ? '' : 'disabled') + '>Apply range</button>' +
+      '</footer>';
+  }
+
+  function renderMonth(anchor, side) {
+    const monthLabel = anchor.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const firstDayWeekday = anchor.getDay(); // 0=Sun
+    const daysInMonth = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0).getDate();
+    const cells = [];
+    for (let i = 0; i < firstDayWeekday; i++) cells.push('<div class="cr-cell cr-cell--blank"></div>');
+    const startD = parseYmd(startStr);
+    const endD = parseYmd(endStr);
+    for (let d = 1; d <= daysInMonth; d++) {
+      const cellD = new Date(anchor.getFullYear(), anchor.getMonth(), d);
+      const ymd = ymdLocal(cellD);
+      const isStart = startD && cellD.getTime() === startD.getTime();
+      const isEnd = endD && cellD.getTime() === endD.getTime();
+      const inRange = startD && endD && cellD > startD && cellD < endD;
+      const today = ymd === ymdLocal(new Date());
+      const cls = ['cr-cell'];
+      if (isStart) cls.push('is-start');
+      if (isEnd) cls.push('is-end');
+      if (isStart && isEnd) cls.push('is-single');
+      if (inRange) cls.push('is-in-range');
+      if (today) cls.push('is-today');
+      cells.push(
+        '<button type="button" class="' + cls.join(' ') + '" data-cr-day="' + ymd + '">' +
+          '<span class="cr-cell-num">' + d + '</span>' +
+        '</button>'
+      );
+    }
+    const navPrev = side === 'left'
+      ? '<button type="button" class="cr-nav cr-nav--prev" data-cr-nav="-1" aria-label="Previous month">‹</button>'
+      : '<span class="cr-nav-spacer" aria-hidden="true"></span>';
+    const navNext = side === 'right'
+      ? '<button type="button" class="cr-nav cr-nav--next" data-cr-nav="1" aria-label="Next month">›</button>'
+      : '<span class="cr-nav-spacer" aria-hidden="true"></span>';
+    return (
+      '<div class="cr-month cr-month--' + side + '">' +
+        '<div class="cr-month-head">' +
+          navPrev +
+          '<span class="cr-month-title">' + esc(monthLabel) + '</span>' +
+          navNext +
+        '</div>' +
+        '<div class="cr-dow"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>' +
+        '<div class="cr-grid">' + cells.join('') + '</div>' +
+      '</div>'
+    );
+  }
+
+  function applyPreset(name) {
+    const today = new Date();
+    const todayStr = ymdLocal(today);
+    if (name === 'last7') {
+      const d = new Date(today); d.setDate(today.getDate() - 6);
+      startStr = ymdLocal(d); endStr = todayStr;
+    } else if (name === 'last30') {
+      const d = new Date(today); d.setDate(today.getDate() - 29);
+      startStr = ymdLocal(d); endStr = todayStr;
+    } else if (name === 'thisMonth') {
+      const d = new Date(today.getFullYear(), today.getMonth(), 1);
+      startStr = ymdLocal(d); endStr = todayStr;
+    } else if (name === 'lastMonth') {
+      const a = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const b = new Date(today.getFullYear(), today.getMonth(), 0); // last day of prev month
+      startStr = ymdLocal(a); endStr = ymdLocal(b);
+    } else if (name === 'ytd') {
+      const a = new Date(today.getFullYear(), 0, 1);
+      startStr = ymdLocal(a); endStr = todayStr;
+    }
+    // Re-anchor left calendar to the start month so the picked range
+    // is visible without the admin having to scroll.
+    const sd = parseYmd(startStr);
+    if (sd) { leftAnchor.setFullYear(sd.getFullYear(), sd.getMonth(), 1); }
+    render();
+  }
+
+  function pickDay(ymd) {
+    if (!startStr || (startStr && endStr)) {
+      // Fresh start — single anchor
+      startStr = ymd;
+      endStr = '';
+    } else {
+      // We have a start, no end. Compare and decide.
+      const start = parseYmd(startStr);
+      const cand = parseYmd(ymd);
+      if (cand < start) {
+        // Clicked before current start → that becomes the new start;
+        // old start becomes end
+        endStr = startStr;
+        startStr = ymd;
+      } else {
+        endStr = ymd;
+      }
+    }
+    render();
+  }
+
+  panel.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const navEl = e.target.closest('[data-cr-nav]');
+    if (navEl) {
+      const dir = Number(navEl.dataset.crNav) || 0;
+      leftAnchor.setMonth(leftAnchor.getMonth() + dir);
+      render();
+      return;
+    }
+    const dayEl = e.target.closest('[data-cr-day]');
+    if (dayEl) { pickDay(dayEl.dataset.crDay); return; }
+    const presetEl = e.target.closest('[data-cr-preset]');
+    if (presetEl) { applyPreset(presetEl.dataset.crPreset); return; }
+    const actEl = e.target.closest('[data-cr-action]');
+    if (actEl) {
+      const a = actEl.dataset.crAction;
+      if (a === 'cancel') { dismiss(); return; }
+      if (a === 'apply') {
+        if (!startStr || !endStr) return;
+        dismiss();
+        onApply(startStr, endStr);
+        return;
+      }
+    }
+  });
+
+  function onBackdropClick(e) { if (e.target === backdrop) dismiss(); }
+  function onKey(e) {
+    if (e.key === 'Escape') { e.preventDefault(); dismiss(); }
+  }
+  function dismiss() {
+    backdrop.removeEventListener('click', onBackdropClick);
+    document.removeEventListener('keydown', onKey);
+    backdrop.classList.add('is-closing');
+    setTimeout(() => backdrop.remove(), 160);
+  }
+  backdrop.addEventListener('click', onBackdropClick);
+  document.addEventListener('keydown', onKey);
+
+  document.body.appendChild(backdrop);
+  render();
+  // Animate in on the next frame
+  requestAnimationFrame(() => backdrop.classList.add('is-open'));
+}
+
 function setupPeriodPicker() {
   const sel = $('periodSel');
   if (!sel || sel.dataset.pickerized === '1') return;
@@ -2072,6 +2300,18 @@ function setupPeriodPicker() {
   wrap.appendChild(menu);
 
   function labelFor(key) {
+    // Custom range: "custom:YYYY-MM-DD:YYYY-MM-DD" → "Mar 1 – Mar 31"
+    if (typeof key === 'string' && key.startsWith('custom:')) {
+      const [, start, end] = key.split(':');
+      if (start && end) {
+        const fmt = (s) => {
+          const d = new Date(s + 'T00:00:00');
+          if (isNaN(d)) return s;
+          return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        };
+        return fmt(start) + ' – ' + fmt(end);
+      }
+    }
     const r = KPI_RANGES.find(x => x.key === key);
     return r ? r.label : key;
   }
@@ -2107,6 +2347,21 @@ function setupPeriodPicker() {
         );
       });
     }
+    // Custom range row — always at the very bottom. Clicking opens
+    // the calendar overlay rather than picking a preset range.
+    parts.push('<div class="period-picker-divider"></div>');
+    const customActive = typeof sel.value === 'string' && sel.value.startsWith('custom:');
+    parts.push(
+      '<button type="button" class="period-picker-item period-picker-item--custom' +
+      (customActive ? ' is-selected' : '') +
+      '" data-action="open-custom-range" role="option">' +
+      '<span class="period-picker-item-ico" aria-hidden="true">📅</span>' +
+      '<span class="period-picker-item-text">' +
+        '<span class="period-picker-item-title">Custom range…</span>' +
+        '<span class="period-picker-item-sub">Pick any start + end date</span>' +
+      '</span>' +
+      '</button>'
+    );
     menu.innerHTML = parts.join('');
     syncSelected();
   }
@@ -2178,6 +2433,37 @@ function setupPeriodPicker() {
   menu.addEventListener('click', (e) => {
     const item = e.target.closest('.period-picker-item');
     if (!item) return;
+    if (item.dataset.action === 'open-custom-range') {
+      close();
+      // Seed the calendar with whatever's currently selected — if it's
+      // already a custom range, pre-fill those dates; otherwise default
+      // to "the last 30 days" so the admin sees a sensible range.
+      const currentCustom = (typeof sel.value === 'string' && sel.value.startsWith('custom:'))
+        ? sel.value.split(':') : null;
+      const today = new Date();
+      const seedEnd = currentCustom ? currentCustom[2] : ymdLocal(today);
+      const seedStart = currentCustom ? currentCustom[1] : (() => {
+        const d = new Date(today);
+        d.setDate(d.getDate() - 30);
+        return ymdLocal(d);
+      })();
+      openCustomRangePicker(seedStart, seedEnd, (start, end) => {
+        const key = 'custom:' + start + ':' + end;
+        // Make sure the underlying <select> has an option for this
+        // value so .value sticks. We add it dynamically.
+        let opt = Array.from(sel.options).find(o => o.value === key);
+        if (!opt) {
+          opt = document.createElement('option');
+          opt.value = key;
+          opt.textContent = labelFor(key);
+          sel.appendChild(opt);
+        }
+        sel.value = key;
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+        updateBtnLabel();
+      });
+      return;
+    }
     sel.value = item.dataset.key;
     // Fire 'change' on the underlying select so the existing
     // listener (which calls loadJobs + writes to localStorage) runs.
@@ -2311,6 +2597,18 @@ async function initApp() {
     }
     $('gate').style.display = 'none';
     $('app').style.display = '';
+    // If a custom range was persisted from a previous session, the
+    // KPI_RANGES populator above won't have created an <option> for
+    // it (those are preset-only). Inject one so setting .value sticks.
+    if (CURRENT_RANGE && CURRENT_RANGE.startsWith && CURRENT_RANGE.startsWith('custom:')) {
+      const psel = $('periodSel');
+      if (psel && !Array.from(psel.options).some(o => o.value === CURRENT_RANGE)) {
+        const opt = document.createElement('option');
+        opt.value = CURRENT_RANGE;
+        opt.textContent = CURRENT_RANGE;
+        psel.appendChild(opt);
+      }
+    }
     $('periodSel').value = CURRENT_RANGE;
     // Programmatic .value assignment doesn't fire 'change', so the
     // custom period-picker UI wouldn't refresh on its own.
