@@ -5993,6 +5993,20 @@ app.get('/api/kpi/admin/reconciliations', (req, res) => {
   });
 });
 
+// Read-only bulk export for the one-time migration into the new Scheduler
+// database. Returns the two manual-edit files verbatim: the reconciliation map
+// (keyed by HCP job id) and the attribution-override rules. These files hold
+// only attribution metadata (names, credit %, amounts, notes, timestamps); no
+// tokens, keys, or secrets. Password-gated like every other admin endpoint.
+app.get('/api/kpi/admin/export', (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  res.json({
+    exportedAt: new Date().toISOString(),
+    reconciliations: loadReconciliations(),             // map: { [jobId]: record }
+    attributionOverrides: loadKpiAttributionOverrides() // { overrides: [...] }
+  });
+});
+
 // ── Page routes ──────────────────────────────────────────────────────────
 app.get(['/report-issue', '/feedback'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'report-issue.html'));
